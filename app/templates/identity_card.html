@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}IBP - Identity Card{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6">
+        🎴 Identity Card
+    </h1>
+    
+    <div class="card rounded-xl p-8 text-center">
+        <span class="text-6xl mb-4 block">🎴</span>
+        <h2 class="text-xl font-semibold mb-2">Identity Card Generator</h2>
+        <p class="text-gray-400 mb-4">
+            Investigation ID: {{ investigation_id }}
+        </p>
+        <p class="text-gray-500">
+            The final identity card will be generated here with all discovered information.
+        </p>
+    </div>
+</div>
+{% endblock %}

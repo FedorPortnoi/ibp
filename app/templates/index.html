@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IBP - Identity-Based Profiler</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+        }
+        .glow {
+            box-shadow: 0 0 40px rgba(6, 182, 212, 0.15);
+        }
+        .upload-zone {
+            border: 2px dashed #475569;
+            transition: all 0.3s ease;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: #06b6d4;
+            background: rgba(6, 182, 212, 0.05);
+        }
+    </style>
+</head>
+<body class="text-white">
+    <!-- Navigation -->
+    <nav class="border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-sm">
+        <div class="max-w-6xl mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <a href="/" class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">IBP</span>
+                    </div>
+                    <span class="text-lg font-semibold text-slate-200">Identity-Based Profiler</span>
+                </a>
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-slate-300 hover:text-white text-sm">New Investigation</a>
+                    <a href="/dashboard" class="text-slate-300 hover:text-white text-sm">Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-2xl mx-auto px-4 py-12">
+        
+        <!-- Header -->
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent mb-4">
+                Start Investigation
+            </h1>
+            <p class="text-slate-400 text-lg">
+                Enter target's name to discover their social media accounts
+            </p>
+        </div>
+
+        <!-- Investigation Form - Using direct URL -->
+        <form action="/phase1/start" method="POST" enctype="multipart/form-data" 
+              class="bg-slate-800/50 rounded-2xl p-8 border border-slate-700/50 glow">
+            
+            <!-- Name Input -->
+            <div class="mb-6">
+                <label for="target_name" class="block text-sm font-medium text-slate-300 mb-2">
+                    Target's Full Name <span class="text-red-400">*</span>
+                </label>
+                <input type="text" id="target_name" name="target_name" required
+                       placeholder="e.g., Иван Петров or Ivan Petrov"
+                       class="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl 
+                              text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500
+                              focus:ring-1 focus:ring-cyan-500 transition-all">
+                <p class="mt-2 text-xs text-slate-500">
+                    Enter name in Cyrillic or Latin. Both will be searched.
+                </p>
+            </div>
+
+            <!-- Photo Upload (Optional) -->
+            <div class="mb-8">
+                <label class="block text-sm font-medium text-slate-300 mb-2">
+                    Target's Photo <span class="text-slate-500">(optional)</span>
+                </label>
+                <div id="upload-zone" class="upload-zone rounded-xl p-8 text-center cursor-pointer"
+                     onclick="document.getElementById('target_photo').click()">
+                    <input type="file" id="target_photo" name="target_photo" accept="image/*" class="hidden"
+                           onchange="handleFileSelect(this)">
+                    <div id="upload-placeholder">
+                        <div class="w-12 h-12 mx-auto mb-3 bg-slate-700 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <p class="text-slate-400 text-sm">Click or drag photo here</p>
+                        <p class="text-slate-500 text-xs mt-1">Used for facial recognition in Phase 2</p>
+                    </div>
+                    <div id="upload-preview" class="hidden">
+                        <img id="preview-image" src="" alt="Preview" class="w-24 h-24 mx-auto rounded-lg object-cover mb-2">
+                        <p id="preview-name" class="text-slate-300 text-sm"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- What Will Happen -->
+            <div class="bg-slate-900/50 rounded-xl p-4 mb-6">
+                <h3 class="text-sm font-medium text-slate-300 mb-3">What happens next:</h3>
+                <ul class="space-y-2 text-sm text-slate-400">
+                    <li class="flex items-start space-x-2">
+                        <span class="text-cyan-400">1.</span>
+                        <span>Generate 50 username variations from the name</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <span class="text-cyan-400">2.</span>
+                        <span>Search each username across 500+ websites</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <span class="text-cyan-400">3.</span>
+                        <span>Display all found accounts for your review</span>
+                    </li>
+                </ul>
+                <p class="mt-3 text-xs text-slate-500">
+                    ⏱️ Estimated time: 2-5 minutes (50 usernames × 500 sites)
+                </p>
+            </div>
+
+            <!-- OPSEC Warning -->
+            <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6">
+                <div class="flex items-start space-x-3">
+                    <span class="text-amber-400 text-xl">⚠️</span>
+                    <div class="text-sm">
+                        <p class="text-amber-300 font-medium">OPSEC Reminder</p>
+                        <p class="text-amber-200/70 mt-1">
+                            Use a VPN before searching. Your IP makes requests to hundreds of websites.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" 
+                    class="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 
+                           text-white font-semibold rounded-xl transition-all transform hover:scale-[1.02]
+                           focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-900">
+                🔍 Start Investigation
+            </button>
+        </form>
+
+        <!-- Footer Info -->
+        <div class="mt-8 text-center text-slate-500 text-sm">
+            <p>Russia/CIS-focused OSINT tool • Phase 1 of 3</p>
+        </div>
+
+    </main>
+
+    <script>
+        // Drag and drop handling
+        const uploadZone = document.getElementById('upload-zone');
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, () => uploadZone.classList.add('dragover'), false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, () => uploadZone.classList.remove('dragover'), false);
+        });
+        
+        uploadZone.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('target_photo').files = files;
+                handleFileSelect(document.getElementById('target_photo'));
+            }
+        }
+        
+        function handleFileSelect(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    document.getElementById('preview-image').src = e.target.result;
+                    document.getElementById('preview-name').textContent = file.name;
+                    document.getElementById('upload-placeholder').classList.add('hidden');
+                    document.getElementById('upload-preview').classList.remove('hidden');
+                };
+                
+                reader.readAsDataURL(file);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IBP // ERROR</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --cyan: #00ffff;
+            --bg-dark: #0a0a0a;
+            --bg-panel: #0d1117;
+            --border-color: #00ffff30;
+            --text-dim: #4a6670;
+            --red: #ff4444;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--cyan);
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.15), rgba(0,0,0,0.15) 1px, transparent 1px, transparent 2px);
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .error-container {
+            text-align: center;
+            padding: 40px;
+            background: var(--bg-panel);
+            border: 1px solid var(--red);
+            max-width: 500px;
+        }
+
+        .error-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+            animation: glitch 1s infinite;
+        }
+
+        @keyframes glitch {
+            0%, 90%, 100% { opacity: 1; }
+            92%, 94%, 96% { opacity: 0.3; transform: translateX(-2px); }
+            91%, 93%, 95% { opacity: 0.8; transform: translateX(2px); }
+        }
+
+        .error-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 24px;
+            color: var(--red);
+            margin-bottom: 20px;
+            letter-spacing: 4px;
+        }
+
+        .error-message {
+            color: var(--text-dim);
+            margin-bottom: 30px;
+            padding: 15px;
+            background: #1a0a0a;
+            border: 1px solid #ff444430;
+        }
+
+        .back-btn {
+            background: transparent;
+            border: 1px solid var(--cyan);
+            color: var(--cyan);
+            padding: 12px 30px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            box-shadow: 0 0 10px var(--cyan);
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-icon">⚠</div>
+        <div class="error-title">SYSTEM ERROR</div>
+        <div class="error-message">{{ error or 'An unknown error occurred' }}</div>
+        <a href="/phase1/" class="back-btn">◀ RETURN TO START</a>
+    </div>
+</body>
+</html>

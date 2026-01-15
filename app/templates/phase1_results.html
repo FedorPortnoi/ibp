@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IBP // RESULTS - {{ target_name }}</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --cyan: #00ffff;
+            --cyan-dim: #00a8a8;
+            --cyan-glow: 0 0 10px #00ffff, 0 0 20px #00ffff40;
+            --bg-dark: #0a0a0a;
+            --bg-panel: #0d1117;
+            --border-color: #00ffff30;
+            --text-dim: #4a6670;
+            --green: #00ff88;
+            --orange: #ffaa00;
+            --red: #ff4444;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--cyan);
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* Scanline */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.15), rgba(0,0,0,0.15) 1px, transparent 1px, transparent 2px);
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            text-shadow: var(--cyan-glow);
+        }
+
+        .target-info {
+            padding-left: 20px;
+            border-left: 1px solid var(--border-color);
+        }
+
+        .target-label {
+            font-size: 10px;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+        }
+
+        .target-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px;
+            color: var(--cyan);
+        }
+
+        .header-right {
+            display: flex;
+            gap: 15px;
+        }
+
+        .header-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--cyan);
+            padding: 10px 20px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-btn:hover {
+            border-color: var(--cyan);
+            box-shadow: var(--cyan-glow);
+        }
+
+        .header-btn.primary {
+            background: linear-gradient(180deg, #0a2020 0%, #0a1515 100%);
+            border-color: var(--green);
+            color: var(--green);
+        }
+
+        .header-btn.primary:hover {
+            box-shadow: 0 0 10px var(--green);
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 2px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 32px;
+            color: var(--cyan);
+            text-shadow: var(--cyan-glow);
+        }
+
+        .stat-value.green { color: var(--green); text-shadow: 0 0 10px var(--green); }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+            margin-top: 5px;
+        }
+
+        /* Filter Bar */
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 20px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .filter-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+        }
+
+        .filter-input {
+            flex: 1;
+            background: #0a0f12;
+            border: 1px solid var(--border-color);
+            padding: 10px 15px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 13px;
+            color: var(--cyan);
+            outline: none;
+        }
+
+        .filter-input:focus {
+            border-color: var(--cyan);
+        }
+
+        .filter-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-dim);
+            padding: 10px 15px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover, .filter-btn.active {
+            border-color: var(--cyan);
+            color: var(--cyan);
+        }
+
+        /* Platform Sections */
+        .platform-section {
+            margin-bottom: 20px;
+        }
+
+        .platform-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 20px;
+            background: linear-gradient(180deg, #0f1a1f 0%, var(--bg-panel) 100%);
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            cursor: pointer;
+        }
+
+        .platform-header:hover {
+            background: linear-gradient(180deg, #142025 0%, var(--bg-panel) 100%);
+        }
+
+        .platform-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 13px;
+            letter-spacing: 2px;
+        }
+
+        .platform-icon {
+            font-size: 20px;
+        }
+
+        .platform-count {
+            background: var(--cyan);
+            color: var(--bg-dark);
+            padding: 3px 10px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .platform-accounts {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 10px;
+            padding: 15px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+        }
+
+        .platform-accounts.collapsed {
+            display: none;
+        }
+
+        /* Account Card */
+        .account-card {
+            background: #0a1214;
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .account-card:hover {
+            border-color: var(--cyan);
+            box-shadow: 0 0 15px #00ffff15;
+        }
+
+        .account-card.face-match {
+            border-color: var(--green);
+        }
+
+        .account-card.face-match::before {
+            content: "🎯 FACE MATCH";
+            position: absolute;
+            top: -1px;
+            right: -1px;
+            background: var(--green);
+            color: var(--bg-dark);
+            padding: 3px 8px;
+            font-size: 9px;
+            font-weight: bold;
+        }
+
+        .account-card.selected {
+            border-color: var(--orange);
+            background: #1a1a0a;
+        }
+
+        .account-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .account-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--cyan);
+            cursor: pointer;
+        }
+
+        .account-username {
+            flex: 1;
+            font-size: 14px;
+            color: var(--cyan);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .account-url {
+            font-size: 11px;
+            color: var(--text-dim);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 10px;
+        }
+
+        .account-url a {
+            color: var(--text-dim);
+            text-decoration: none;
+        }
+
+        .account-url a:hover {
+            color: var(--cyan);
+        }
+
+        .account-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .account-badge {
+            font-size: 9px;
+            padding: 3px 8px;
+            background: #00ffff15;
+            border: 1px solid var(--border-color);
+            color: var(--cyan-dim);
+        }
+
+        .account-badge.verified {
+            color: var(--green);
+            border-color: #00ff8850;
+        }
+
+        .face-score {
+            font-size: 11px;
+            color: var(--green);
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .account-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .account-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-dim);
+            padding: 5px 10px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .account-btn:hover {
+            border-color: var(--cyan);
+            color: var(--cyan);
+        }
+
+        /* Bottom Action Bar */
+        .action-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-panel);
+            border-top: 1px solid var(--border-color);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+        }
+
+        .selection-info {
+            font-size: 13px;
+        }
+
+        .selection-info span {
+            color: var(--orange);
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1000px) {
+            .stats-bar {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .stats-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .platform-accounts {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Spacer for fixed bottom bar */
+        .bottom-spacer {
+            height: 80px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <div class="logo">IBP</div>
+                <div class="target-info">
+                    <div class="target-label">TARGET</div>
+                    <div class="target-name">{{ target_name }}</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <a href="/phase1/" class="header-btn">◀ NEW SEARCH</a>
+                <button class="header-btn" onclick="exportSelected()">📥 EXPORT</button>
+                <button class="header-btn primary" onclick="continueToPhase2()">PHASE 2 ▶</button>
+            </div>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.usernames_searched }}</div>
+                <div class="stat-label">USERNAMES SEARCHED</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.raw_accounts }}</div>
+                <div class="stat-label">RAW RESULTS</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value green">{{ stats.validated_accounts }}</div>
+                <div class="stat-label">VALIDATED ACCOUNTS</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.face_matches }}</div>
+                <div class="stat-label">FACE MATCHES</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ "%.0f"|format(stats.elapsed_time // 60) }}m {{ "%.0f"|format(stats.elapsed_time % 60) }}s</div>
+                <div class="stat-label">SEARCH TIME</div>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <span class="filter-label">FILTER:</span>
+            <input type="text" class="filter-input" id="searchFilter" placeholder="Search usernames or URLs...">
+            <button class="filter-btn active" data-filter="all">ALL</button>
+            <button class="filter-btn" data-filter="face">FACE MATCHES</button>
+            <button class="filter-btn" data-filter="selected">SELECTED</button>
+        </div>
+
+        <!-- Platform Sections -->
+        {% for platform, accounts in platforms %}
+        <div class="platform-section" data-platform="{{ platform }}">
+            <div class="platform-header" onclick="togglePlatform(this)">
+                <div class="platform-title">
+                    <span class="platform-icon">
+                        {% if platform.lower() == 'vk' or platform.lower() == 'vkontakte' %}🔵
+                        {% elif platform.lower() == 'telegram' %}✈️
+                        {% elif platform.lower() == 'instagram' %}📷
+                        {% elif platform.lower() == 'ok' or platform.lower() == 'odnoklassniki' %}🟠
+                        {% elif platform.lower() == 'mail.ru' %}📧
+                        {% elif platform.lower() == 'whatsapp' %}💬
+                        {% else %}🌐{% endif %}
+                    </span>
+                    {{ platform | upper }}
+                </div>
+                <div class="platform-count">{{ accounts | length }}</div>
+            </div>
+            <div class="platform-accounts">
+                {% for account in accounts %}
+                <div class="account-card {% if account.face_match_score and account.face_match_score > 0 %}face-match{% endif %}" 
+                     data-username="{{ account.username }}"
+                     data-url="{{ account.url }}"
+                     data-face-match="{{ 'true' if account.face_match_score and account.face_match_score > 0 else 'false' }}">
+                    <div class="account-header">
+                        <input type="checkbox" class="account-checkbox" onchange="updateSelection()">
+                        <span class="account-username">{{ account.username }}</span>
+                    </div>
+                    <div class="account-url">
+                        <a href="{{ account.url }}" target="_blank">{{ account.url }}</a>
+                    </div>
+                    <div class="account-footer">
+                        <div>
+                            <span class="account-badge verified">✓ VERIFIED</span>
+                            {% if account.face_match_score and account.face_match_score > 0 %}
+                            <span class="face-score">🎯 {{ "%.1f"|format(account.face_match_score) }}%</span>
+                            {% endif %}
+                        </div>
+                        <div class="account-actions">
+                            <button class="account-btn" onclick="window.open('{{ account.url }}', '_blank')">OPEN</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="bottom-spacer"></div>
+    </div>
+
+    <!-- Action Bar -->
+    <div class="action-bar">
+        <div class="selection-info">
+            <span id="selectedCount">0</span> profiles selected
+        </div>
+        <div class="action-buttons">
+            <button class="header-btn" onclick="selectAll()">SELECT ALL</button>
+            <button class="header-btn" onclick="deselectAll()">DESELECT ALL</button>
+            <button class="header-btn primary" onclick="continueToPhase2()">CONTINUE TO PHASE 2 ▶</button>
+        </div>
+    </div>
+
+    <script>
+        // Toggle platform section
+        function togglePlatform(header) {
+            const accounts = header.nextElementSibling;
+            accounts.classList.toggle('collapsed');
+        }
+
+        // Update selection count
+        function updateSelection() {
+            const checkboxes = document.querySelectorAll('.account-checkbox:checked');
+            document.getElementById('selectedCount').textContent = checkboxes.length;
+            
+            // Update card styling
+            document.querySelectorAll('.account-card').forEach(card => {
+                const checkbox = card.querySelector('.account-checkbox');
+                card.classList.toggle('selected', checkbox.checked);
+            });
+        }
+
+        // Select all
+        function selectAll() {
+            document.querySelectorAll('.account-checkbox').forEach(cb => {
+                if (cb.closest('.account-card').style.display !== 'none') {
+                    cb.checked = true;
+                }
+            });
+            updateSelection();
+        }
+
+        // Deselect all
+        function deselectAll() {
+            document.querySelectorAll('.account-checkbox').forEach(cb => cb.checked = false);
+            updateSelection();
+        }
+
+        // Filter functionality
+        const searchFilter = document.getElementById('searchFilter');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+
+        searchFilter.addEventListener('input', applyFilters);
+        
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                applyFilters();
+            });
+        });
+
+        function applyFilters() {
+            const searchTerm = searchFilter.value.toLowerCase();
+            const activeFilter = document.querySelector('.filter-btn.active').dataset.filter;
+            
+            document.querySelectorAll('.account-card').forEach(card => {
+                const username = card.dataset.username.toLowerCase();
+                const url = card.dataset.url.toLowerCase();
+                const hasFaceMatch = card.dataset.faceMatch === 'true';
+                const isSelected = card.querySelector('.account-checkbox').checked;
+                
+                let show = true;
+                
+                // Text search
+                if (searchTerm && !username.includes(searchTerm) && !url.includes(searchTerm)) {
+                    show = false;
+                }
+                
+                // Filter type
+                if (activeFilter === 'face' && !hasFaceMatch) show = false;
+                if (activeFilter === 'selected' && !isSelected) show = false;
+                
+                card.style.display = show ? '' : 'none';
+            });
+            
+            // Update platform counts visibility
+            document.querySelectorAll('.platform-section').forEach(section => {
+                const visibleCards = section.querySelectorAll('.account-card:not([style*="display: none"])');
+                section.style.display = visibleCards.length > 0 ? '' : 'none';
+            });
+        }
+
+        // Export selected
+        function exportSelected() {
+            const selected = [];
+            document.querySelectorAll('.account-checkbox:checked').forEach(cb => {
+                const card = cb.closest('.account-card');
+                selected.push({
+                    username: card.dataset.username,
+                    url: card.dataset.url,
+                    platform: card.closest('.platform-section').dataset.platform
+                });
+            });
+            
+            if (selected.length === 0) {
+                alert('No accounts selected');
+                return;
+            }
+            
+            const json = JSON.stringify(selected, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ibp_export_{{ task_id }}.json';
+            a.click();
+        }
+
+        // Continue to Phase 2
+        function continueToPhase2() {
+            const selected = [];
+            document.querySelectorAll('.account-checkbox:checked').forEach(cb => {
+                const card = cb.closest('.account-card');
+                selected.push({
+                    username: card.dataset.username,
+                    url: card.dataset.url,
+                    platform: card.closest('.platform-section').dataset.platform
+                });
+            });
+            
+            if (selected.length === 0) {
+                alert('Please select at least one account to continue');
+                return;
+            }
+            
+            // Store in session and redirect
+            sessionStorage.setItem('phase2_accounts', JSON.stringify(selected));
+            window.location.href = '/phase2/?task_id={{ task_id }}';
+        }
+    </script>
+</body>
+</html>

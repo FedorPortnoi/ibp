@@ -1,0 +1,37 @@
+# IBP - Identity-Based Profiler
+# OSINT Investigation Platform Dependencies
+
+# Core Framework
+Flask>=3.0.0
+Flask-SQLAlchemy>=3.1.1
+Flask-Migrate>=4.0.5
+
+# Database
+SQLAlchemy>=2.0.23
+
+# OSINT Tools
+maigret>=0.4.4
+sherlock-project>=0.14.3
+
+# HTTP Requests & Scraping
+requests>=2.31.0
+beautifulsoup4>=4.12.2
+lxml>=4.9.3
+httpx>=0.25.2
+
+# Image Processing
+Pillow>=10.1.0
+
+# Environment & Config
+python-dotenv>=1.0.0
+
+# PDF/Image Export
+weasyprint>=60.1
+html2image>=2.0.4.3
+
+# Utilities
+transliterate>=1.10.2
+phonenumbers>=8.13.26
+
+# Development
+python-dateutil>=2.8.2

@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IBP // IDENTITY-BASED PROFILER</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --cyan: #00ffff;
+            --cyan-dim: #00a8a8;
+            --cyan-glow: 0 0 10px #00ffff, 0 0 20px #00ffff40;
+            --bg-dark: #0a0a0a;
+            --bg-panel: #0d1117ee;
+            --border-color: #00ffff30;
+            --text-dim: #4a6670;
+            --green: #00ff88;
+            --red: #ff4444;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--cyan);
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        /* Matrix Rain Canvas */
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 9998;
+        }
+
+        .vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.8) 100%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 800px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 80px;
+            font-weight: 900;
+            text-shadow: 
+                0 0 10px var(--cyan),
+                0 0 20px var(--cyan),
+                0 0 40px var(--cyan),
+                0 0 80px var(--cyan);
+            letter-spacing: 20px;
+            margin-bottom: 10px;
+            animation: logoGlow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes logoGlow {
+            from { text-shadow: 0 0 10px var(--cyan), 0 0 20px var(--cyan), 0 0 40px var(--cyan); }
+            to { text-shadow: 0 0 20px var(--cyan), 0 0 40px var(--cyan), 0 0 80px var(--cyan), 0 0 120px var(--cyan); }
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--cyan-dim);
+            letter-spacing: 8px;
+            text-transform: uppercase;
+        }
+
+        .version {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 10px;
+            letter-spacing: 2px;
+        }
+
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+            animation: scanLine 3s linear infinite;
+        }
+
+        @keyframes scanLine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .panel-header {
+            background: linear-gradient(180deg, #0f1a1f 0%, transparent 100%);
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            letter-spacing: 3px;
+            color: var(--cyan);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-header::before {
+            content: "▶";
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        .panel-content { padding: 30px; }
+
+        .form-group { margin-bottom: 25px; }
+
+        .form-label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .form-input {
+            width: 100%;
+            background: #0a0f12;
+            border: 1px solid var(--border-color);
+            padding: 15px 20px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 16px;
+            color: var(--cyan);
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .form-input:focus {
+            border-color: var(--cyan);
+            box-shadow: 0 0 20px #00ffff20, inset 0 0 20px #00ffff05;
+        }
+
+        .form-input::placeholder { color: var(--text-dim); }
+
+        .photo-upload {
+            border: 2px dashed var(--border-color);
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            background: #0a0f1280;
+        }
+
+        .photo-upload:hover {
+            border-color: var(--cyan-dim);
+            background: #00ffff08;
+        }
+
+        .photo-upload.has-file {
+            border-color: var(--green);
+            border-style: solid;
+        }
+
+        .photo-upload input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .upload-icon { font-size: 40px; margin-bottom: 15px; opacity: 0.7; }
+        .upload-text { color: var(--text-dim); font-size: 12px; letter-spacing: 1px; }
+        .upload-hint { color: var(--cyan-dim); font-size: 10px; margin-top: 10px; }
+
+        .photo-preview { display: none; margin-top: 15px; }
+        .photo-preview img {
+            max-width: 120px;
+            max-height: 120px;
+            border: 2px solid var(--cyan);
+            box-shadow: var(--cyan-glow);
+        }
+        .photo-preview .filename { margin-top: 10px; font-size: 11px; color: var(--green); }
+
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(180deg, #0a2525 0%, #0a1818 100%);
+            border: 2px solid var(--cyan);
+            padding: 18px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            letter-spacing: 4px;
+            color: var(--cyan);
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .submit-btn::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, #00ffff30, transparent);
+            transition: left 0.5s;
+        }
+
+        .submit-btn:hover {
+            background: linear-gradient(180deg, #0a3535 0%, #0a2525 100%);
+            box-shadow: 0 0 20px #00ffff40, inset 0 0 20px #00ffff10;
+        }
+
+        .submit-btn:hover::before { left: 100%; }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px;
+            margin-top: 30px;
+        }
+
+        .feature {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            padding: 20px 15px;
+            text-align: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .feature-icon { font-size: 28px; margin-bottom: 10px; }
+        .feature-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 9px;
+            letter-spacing: 1px;
+            color: var(--cyan);
+            margin-bottom: 5px;
+        }
+        .feature-desc { font-size: 9px; color: var(--text-dim); line-height: 1.4; }
+
+        .warning {
+            margin-top: 20px;
+            padding: 15px;
+            background: #1a150aee;
+            border: 1px solid #ffaa0030;
+            font-size: 11px;
+            color: #ffaa00;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .warning-icon { font-size: 20px; animation: pulse 2s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 10, 0.98);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .loading-overlay.active { display: flex; }
+
+        .loading-spinner {
+            width: 80px;
+            height: 80px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading-text {
+            margin-top: 25px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            letter-spacing: 4px;
+            animation: textPulse 1.5s infinite;
+        }
+
+        @keyframes textPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .error-message {
+            display: none;
+            padding: 15px;
+            background: #1a0a0a;
+            border: 1px solid #ff444430;
+            color: var(--red);
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+
+        .error-message.visible { display: block; }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 10px;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+        }
+
+        .corner {
+            position: fixed;
+            width: 100px;
+            height: 100px;
+            border: 2px solid var(--border-color);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .corner-tl { top: 20px; left: 20px; border-right: none; border-bottom: none; }
+        .corner-tr { top: 20px; right: 20px; border-left: none; border-bottom: none; }
+        .corner-bl { bottom: 20px; left: 20px; border-right: none; border-top: none; }
+        .corner-br { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+    </style>
+</head>
+<body>
+    <canvas id="matrix-canvas"></canvas>
+    <div class="vignette"></div>
+    <div class="scanlines"></div>
+    
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">INITIALIZING...</div>
+    </div>
+
+    <div class="main-container">
+        <div class="header">
+            <div class="logo">IBP</div>
+            <div class="subtitle">Identity-Based Profiler</div>
+            <div class="version">v1.0 // RUSSIA-FOCUSED OSINT PLATFORM</div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">NEW INVESTIGATION</div>
+            <div class="panel-content">
+                <div class="error-message" id="errorMessage"></div>
+
+                <form id="searchForm">
+                    <div class="form-group">
+                        <label class="form-label">Target Name *</label>
+                        <input 
+                            type="text" 
+                            class="form-input" 
+                            name="target_name" 
+                            id="targetName"
+                            placeholder="Иван Петров or Ivan Petrov"
+                            required
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Target Photo (Optional)</label>
+                        <div class="photo-upload" id="photoUpload">
+                            <input type="file" name="photo" id="photoInput" accept="image/*">
+                            <div class="upload-icon">📷</div>
+                            <div class="upload-text">CLICK OR DRAG PHOTO HERE</div>
+                            <div class="upload-hint">Enables AI face matching</div>
+                            <div class="photo-preview" id="photoPreview">
+                                <img id="previewImage" src="" alt="Preview">
+                                <div class="filename" id="fileName"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="submitBtn">
+                        ▶ START INVESTIGATION
+                    </button>
+                </form>
+
+                <div class="warning">
+                    <span class="warning-icon">⚠</span>
+                    <span>Use VPN before starting. Search takes 10-20 minutes.</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">🔍</div>
+                <div class="feature-title">USERNAME SEARCH</div>
+                <div class="feature-desc">100+ variations across Russian platforms</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🎯</div>
+                <div class="feature-title">FACE MATCHING</div>
+                <div class="feature-desc">AI-powered recognition on all photos</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🇷🇺</div>
+                <div class="feature-title">RUSSIA FOCUSED</div>
+                <div class="feature-desc">VK, Telegram, OK & CIS platforms</div>
+            </div>
+        </div>
+
+        <div class="footer">IBP // FOR LEGAL SECURITY RESEARCH ONLY</div>
+    </div>
+
+    <script>
+        // ========================================
+        // MATRIX RAIN EFFECT - CYAN STYLE
+        // ========================================
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Characters: Latin, Cyrillic, numbers, symbols, Japanese-like chars
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&*АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЭЮЯабвгдежзийклмнопрстуфхцчшщыэюя<>[]{}|/\\ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍαβγδεζηθικλμνξοπρστυφχψω∞≠≈∑∏√∫';
+        const charArray = chars.split('');
+
+        const fontSize = 16;
+        let columns;
+        let drops = [];
+        let speeds = [];
+
+        function initDrops() {
+            columns = Math.floor(canvas.width / fontSize);
+            drops = [];
+            speeds = [];
+            for (let i = 0; i < columns; i++) {
+                drops[i] = Math.random() * -100;
+                speeds[i] = 0.3 + Math.random() * 0.7;
+            }
+        }
+        initDrops();
+        window.addEventListener('resize', initDrops);
+
+        function drawMatrix() {
+            // Fade effect - creates trail
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.04)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.font = `${fontSize}px "Share Tech Mono", monospace`;
+
+            for (let i = 0; i < drops.length; i++) {
+                const char = charArray[Math.floor(Math.random() * charArray.length)];
+                const x = i * fontSize;
+                const y = drops[i] * fontSize;
+
+                // Color gradient based on position in trail
+                const rand = Math.random();
+                if (rand > 0.97) {
+                    // Bright white leading character
+                    ctx.fillStyle = '#ffffff';
+                    ctx.shadowColor = '#00ffff';
+                    ctx.shadowBlur = 20;
+                } else if (rand > 0.85) {
+                    // Bright cyan
+                    ctx.fillStyle = '#00ffff';
+                    ctx.shadowColor = '#00ffff';
+                    ctx.shadowBlur = 10;
+                } else if (rand > 0.6) {
+                    // Medium cyan
+                    ctx.fillStyle = '#00b8b8';
+                    ctx.shadowBlur = 0;
+                } else if (rand > 0.3) {
+                    // Dim cyan
+                    ctx.fillStyle = '#007070';
+                    ctx.shadowBlur = 0;
+                } else {
+                    // Very dim
+                    ctx.fillStyle = '#003838';
+                    ctx.shadowBlur = 0;
+                }
+
+                ctx.fillText(char, x, y);
+                ctx.shadowBlur = 0;
+
+                // Reset when off screen
+                if (y > canvas.height && Math.random() > 0.98) {
+                    drops[i] = 0;
+                    speeds[i] = 0.3 + Math.random() * 0.7;
+                }
+
+                drops[i] += speeds[i];
+            }
+        }
+
+        // Run animation at 30fps
+        setInterval(drawMatrix, 33);
+
+        // ========================================
+        // PHOTO PREVIEW
+        // ========================================
+        const photoInput = document.getElementById('photoInput');
+        const photoUpload = document.getElementById('photoUpload');
+        const photoPreview = document.getElementById('photoPreview');
+        const previewImage = document.getElementById('previewImage');
+        const fileName = document.getElementById('fileName');
+
+        photoInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    fileName.textContent = file.name;
+                    photoPreview.style.display = 'block';
+                    photoUpload.classList.add('has-file');
+                    
+                    photoUpload.querySelector('.upload-icon').style.display = 'none';
+                    photoUpload.querySelector('.upload-text').style.display = 'none';
+                    photoUpload.querySelector('.upload-hint').style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        photoUpload.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.style.borderColor = 'var(--cyan)';
+            this.style.background = '#00ffff15';
+        });
+
+        photoUpload.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '';
+            this.style.background = '';
+        });
+
+        photoUpload.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '';
+            this.style.background = '';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                photoInput.files = files;
+                photoInput.dispatchEvent(new Event('change'));
+            }
+        });
+
+        // ========================================
+        // FORM SUBMISSION
+        // ========================================
+        const form = document.getElementById('searchForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const errorMessage = document.getElementById('errorMessage');
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const targetName = document.getElementById('targetName').value.trim();
+            
+            if (!targetName) {
+                showError('Please enter a target name');
+                return;
+            }
+            
+            loadingOverlay.classList.add('active');
+            submitBtn.disabled = true;
+            errorMessage.classList.remove('visible');
+            
+            try {
+                const formData = new FormData(form);
+                
+                const response = await fetch('/phase1/start', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    throw new Error(data.error || 'Failed to start search');
+                }
+            } catch (error) {
+                loadingOverlay.classList.remove('active');
+                submitBtn.disabled = false;
+                showError(error.message);
+            }
+        });
+
+        function showError(message) {
+            errorMessage.textContent = '✗ ' + message;
+            errorMessage.classList.add('visible');
+        }
+    </script>
+</body>
+</html>

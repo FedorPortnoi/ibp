@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}IBP - Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6">📊 Investigation Dashboard</h1>
+    
+    <div class="card rounded-xl p-8 text-center">
+        <span class="text-6xl mb-4 block">🚧</span>
+        <h2 class="text-xl font-semibold mb-2">Dashboard Coming Soon</h2>
+        <p class="text-gray-400 mb-6">
+            This will show all your past investigations and their status.
+        </p>
+        <a href="{{ url_for('main.index') }}" class="inline-block bg-ibp-accent hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg transition">
+            Start New Investigation
+        </a>
+    </div>
+</div>
+{% endblock %}
