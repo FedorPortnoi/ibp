@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
 
-from app.services.username_generator_v2 import EnhancedUsernameGenerator
+from app.services.username_generator import SmartUsernameGenerator
 
 
 @dataclass
@@ -112,7 +112,7 @@ class CombinedSearchService:
         self.max_photos_per_profile = max_photos_per_profile
         self.timeout = timeout
 
-        self.username_generator = EnhancedUsernameGenerator(max_results=self.max_usernames)
+        self.username_generator = SmartUsernameGenerator(max_results=self.max_usernames)
 
         self._ultimate_matcher = None
         self._face_available = None
