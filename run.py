@@ -16,15 +16,13 @@ app = create_app(config_name)
 if __name__ == '__main__':
     # Print startup banner
     print("""
-    ╔══════════════════════════════════════════════════════════╗
-    ║                                                          ║
-    ║     🔍 IBP - Identity-Based Profiler                     ║
-    ║     OSINT Investigation Platform                         ║
-    ║                                                          ║
-    ║     Server running at: http://127.0.0.1:5000             ║
-    ║     Press CTRL+C to stop                                 ║
-    ║                                                          ║
-    ╚══════════════════════════════════════════════════════════╝
+    ===========================================================
+    IBP - Identity-Based Profiler
+    OSINT Investigation Platform
+
+    Server running at: http://127.0.0.1:5000
+    Press CTRL+C to stop
+    ===========================================================
     """)
     
     # Run the development server
