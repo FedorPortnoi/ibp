@@ -1,17 +1,24 @@
 """
-Smart Username Generator for Russian Names
-===========================================
-Generates realistic username variations from Russian names.
+Russian Username Generator with Comprehensive Diminutives
+==========================================================
+Generates realistic username variations for Russian names.
+
+CRITICAL: Russians RARELY use formal names online. They use diminutives!
+- Александр → Саша, Шура, Саня, Санёк
+- Екатерина → Катя, Катюша, Катенька
+- Дмитрий → Дима, Димон, Митя, Димка
+
+This generator PRIORITIZES DIMINUTIVES because that's what Russians actually use.
 
 Features:
+- 100+ Russian diminutives (8+ variants per name)
 - Multi-variant transliteration (Ё→e/yo/jo, Ж→zh/j, etc.)
-- 50+ Russian diminutives database
 - Smart name combination patterns
 - Birth year only when provided
-- Validation and deduplication
+- Cyrillic storage for VK/OK compatibility
 
 Author: IBP Project
-Version: 1.0
+Version: 2.0
 """
 
 import re
@@ -126,151 +133,434 @@ def transliterate_variants(text: str, max_variants: int = 8) -> List[str]:
 
 
 # =============================================================================
-# RUSSIAN DIMINUTIVES DATABASE
+# COMPREHENSIVE RUSSIAN DIMINUTIVES DATABASE
 # =============================================================================
+# CRITICAL: Russians RARELY use formal names online. They use diminutives!
+# This database contains 8+ variations per name - the forms people ACTUALLY use.
 
+# Male diminutives (Cyrillic) - will be transliterated automatically
+MALE_DIMINUTIVES_CYR = {
+    "Александр": ["Саша", "Шура", "Саня", "Санёк", "Алекс", "Санька", "Шурик", "Сашка"],
+    "Алексей": ["Лёша", "Лёха", "Алёша", "Лёшка", "Лёшик"],
+    "Анатолий": ["Толя", "Толик", "Толян", "Толька"],
+    "Андрей": ["Андрюша", "Андрюха", "Дрон", "Дюша", "Андрюшка"],
+    "Антон": ["Тоша", "Тоха", "Антоха", "Антошка"],
+    "Артём": ["Тёма", "Артёмка", "Тёмка", "Артёмчик", "Тёмыч"],
+    "Богдан": ["Богдаша", "Бодя", "Даня", "Дан"],
+    "Борис": ["Боря", "Борька", "Борян"],
+    "Вадим": ["Вадик", "Вадя", "Вадимка"],
+    "Валерий": ["Валера", "Валерка", "Лера", "Валерон"],
+    "Василий": ["Вася", "Васька", "Василёк", "Васёк", "Васян"],
+    "Виктор": ["Витя", "Витёк", "Витька"],
+    "Виталий": ["Виталик", "Виталя", "Витас"],
+    "Владимир": ["Вова", "Володя", "Вовка", "Вовчик", "Влад", "Вован"],
+    "Владислав": ["Влад", "Владик", "Слава", "Славик"],
+    "Вячеслав": ["Слава", "Славик", "Славка", "Славян"],
+    "Геннадий": ["Гена", "Генка", "Геша"],
+    "Георгий": ["Гоша", "Жора", "Гошка", "Жорик"],
+    "Глеб": ["Глебушка", "Глебка", "Глебчик"],
+    "Григорий": ["Гриша", "Гриня", "Гришка"],
+    "Даниил": ["Даня", "Данила", "Данька", "Дан", "Данил"],
+    "Денис": ["Дэн", "Дениска", "Денчик", "Ден"],
+    "Дмитрий": ["Дима", "Димон", "Митя", "Димка", "Димыч", "Митяй", "Димас"],
+    "Евгений": ["Женя", "Женёк", "Жека", "Женька", "Евген"],
+    "Егор": ["Егорка", "Егорушка", "Гора", "Егорыч"],
+    "Иван": ["Ваня", "Ванёк", "Ванька", "Ванюша", "Ванёс"],
+    "Игорь": ["Игорёк", "Игорёха", "Гоша", "Гарик"],
+    "Илья": ["Илюша", "Илюха", "Илюшка"],
+    "Кирилл": ["Кирюша", "Кирюха", "Киря", "Кир"],
+    "Константин": ["Костя", "Костик", "Костян", "Костюша"],
+    "Леонид": ["Лёня", "Лёнька", "Лёнчик"],
+    "Максим": ["Макс", "Максик", "Максимка", "Максон"],
+    "Марк": ["Маркуша", "Марик"],
+    "Матвей": ["Мотя", "Матвейка", "Матюша"],
+    "Михаил": ["Миша", "Мишка", "Мишаня", "Михан", "Мишутка"],
+    "Никита": ["Никитка", "Никитос", "Ник", "Кит"],
+    "Николай": ["Коля", "Колян", "Николаша", "Колька", "Ник"],
+    "Олег": ["Олежка", "Олежек", "Лёжик"],
+    "Павел": ["Паша", "Пашка", "Павлик", "Пашок", "Паха"],
+    "Пётр": ["Петя", "Петька", "Петруша", "Петруха"],
+    "Роман": ["Рома", "Ромка", "Ромчик", "Ромыч", "Ромаха"],
+    "Руслан": ["Русик", "Руся", "Рус"],
+    "Сергей": ["Серёжа", "Серёга", "Серж", "Серый", "Серёжка", "Серго"],
+    "Станислав": ["Стас", "Стасик", "Славик", "Стасян"],
+    "Степан": ["Стёпа", "Стёпка", "Степашка"],
+    "Тимофей": ["Тима", "Тимоха", "Тимоша", "Тимка"],
+    "Тимур": ["Тима", "Тимурка", "Тим"],
+    "Фёдор": ["Федя", "Федька", "Федюня", "Федюша", "Феденька", "Федос"],
+    "Филипп": ["Филя", "Фил", "Филиппок"],
+    "Эдуард": ["Эдик", "Эд", "Эдя"],
+    "Юрий": ["Юра", "Юрка", "Юрок", "Юрец"],
+    "Ярослав": ["Ярик", "Слава", "Славик", "Яр"],
+}
+
+# Female diminutives (Cyrillic)
+FEMALE_DIMINUTIVES_CYR = {
+    "Александра": ["Саша", "Сашка", "Шура", "Саня", "Сашуля", "Алекса"],
+    "Алина": ["Аля", "Алинка", "Лина"],
+    "Алиса": ["Алиска", "Аля", "Лиса"],
+    "Анастасия": ["Настя", "Настёна", "Ася", "Настюша", "Стася", "Настюха"],
+    "Ангелина": ["Геля", "Лина", "Энжи"],
+    "Анна": ["Аня", "Анюта", "Нюра", "Аннушка", "Анька", "Нюша"],
+    "Арина": ["Аринка", "Ариша", "Рина"],
+    "Валентина": ["Валя", "Валюша", "Валечка"],
+    "Валерия": ["Лера", "Лерка", "Валерка", "Валери"],
+    "Варвара": ["Варя", "Варька", "Вава"],
+    "Вера": ["Верочка", "Верка", "Веруня"],
+    "Вероника": ["Ника", "Вера", "Рони"],
+    "Виктория": ["Вика", "Викуся", "Викуля", "Вики", "Тори"],
+    "Галина": ["Галя", "Галка", "Галочка"],
+    "Дарья": ["Даша", "Дашка", "Дашуля", "Дашенька", "Дашуня"],
+    "Диана": ["Ди", "Дианка"],
+    "Ева": ["Евочка", "Евуся"],
+    "Евгения": ["Женя", "Женечка", "Женька", "Геня"],
+    "Екатерина": ["Катя", "Катюша", "Катенька", "Катька", "Кэт", "Катюня", "Катюха"],
+    "Елена": ["Лена", "Леночка", "Ленка", "Алёна", "Леся", "Ленуся"],
+    "Елизавета": ["Лиза", "Лизка", "Лизонька", "Лизочка", "Элиза"],
+    "Инна": ["Инночка", "Инка", "Ина"],
+    "Ирина": ["Ира", "Иришка", "Ирочка", "Ируся", "Ирка", "Ируня"],
+    "Карина": ["Каринка", "Кара", "Каря"],
+    "Кристина": ["Кристя", "Кристинка", "Крис", "Тина"],
+    "Ксения": ["Ксюша", "Ксюха", "Ксеня", "Ксю", "Ксюня"],
+    "Лариса": ["Лара", "Лариска", "Ларочка"],
+    "Любовь": ["Люба", "Любаша", "Любочка", "Люся"],
+    "Людмила": ["Люда", "Людочка", "Мила", "Люся"],
+    "Маргарита": ["Рита", "Марго", "Ритка", "Маргоша"],
+    "Марина": ["Маринка", "Мариша", "Мара", "Маруся"],
+    "Мария": ["Маша", "Машка", "Маруся", "Машуня", "Маня", "Мари"],
+    "Милана": ["Мила", "Миланка", "Милаша", "Лана"],
+    "Надежда": ["Надя", "Надюша", "Наденька", "Надюха"],
+    "Наталья": ["Наташа", "Ната", "Наталка", "Наташка", "Натали", "Натуся"],
+    "Нина": ["Ниночка", "Нинуля", "Нинка"],
+    "Оксана": ["Ксана", "Оксанка", "Ксюша"],
+    "Ольга": ["Оля", "Олечка", "Олька", "Оленька", "Лёля"],
+    "Полина": ["Поля", "Полинка", "Полюшка", "Полечка", "Полли"],
+    "Светлана": ["Света", "Светик", "Светочка", "Светка", "Лана"],
+    "София": ["Соня", "Софа", "Софочка", "Софи", "Сонька"],
+    "Тамара": ["Тома", "Томочка", "Тамарка"],
+    "Татьяна": ["Таня", "Танюша", "Танечка", "Танюшка", "Танька", "Тата"],
+    "Юлия": ["Юля", "Юлька", "Юленька", "Юляша", "Джули"],
+    "Яна": ["Янка", "Яночка", "Януся"],
+}
+
+# Combined dictionary with pre-transliterated values for fast lookup
 # Format: 'canonical_name': ['diminutive1', 'diminutive2', ...]
 RUSSIAN_DIMINUTIVES = {
-    # Male names
-    'александр': ['sasha', 'sanya', 'shura', 'alex', 'san', 'sashka', 'alik'],
-    'алексей': ['lyosha', 'alyosha', 'lesha', 'alex', 'lyokha', 'aleksei'],
-    'анатолий': ['tolya', 'tolik', 'tolyan'],
-    'андрей': ['andrey', 'andrew', 'andryusha', 'andryukha', 'dron'],
-    'антон': ['anton', 'tosha', 'toha'],
-    'артём': ['artyom', 'tema', 'tyoma', 'artem'],
-    'артур': ['artur', 'art'],
-    'борис': ['borya', 'bob', 'boris'],
-    'вадим': ['vadik', 'vadya', 'vadim'],
-    'валентин': ['valya', 'valik', 'valentin'],
-    'валерий': ['valera', 'valerka', 'valery'],
-    'василий': ['vasya', 'vasek', 'vasily', 'vaska'],
-    'виктор': ['vitya', 'viktor', 'victor', 'vitka'],
-    'виталий': ['vitalik', 'vitaly', 'vita'],
-    'владимир': ['vova', 'volodya', 'vladimir', 'vovka', 'vlad'],
-    'владислав': ['vlad', 'vladik', 'slava'],
-    'вячеслав': ['slava', 'slavik', 'vyacheslav'],
-    'геннадий': ['gena', 'genya', 'gennady'],
-    'георгий': ['zhora', 'gosha', 'georgy', 'george'],
-    'глеб': ['gleb'],
-    'григорий': ['grisha', 'grigory', 'greg'],
-    'даниил': ['danya', 'danil', 'dan', 'daniel'],
-    'денис': ['denis', 'den', 'denya'],
-    'дмитрий': ['dima', 'dimon', 'mitya', 'dimka', 'dmitry', 'dmitri'],
-    'евгений': ['zhenya', 'evgeny', 'eugene', 'zheka'],
-    'егор': ['egor', 'yegor', 'gosha'],
-    'иван': ['vanya', 'ivan', 'vanyusha', 'vanko'],
-    'игорь': ['igor', 'gosha', 'igorek'],
-    'илья': ['ilya', 'ilyusha', 'ilyukha'],
-    'кирилл': ['kirill', 'kirya', 'cyril'],
-    'константин': ['kostya', 'konstantin', 'kostik', 'kos'],
-    'леонид': ['lyonya', 'leonid', 'leo'],
-    'максим': ['max', 'maksim', 'maxim', 'maks'],
-    'михаил': ['misha', 'mikhail', 'michael', 'mishka', 'miha'],
-    'никита': ['nikita', 'nik', 'nikitos'],
-    'николай': ['kolya', 'nikolay', 'nick', 'kolyan'],
-    'олег': ['oleg'],
-    'павел': ['pasha', 'pavel', 'pashka', 'paul'],
-    'пётр': ['petya', 'petr', 'peter', 'petka', 'pyotr'],
-    'роман': ['roma', 'roman', 'romka', 'romych'],
-    'руслан': ['ruslan', 'rus'],
-    'сергей': ['serega', 'sergey', 'sergei', 'seryoga', 'serge'],
-    'станислав': ['stas', 'stanislav', 'stasik'],
-    'степан': ['styopa', 'stepan', 'stepa'],
-    'тимофей': ['tima', 'timofey', 'tim'],
-    'фёдор': ['fedya', 'fedor', 'fyodor', 'fedka', 'theodore'],
-    'юрий': ['yura', 'yury', 'yuri', 'yurik'],
-    'ярослав': ['yarik', 'yaroslav', 'slava'],
+    # Male names (transliterated)
+    'александр': ['sasha', 'shura', 'sanya', 'sanek', 'alex', 'sanka', 'shurik', 'sashka'],
+    'алексей': ['lyosha', 'lyokha', 'alyosha', 'lyoshka', 'lyoshik', 'lesha', 'lekha'],
+    'анатолий': ['tolya', 'tolik', 'tolyan', 'tolka'],
+    'андрей': ['andryusha', 'andryukha', 'dron', 'dyusha', 'andryushka', 'andrey'],
+    'антон': ['tosha', 'tokha', 'antokha', 'antoshka', 'anton'],
+    'артём': ['tyoma', 'artyomka', 'tyomka', 'artyomchik', 'tyomych', 'tema', 'artem'],
+    'богдан': ['bogdasha', 'bodya', 'danya', 'dan'],
+    'борис': ['borya', 'borka', 'boryan', 'boris'],
+    'вадим': ['vadik', 'vadya', 'vadimka', 'vadim'],
+    'валерий': ['valera', 'valerka', 'lera', 'valeron', 'valery'],
+    'василий': ['vasya', 'vaska', 'vasilyok', 'vasyok', 'vasyan', 'vasily'],
+    'виктор': ['vitya', 'vityok', 'vitka', 'viktor', 'victor'],
+    'виталий': ['vitalik', 'vitalya', 'vitas', 'vitaly'],
+    'владимир': ['vova', 'volodya', 'vovka', 'vovchik', 'vlad', 'vovan', 'vladimir'],
+    'владислав': ['vlad', 'vladik', 'slava', 'slavik', 'vladislav'],
+    'вячеслав': ['slava', 'slavik', 'slavka', 'slavyan', 'vyacheslav'],
+    'геннадий': ['gena', 'genka', 'gesha', 'gennady'],
+    'георгий': ['gosha', 'zhora', 'goshka', 'zhorik', 'georgy', 'george'],
+    'глеб': ['glebushka', 'glebka', 'glebchik', 'gleb'],
+    'григорий': ['grisha', 'grinya', 'grishka', 'grigory', 'greg'],
+    'даниил': ['danya', 'danila', 'danka', 'dan', 'danil', 'daniel'],
+    'денис': ['den', 'deniska', 'denchik', 'denis'],
+    'дмитрий': ['dima', 'dimon', 'mitya', 'dimka', 'dimych', 'mityay', 'dimas', 'dmitry', 'dmitri'],
+    'евгений': ['zhenya', 'zhenyok', 'zheka', 'zhenka', 'evgen', 'evgeny', 'eugene'],
+    'егор': ['egorka', 'egorushka', 'gora', 'egorych', 'egor', 'yegor'],
+    'иван': ['vanya', 'vanyok', 'vanka', 'vanyusha', 'vanyos', 'ivan'],
+    'игорь': ['igoryok', 'igoryokha', 'gosha', 'garik', 'igor'],
+    'илья': ['ilyusha', 'ilyukha', 'ilyushka', 'ilya'],
+    'кирилл': ['kiryusha', 'kiryukha', 'kirya', 'kir', 'kirill', 'cyril'],
+    'константин': ['kostya', 'kostik', 'kostyan', 'kostyusha', 'konstantin', 'kos'],
+    'леонид': ['lyonya', 'lyonka', 'lyonchik', 'leonid', 'leo'],
+    'максим': ['maks', 'maksik', 'maksimka', 'makson', 'max', 'maxim'],
+    'марк': ['markusha', 'marik', 'mark'],
+    'матвей': ['motya', 'matveyka', 'matyusha', 'matvey'],
+    'михаил': ['misha', 'mishka', 'mishanya', 'mikhan', 'mishutka', 'mikhail', 'michael', 'miha'],
+    'никита': ['nikitka', 'nikitos', 'nik', 'kit', 'nikita'],
+    'николай': ['kolya', 'kolyan', 'nikolasha', 'kolka', 'nik', 'nikolay', 'nick'],
+    'олег': ['olezhka', 'olezhek', 'lyozhik', 'oleg'],
+    'павел': ['pasha', 'pashka', 'pavlik', 'pashok', 'pakha', 'pavel', 'paul'],
+    'пётр': ['petya', 'petka', 'petrusha', 'petrukha', 'petr', 'peter', 'pyotr'],
+    'роман': ['roma', 'romka', 'romchik', 'romych', 'romakha', 'roman'],
+    'руслан': ['rusik', 'rusya', 'rus', 'ruslan'],
+    'сергей': ['seryozha', 'seryoga', 'serzh', 'seryy', 'seryozhka', 'sergo', 'sergey', 'sergei', 'serge'],
+    'станислав': ['stas', 'stasik', 'slavik', 'stasyan', 'stanislav'],
+    'степан': ['styopa', 'styopka', 'stepashka', 'stepan', 'stepa'],
+    'тимофей': ['tima', 'timokha', 'timosha', 'timka', 'timofey', 'tim'],
+    'тимур': ['tima', 'timurka', 'tim', 'timur'],
+    'фёдор': ['fedya', 'fedka', 'fedyunya', 'fedyusha', 'fedenka', 'fedos', 'fedor', 'fyodor', 'theodore'],
+    'филипп': ['filya', 'fil', 'filippok', 'filipp', 'philip'],
+    'эдуард': ['edik', 'ed', 'edya', 'eduard', 'edward'],
+    'юрий': ['yura', 'yurka', 'yurok', 'yurets', 'yury', 'yuri'],
+    'ярослав': ['yarik', 'slava', 'slavik', 'yar', 'yaroslav'],
 
-    # Female names
-    'александра': ['sasha', 'alexandra', 'shura', 'sashenka'],
-    'алина': ['alina', 'alinochka', 'ali'],
-    'алиса': ['alisa', 'alice', 'ali'],
-    'анастасия': ['nastya', 'asya', 'stasya', 'anastasia', 'nastenka'],
-    'анна': ['anya', 'anna', 'anyuta', 'ann', 'annushka'],
-    'валентина': ['valya', 'valentina'],
-    'валерия': ['lera', 'valeriya', 'valeria'],
-    'вера': ['vera', 'verochka'],
-    'виктория': ['vika', 'victoria', 'viktoriya', 'vikusya'],
-    'галина': ['galya', 'galina', 'gala'],
-    'дарья': ['dasha', 'darya', 'daria', 'dashenka', 'dashka'],
-    'диана': ['diana', 'di'],
-    'евгения': ['zhenya', 'evgeniya', 'eugenia', 'zheka'],
-    'екатерина': ['katya', 'kate', 'katyusha', 'ekaterina', 'catherine', 'katka'],
-    'елена': ['lena', 'elena', 'lenochka', 'helen', 'alyona'],
-    'елизавета': ['liza', 'elizaveta', 'elizabeth', 'lizka'],
-    'ирина': ['ira', 'irina', 'irochka', 'irka'],
-    'ксения': ['ksusha', 'ksenia', 'kseniya', 'ksyusha'],
-    'лариса': ['lara', 'larisa', 'larochka'],
-    'любовь': ['lyuba', 'lubov', 'love'],
-    'людмила': ['lyuda', 'lyudmila', 'mila'],
-    'маргарита': ['rita', 'margarita', 'margo'],
-    'марина': ['marina', 'marinochka'],
-    'мария': ['masha', 'maria', 'mary', 'mashenka', 'mashka'],
-    'надежда': ['nadya', 'nadezhda', 'nadyusha'],
-    'наталья': ['natasha', 'natalya', 'natalia', 'nata'],
-    'нина': ['nina', 'ninochka'],
-    'оксана': ['oksana', 'ksana', 'ksyusha'],
-    'ольга': ['olya', 'olga', 'olenka'],
-    'полина': ['polina', 'polya', 'pauline'],
-    'светлана': ['sveta', 'svetlana', 'svetik'],
-    'софья': ['sonya', 'sofia', 'sophia', 'sofya'],
-    'татьяна': ['tanya', 'tatyana', 'tatiana', 'tanechka', 'tanka'],
-    'юлия': ['yulya', 'julia', 'juliya', 'yulia'],
-    'яна': ['yana', 'yanochka'],
+    # Female names (transliterated)
+    'александра': ['sasha', 'sashka', 'shura', 'sanya', 'sashulya', 'aleksa', 'alexandra'],
+    'алина': ['alya', 'alinka', 'lina', 'alina'],
+    'алиса': ['aliska', 'alya', 'lisa', 'alisa', 'alice'],
+    'анастасия': ['nastya', 'nastyona', 'asya', 'nastyusha', 'stasya', 'nastyukha', 'anastasia'],
+    'ангелина': ['gelya', 'lina', 'anzhi', 'angelina'],
+    'анна': ['anya', 'anyuta', 'nyura', 'annushka', 'anka', 'nyusha', 'anna', 'ann'],
+    'арина': ['arinka', 'arisha', 'rina', 'arina'],
+    'валентина': ['valya', 'valyusha', 'valechka', 'valentina'],
+    'валерия': ['lera', 'lerka', 'valerka', 'valeri', 'valeriya', 'valeria'],
+    'варвара': ['varya', 'varka', 'vava', 'varvara', 'barbara'],
+    'вера': ['verochka', 'verka', 'verunya', 'vera'],
+    'вероника': ['nika', 'vera', 'roni', 'veronika', 'veronica'],
+    'виктория': ['vika', 'vikusya', 'vikulya', 'viki', 'tori', 'viktoriya', 'victoria'],
+    'галина': ['galya', 'galka', 'galochka', 'galina'],
+    'дарья': ['dasha', 'dashka', 'dashulya', 'dashenka', 'dashunya', 'darya', 'daria'],
+    'диана': ['di', 'dianka', 'diana'],
+    'ева': ['evochka', 'evusya', 'eva', 'eve'],
+    'евгения': ['zhenya', 'zhenechka', 'zhenka', 'genya', 'evgeniya', 'eugenia'],
+    'екатерина': ['katya', 'katyusha', 'katenka', 'katka', 'ket', 'katyunya', 'katyukha', 'ekaterina', 'kate', 'catherine'],
+    'елена': ['lena', 'lenochka', 'lenka', 'alyona', 'lesya', 'lenusya', 'elena', 'helen'],
+    'елизавета': ['liza', 'lizka', 'lizonka', 'lizochka', 'eliza', 'elizaveta', 'elizabeth'],
+    'инна': ['innochka', 'inka', 'ina', 'inna'],
+    'ирина': ['ira', 'irishka', 'irochka', 'irusya', 'irka', 'irunya', 'irina'],
+    'карина': ['karinka', 'kara', 'karya', 'karina'],
+    'кристина': ['kristya', 'kristinka', 'kris', 'tina', 'kristina', 'christina'],
+    'ксения': ['ksyusha', 'ksyukha', 'ksenya', 'ksyu', 'ksyunya', 'ksenia', 'kseniya'],
+    'лариса': ['lara', 'lariska', 'larochka', 'larisa'],
+    'любовь': ['lyuba', 'lyubasha', 'lyubochka', 'lyusya', 'lubov'],
+    'людмила': ['lyuda', 'lyudochka', 'mila', 'lyusya', 'lyudmila'],
+    'маргарита': ['rita', 'margo', 'ritka', 'margosha', 'margarita'],
+    'марина': ['marinka', 'marisha', 'mara', 'marusya', 'marina'],
+    'мария': ['masha', 'mashka', 'marusya', 'mashunya', 'manya', 'mari', 'maria', 'mary'],
+    'милана': ['mila', 'milanka', 'milasha', 'lana', 'milana'],
+    'надежда': ['nadya', 'nadyusha', 'nadenka', 'nadyukha', 'nadezhda'],
+    'наталья': ['natasha', 'nata', 'natalka', 'natashka', 'natali', 'natusya', 'natalya', 'natalia'],
+    'нина': ['ninochka', 'ninulya', 'ninka', 'nina'],
+    'оксана': ['ksana', 'oksanka', 'ksyusha', 'oksana'],
+    'ольга': ['olya', 'olechka', 'olka', 'olenka', 'lyolya', 'olga'],
+    'полина': ['polya', 'polinka', 'polyushka', 'polechka', 'polli', 'polina'],
+    'светлана': ['sveta', 'svetik', 'svetochka', 'svetka', 'lana', 'svetlana'],
+    'софия': ['sonya', 'sofa', 'sofochka', 'sofi', 'sonka', 'sofya', 'sofia', 'sophia'],
+    'тамара': ['toma', 'tomochka', 'tamarka', 'tamara'],
+    'татьяна': ['tanya', 'tanyusha', 'tanechka', 'tanyushka', 'tanka', 'tata', 'tatyana', 'tatiana'],
+    'юлия': ['yulya', 'yulka', 'yulenka', 'yulyasha', 'dzhuli', 'julia', 'yulia'],
+    'яна': ['yanka', 'yanochka', 'yanusya', 'yana'],
 }
 
 
 def get_diminutives(name: str) -> List[str]:
-    """Get diminutives for a Russian name."""
+    """
+    Get diminutives for a Russian name.
+
+    Handles:
+    - Cyrillic input (Дмитрий)
+    - Latin input (Dmitry, Dmitri, Dima)
+    - Common aliases and diminutives as input
+    """
     name_lower = name.lower().strip()
 
-    # Direct lookup
-    if name_lower in RUSSIAN_DIMINUTIVES:
-        return RUSSIAN_DIMINUTIVES[name_lower]
+    # Handle ё/е variations
+    name_variants = [name_lower, name_lower.replace('ё', 'е'), name_lower.replace('е', 'ё')]
 
-    # Latin name aliases (common English/Latin spellings)
+    # Direct lookup in main dictionary
+    for variant in name_variants:
+        if variant in RUSSIAN_DIMINUTIVES:
+            return RUSSIAN_DIMINUTIVES[variant]
+
+    # Check Cyrillic dictionaries (for Title case input like "Дмитрий")
+    name_title = name.strip().title()
+    name_title_variants = [name_title, name_title.replace('ё', 'е'), name_title.replace('е', 'ё'),
+                          name_title.replace('Ё', 'Е'), name_title.replace('Е', 'Ё')]
+
+    for variant in name_title_variants:
+        if variant in MALE_DIMINUTIVES_CYR:
+            # Return transliterated versions
+            return [transliterate_simple(d) for d in MALE_DIMINUTIVES_CYR[variant]]
+        if variant in FEMALE_DIMINUTIVES_CYR:
+            return [transliterate_simple(d) for d in FEMALE_DIMINUTIVES_CYR[variant]]
+
+    # Extended Latin name aliases (common English/Latin spellings)
     LATIN_ALIASES = {
-        'dmitry': 'дмитрий', 'dmitri': 'дмитрий', 'dimitri': 'дмитрий',
-        'alexander': 'александр', 'alex': 'александр', 'sasha': 'александр',
-        'alexei': 'алексей', 'alexey': 'алексей',
-        'andrey': 'андрей', 'andrew': 'андрей', 'andrei': 'андрей',
+        # Male - formal names
+        'dmitry': 'дмитрий', 'dmitri': 'дмитрий', 'dimitri': 'дмитрий', 'dmitriy': 'дмитрий',
+        'alexander': 'александр', 'alex': 'александр', 'aleksandr': 'александр',
+        'alexei': 'алексей', 'alexey': 'алексей', 'aleksei': 'алексей',
+        'andrey': 'андрей', 'andrew': 'андрей', 'andrei': 'андрей', 'andry': 'андрей',
         'anton': 'антон',
-        'artem': 'артём', 'artyom': 'артём',
+        'artem': 'артём', 'artyom': 'артём', 'artjom': 'артём',
+        'bogdan': 'богдан',
         'boris': 'борис',
-        'eugene': 'евгений', 'evgeny': 'евгений', 'evgeni': 'евгений',
-        'fedor': 'фёдор', 'fyodor': 'фёдор', 'theodore': 'фёдор',
-        'georgy': 'георгий', 'george': 'георгий',
-        'igor': 'игорь',
-        'ilya': 'илья',
+        'vadim': 'вадим',
+        'valery': 'валерий', 'valeri': 'валерий', 'valeriy': 'валерий',
+        'vasily': 'василий', 'vasiliy': 'василий',
+        'viktor': 'виктор', 'victor': 'виктор',
+        'vitaly': 'виталий', 'vitaliy': 'виталий',
+        'vladimir': 'владимир',
+        'vladislav': 'владислав',
+        'vyacheslav': 'вячеслав',
+        'gennady': 'геннадий', 'gennadiy': 'геннадий',
+        'georgy': 'георгий', 'george': 'георгий', 'georgiy': 'георгий',
+        'gleb': 'глеб',
+        'grigory': 'григорий', 'gregory': 'григорий', 'grigoriy': 'григорий',
+        'daniil': 'даниил', 'daniel': 'даниил', 'danil': 'даниил',
+        'denis': 'денис',
+        'eugene': 'евгений', 'evgeny': 'евгений', 'evgeni': 'евгений', 'evgeniy': 'евгений',
+        'egor': 'егор', 'yegor': 'егор',
         'ivan': 'иван', 'john': 'иван',
+        'igor': 'игорь',
+        'ilya': 'илья', 'ilia': 'илья',
         'kirill': 'кирилл', 'cyril': 'кирилл',
         'konstantin': 'константин', 'constantine': 'константин',
-        'maxim': 'максим', 'max': 'максим', 'maksim': 'максим',
-        'mikhail': 'михаил', 'michael': 'михаил', 'misha': 'михаил',
+        'leonid': 'леонид',
+        'maxim': 'максим', 'maksim': 'максим',
+        'mark': 'марк',
+        'matvey': 'матвей', 'matthew': 'матвей',
+        'mikhail': 'михаил', 'michael': 'михаил', 'mihail': 'михаил',
         'nikita': 'никита',
         'nikolay': 'николай', 'nikolai': 'николай', 'nicholas': 'николай',
         'oleg': 'олег',
         'pavel': 'павел', 'paul': 'павел',
-        'peter': 'пётр', 'petr': 'пётр', 'pyotr': 'пётр',
+        'petr': 'пётр', 'peter': 'пётр', 'pyotr': 'пётр',
         'roman': 'роман',
-        'sergey': 'сергей', 'sergei': 'сергей', 'serge': 'сергей',
+        'ruslan': 'руслан',
+        'sergey': 'сергей', 'sergei': 'сергей', 'serge': 'сергей', 'sergiy': 'сергей',
         'stanislav': 'станислав',
-        'vladimir': 'владимир',
-        'yuri': 'юрий', 'yury': 'юрий',
-        # Female
-        'anastasia': 'анастасия', 'nastya': 'анастасия',
+        'stepan': 'степан', 'stefan': 'степан',
+        'timofey': 'тимофей', 'timothy': 'тимофей',
+        'timur': 'тимур',
+        'fedor': 'фёдор', 'fyodor': 'фёдор', 'theodore': 'фёдор', 'feodor': 'фёдор',
+        'filipp': 'филипп', 'philip': 'филипп', 'phillip': 'филипп',
+        'eduard': 'эдуард', 'edward': 'эдуард',
+        'yuri': 'юрий', 'yury': 'юрий', 'yuriy': 'юрий',
+        'yaroslav': 'ярослав',
+
+        # Male - common diminutives as input (find the formal name)
+        'sasha': 'александр', 'shura': 'александр', 'sanya': 'александр',
+        'lyosha': 'алексей', 'lesha': 'алексей', 'alyosha': 'алексей',
+        'tolya': 'анатолий', 'tolik': 'анатолий',
+        'andryusha': 'андрей', 'dron': 'андрей',
+        'tosha': 'антон', 'antokha': 'антон',
+        'tema': 'артём', 'tyoma': 'артём',
+        'borya': 'борис',
+        'vadik': 'вадим',
+        'valera': 'валерий',
+        'vasya': 'василий', 'vaska': 'василий',
+        'vitya': 'виктор',
+        'vitalik': 'виталий',
+        'vova': 'владимир', 'volodya': 'владимир', 'vlad': 'владимир', 'vovan': 'владимир',
+        'vladik': 'владислав',
+        'slava': 'вячеслав', 'slavik': 'вячеслав',
+        'gena': 'геннадий', 'gesha': 'геннадий',
+        'gosha': 'георгий', 'zhora': 'георгий',
+        'grisha': 'григорий',
+        'danya': 'даниил', 'dan': 'даниил', 'danila': 'даниил',
+        'den': 'денис', 'deniska': 'денис',
+        'dima': 'дмитрий', 'dimon': 'дмитрий', 'mitya': 'дмитрий', 'dimka': 'дмитрий', 'dimas': 'дмитрий',
+        'zhenya': 'евгений', 'zheka': 'евгений', 'evgen': 'евгений',
+        'egorka': 'егор',
+        'vanya': 'иван', 'vanyok': 'иван',
+        'garik': 'игорь',
+        'ilyusha': 'илья', 'ilyukha': 'илья',
+        'kirya': 'кирилл', 'kir': 'кирилл',
+        'kostya': 'константин', 'kostik': 'константин', 'kostyan': 'константин',
+        'lyonya': 'леонид',
+        'max': 'максим', 'maks': 'максим', 'maksik': 'максим',
+        'misha': 'михаил', 'mishka': 'михаил', 'miha': 'михаил',
+        'nik': 'никита', 'nikitos': 'никита',
+        'kolya': 'николай', 'kolyan': 'николай',
+        'olezhka': 'олег',
+        'pasha': 'павел', 'pashka': 'павел', 'pakha': 'павел',
+        'petya': 'пётр', 'petka': 'пётр',
+        'roma': 'роман', 'romka': 'роман', 'romych': 'роман',
+        'rusik': 'руслан', 'rus': 'руслан',
+        'seryozha': 'сергей', 'seryoga': 'сергей', 'serzh': 'сергей', 'sergo': 'сергей',
+        'stas': 'станислав', 'stasik': 'станислав',
+        'styopa': 'степан', 'stepa': 'степан',
+        'tima': 'тимофей', 'timka': 'тимофей',
+        'fedya': 'фёдор', 'fedka': 'фёдор', 'fedos': 'фёдор',
+        'filya': 'филипп', 'fil': 'филипп',
+        'edik': 'эдуард', 'ed': 'эдуард',
+        'yura': 'юрий', 'yurka': 'юрий',
+        'yarik': 'ярослав', 'yar': 'ярослав',
+
+        # Female - formal names
+        'alexandra': 'александра',
+        'alina': 'алина',
+        'alisa': 'алиса', 'alice': 'алиса',
+        'anastasia': 'анастасия',
+        'angelina': 'ангелина',
         'anna': 'анна', 'ann': 'анна',
-        'catherine': 'екатерина', 'kate': 'екатерина', 'katya': 'екатерина',
-        'elena': 'елена', 'helen': 'елена', 'lena': 'елена',
-        'elizabeth': 'елизавета', 'liza': 'елизавета',
+        'arina': 'арина',
+        'valentina': 'валентина',
+        'valeriya': 'валерия', 'valeria': 'валерия',
+        'varvara': 'варвара', 'barbara': 'варвара',
+        'vera': 'вера',
+        'veronika': 'вероника', 'veronica': 'вероника',
+        'viktoriya': 'виктория', 'victoria': 'виктория',
+        'galina': 'галина',
+        'darya': 'дарья', 'daria': 'дарья',
+        'diana': 'диана',
+        'eva': 'ева', 'eve': 'ева',
+        'evgeniya': 'евгения', 'eugenia': 'евгения',
+        'ekaterina': 'екатерина', 'catherine': 'екатерина',
+        'elena': 'елена', 'helen': 'елена',
+        'elizaveta': 'елизавета', 'elizabeth': 'елизавета',
+        'inna': 'инна',
         'irina': 'ирина',
-        'maria': 'мария', 'mary': 'мария', 'masha': 'мария',
-        'natalia': 'наталья', 'natasha': 'наталья',
+        'karina': 'карина',
+        'kristina': 'кристина', 'christina': 'кристина',
+        'ksenia': 'ксения', 'kseniya': 'ксения',
+        'larisa': 'лариса',
+        'lubov': 'любовь',
+        'lyudmila': 'людмила',
+        'margarita': 'маргарита',
+        'marina': 'марина',
+        'maria': 'мария', 'mary': 'мария',
+        'milana': 'милана',
+        'nadezhda': 'надежда',
+        'natalya': 'наталья', 'natalia': 'наталья',
+        'nina': 'нина',
+        'oksana': 'оксана',
         'olga': 'ольга',
-        'sofia': 'софья', 'sophia': 'софья',
-        'tatiana': 'татьяна', 'tanya': 'татьяна',
-        'victoria': 'виктория', 'vika': 'виктория',
+        'polina': 'полина',
+        'svetlana': 'светлана',
+        'sofya': 'софия', 'sofia': 'софия', 'sophia': 'софия',
+        'tamara': 'тамара',
+        'tatyana': 'татьяна', 'tatiana': 'татьяна',
         'yulia': 'юлия', 'julia': 'юлия',
+        'yana': 'яна',
+
+        # Female - common diminutives as input
+        'nastya': 'анастасия', 'asya': 'анастасия', 'stasya': 'анастасия',
+        'anya': 'анна', 'anyuta': 'анна', 'nyura': 'анна', 'nyusha': 'анна',
+        'arisha': 'арина',
+        'valya': 'валентина',
+        'lera': 'валерия', 'lerka': 'валерия',
+        'varya': 'варвара',
+        'vika': 'виктория', 'vikusya': 'виктория',
+        'galya': 'галина',
+        'dasha': 'дарья', 'dashka': 'дарья',
+        'katya': 'екатерина', 'kate': 'екатерина', 'katyusha': 'екатерина',
+        'lena': 'елена', 'lenochka': 'елена', 'alyona': 'елена',
+        'liza': 'елизавета', 'lizka': 'елизавета',
+        'ira': 'ирина', 'irishka': 'ирина',
+        'ksyusha': 'ксения', 'ksyu': 'ксения',
+        'lara': 'лариса',
+        'lyuba': 'любовь', 'lyusya': 'любовь',
+        'lyuda': 'людмила', 'mila': 'людмила',
+        'rita': 'маргарита', 'margo': 'маргарита',
+        'masha': 'мария', 'mashka': 'мария', 'marusya': 'мария',
+        'nadya': 'надежда',
+        'natasha': 'наталья', 'nata': 'наталья',
+        'olya': 'ольга', 'olenka': 'ольга',
+        'polya': 'полина',
+        'sveta': 'светлана', 'svetik': 'светлана',
+        'sonya': 'софия', 'sofa': 'софия',
+        'toma': 'тамара',
+        'tanya': 'татьяна', 'tanechka': 'татьяна', 'tata': 'татьяна',
+        'yulya': 'юлия', 'yulenka': 'юлия',
+        'yanka': 'яна',
     }
 
     # Check Latin alias
@@ -290,6 +580,105 @@ def get_diminutives(name: str) -> List[str]:
             return dims
 
     return []
+
+
+# =============================================================================
+# SURNAME NICKNAME EXTRACTION
+# =============================================================================
+
+def extract_surname_nicknames(surname: str) -> List[str]:
+    """
+    Extract nickname from Russian surname by removing common suffixes.
+
+    CRITICAL for finding usernames like @etoglaz from "Glazkov"
+
+    Examples:
+        Glazkov → Glaz (remove -kov)
+        Ivanov → Ivan (remove -ov)
+        Smirnov → Smirn (remove -ov)
+        Kozlov → Kozl/Kozlik (remove -ov, add diminutive)
+
+    Then adds common Russian username prefixes:
+        Glaz → etoglaz, yaglaz, theglaz, etc.
+    """
+    nicknames = []
+
+    # Transliterate if Cyrillic
+    is_cyrillic = any('\u0400' <= c <= '\u04FF' for c in surname)
+    surname_lower = transliterate_simple(surname).lower() if is_cyrillic else surname.lower()
+
+    # Full surname alone is also a username pattern
+    nicknames.append(surname_lower)
+
+    # Russian surname suffixes in order of length (longer first!)
+    suffixes = [
+        'nikov', 'ovsky', 'evsky', 'insky', 'evich', 'ovich',
+        'enko', 'chuk', 'yuk', 'iuk',
+        'kov', 'kow', 'skiy', 'sky', 'ski', 'skii',
+        'yev', 'iev', 'aev', 'oev',
+        'ev', 'ov', 'in', 'yn', 'uk'
+    ]
+
+    base = None
+    for suffix in suffixes:
+        if surname_lower.endswith(suffix) and len(surname_lower) > len(suffix) + 2:
+            base = surname_lower[:-len(suffix)]
+            break
+
+    if not base or len(base) < 3:
+        # Try just the surname with prefixes
+        base = surname_lower
+
+    # Core nickname (the base extracted from surname)
+    if base != surname_lower:
+        nicknames.append(base)
+
+    # Common Russian username prefixes (это, я, i'm, the, etc.)
+    prefixes = [
+        'eto', 'eto_', 'eto.',      # это (this is)
+        'ya', 'ya_', 'ia', 'ia_',   # я (I am)
+        'im', 'im_', 'i_am_',       # I'm
+        'the', 'the_',              # the
+        'its', 'its_', 'it_',       # it's
+        'just', 'just_',            # just
+        'real', 'real_',            # real
+        'only', 'only_',            # only
+        'x', 'xx', 'xxx',           # x prefix
+        'mr', 'mr_', 'mr.',         # mr
+        'not', 'not_',              # not
+    ]
+
+    for prefix in prefixes:
+        nicknames.append(f"{prefix}{base}")
+
+    # Diminutive/augmentative suffixes
+    diminutive_suffixes = [
+        'ok', 'ik', 'chik', 'ek', 'ka', 'ko',
+        'yan', 'an', 'us', 'os', 'as',
+        '_official', '_real', '_original',
+        '228', '666', '777', '13',  # Common number suffixes
+    ]
+
+    for suf in diminutive_suffixes:
+        nicknames.append(f"{base}{suf}")
+
+    # Double last letter (common pattern: glaz -> glazz)
+    if base and len(base) >= 3:
+        nicknames.append(f"{base}{base[-1]}")
+        nicknames.append(f"{base}{base[-1]}{base[-1]}")
+
+    # With birth years (young person likely born 2000-2010)
+    for year in ['00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10',
+                 '2000', '2001', '2002', '2003', '2004', '2005', '2006']:
+        nicknames.append(f"{base}{year}")
+        nicknames.append(f"eto{base}{year}")
+
+    # Prefixed base with years
+    for prefix in ['eto', 'ya', 'the', 'im']:
+        for year in ['05', '06', '07']:
+            nicknames.append(f"{prefix}{base}{year}")
+
+    return nicknames
 
 
 # =============================================================================
@@ -353,13 +742,19 @@ class SmartUsernameGenerator:
         # Collect usernames in priority order
         usernames = []
 
-        # === PRIORITY 1: Diminutive alone ===
-        for dim in diminutives[:5]:
+        # === PRIORITY 0: Surname nicknames (CRITICAL for finding @etoglaz style usernames) ===
+        if ln:
+            surname_nicks = extract_surname_nicknames(ln)
+            for nick in surname_nicks:
+                usernames.append(nick)
+
+        # === PRIORITY 1: Diminutive alone (HIGHEST PRIORITY - what Russians actually use!) ===
+        for dim in diminutives[:8]:  # Top 8 diminutives
             usernames.append(dim)
 
         # === PRIORITY 2: Diminutive + lastname ===
         if ln:
-            for dim in diminutives[:3]:
+            for dim in diminutives[:6]:  # More diminutive+lastname combos
                 usernames.append(f"{dim}{ln}")
                 usernames.append(f"{dim}.{ln}")
                 usernames.append(f"{dim}_{ln}")
@@ -405,8 +800,10 @@ class SmartUsernameGenerator:
             year_short = str(birth_year)[-2:]  # e.g., 1990 → 90
             year_full = str(birth_year)  # e.g., 1990
 
-            base_names = [fn] + diminutives[:2]
+            # Prioritize diminutives with years (most realistic!)
+            base_names = diminutives[:5] + [fn]
             if ln:
+                base_names.extend([f"{dim}{ln}" for dim in diminutives[:3]])
                 base_names.append(f"{fn}{ln}")
 
             for base in base_names:

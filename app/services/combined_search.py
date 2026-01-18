@@ -27,6 +27,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
 
 from app.services.username_generator import SmartUsernameGenerator
+from app.services.telegram_search import check_telegram_usernames
 
 
 @dataclass
@@ -34,7 +35,7 @@ class SearchProgress:
     """Tracks search progress for UI updates."""
     phase: str = "initializing"
     current_step: int = 0
-    total_steps: int = 6
+    total_steps: int = 7
     current_item: str = ""
     items_processed: int = 0
     items_total: int = 0
@@ -181,11 +182,19 @@ class CombinedSearchService:
             self.progress.log(f"Generated {len(usernames)} usernames: {usernames}")
             self._update_progress(items_total=len(usernames))
 
-            # PHASE 2-3: Run Maigret + Sherlock in parallel
-            self._update_progress(phase="searching", current_step=2,
+            # PHASE 2: Telegram search (fast, direct API)
+            self._update_progress(phase="telegram_search", current_step=2,
+                                  message="Checking Telegram...")
+
+            self.progress.log("Phase 2: Telegram search (fast)")
+            telegram_results = check_telegram_usernames(usernames)
+            self.progress.log(f"Telegram found {len(telegram_results)} accounts")
+
+            # PHASE 3-4: Run Maigret + Sherlock in parallel
+            self._update_progress(phase="searching", current_step=3,
                                   message="Running Maigret + Sherlock...")
 
-            self.progress.log("Phase 2-3: Running Maigret + Sherlock")
+            self.progress.log("Phase 3-4: Running Maigret + Sherlock")
 
             maigret_results = []
             sherlock_results = []
@@ -206,35 +215,35 @@ class CombinedSearchService:
                     except Exception as e:
                         self.progress.log(f"Search error: {e}")
 
-            all_results = maigret_results + sherlock_results
+            all_results = telegram_results + maigret_results + sherlock_results
             self.progress.log(f"Total raw results: {len(all_results)}")
             self._update_progress(accounts_found=len(all_results))
 
-            # PHASE 4: Light filtering (prioritize but don't exclude)
-            self._update_progress(phase="filtering", current_step=4,
+            # PHASE 5: Light filtering (prioritize but don't exclude)
+            self._update_progress(phase="filtering", current_step=5,
                                   message="Processing results...")
 
-            self.progress.log("Phase 4: Sorting results (priority platforms first)")
+            self.progress.log("Phase 5: Sorting results (priority platforms first)")
             sorted_results = self._sort_by_priority(all_results)
             self.progress.log(f"After sorting: {len(sorted_results)} results")
 
-            # PHASE 5: Face matching (if enabled)
+            # PHASE 6: Face matching (if enabled)
             if target_photo_path and self.enable_face_matching and sorted_results:
-                self._update_progress(phase="face_matching", current_step=5,
+                self._update_progress(phase="face_matching", current_step=6,
                                       items_total=len(sorted_results),
                                       message="Face matching...")
 
-                self.progress.log("Phase 5: Face matching")
+                self.progress.log("Phase 6: Face matching")
                 sorted_results = self._run_face_matching(sorted_results, target_photo_path)
                 face_matching_enabled = True
             else:
-                self.progress.log("Phase 5: Face matching skipped")
+                self.progress.log("Phase 6: Face matching skipped")
 
-            # PHASE 6: Deduplicate
-            self._update_progress(phase="finalizing", current_step=6,
+            # PHASE 7: Deduplicate
+            self._update_progress(phase="finalizing", current_step=7,
                                   message="Finalizing...")
 
-            self.progress.log("Phase 6: Deduplicating")
+            self.progress.log("Phase 7: Deduplicating")
             final_results = self._deduplicate(sorted_results)
             self.progress.log(f"Final results: {len(final_results)}")
 
@@ -255,6 +264,7 @@ class CombinedSearchService:
                     'usernames_generated': len(usernames),
                     'raw_accounts': len(all_results),
                     'accounts_found': len(all_results),
+                    'telegram_found': len(telegram_results),
                     'maigret_found': len(maigret_results),
                     'sherlock_found': len(sherlock_results),
                     'accounts_final': len(final_results),
@@ -280,65 +290,78 @@ class CombinedSearchService:
             }
 
     def _run_maigret_batch(self, usernames: List[str]) -> List[Dict]:
-        """Run Maigret with all usernames at once."""
+        """Run Maigret in chunks to avoid site skipping with many usernames."""
         results = []
-        temp_dir = tempfile.mkdtemp(prefix="maigret_")
 
-        try:
-            self.progress.log(f"Maigret: searching {len(usernames)} usernames")
+        # Split usernames into chunks of 2 to avoid Maigret output truncation bug
+        # With 3+ usernames, VK URLs get truncated in stdout
+        CHUNK_SIZE = 2
+        chunks = [usernames[i:i + CHUNK_SIZE] for i in range(0, len(usernames), CHUNK_SIZE)]
 
-            cmd = [
-                'maigret',
-                *usernames,
-                '--folderoutput', temp_dir,
-                '--timeout', str(self.timeout),
-                '--retries', '0'
-            ]
+        self.progress.log(f"Maigret: searching {len(usernames)} usernames in {len(chunks)} chunks of max {CHUNK_SIZE}")
 
-            total_timeout = min(300, self.timeout * len(usernames) + 120)
+        for chunk_idx, chunk in enumerate(chunks):
+            temp_dir = tempfile.mkdtemp(prefix="maigret_")
 
             try:
-                proc = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=total_timeout,
-                    encoding='utf-8',
-                    errors='replace'
-                )
+                self.progress.log(f"Maigret chunk {chunk_idx + 1}/{len(chunks)}: {chunk}")
 
-                self.progress.log(f"Maigret stdout length: {len(proc.stdout)}")
-                self.progress.log(f"Maigret stderr length: {len(proc.stderr)}")
+                cmd = [
+                    'maigret',
+                    *chunk,
+                    '-a',  # All sites - critical for finding all accounts
+                    '--folderoutput', temp_dir,
+                    '--timeout', str(self.timeout),
+                    '--retries', '0'
+                ]
 
-                # Parse stdout for [+] lines
-                stdout_results = self._parse_osint_output(proc.stdout, usernames, 'maigret')
-                self.progress.log(f"Maigret stdout parsed: {len(stdout_results)} results")
-                results.extend(stdout_results)
+                # Timeout per chunk - needs to be longer for -a (all sites) mode
+                # With 2600+ sites, each username takes ~60-90 seconds
+                chunk_timeout = 90 * len(chunk) + 60  # ~90s per username + buffer
 
-                # Also parse output files
-                for f in Path(temp_dir).iterdir():
-                    if f.suffix in ['.txt', '.json', '.csv']:
-                        try:
-                            content = f.read_text(encoding='utf-8', errors='replace')
-                            file_results = self._parse_osint_output(content, usernames, 'maigret')
-                            self.progress.log(f"Maigret file {f.name}: {len(file_results)} results")
-                            results.extend(file_results)
-                        except Exception as e:
-                            self.progress.log(f"Error reading {f.name}: {e}")
+                try:
+                    proc = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=chunk_timeout,
+                        encoding='utf-8',
+                        errors='replace'
+                    )
 
-            except subprocess.TimeoutExpired:
-                self.progress.log(f"Maigret timeout after {total_timeout}s")
-            except FileNotFoundError:
-                self.progress.log("Maigret not installed")
+                    self.progress.log(f"Maigret chunk {chunk_idx + 1} stdout: {len(proc.stdout)} chars")
 
-        except Exception as e:
-            self.progress.log(f"Maigret error: {e}")
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)
+                    # Parse stdout for [+] lines
+                    stdout_results = self._parse_osint_output(proc.stdout, chunk, 'maigret')
+                    self.progress.log(f"Maigret chunk {chunk_idx + 1} parsed: {len(stdout_results)} results")
+                    results.extend(stdout_results)
+
+                    # Also parse output files
+                    for f in Path(temp_dir).iterdir():
+                        if f.suffix in ['.txt', '.json', '.csv']:
+                            try:
+                                content = f.read_text(encoding='utf-8', errors='replace')
+                                file_results = self._parse_osint_output(content, chunk, 'maigret')
+                                if file_results:
+                                    self.progress.log(f"Maigret file {f.name}: {len(file_results)} results")
+                                results.extend(file_results)
+                            except Exception as e:
+                                self.progress.log(f"Error reading {f.name}: {e}")
+
+                except subprocess.TimeoutExpired:
+                    self.progress.log(f"Maigret chunk {chunk_idx + 1} timeout after {chunk_timeout}s")
+                except FileNotFoundError:
+                    self.progress.log("Maigret not installed")
+                    break  # No point continuing if maigret isn't installed
+
+            except Exception as e:
+                self.progress.log(f"Maigret chunk {chunk_idx + 1} error: {e}")
+            finally:
+                shutil.rmtree(temp_dir, ignore_errors=True)
 
         # Deduplicate
         unique = self._deduplicate(results)
-        self.progress.log(f"Maigret final: {len(unique)} unique results")
+        self.progress.log(f"Maigret final: {len(unique)} unique results from {len(results)} raw")
         return unique
 
     def _run_sherlock_batch(self, usernames: List[str]) -> List[Dict]:
