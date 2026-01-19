@@ -78,32 +78,32 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DISC-01 | — | Complete |
-| DISC-02 | — | Complete |
-| DISC-03 | — | Complete |
-| DISC-04 | — | Complete |
-| DISC-05 | — | Complete |
-| DISC-06 | — | Complete |
-| DISC-07 | — | Complete |
-| DISC-08 | TBD | Pending |
-| DISC-09 | TBD | Pending |
-| FILT-01 | TBD | Pending |
-| LINK-01 | TBD | Pending |
-| LINK-02 | TBD | Pending |
-| LINK-03 | TBD | Pending |
-| LINK-04 | TBD | Pending |
-| CONT-01 | TBD | Pending |
-| CONT-02 | TBD | Pending |
-| CONT-03 | TBD | Pending |
-| CONT-04 | TBD | Pending |
-| INFR-01 | TBD | Pending |
-| INFR-02 | TBD | Pending |
+| DISC-01 | - | Complete |
+| DISC-02 | - | Complete |
+| DISC-03 | - | Complete |
+| DISC-04 | - | Complete |
+| DISC-05 | - | Complete |
+| DISC-06 | - | Complete |
+| DISC-07 | - | Complete |
+| DISC-08 | Phase 1 | Pending |
+| DISC-09 | Phase 1 | Pending |
+| FILT-01 | Phase 2 | Pending |
+| LINK-01 | Phase 3 | Pending |
+| LINK-02 | Phase 3 | Pending |
+| LINK-03 | Phase 3 | Pending |
+| LINK-04 | Phase 3 | Pending |
+| CONT-01 | Phase 4 | Pending |
+| CONT-02 | Phase 4 | Pending |
+| CONT-03 | Phase 4 | Pending |
+| CONT-04 | Phase 4 | Pending |
+| INFR-01 | Phase 5 | Pending |
+| INFR-02 | Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 20 total (7 complete, 13 pending)
-- Mapped to phases: 7 (validated)
-- Unmapped: 13
+- Mapped to phases: 20/20 (100%)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-19*
-*Last updated: 2026-01-19 after initial definition*
+*Last updated: 2026-01-19 - Traceability updated after roadmap creation*
