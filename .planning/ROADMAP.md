@@ -12,7 +12,7 @@ IBP already has a working discovery pipeline (Phase 1 complete). This roadmap ex
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Discovery Enhancement** - Add VK direct search and Yandex reverse image lookup
+- [x] **Phase 1: Discovery Enhancement** - Add VK direct search and Yandex reverse image lookup
 - [ ] **Phase 2: Noise Filtering** - Filter out bots, meme accounts, and non-person profiles
 - [ ] **Phase 3: Account Linking** - Group discovered profiles by likely same person
 - [ ] **Phase 4: Contact Extraction** - Extract phone/email from confirmed profiles
@@ -31,8 +31,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md - VK direct username search service
-- [ ] 01-02-PLAN.md - Yandex reverse image search integration
+- [x] 01-01-PLAN.md - VK direct username search service
+- [x] 01-02-PLAN.md - Yandex reverse image search integration
 
 ### Phase 2: Noise Filtering
 **Goal**: Users see fewer garbage results (bots, meme pages, non-person accounts)
@@ -101,7 +101,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Discovery Enhancement | 0/2 | Planned | - |
+| 1. Discovery Enhancement | 2/2 | Complete | 2026-01-19 |
 | 2. Noise Filtering | 0/1 | Not started | - |
 | 3. Account Linking | 0/4 | Not started | - |
 | 4. Contact Extraction | 0/3 | Not started | - |

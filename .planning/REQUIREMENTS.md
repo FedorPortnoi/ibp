@@ -19,8 +19,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Discovery Enhancement
 
-- [ ] **DISC-08**: VK direct search (vk.com/{username} scraping)
-- [ ] **DISC-09**: Yandex reverse image search integration
+- [x] **DISC-08**: VK direct search (vk.com/{username} scraping)
+- [x] **DISC-09**: Yandex reverse image search integration
 
 ### Filtering
 
@@ -85,8 +85,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISC-05 | - | Complete |
 | DISC-06 | - | Complete |
 | DISC-07 | - | Complete |
-| DISC-08 | Phase 1 | Pending |
-| DISC-09 | Phase 1 | Pending |
+| DISC-08 | Phase 1 | Complete |
+| DISC-09 | Phase 1 | Complete |
 | FILT-01 | Phase 2 | Pending |
 | LINK-01 | Phase 3 | Pending |
 | LINK-02 | Phase 3 | Pending |
@@ -100,7 +100,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFR-02 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 20 total (7 complete, 13 pending)
+- v1 requirements: 20 total (9 complete, 11 pending)
 - Mapped to phases: 20/20 (100%)
 - Unmapped: 0
 

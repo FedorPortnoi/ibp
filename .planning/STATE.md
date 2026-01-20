@@ -5,13 +5,13 @@
 See: .planning/PROJECT.md (updated 2026-01-19)
 
 **Core value:** Find the target person's real social media accounts and extract their contact information
-**Current focus:** Phase 1 - Discovery Enhancement
+**Current focus:** Phase 2 - Noise Filtering
 
 ## Current Position
 
-Phase: 1 of 5 (Discovery Enhancement)
-Plan: 2 of 2 in current phase
-Status: Phase complete
+Phase: 2 of 5 (Noise Filtering)
+Plan: 0 of 1 in current phase
+Status: Ready to plan
 Last activity: 2026-01-20 - Completed 01-01-PLAN.md
 
 Progress: [##--------] 20%
