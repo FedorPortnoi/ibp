@@ -28,6 +28,8 @@ import re
 
 from app.services.username_generator import SmartUsernameGenerator
 from app.services.telegram_search import check_telegram_usernames
+from app.services.vk_search import check_vk_usernames
+from app.services.yandex_image_search import yandex_reverse_image_search
 
 
 @dataclass
@@ -190,6 +192,31 @@ class CombinedSearchService:
             telegram_results = check_telegram_usernames(usernames)
             self.progress.log(f"Telegram found {len(telegram_results)} accounts")
 
+            # PHASE 2.5: VK direct search (fast)
+            self._update_progress(phase="vk_search", current_step=2,
+                                  message="Checking VK profiles...")
+            self.progress.log("Phase 2.5: VK direct search")
+            try:
+                vk_results = check_vk_usernames(usernames)
+                self.progress.log(f"VK found {len(vk_results)} accounts")
+            except Exception as e:
+                vk_results = []
+                self.progress.log(f"VK search error: {e}")
+
+            # PHASE 2.6: Yandex reverse image search (if photo provided)
+            yandex_results = []
+            if target_photo_path and os.path.exists(target_photo_path):
+                self._update_progress(phase="yandex_search", current_step=2,
+                                      message="Searching Yandex Images...")
+                self.progress.log("Phase 2.6: Yandex reverse image search")
+                try:
+                    yandex_results = yandex_reverse_image_search(target_photo_path)
+                    self.progress.log(f"Yandex found {len(yandex_results)} results")
+                except Exception as e:
+                    self.progress.log(f"Yandex search error: {e}")
+            else:
+                self.progress.log("Phase 2.6: Yandex search skipped (no photo)")
+
             # PHASE 3-4: Run Maigret + Sherlock in parallel
             self._update_progress(phase="searching", current_step=3,
                                   message="Running Maigret + Sherlock...")
@@ -215,7 +242,7 @@ class CombinedSearchService:
                     except Exception as e:
                         self.progress.log(f"Search error: {e}")
 
-            all_results = telegram_results + maigret_results + sherlock_results
+            all_results = telegram_results + vk_results + yandex_results + maigret_results + sherlock_results
             self.progress.log(f"Total raw results: {len(all_results)}")
             self._update_progress(accounts_found=len(all_results))
 
@@ -265,6 +292,8 @@ class CombinedSearchService:
                     'raw_accounts': len(all_results),
                     'accounts_found': len(all_results),
                     'telegram_found': len(telegram_results),
+                    'vk_found': len(vk_results),
+                    'yandex_found': len(yandex_results),
                     'maigret_found': len(maigret_results),
                     'sherlock_found': len(sherlock_results),
                     'accounts_final': len(final_results),
