@@ -28,11 +28,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. User can discover VK profiles by direct username lookup (vk.com/{username} validation)
   2. User can upload a photo and get potential matches from Yandex reverse image search
   3. VK and Yandex results appear in the same results list as Maigret/Sherlock hits
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: VK direct username search
-- [ ] 01-02: Yandex reverse image integration
+- [ ] 01-01-PLAN.md - VK direct username search service
+- [ ] 01-02-PLAN.md - Yandex reverse image search integration
 
 ### Phase 2: Noise Filtering
 **Goal**: Users see fewer garbage results (bots, meme pages, non-person accounts)
@@ -101,7 +101,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Discovery Enhancement | 0/2 | Not started | - |
+| 1. Discovery Enhancement | 0/2 | Planned | - |
 | 2. Noise Filtering | 0/1 | Not started | - |
 | 3. Account Linking | 0/4 | Not started | - |
 | 4. Contact Extraction | 0/3 | Not started | - |
