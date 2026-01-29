@@ -4,27 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IBP // IDENTITY-BASED PROFILER</title>
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
-    
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+
+    <!-- IBP Design System CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
+
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        :root {
-            --cyan: #00ffff;
-            --cyan-dim: #00a8a8;
-            --cyan-glow: 0 0 10px #00ffff, 0 0 20px #00ffff40;
-            --bg-dark: #0a0a0a;
-            --bg-panel: #0d1117ee;
-            --border-color: #00ffff30;
-            --text-dim: #4a6670;
-            --green: #00ff88;
-            --red: #ff4444;
-        }
-
         body {
-            background: var(--bg-dark);
-            color: var(--cyan);
-            font-family: 'Share Tech Mono', monospace;
+            background: var(--bg-deep);
+            color: var(--violet);
+            font-family: var(--font-mono);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -66,7 +64,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.8) 100%);
+            background: radial-gradient(ellipse at center, transparent 0%, rgba(3,0,20,0.8) 100%);
             pointer-events: none;
             z-index: 1;
         }
@@ -84,27 +82,27 @@
         }
 
         .logo {
-            font-family: 'Orbitron', sans-serif;
+            font-family: var(--font-display);
             font-size: 80px;
             font-weight: 900;
-            text-shadow: 
-                0 0 10px var(--cyan),
-                0 0 20px var(--cyan),
-                0 0 40px var(--cyan),
-                0 0 80px var(--cyan);
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.5));
             letter-spacing: 20px;
             margin-bottom: 10px;
             animation: logoGlow 2s ease-in-out infinite alternate;
         }
 
         @keyframes logoGlow {
-            from { text-shadow: 0 0 10px var(--cyan), 0 0 20px var(--cyan), 0 0 40px var(--cyan); }
-            to { text-shadow: 0 0 20px var(--cyan), 0 0 40px var(--cyan), 0 0 80px var(--cyan), 0 0 120px var(--cyan); }
+            from { filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.5)); }
+            to { filter: drop-shadow(0 0 40px rgba(139, 92, 246, 0.8)) drop-shadow(0 0 60px rgba(236, 72, 153, 0.4)); }
         }
 
         .subtitle {
             font-size: 14px;
-            color: var(--cyan-dim);
+            color: var(--violet-dim);
             letter-spacing: 8px;
             text-transform: uppercase;
         }
@@ -118,7 +116,8 @@
 
         .panel {
             background: var(--bg-panel);
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-lg);
             position: relative;
             overflow: hidden;
             backdrop-filter: blur(10px);
@@ -131,7 +130,7 @@
             left: 0;
             right: 0;
             height: 2px;
-            background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+            background: linear-gradient(90deg, transparent, var(--violet), var(--pink), transparent);
             animation: scanLine 3s linear infinite;
         }
 
@@ -141,13 +140,13 @@
         }
 
         .panel-header {
-            background: linear-gradient(180deg, #0f1a1f 0%, transparent 100%);
+            background: linear-gradient(180deg, rgba(139, 92, 246, 0.1) 0%, transparent 100%);
             padding: 15px 20px;
-            border-bottom: 1px solid var(--border-color);
-            font-family: 'Orbitron', sans-serif;
+            border-bottom: 1px solid var(--border-subtle);
+            font-family: var(--font-display);
             font-size: 12px;
             letter-spacing: 3px;
-            color: var(--cyan);
+            color: var(--violet);
             display: flex;
             align-items: center;
             gap: 10px;
@@ -155,6 +154,7 @@
 
         .panel-header::before {
             content: "▶";
+            color: var(--pink);
             animation: blink 1s infinite;
         }
 
@@ -178,40 +178,42 @@
 
         .form-input {
             width: 100%;
-            background: #0a0f12;
-            border: 1px solid var(--border-color);
+            background: var(--bg-dark);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
             padding: 15px 20px;
-            font-family: 'Share Tech Mono', monospace;
+            font-family: var(--font-mono);
             font-size: 16px;
-            color: var(--cyan);
+            color: var(--text-primary);
             outline: none;
-            transition: all 0.3s;
+            transition: all var(--transition-normal);
         }
 
         .form-input:focus {
-            border-color: var(--cyan);
-            box-shadow: 0 0 20px #00ffff20, inset 0 0 20px #00ffff05;
+            border-color: var(--violet);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.2), inset 0 0 20px rgba(139, 92, 246, 0.05);
         }
 
-        .form-input::placeholder { color: var(--text-dim); }
+        .form-input::placeholder { color: var(--text-muted); }
 
         .photo-upload {
-            border: 2px dashed var(--border-color);
+            border: 2px dashed var(--border-default);
+            border-radius: var(--radius-md);
             padding: 30px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all var(--transition-normal);
             position: relative;
-            background: #0a0f1280;
+            background: rgba(139, 92, 246, 0.02);
         }
 
         .photo-upload:hover {
-            border-color: var(--cyan-dim);
-            background: #00ffff08;
+            border-color: var(--violet-dim);
+            background: rgba(139, 92, 246, 0.05);
         }
 
         .photo-upload.has-file {
-            border-color: var(--green);
+            border-color: var(--success);
             border-style: solid;
         }
 
@@ -227,28 +229,30 @@
 
         .upload-icon { font-size: 40px; margin-bottom: 15px; opacity: 0.7; }
         .upload-text { color: var(--text-dim); font-size: 12px; letter-spacing: 1px; }
-        .upload-hint { color: var(--cyan-dim); font-size: 10px; margin-top: 10px; }
+        .upload-hint { color: var(--violet-dim); font-size: 10px; margin-top: 10px; }
 
         .photo-preview { display: none; margin-top: 15px; }
         .photo-preview img {
             max-width: 120px;
             max-height: 120px;
-            border: 2px solid var(--cyan);
-            box-shadow: var(--cyan-glow);
+            border: 2px solid var(--violet);
+            border-radius: var(--radius-md);
+            box-shadow: var(--glow-violet);
         }
-        .photo-preview .filename { margin-top: 10px; font-size: 11px; color: var(--green); }
+        .photo-preview .filename { margin-top: 10px; font-size: 11px; color: var(--success); }
 
         .submit-btn {
             width: 100%;
-            background: linear-gradient(180deg, #0a2525 0%, #0a1818 100%);
-            border: 2px solid var(--cyan);
+            background: linear-gradient(180deg, rgba(139, 92, 246, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%);
+            border: 2px solid var(--violet);
+            border-radius: var(--radius-md);
             padding: 18px;
-            font-family: 'Orbitron', sans-serif;
+            font-family: var(--font-display);
             font-size: 14px;
             letter-spacing: 4px;
-            color: var(--cyan);
+            color: var(--violet);
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all var(--transition-normal);
             text-transform: uppercase;
             position: relative;
             overflow: hidden;
@@ -261,16 +265,17 @@
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, #00ffff30, transparent);
+            background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.3), transparent);
             transition: left 0.5s;
         }
 
         .submit-btn:hover {
-            background: linear-gradient(180deg, #0a3535 0%, #0a2525 100%);
-            box-shadow: 0 0 20px #00ffff40, inset 0 0 20px #00ffff10;
+            background: linear-gradient(180deg, rgba(139, 92, 246, 0.3) 0%, rgba(139, 92, 246, 0.15) 100%);
+            box-shadow: var(--glow-violet);
         }
 
         .submit-btn:hover::before { left: 100%; }
+        .submit-btn:active { transform: scale(0.98); }
         .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .features {
@@ -282,18 +287,25 @@
 
         .feature {
             background: var(--bg-panel);
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
             padding: 20px 15px;
             text-align: center;
             backdrop-filter: blur(5px);
+            transition: all var(--transition-normal);
+        }
+
+        .feature:hover {
+            border-color: var(--border-default);
+            background: var(--bg-panel-hover);
         }
 
         .feature-icon { font-size: 28px; margin-bottom: 10px; }
         .feature-title {
-            font-family: 'Orbitron', sans-serif;
+            font-family: var(--font-display);
             font-size: 9px;
             letter-spacing: 1px;
-            color: var(--cyan);
+            color: var(--violet);
             margin-bottom: 5px;
         }
         .feature-desc { font-size: 9px; color: var(--text-dim); line-height: 1.4; }
@@ -301,10 +313,11 @@
         .warning {
             margin-top: 20px;
             padding: 15px;
-            background: #1a150aee;
-            border: 1px solid #ffaa0030;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: var(--radius-md);
             font-size: 11px;
-            color: #ffaa00;
+            color: var(--warning);
             display: flex;
             align-items: center;
             gap: 10px;
@@ -324,7 +337,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(10, 10, 10, 0.98);
+            background: rgba(3, 0, 20, 0.98);
             z-index: 10000;
             align-items: center;
             justify-content: center;
@@ -336,8 +349,8 @@
         .loading-spinner {
             width: 80px;
             height: 80px;
-            border: 3px solid var(--border-color);
-            border-top-color: var(--cyan);
+            border: 3px solid var(--border-default);
+            border-top-color: var(--violet);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -346,9 +359,10 @@
 
         .loading-text {
             margin-top: 25px;
-            font-family: 'Orbitron', sans-serif;
+            font-family: var(--font-display);
             font-size: 14px;
             letter-spacing: 4px;
+            color: var(--violet);
             animation: textPulse 1.5s infinite;
         }
 
@@ -360,9 +374,10 @@
         .error-message {
             display: none;
             padding: 15px;
-            background: #1a0a0a;
-            border: 1px solid #ff444430;
-            color: var(--red);
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: var(--radius-md);
+            color: var(--error);
             margin-bottom: 20px;
             font-size: 12px;
         }
@@ -381,7 +396,7 @@
             position: fixed;
             width: 100px;
             height: 100px;
-            border: 2px solid var(--border-color);
+            border: 2px solid var(--border-subtle);
             pointer-events: none;
             z-index: 5;
         }
@@ -396,7 +411,7 @@
     <canvas id="matrix-canvas"></canvas>
     <div class="vignette"></div>
     <div class="scanlines"></div>
-    
+
     <div class="corner corner-tl"></div>
     <div class="corner corner-tr"></div>
     <div class="corner corner-bl"></div>
@@ -422,10 +437,10 @@
                 <form id="searchForm">
                     <div class="form-group">
                         <label class="form-label">Target Name *</label>
-                        <input 
-                            type="text" 
-                            class="form-input" 
-                            name="target_name" 
+                        <input
+                            type="text"
+                            class="form-input"
+                            name="target_name"
                             id="targetName"
                             placeholder="Иван Петров or Ivan Petrov"
                             required
@@ -482,7 +497,7 @@
 
     <script>
         // ========================================
-        // MATRIX RAIN EFFECT - CYAN STYLE
+        // MATRIX RAIN EFFECT - VIOLET STYLE
         // ========================================
         const canvas = document.getElementById('matrix-canvas');
         const ctx = canvas.getContext('2d');
@@ -517,39 +532,39 @@
 
         function drawMatrix() {
             // Fade effect - creates trail
-            ctx.fillStyle = 'rgba(10, 10, 10, 0.04)';
+            ctx.fillStyle = 'rgba(3, 0, 20, 0.04)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            ctx.font = `${fontSize}px "Share Tech Mono", monospace`;
+            ctx.font = `${fontSize}px "JetBrains Mono", monospace`;
 
             for (let i = 0; i < drops.length; i++) {
                 const char = charArray[Math.floor(Math.random() * charArray.length)];
                 const x = i * fontSize;
                 const y = drops[i] * fontSize;
 
-                // Color gradient based on position in trail
+                // Color gradient based on position in trail - VIOLET/PINK theme
                 const rand = Math.random();
                 if (rand > 0.97) {
-                    // Bright white leading character
+                    // Bright white/pink leading character
                     ctx.fillStyle = '#ffffff';
-                    ctx.shadowColor = '#00ffff';
+                    ctx.shadowColor = '#ec4899';
                     ctx.shadowBlur = 20;
                 } else if (rand > 0.85) {
-                    // Bright cyan
-                    ctx.fillStyle = '#00ffff';
-                    ctx.shadowColor = '#00ffff';
+                    // Bright violet
+                    ctx.fillStyle = '#a78bfa';
+                    ctx.shadowColor = '#8b5cf6';
                     ctx.shadowBlur = 10;
                 } else if (rand > 0.6) {
-                    // Medium cyan
-                    ctx.fillStyle = '#00b8b8';
+                    // Medium violet
+                    ctx.fillStyle = '#8b5cf6';
                     ctx.shadowBlur = 0;
                 } else if (rand > 0.3) {
-                    // Dim cyan
-                    ctx.fillStyle = '#007070';
+                    // Dim violet
+                    ctx.fillStyle = '#6d4bc4';
                     ctx.shadowBlur = 0;
                 } else {
-                    // Very dim
-                    ctx.fillStyle = '#003838';
+                    // Very dim purple
+                    ctx.fillStyle = '#3d2a6d';
                     ctx.shadowBlur = 0;
                 }
 
@@ -587,7 +602,7 @@
                     fileName.textContent = file.name;
                     photoPreview.style.display = 'block';
                     photoUpload.classList.add('has-file');
-                    
+
                     photoUpload.querySelector('.upload-icon').style.display = 'none';
                     photoUpload.querySelector('.upload-text').style.display = 'none';
                     photoUpload.querySelector('.upload-hint').style.display = 'none';
@@ -598,8 +613,8 @@
 
         photoUpload.addEventListener('dragover', function(e) {
             e.preventDefault();
-            this.style.borderColor = 'var(--cyan)';
-            this.style.background = '#00ffff15';
+            this.style.borderColor = '#8b5cf6';
+            this.style.background = 'rgba(139, 92, 246, 0.1)';
         });
 
         photoUpload.addEventListener('dragleave', function(e) {
@@ -612,7 +627,7 @@
             e.preventDefault();
             this.style.borderColor = '';
             this.style.background = '';
-            
+
             const files = e.dataTransfer.files;
             if (files.length > 0) {
                 photoInput.files = files;
@@ -630,28 +645,28 @@
 
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
-            
+
             const targetName = document.getElementById('targetName').value.trim();
-            
+
             if (!targetName) {
                 showError('Please enter a target name');
                 return;
             }
-            
+
             loadingOverlay.classList.add('active');
             submitBtn.disabled = true;
             errorMessage.classList.remove('visible');
-            
+
             try {
                 const formData = new FormData(form);
-                
+
                 const response = await fetch('/phase1/start', {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success && data.redirect) {
                     window.location.href = data.redirect;
                 } else {

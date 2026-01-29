@@ -1,0 +1,126 @@
+/* =============================================================================
+   IBP Design System - CSS Variables
+   ============================================================================= */
+
+:root {
+  /* -------------------------------------------------------------------------
+     Backgrounds
+     ------------------------------------------------------------------------- */
+  --bg-deep: #030014;        /* Deepest background - almost black with purple tint */
+  --bg-dark: #0a0618;        /* Main background */
+  --bg-panel: #110a1f;       /* Panel/card background */
+  --bg-panel-hover: #1a0f2e; /* Panel hover state */
+
+  /* -------------------------------------------------------------------------
+     Primary Colors (Violet)
+     ------------------------------------------------------------------------- */
+  --violet: #8b5cf6;         /* Primary accent */
+  --violet-dim: #7c3aed;     /* Darker violet */
+  --violet-bright: #a78bfa;  /* Lighter violet */
+
+  /* -------------------------------------------------------------------------
+     Secondary Colors
+     ------------------------------------------------------------------------- */
+  --purple: #a855f7;         /* Secondary accent */
+  --pink: #ec4899;           /* Highlight/attention */
+  --indigo: #6366f1;         /* Tertiary accent */
+
+  /* -------------------------------------------------------------------------
+     Semantic Colors
+     ------------------------------------------------------------------------- */
+  --success: #22c55e;        /* Green - verified/found */
+  --warning: #f59e0b;        /* Orange - caution */
+  --error: #ef4444;          /* Red - errors */
+  --info: #3b82f6;           /* Blue - informational */
+
+  /* -------------------------------------------------------------------------
+     Text Colors
+     ------------------------------------------------------------------------- */
+  --text-primary: #f8fafc;   /* White text */
+  --text-secondary: #cbd5e1; /* Gray text */
+  --text-dim: #64748b;       /* Dimmed text */
+  --text-muted: #475569;     /* Very dim text */
+
+  /* -------------------------------------------------------------------------
+     Borders
+     ------------------------------------------------------------------------- */
+  --border-subtle: rgba(139, 92, 246, 0.1);   /* Subtle violet border */
+  --border-default: rgba(139, 92, 246, 0.2);  /* Default border */
+  --border-bright: rgba(139, 92, 246, 0.4);   /* Bright border on hover */
+
+  /* -------------------------------------------------------------------------
+     Shadows & Glows
+     ------------------------------------------------------------------------- */
+  --glow-violet: 0 0 20px rgba(139, 92, 246, 0.4);
+  --glow-violet-intense: 0 0 30px rgba(139, 92, 246, 0.6);
+  --glow-pink: 0 0 20px rgba(236, 72, 153, 0.4);
+  --glow-success: 0 0 15px rgba(34, 197, 94, 0.4);
+  --glow-error: 0 0 15px rgba(239, 68, 68, 0.4);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+
+  /* -------------------------------------------------------------------------
+     Gradients
+     ------------------------------------------------------------------------- */
+  --gradient-primary: linear-gradient(135deg, #8b5cf6, #ec4899);
+  --gradient-secondary: linear-gradient(135deg, #6366f1, #8b5cf6);
+  --gradient-panel: linear-gradient(180deg, rgba(139, 92, 246, 0.05), transparent);
+  --gradient-bg: linear-gradient(135deg, #030014 0%, #0a0618 50%, #030014 100%);
+
+  /* -------------------------------------------------------------------------
+     Typography
+     ------------------------------------------------------------------------- */
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-display: 'Orbitron', sans-serif;
+
+  --font-size-xs: 0.75rem;   /* 12px */
+  --font-size-sm: 0.875rem;  /* 14px */
+  --font-size-base: 1rem;    /* 16px */
+  --font-size-lg: 1.125rem;  /* 18px */
+  --font-size-xl: 1.25rem;   /* 20px */
+  --font-size-2xl: 1.5rem;   /* 24px */
+  --font-size-3xl: 1.875rem; /* 30px */
+  --font-size-4xl: 2.25rem;  /* 36px */
+
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* -------------------------------------------------------------------------
+     Spacing
+     ------------------------------------------------------------------------- */
+  --space-xs: 0.25rem;  /* 4px */
+  --space-sm: 0.5rem;   /* 8px */
+  --space-md: 1rem;     /* 16px */
+  --space-lg: 1.5rem;   /* 24px */
+  --space-xl: 2rem;     /* 32px */
+  --space-2xl: 3rem;    /* 48px */
+
+  /* -------------------------------------------------------------------------
+     Border Radius
+     ------------------------------------------------------------------------- */
+  --radius-sm: 0.25rem;  /* 4px */
+  --radius-md: 0.5rem;   /* 8px */
+  --radius-lg: 0.75rem;  /* 12px */
+  --radius-xl: 1rem;     /* 16px */
+  --radius-full: 9999px;
+
+  /* -------------------------------------------------------------------------
+     Transitions
+     ------------------------------------------------------------------------- */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 400ms ease;
+
+  /* -------------------------------------------------------------------------
+     Z-Index Scale
+     ------------------------------------------------------------------------- */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 300;
+  --z-toast: 400;
+  --z-tooltip: 500;
+}

@@ -1,34 +1,31 @@
 """
-Combined Search Service v8.0 - FIXED
-=====================================
-Actually returns results now.
+Combined Search Service v9.0 - Russia-Only
+==========================================
+Restricted to VK, OK, Telegram only (no Maigret/Sherlock).
+Enhanced username generation (50+ usernames).
 
-Changes from v7:
-- Skip URL validation (was removing all results)
-- Better stdout parsing for Maigret/Sherlock
-- Debug logging to see what's happening
-- Relaxed filtering
+Changes from v8:
+- Removed Maigret/Sherlock (too slow, too many irrelevant results)
+- Added OK (Odnoklassniki) direct search
+- Increased username limit to 50
+- Pipeline: Telegram -> VK -> OK -> Yandex Images -> Face matching
 
 Author: IBP Project
-Version: 8.0
+Version: 9.0
 """
 
 import os
 import sys
 import json
 import time
-import subprocess
-import tempfile
-import shutil
-from pathlib import Path
 from typing import List, Dict, Optional, Callable, Any
 from dataclasses import dataclass, field
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
 
 from app.services.username_generator import SmartUsernameGenerator
 from app.services.telegram_search import check_telegram_usernames
 from app.services.vk_search import check_vk_usernames
+from app.services.ok_search import check_ok_usernames
 from app.services.yandex_image_search import yandex_reverse_image_search
 
 
@@ -37,7 +34,7 @@ class SearchProgress:
     """Tracks search progress for UI updates."""
     phase: str = "initializing"
     current_step: int = 0
-    total_steps: int = 7
+    total_steps: int = 6
     current_item: str = ""
     items_processed: int = 0
     items_total: int = 0
@@ -79,28 +76,27 @@ class SearchProgress:
         }
 
 
-# Priority platforms (shown first, but others still included)
-PRIORITY_PLATFORMS = {
-    'vk', 'vkontakte', 'ok', 'odnoklassniki', 'telegram', 't.me',
-    'instagram', 'facebook', 'twitter', 'x', 'youtube', 'tiktok',
-    'linkedin', 'github', 'reddit', 'twitch', 'discord', 'steam'
+# Russia-only platforms (VK, OK, Telegram)
+ALLOWED_PLATFORMS = {
+    'vk', 'vkontakte', 'ok', 'odnoklassniki', 'telegram', 't.me'
 }
 
 
 class CombinedSearchService:
     """
-    OSINT search service - FIXED version that actually returns results.
+    Russia-only OSINT search service.
 
     Pipeline:
-    1. Generate usernames
-    2. Run Maigret (batch)
-    3. Run Sherlock (batch)
-    4. Light filtering (prioritize, don't exclude)
-    5. Face matching (if photo)
-    6. Sort and return
+    1. Generate usernames (100+)
+    2. Telegram direct search
+    3. VK direct search
+    4. OK direct search
+    5. Yandex reverse image search (if photo)
+    6. Face matching (if photo)
+    7. Deduplicate
     """
 
-    DEFAULT_MAX_USERNAMES = 15
+    DEFAULT_MAX_USERNAMES = 100
     DEFAULT_TIMEOUT = 30
 
     def __init__(self,
@@ -109,7 +105,7 @@ class CombinedSearchService:
                  enable_face_matching: bool = True,
                  max_photos_per_profile: int = 20,
                  timeout: int = DEFAULT_TIMEOUT):
-        self.max_usernames = min(max_usernames, 25)
+        self.max_usernames = max_usernames  # No cap - allow 50+ usernames
         self.request_delay = request_delay
         self.enable_face_matching = enable_face_matching
         self.max_photos_per_profile = max_photos_per_profile
@@ -203,75 +199,58 @@ class CombinedSearchService:
                 vk_results = []
                 self.progress.log(f"VK search error: {e}")
 
-            # PHASE 2.6: Yandex reverse image search (if photo provided)
+            # PHASE 3: OK (Odnoklassniki) direct search
+            self._update_progress(phase="ok_search", current_step=3,
+                                  message="Checking OK profiles...")
+            self.progress.log("Phase 3: OK direct search")
+            try:
+                ok_results = check_ok_usernames(usernames)
+                self.progress.log(f"OK found {len(ok_results)} accounts")
+            except Exception as e:
+                ok_results = []
+                self.progress.log(f"OK search error: {e}")
+
+            # PHASE 4: Yandex reverse image search (if photo provided)
             yandex_results = []
             if target_photo_path and os.path.exists(target_photo_path):
-                self._update_progress(phase="yandex_search", current_step=2,
+                self._update_progress(phase="yandex_search", current_step=4,
                                       message="Searching Yandex Images...")
-                self.progress.log("Phase 2.6: Yandex reverse image search")
+                self.progress.log("Phase 4: Yandex reverse image search")
                 try:
-                    yandex_results = yandex_reverse_image_search(target_photo_path)
-                    self.progress.log(f"Yandex found {len(yandex_results)} results")
+                    yandex_raw = yandex_reverse_image_search(target_photo_path)
+                    # Filter Yandex results to only include VK/OK/Telegram
+                    for r in yandex_raw:
+                        url = r.get('url', '').lower()
+                        if 'vk.com' in url or 'ok.ru' in url or 't.me' in url or 'telegram' in url:
+                            yandex_results.append(r)
+                    self.progress.log(f"Yandex found {len(yandex_raw)} raw, {len(yandex_results)} Russia-only results")
                 except Exception as e:
                     self.progress.log(f"Yandex search error: {e}")
             else:
-                self.progress.log("Phase 2.6: Yandex search skipped (no photo)")
+                self.progress.log("Phase 4: Yandex search skipped (no photo)")
 
-            # PHASE 3-4: Run Maigret + Sherlock in parallel
-            self._update_progress(phase="searching", current_step=3,
-                                  message="Running Maigret + Sherlock...")
-
-            self.progress.log("Phase 3-4: Running Maigret + Sherlock")
-
-            maigret_results = []
-            sherlock_results = []
-
-            with ThreadPoolExecutor(max_workers=2) as executor:
-                maigret_future = executor.submit(self._run_maigret_batch, usernames)
-                sherlock_future = executor.submit(self._run_sherlock_batch, usernames)
-
-                for future in as_completed([maigret_future, sherlock_future]):
-                    try:
-                        result = future.result()
-                        if future == maigret_future:
-                            maigret_results = result
-                            self.progress.log(f"Maigret returned {len(maigret_results)} results")
-                        else:
-                            sherlock_results = result
-                            self.progress.log(f"Sherlock returned {len(sherlock_results)} results")
-                    except Exception as e:
-                        self.progress.log(f"Search error: {e}")
-
-            all_results = telegram_results + vk_results + yandex_results + maigret_results + sherlock_results
+            all_results = telegram_results + vk_results + ok_results + yandex_results
             self.progress.log(f"Total raw results: {len(all_results)}")
             self._update_progress(accounts_found=len(all_results))
 
-            # PHASE 5: Light filtering (prioritize but don't exclude)
-            self._update_progress(phase="filtering", current_step=5,
-                                  message="Processing results...")
-
-            self.progress.log("Phase 5: Sorting results (priority platforms first)")
-            sorted_results = self._sort_by_priority(all_results)
-            self.progress.log(f"After sorting: {len(sorted_results)} results")
-
-            # PHASE 6: Face matching (if enabled)
-            if target_photo_path and self.enable_face_matching and sorted_results:
-                self._update_progress(phase="face_matching", current_step=6,
-                                      items_total=len(sorted_results),
+            # PHASE 5: Face matching (if enabled)
+            if target_photo_path and self.enable_face_matching and all_results:
+                self._update_progress(phase="face_matching", current_step=5,
+                                      items_total=len(all_results),
                                       message="Face matching...")
 
-                self.progress.log("Phase 6: Face matching")
-                sorted_results = self._run_face_matching(sorted_results, target_photo_path)
+                self.progress.log("Phase 5: Face matching")
+                all_results = self._run_face_matching(all_results, target_photo_path)
                 face_matching_enabled = True
             else:
-                self.progress.log("Phase 6: Face matching skipped")
+                self.progress.log("Phase 5: Face matching skipped")
 
-            # PHASE 7: Deduplicate
-            self._update_progress(phase="finalizing", current_step=7,
+            # PHASE 6: Deduplicate
+            self._update_progress(phase="finalizing", current_step=6,
                                   message="Finalizing...")
 
-            self.progress.log("Phase 7: Deduplicating")
-            final_results = self._deduplicate(sorted_results)
+            self.progress.log("Phase 6: Deduplicating")
+            final_results = self._deduplicate(all_results)
             self.progress.log(f"Final results: {len(final_results)}")
 
             face_matches = [r for r in final_results if r.get('face_match', False)]
@@ -293,9 +272,8 @@ class CombinedSearchService:
                     'accounts_found': len(all_results),
                     'telegram_found': len(telegram_results),
                     'vk_found': len(vk_results),
+                    'ok_found': len(ok_results),
                     'yandex_found': len(yandex_results),
-                    'maigret_found': len(maigret_results),
-                    'sherlock_found': len(sherlock_results),
                     'accounts_final': len(final_results),
                     'face_matches': len(face_matches),
                     'photos_scanned': self.progress.photos_scanned,
@@ -317,242 +295,6 @@ class CombinedSearchService:
                 'debug_log': self.progress.debug_log,
                 'stats': {'search_time': self.progress.elapsed_time()}
             }
-
-    def _run_maigret_batch(self, usernames: List[str]) -> List[Dict]:
-        """Run Maigret in chunks to avoid site skipping with many usernames."""
-        results = []
-
-        # Split usernames into chunks of 2 to avoid Maigret output truncation bug
-        # With 3+ usernames, VK URLs get truncated in stdout
-        CHUNK_SIZE = 2
-        chunks = [usernames[i:i + CHUNK_SIZE] for i in range(0, len(usernames), CHUNK_SIZE)]
-
-        self.progress.log(f"Maigret: searching {len(usernames)} usernames in {len(chunks)} chunks of max {CHUNK_SIZE}")
-
-        for chunk_idx, chunk in enumerate(chunks):
-            temp_dir = tempfile.mkdtemp(prefix="maigret_")
-
-            try:
-                self.progress.log(f"Maigret chunk {chunk_idx + 1}/{len(chunks)}: {chunk}")
-
-                cmd = [
-                    'maigret',
-                    *chunk,
-                    '-a',  # All sites - critical for finding all accounts
-                    '--folderoutput', temp_dir,
-                    '--timeout', str(self.timeout),
-                    '--retries', '0'
-                ]
-
-                # Timeout per chunk - needs to be longer for -a (all sites) mode
-                # With 2600+ sites, each username takes ~60-90 seconds
-                chunk_timeout = 90 * len(chunk) + 60  # ~90s per username + buffer
-
-                try:
-                    proc = subprocess.run(
-                        cmd,
-                        capture_output=True,
-                        text=True,
-                        timeout=chunk_timeout,
-                        encoding='utf-8',
-                        errors='replace'
-                    )
-
-                    self.progress.log(f"Maigret chunk {chunk_idx + 1} stdout: {len(proc.stdout)} chars")
-
-                    # Parse stdout for [+] lines
-                    stdout_results = self._parse_osint_output(proc.stdout, chunk, 'maigret')
-                    self.progress.log(f"Maigret chunk {chunk_idx + 1} parsed: {len(stdout_results)} results")
-                    results.extend(stdout_results)
-
-                    # Also parse output files
-                    for f in Path(temp_dir).iterdir():
-                        if f.suffix in ['.txt', '.json', '.csv']:
-                            try:
-                                content = f.read_text(encoding='utf-8', errors='replace')
-                                file_results = self._parse_osint_output(content, chunk, 'maigret')
-                                if file_results:
-                                    self.progress.log(f"Maigret file {f.name}: {len(file_results)} results")
-                                results.extend(file_results)
-                            except Exception as e:
-                                self.progress.log(f"Error reading {f.name}: {e}")
-
-                except subprocess.TimeoutExpired:
-                    self.progress.log(f"Maigret chunk {chunk_idx + 1} timeout after {chunk_timeout}s")
-                except FileNotFoundError:
-                    self.progress.log("Maigret not installed")
-                    break  # No point continuing if maigret isn't installed
-
-            except Exception as e:
-                self.progress.log(f"Maigret chunk {chunk_idx + 1} error: {e}")
-            finally:
-                shutil.rmtree(temp_dir, ignore_errors=True)
-
-        # Deduplicate
-        unique = self._deduplicate(results)
-        self.progress.log(f"Maigret final: {len(unique)} unique results from {len(results)} raw")
-        return unique
-
-    def _run_sherlock_batch(self, usernames: List[str]) -> List[Dict]:
-        """Run Sherlock with all usernames at once."""
-        results = []
-
-        try:
-            self.progress.log(f"Sherlock: searching {len(usernames)} usernames")
-
-            cmd = [
-                'sherlock',
-                *usernames,
-                '--print-found',
-                '--timeout', str(self.timeout)
-            ]
-
-            total_timeout = min(300, self.timeout * len(usernames) + 120)
-
-            try:
-                proc = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=total_timeout,
-                    encoding='utf-8',
-                    errors='replace'
-                )
-
-                self.progress.log(f"Sherlock stdout length: {len(proc.stdout)}")
-
-                results = self._parse_osint_output(proc.stdout, usernames, 'sherlock')
-                self.progress.log(f"Sherlock parsed: {len(results)} results")
-
-            except subprocess.TimeoutExpired:
-                self.progress.log(f"Sherlock timeout after {total_timeout}s")
-            except FileNotFoundError:
-                self.progress.log("Sherlock not installed")
-
-        except Exception as e:
-            self.progress.log(f"Sherlock error: {e}")
-
-        unique = self._deduplicate(results)
-        self.progress.log(f"Sherlock final: {len(unique)} unique results")
-        return unique
-
-    def _parse_osint_output(self, output: str, usernames: List[str], source: str) -> List[Dict]:
-        """Parse Maigret/Sherlock output for found accounts."""
-        results = []
-        current_username = usernames[0] if usernames else 'unknown'
-
-        for line in output.split('\n'):
-            # Update current username if we see a header
-            for un in usernames:
-                if f'Checking username {un}' in line or f'username: {un}' in line.lower():
-                    current_username = un
-                    break
-
-            # Look for [+] SiteName: URL pattern
-            # Handle various formats:
-            # [+] GitHub: https://github.com/user
-            # on 5: [+] GitHub: https://github.com/user
-            match = re.search(r'\[\+\]\s*([^:]+?):\s*(https?://[^\s]+)', line)
-            if match:
-                site = match.group(1).strip()
-                url = match.group(2).strip()
-
-                # Clean site name
-                site = re.sub(r'\s*\[.*?\]', '', site).strip()
-
-                # Detect username from URL
-                detected_user = current_username
-                for un in usernames:
-                    if un.lower() in url.lower():
-                        detected_user = un
-                        break
-
-                results.append({
-                    'platform': site,
-                    'url': url,
-                    'username': detected_user,
-                    'source': source
-                })
-
-            # Also look for bare URLs
-            elif 'http' in line and '[+]' not in line and '[-]' not in line and '[*]' not in line:
-                url_match = re.search(r'(https?://[^\s]+)', line)
-                if url_match:
-                    url = url_match.group(1).strip()
-                    # Extract platform from URL
-                    platform = self._extract_platform(url)
-                    if platform != 'Unknown':
-                        results.append({
-                            'platform': platform,
-                            'url': url,
-                            'username': current_username,
-                            'source': source
-                        })
-
-        return results
-
-    def _extract_platform(self, url: str) -> str:
-        """Extract platform name from URL."""
-        platform_map = {
-            'vk.com': 'VK',
-            'ok.ru': 'OK',
-            't.me': 'Telegram',
-            'telegram': 'Telegram',
-            'instagram.com': 'Instagram',
-            'facebook.com': 'Facebook',
-            'twitter.com': 'Twitter',
-            'x.com': 'X',
-            'youtube.com': 'YouTube',
-            'tiktok.com': 'TikTok',
-            'linkedin.com': 'LinkedIn',
-            'github.com': 'GitHub',
-            'reddit.com': 'Reddit',
-            'twitch.tv': 'Twitch',
-            'discord': 'Discord',
-            'steam': 'Steam',
-            'soundcloud.com': 'SoundCloud',
-            'spotify.com': 'Spotify',
-            'pinterest.com': 'Pinterest',
-            'tumblr.com': 'Tumblr',
-            'medium.com': 'Medium',
-            'behance.net': 'Behance',
-            'dribbble.com': 'Dribbble',
-            'flickr.com': 'Flickr',
-            'deviantart.com': 'DeviantArt',
-            'wordpress.com': 'WordPress',
-            'blogger.com': 'Blogger',
-            'mail.ru': 'Mail.ru',
-            'yandex': 'Yandex',
-        }
-
-        url_lower = url.lower()
-        for pattern, name in platform_map.items():
-            if pattern in url_lower:
-                return name
-
-        # Extract from domain
-        try:
-            domain = re.sub(r'https?://', '', url).split('/')[0]
-            domain = re.sub(r'^www\.', '', domain)
-            parts = domain.split('.')
-            if len(parts) >= 2:
-                return parts[-2].capitalize()
-        except:
-            pass
-
-        return 'Unknown'
-
-    def _sort_by_priority(self, results: List[Dict]) -> List[Dict]:
-        """Sort results with priority platforms first."""
-        def priority_key(r):
-            platform = r.get('platform', '').lower()
-            # Check if any priority keyword is in platform name
-            for p in PRIORITY_PLATFORMS:
-                if p in platform:
-                    return (0, platform)
-            return (1, platform)
-
-        return sorted(results, key=priority_key)
 
     def _deduplicate(self, results: List[Dict]) -> List[Dict]:
         """Remove duplicate URLs."""
@@ -611,83 +353,20 @@ class CombinedSearchService:
 
 def run_search(name: str,
                photo_path: Optional[str] = None,
-               max_usernames: int = 15) -> Dict:
+               max_usernames: int = 100) -> Dict:
     """Simple function to run a search."""
     service = CombinedSearchService(max_usernames=max_usernames)
     return service.search(name, photo_path)
 
 
-# Diagnostic function
-def run_diagnostic(username: str = "testuser") -> Dict:
-    """Run diagnostics to see what's working."""
-    results = {
-        'maigret_installed': False,
-        'sherlock_installed': False,
-        'maigret_output': '',
-        'sherlock_output': '',
-        'maigret_results': [],
-        'sherlock_results': [],
-    }
-
-    # Test Maigret
-    try:
-        proc = subprocess.run(
-            ['maigret', '--version'],
-            capture_output=True, text=True, timeout=10
-        )
-        results['maigret_installed'] = True
-        results['maigret_version'] = proc.stdout.strip()
-    except:
-        pass
-
-    # Test Sherlock
-    try:
-        proc = subprocess.run(
-            ['sherlock', '--version'],
-            capture_output=True, text=True, timeout=10
-        )
-        results['sherlock_installed'] = True
-        results['sherlock_version'] = proc.stdout.strip()
-    except:
-        pass
-
-    # Run quick Maigret search
-    if results['maigret_installed']:
-        try:
-            proc = subprocess.run(
-                ['maigret', username, '--timeout', '15'],
-                capture_output=True, text=True, timeout=60,
-                encoding='utf-8', errors='replace'
-            )
-            results['maigret_output'] = proc.stdout[:2000]
-            # Parse results
-            for line in proc.stdout.split('\n'):
-                match = re.search(r'\[\+\]\s*([^:]+?):\s*(https?://[^\s]+)', line)
-                if match:
-                    results['maigret_results'].append({
-                        'platform': match.group(1).strip(),
-                        'url': match.group(2).strip()
-                    })
-        except Exception as e:
-            results['maigret_error'] = str(e)
-
-    return results
-
-
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python combined_search.py <name> [photo_path]")
-        print("       python combined_search.py --diagnostic")
         sys.exit(1)
 
-    if sys.argv[1] == '--diagnostic':
-        print("Running diagnostics...")
-        diag = run_diagnostic()
-        print(json.dumps(diag, indent=2, default=str))
-    else:
-        name = sys.argv[1]
-        photo = sys.argv[2] if len(sys.argv) > 2 else None
-        results = run_search(name, photo)
-        print(f"\nResults: {len(results.get('results', []))} accounts found")
-        for r in results.get('results', [])[:10]:
-            print(f"  [{r['platform']}] {r['url']}")
+    name = sys.argv[1]
+    photo = sys.argv[2] if len(sys.argv) > 2 else None
+    results = run_search(name, photo)
+    print(f"\nResults: {len(results.get('results', []))} accounts found")
+    for r in results.get('results', [])[:10]:
+        print(f"  [{r['platform']}] {r['url']}")

@@ -169,10 +169,10 @@ def run_search_task(task_id: str):
         has_photo = task.photo_path and os.path.exists(task.photo_path)
         
         # ============================================
-        # OPTIMIZED PARAMETERS (was 100 usernames, now 15)
+        # SEARCH PARAMETERS - 100 usernames for comprehensive coverage
         # ============================================
         service = CombinedSearchService(
-            max_usernames=15,           # ✅ Reduced from 100 (realistic variations only)
+            max_usernames=100,          # Full 100 usernames for comprehensive search
             request_delay=0.3,          # ✅ Reduced from 1.0
             enable_face_matching=has_photo,
             max_photos_per_profile=20,  # ✅ Reduced from 50

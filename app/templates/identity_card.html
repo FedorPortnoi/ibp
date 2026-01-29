@@ -3,18 +3,16 @@
 {% block title %}IBP - Identity Card{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold mb-6">
-        🎴 Identity Card
-    </h1>
-    
-    <div class="card rounded-xl p-8 text-center">
+<div class="max-w-4xl mx-auto px-4 pt-8">
+    <h1 class="text-3xl font-bold mb-6 text-text-primary">Identity Card</h1>
+
+    <div class="card text-center">
         <span class="text-6xl mb-4 block">🎴</span>
-        <h2 class="text-xl font-semibold mb-2">Identity Card Generator</h2>
-        <p class="text-gray-400 mb-4">
-            Investigation ID: {{ investigation_id }}
+        <h2 class="text-xl font-semibold mb-2 text-text-primary">Identity Card Generator</h2>
+        <p class="text-text-secondary mb-4">
+            Investigation ID: <span class="text-violet font-mono">{{ investigation_id }}</span>
         </p>
-        <p class="text-gray-500">
+        <p class="text-text-dim">
             The final identity card will be generated here with all discovered information.
         </p>
     </div>

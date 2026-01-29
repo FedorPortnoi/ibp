@@ -1,1 +1,15 @@
-{"permissions":{"allow":["Bash","Read","Write","Edit","Search","MultiEdit"]}}
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Write",
+      "Edit",
+      "Search",
+      "MultiEdit",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebSearch",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}

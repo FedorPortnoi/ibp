@@ -4,26 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IBP // ERROR</title>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
-    
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        :root {
-            --cyan: #00ffff;
-            --bg-dark: #0a0a0a;
-            --bg-panel: #0d1117;
-            --border-color: #00ffff30;
-            --text-dim: #4a6670;
-            --red: #ff4444;
-        }
 
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+
+    <!-- IBP Design System CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
+
+    <style>
         body {
-            background: var(--bg-dark);
-            color: var(--cyan);
-            font-family: 'Share Tech Mono', monospace;
-            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -42,8 +36,10 @@
             text-align: center;
             padding: 40px;
             background: var(--bg-panel);
-            border: 1px solid var(--red);
+            border: 1px solid var(--error);
+            border-radius: var(--radius-lg);
             max-width: 500px;
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.2);
         }
 
         .error-icon {
@@ -59,9 +55,9 @@
         }
 
         .error-title {
-            font-family: 'Orbitron', sans-serif;
+            font-family: var(--font-display);
             font-size: 24px;
-            color: var(--red);
+            color: var(--error);
             margin-bottom: 20px;
             letter-spacing: 4px;
         }
@@ -70,26 +66,31 @@
             color: var(--text-dim);
             margin-bottom: 30px;
             padding: 15px;
-            background: #1a0a0a;
-            border: 1px solid #ff444430;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: var(--radius-md);
+            font-family: var(--font-mono);
+            font-size: var(--font-size-sm);
         }
 
         .back-btn {
             background: transparent;
-            border: 1px solid var(--cyan);
-            color: var(--cyan);
+            border: 1px solid var(--violet);
+            color: var(--violet);
             padding: 12px 30px;
-            font-family: 'Orbitron', sans-serif;
+            font-family: var(--font-display);
             font-size: 12px;
             letter-spacing: 2px;
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
-            transition: all 0.3s;
+            border-radius: var(--radius-md);
+            transition: all var(--transition-normal);
         }
 
         .back-btn:hover {
-            box-shadow: 0 0 10px var(--cyan);
+            box-shadow: var(--glow-violet);
+            background: rgba(139, 92, 246, 0.1);
         }
     </style>
 </head>

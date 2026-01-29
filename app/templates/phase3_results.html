@@ -3,16 +3,16 @@
 {% block title %}IBP - Phase 3 Results{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold mb-6">
-        <span class="text-ibp-accent">Phase 3:</span> Results
+<div class="max-w-4xl mx-auto px-4 pt-8">
+    <h1 class="text-3xl font-bold mb-6 text-text-primary">
+        <span class="text-violet">Phase 3:</span> Results
     </h1>
-    
-    <div class="card rounded-xl p-8 text-center">
+
+    <div class="card text-center">
         <span class="text-6xl mb-4 block">📋</span>
-        <h2 class="text-xl font-semibold mb-2">Deep Investigation Results</h2>
-        <p class="text-gray-400">
-            Investigation ID: {{ investigation_id }}
+        <h2 class="text-xl font-semibold mb-2 text-text-primary">Deep Investigation Results</h2>
+        <p class="text-text-secondary">
+            Investigation ID: <span class="text-violet font-mono">{{ investigation_id }}</span>
         </p>
     </div>
 </div>
