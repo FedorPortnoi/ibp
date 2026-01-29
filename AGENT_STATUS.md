@@ -98,6 +98,7 @@
 ### Phase 2 Services (`app/services/phase2/`)
 - `combined_search.py` - Phase 2 orchestrator (with fast mode)
 - `email_discovery.py` - NEW: Fast async email discovery (7s vs 408s)
+- `face_search_api.py` - NEW: API-based face search (Search4faces, Yandex, FaceCheck)
 - `email_generator.py` - Email pattern generation
 - `holehe_service.py` - Email verification
 - `breach_checker.py` - HIBP integration
@@ -139,6 +140,8 @@
 | 2026-01-29 | Phase 2 | **FIX: Email discovery 408s → 7s** (async parallel discovery) |
 | 2026-01-29 | Phase 2 | Added EmailDiscoveryService with aiohttp |
 | 2026-01-29 | Phase 2 | Added fast_mode to Phase 2 routes |
+| 2026-01-29 | Phase 2 | Added API face search (Search4faces, Yandex, FaceCheck) |
+| 2026-01-29 | Phase 2 | API search discovers NEW profiles from VK/OK databases |
 
 ---
 

@@ -87,6 +87,17 @@ from .email_discovery import (
     DiscoveredEmail as EmailDiscoveryEmail,
 )
 
+# NEW: API-based face search (Search4faces, Yandex, FaceCheck)
+from .face_search_api import (
+    ApiFaceSearchService,
+    Search4FacesService,
+    YandexImageSearch,
+    FaceCheckService,
+    FaceMatch as ApiFaceMatch,
+    search_faces_sync,
+    search_faces_async,
+)
+
 __all__ = [
     # Email generation
     'generate_email_candidates',
@@ -171,4 +182,12 @@ __all__ = [
     'discover_emails',
     'discover_emails_async',
     'EmailDiscoveryEmail',
+    # NEW: API-based Face Search
+    'ApiFaceSearchService',
+    'Search4FacesService',
+    'YandexImageSearch',
+    'FaceCheckService',
+    'ApiFaceMatch',
+    'search_faces_sync',
+    'search_faces_async',
 ]

@@ -40,6 +40,9 @@ from .vk_wall_extractor import VKWallExtractor, WallExtractionResult
 # NEW: Fast async email discovery
 from .email_discovery import EmailDiscoveryService, EmailDiscoveryResults
 
+# NEW: API-based face search (discovers NEW profiles from photo)
+from .face_search_api import ApiFaceSearchService, FaceMatch as ApiFaceMatch
+
 logger = logging.getLogger(__name__)
 
 
@@ -111,6 +114,9 @@ class Phase2CombinedSearch:
             verify_timeout=5.0,
             max_concurrent=10
         )
+
+        # ===== NEW: API-based face search (discovers NEW profiles) =====
+        self.api_face_search = ApiFaceSearchService()
 
     def set_progress_callback(self, callback: Callable[[str, int], None]):
         """
@@ -904,6 +910,48 @@ class Phase2CombinedSearch:
                 errors.append(f"Scrape error: {str(e)}")
 
         self.logger.info(f"Quick scrape: {len(phones)} phones, {len(emails)} emails, {len(additional_profiles)} profiles")
+
+        # ===== STEP 1.5: API-Based Face Search (if photo provided) =====
+        if target_photo_path and os.path.exists(target_photo_path):
+            self._update_progress("Searching faces via API (VK, OK databases)...", 15)
+            self.logger.info("Step 1.5: API-based face search")
+
+            try:
+                import asyncio
+
+                # Run async face search
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    api_face_matches = loop.run_until_complete(
+                        self.api_face_search.search_and_merge(
+                            target_photo_path,
+                            services=['search4faces', 'yandex'],
+                            databases=['vk', 'ok']
+                        )
+                    )
+                finally:
+                    loop.close()
+
+                # Add discovered profiles
+                for match in api_face_matches:
+                    self._add_profile_if_valid({
+                        'platform': match.platform,
+                        'url': match.profile_url,
+                        'username': match.profile_username or '',
+                        'source': f"Face match ({match.source_service}, {match.similarity_score:.0%})"
+                    }, additional_profiles)
+
+                    # Convert to FaceMatch for results
+                    face_matches.append(match)
+
+                self.logger.info(f"API face search: Found {len(api_face_matches)} profiles")
+
+            except Exception as e:
+                errors.append(f"API face search error: {str(e)}")
+                self.logger.error(f"API face search error: {e}")
+        else:
+            self._update_progress("Skipping face search (no photo)", 15)
 
         # ===== STEP 2: Fast Async Email Discovery =====
         self._update_progress("Discovering emails (fast mode)...", 20)
