@@ -32,6 +32,8 @@ def api_people_search():
     age_to = data.get('age_to')
     platforms = data.get('platforms', ['vk', 'ok', 'telegram'])
     investigation_id = data.get('investigation_id')
+    timeout = data.get('timeout', 30)  # Default 30 second timeout
+    max_usernames = data.get('max_usernames', 15)  # Limit usernames to check
 
     # Try to use the orchestrator (Agent 1 implementation)
     try:
@@ -42,14 +44,16 @@ def api_people_search():
             age_from=age_from,
             age_to=age_to,
             platforms=platforms,
-            investigation_id=investigation_id
+            investigation_id=investigation_id,
+            timeout=timeout,
+            max_usernames=max_usernames
         )
         return jsonify(results)
-    except ImportError:
+    except ImportError as e:
         # Orchestrator not yet created by Agent 1 - return placeholder
         return jsonify({
             'status': 'pending',
-            'message': 'Search orchestrator pending implementation by Agent 1',
+            'message': f'Search orchestrator import error: {e}',
             'profiles': [],
             'stats': {
                 'total_found': 0,
@@ -58,7 +62,17 @@ def api_people_search():
             }
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc(),
+            'profiles': [],
+            'stats': {
+                'total_found': 0,
+                'platforms_searched': platforms,
+                'search_time': 0
+            }
+        }), 500
 
 
 @phase4_bp.route('/investigation/<investigation_id>/graph')
@@ -66,10 +80,31 @@ def show_graph(investigation_id):
     """Display interactive relationship graph for an investigation."""
     try:
         from app.models.investigation import Investigation
-        investigation = Investigation.query.get_or_404(investigation_id)
+        investigation = Investigation.query.get(investigation_id)
+        if not investigation:
+            # Return a simple page if investigation not found
+            return '''
+            <html>
+            <head><title>Investigation Not Found</title></head>
+            <body style="background:#1a1a2e;color:#eee;font-family:sans-serif;padding:40px;">
+                <h1>Investigation Not Found</h1>
+                <p>Investigation ID {} does not exist.</p>
+                <a href="/search/people" style="color:#e94560;">Back to Search</a>
+            </body>
+            </html>
+            '''.format(investigation_id), 404
         return render_template('graph.html', investigation=investigation)
     except Exception as e:
-        return render_template('error.html', error=f"Error loading investigation: {e}"), 500
+        return f'''
+        <html>
+        <head><title>Error</title></head>
+        <body style="background:#1a1a2e;color:#eee;font-family:sans-serif;padding:40px;">
+            <h1>Error Loading Graph</h1>
+            <p>{e}</p>
+            <a href="/search/people" style="color:#e94560;">Back to Search</a>
+        </body>
+        </html>
+        ''', 500
 
 
 @phase4_bp.route('/api/investigation/<investigation_id>/graph-data')
