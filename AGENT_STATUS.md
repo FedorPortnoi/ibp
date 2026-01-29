@@ -19,7 +19,7 @@
 |-------|------|--------|--------|
 | 0 | Coordinator | COMPLETE | CONTRACT READY |
 | 6 | Frontend/DB | COMPLETE | DATABASE READY, INTERFACES READY |
-| 5 | Entity Resolver | WAITING | - |
+| 5 | Entity Resolver | COMPLETE | INTERFACES READY |
 | 2 | VK Search | WAITING | - |
 | 3 | TG Search | WAITING | - |
 | 4 | OK Search | WAITING | - |
@@ -38,6 +38,9 @@
 | 2026-01-29 | Agent 6 | Templates created (people_search.html, graph.html) |
 | 2026-01-29 | Agent 6 | Blueprint registered in app/__init__.py |
 | 2026-01-29 | Agent 6 | ALL TESTS PASSED - DATABASE READY |
+| 2026-01-29 | Agent 5 | EntityResolver created (entity_resolver.py) |
+| 2026-01-29 | Agent 5 | ConnectionAnalyzer created (connection_analyzer.py) |
+| 2026-01-29 | Agent 5 | ALL TESTS PASSED - INTERFACES READY |
 
 ---
 
@@ -67,9 +70,18 @@ Agent 1 depends on: Agents 2,3,4 (VK/TG/OK SEARCH READY)
 | 6 | Phase 4 routes import | PASS | Blueprint: phase4 |
 | 6 | Templates exist | PASS | people_search.html, graph.html |
 | 6 | App initialization | PASS | Routes registered in Flask app |
+| 5 | EntityResolver imports | PASS | entity_resolver singleton |
+| 5 | Diminutive matching | PASS | Pavel/Pasha, 40+ Russian names |
+| 5 | Phone normalization | PASS | +7XXXXXXXXXX format |
+| 5 | Match score calculation | PASS | 32.26% for matching profiles |
+| 5 | Profile merging | PASS | Confidence scoring |
+| 5 | ConnectionAnalyzer imports | PASS | connection_analyzer singleton |
+| 5 | Connection analysis | PASS | Friends, groups, workplace |
+| 5 | Graph data generation | PASS | vis.js compatible format |
+| 5 | Phase4 module exports | PASS | __all__ exports work |
 
 ---
 
 ## Next Action
 
-**User: Activate AGENT 5 (Entity Resolver) now**
+**User: Activate AGENTS 2, 3, 4 (VK, TG, OK) now - can run in PARALLEL**
