@@ -96,7 +96,8 @@
 - `ultimate_face_matcher.py` - Face recognition
 
 ### Phase 2 Services (`app/services/phase2/`)
-- `combined_search.py` - Phase 2 orchestrator
+- `combined_search.py` - Phase 2 orchestrator (with fast mode)
+- `email_discovery.py` - NEW: Fast async email discovery (7s vs 408s)
 - `email_generator.py` - Email pattern generation
 - `holehe_service.py` - Email verification
 - `breach_checker.py` - HIBP integration
@@ -135,6 +136,9 @@
 | 2026-01-29 | Reports | Added PDF/HTML/JSON export |
 | 2026-01-29 | UI | Updated Phase 3 template with map |
 | 2026-01-29 | UI | Updated identity card template |
+| 2026-01-29 | Phase 2 | **FIX: Email discovery 408s → 7s** (async parallel discovery) |
+| 2026-01-29 | Phase 2 | Added EmailDiscoveryService with aiohttp |
+| 2026-01-29 | Phase 2 | Added fast_mode to Phase 2 routes |
 
 ---
 

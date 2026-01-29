@@ -78,6 +78,15 @@ from .vk_wall_extractor import (
     extract_multiple_vk_wall_contacts,
 )
 
+# NEW: Fast async email discovery
+from .email_discovery import (
+    EmailDiscoveryService,
+    EmailDiscoveryResults,
+    discover_emails,
+    discover_emails_async,
+    DiscoveredEmail as EmailDiscoveryEmail,
+)
+
 __all__ = [
     # Email generation
     'generate_email_candidates',
@@ -156,4 +165,10 @@ __all__ = [
     'ExtractedContact',
     'extract_vk_wall_contacts',
     'extract_multiple_vk_wall_contacts',
+    # NEW: Fast Async Email Discovery
+    'EmailDiscoveryService',
+    'EmailDiscoveryResults',
+    'discover_emails',
+    'discover_emails_async',
+    'EmailDiscoveryEmail',
 ]

@@ -37,6 +37,9 @@ from .username_intelligence import UsernameIntelligence, UsernameAnalysis
 from .breach_checker import BreachChecker, BreachCheckResult
 from .vk_wall_extractor import VKWallExtractor, WallExtractionResult
 
+# NEW: Fast async email discovery
+from .email_discovery import EmailDiscoveryService, EmailDiscoveryResults
+
 logger = logging.getLogger(__name__)
 
 
@@ -101,6 +104,13 @@ class Phase2CombinedSearch:
         self.username_intel = UsernameIntelligence()
         self.breach_checker = BreachChecker()
         self.vk_wall_extractor = VKWallExtractor(access_token=vk_access_token)
+
+        # ===== NEW: Fast async email discovery =====
+        self.email_discovery = EmailDiscoveryService(
+            max_candidates=30,
+            verify_timeout=5.0,
+            max_concurrent=10
+        )
 
     def set_progress_callback(self, callback: Callable[[str, int], None]):
         """
@@ -791,6 +801,214 @@ class Phase2CombinedSearch:
         if errors:
             for err in errors[:5]:
                 self.logger.info(f"    - {err}")
+        self.logger.info(f"  Time: {elapsed_time:.1f}s")
+        self.logger.info("=" * 60)
+
+        return Phase2Results(
+            phones=phones,
+            emails=emails,
+            additional_profiles=final_profiles,
+            face_matches=face_matches,
+            stats=stats,
+            errors=errors
+        )
+
+    def investigate_fast(
+        self,
+        selected_profiles: List[Dict],
+        target_name: str,
+        target_photo_path: Optional[str] = None
+    ) -> Phase2Results:
+        """
+        FAST Phase 2 investigation using async email discovery.
+        Target: Complete in under 60 seconds.
+
+        Args:
+            selected_profiles: List of profiles from Phase 1
+            target_name: Full name of target
+            target_photo_path: Optional path to target's photo
+
+        Returns:
+            Phase2Results with discovered information
+        """
+        start_time = time.time()
+
+        self.logger.info("=" * 60)
+        self.logger.info(f"PHASE 2 FAST MODE: Target={target_name}")
+        self.logger.info(f"Selected profiles: {len(selected_profiles)}")
+        self.logger.info("=" * 60)
+
+        phones: List[DiscoveredPhone] = []
+        emails: List[DiscoveredEmail] = []
+        additional_profiles: List[Dict] = []
+        face_matches: List[FaceMatch] = []
+        errors: List[str] = []
+
+        # Build exclusion set
+        self._build_exclusion_set(selected_profiles)
+
+        # Parse name
+        name_parts = target_name.strip().split()
+        first_name = name_parts[0] if name_parts else ""
+        last_name = name_parts[-1] if len(name_parts) > 1 else ""
+
+        # Get usernames - WITH VALIDATION
+        username_hints = []
+        for p in selected_profiles:
+            u = p.get('username', '')
+            if u and not is_reserved_username(u):
+                username_hints.append(u)
+        username_hints = list(set(username_hints))
+
+        self.logger.info(f"Parsed: first='{first_name}', last='{last_name}', usernames={username_hints}")
+
+        # ===== STEP 1: Quick Profile Scraping (limited) =====
+        self._update_progress("Quick profile scan...", 5)
+
+        for profile in selected_profiles[:3]:  # Only first 3 profiles
+            try:
+                url = profile.get('url', '')
+                platform = profile.get('platform', '').lower()
+
+                if not url:
+                    continue
+
+                # Quick scrape with short timeout
+                extracted = scrape_profile(url, platform)
+
+                # Add phones
+                for phone in extracted.phones[:3]:
+                    if phone:
+                        phone_info = self.phone_validator.validate(phone)
+                        phones.append(DiscoveredPhone(
+                            number=phone_info.display_format if phone_info.is_valid else phone,
+                            source=f"{platform.upper()} profile",
+                            confidence="high" if phone_info.is_valid else "medium"
+                        ))
+
+                # Add emails
+                for email in extracted.emails[:3]:
+                    if email and '@' in email:
+                        emails.append(DiscoveredEmail(
+                            email=email,
+                            source=f"{platform.upper()} profile",
+                            confidence="high",
+                            verified_on=[platform]
+                        ))
+
+                # Add social links
+                for social in extracted.other_socials[:5]:
+                    self._add_profile_if_valid(social, additional_profiles)
+
+            except Exception as e:
+                errors.append(f"Scrape error: {str(e)}")
+
+        self.logger.info(f"Quick scrape: {len(phones)} phones, {len(emails)} emails, {len(additional_profiles)} profiles")
+
+        # ===== STEP 2: Fast Async Email Discovery =====
+        self._update_progress("Discovering emails (fast mode)...", 20)
+
+        try:
+            email_results = self.email_discovery.discover_sync(
+                first_name=first_name,
+                last_name=last_name,
+                usernames=username_hints,
+                profile_urls=selected_profiles
+            )
+
+            # Add discovered emails
+            for discovered in email_results.emails:
+                emails.append(DiscoveredEmail(
+                    email=discovered.email,
+                    source=discovered.source,
+                    confidence=discovered.confidence,
+                    verified_on=discovered.verified_on
+                ))
+
+            errors.extend(email_results.errors)
+
+            self.logger.info(
+                f"Email discovery: {len(email_results.emails)} emails found, "
+                f"{email_results.candidates_generated} candidates, "
+                f"{email_results.discovery_time:.1f}s"
+            )
+
+        except Exception as e:
+            errors.append(f"Email discovery error: {str(e)}")
+            self.logger.error(f"Email discovery error: {e}")
+
+        # ===== STEP 3: Quick Yandex Check (limited for speed) =====
+        self._update_progress("Checking Yandex services...", 60)
+
+        # Only check first username with reduced timeout
+        if username_hints:
+            try:
+                yaseeker = YaSeekerService()
+                yaseeker.rate_limit_delay = 0.2  # Faster rate limiting
+
+                # Only check first username
+                username = username_hints[0]
+                accounts = yaseeker.check_all_services(username)
+
+                for acc in accounts:
+                    self._add_profile_if_valid({
+                        'platform': acc.platform,
+                        'url': acc.url,
+                        'username': acc.username,
+                        'source': 'YaSeeker'
+                    }, additional_profiles)
+
+                    if hasattr(acc, 'email') and acc.email:
+                        emails.append(DiscoveredEmail(
+                            email=acc.email,
+                            source="YaSeeker",
+                            confidence="medium",
+                            verified_on=['yandex']
+                        ))
+            except Exception as e:
+                self.logger.debug(f"YaSeeker error: {e}")
+
+        # ===== STEP 4: Deduplicate =====
+        self._update_progress("Finalizing...", 90)
+
+        phones = deduplicate_phones(phones)
+        emails = deduplicate_emails(emails)
+
+        # Convert to AdditionalProfile objects
+        final_profiles = []
+        for p in additional_profiles:
+            if isinstance(p, dict):
+                final_profiles.append(AdditionalProfile(
+                    platform=p.get('platform', ''),
+                    url=p.get('url', ''),
+                    username=p.get('username', ''),
+                    source=p.get('source', 'Unknown')
+                ))
+            else:
+                final_profiles.append(p)
+
+        final_profiles = deduplicate_profiles(final_profiles)
+
+        # Stats
+        elapsed_time = time.time() - start_time
+        stats = {
+            'profiles_analyzed': len(selected_profiles),
+            'phones_found': len(phones),
+            'emails_found': len(emails),
+            'new_profiles_found': len(final_profiles),
+            'face_matches': len(face_matches),
+            'search_time': f"{elapsed_time:.1f}s",
+            'mode': 'fast',
+            'errors_count': len(errors)
+        }
+
+        self._update_progress("Complete!", 100)
+
+        self.logger.info("=" * 60)
+        self.logger.info("PHASE 2 FAST MODE COMPLETE:")
+        self.logger.info(f"  Phones: {len(phones)}")
+        self.logger.info(f"  Emails: {len(emails)}")
+        self.logger.info(f"  Profiles: {len(final_profiles)}")
         self.logger.info(f"  Time: {elapsed_time:.1f}s")
         self.logger.info("=" * 60)
 

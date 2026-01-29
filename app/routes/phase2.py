@@ -69,26 +69,34 @@ class Phase2TaskStatus:
         }
 
 
-def run_phase2_task(task_id: str, target_photo_path: str = None):
+def run_phase2_task(task_id: str, target_photo_path: str = None, fast_mode: bool = True):
     """Background task to run Phase 2 investigation."""
     task = phase2_tasks.get(task_id)
     if not task:
         return
 
     try:
-        task.add_message(f'Starting Phase 2 investigation for {task.target_name}', 'info')
+        mode_str = "FAST MODE" if fast_mode else "standard mode"
+        task.add_message(f'Starting Phase 2 investigation ({mode_str}) for {task.target_name}', 'info')
         task.add_message(f'Analyzing {len(task.selected_profiles)} selected profiles', 'info')
 
         # Initialize search service
         searcher = Phase2CombinedSearch()
         searcher.set_progress_callback(task.update_progress)
 
-        # Run investigation
-        results = searcher.investigate(
-            selected_profiles=task.selected_profiles,
-            target_name=task.target_name,
-            target_photo_path=target_photo_path
-        )
+        # Run investigation - use fast mode by default
+        if fast_mode:
+            results = searcher.investigate_fast(
+                selected_profiles=task.selected_profiles,
+                target_name=task.target_name,
+                target_photo_path=target_photo_path
+            )
+        else:
+            results = searcher.investigate(
+                selected_profiles=task.selected_profiles,
+                target_name=task.target_name,
+                target_photo_path=target_photo_path
+            )
 
         # Store results
         task.results = results
@@ -124,7 +132,8 @@ def start_investigation():
             ...
         ],
         "target_name": "Pavel Durov",
-        "target_photo_path": "/path/to/photo.jpg"  (optional)
+        "target_photo_path": "/path/to/photo.jpg",  (optional)
+        "fast_mode": true  (optional, default true)
     }
     """
     try:
@@ -136,6 +145,7 @@ def start_investigation():
         selected_profiles = data.get('selected_profiles', [])
         target_name = data.get('target_name', '')
         target_photo_path = data.get('target_photo_path')
+        fast_mode = data.get('fast_mode', True)  # Default to fast mode
 
         # Validate
         if not selected_profiles:
@@ -168,7 +178,7 @@ def start_investigation():
         # Start background thread
         thread = threading.Thread(
             target=run_phase2_task,
-            args=(task_id, actual_photo_path)
+            args=(task_id, actual_photo_path, fast_mode)
         )
         thread.daemon = True
         thread.start()
@@ -270,7 +280,8 @@ def investigate_sync():
     {
         "selected_profiles": [...],
         "target_name": "Pavel Durov",
-        "target_photo_path": "/uploads/photo.jpg"  (optional)
+        "target_photo_path": "/uploads/photo.jpg",  (optional)
+        "fast_mode": true  (optional, default true)
     }
     """
     try:
@@ -282,6 +293,7 @@ def investigate_sync():
         selected_profiles = data.get('selected_profiles', [])
         target_name = data.get('target_name', '')
         target_photo_path = data.get('target_photo_path')
+        fast_mode = data.get('fast_mode', True)  # Default to fast mode
 
         # Validate
         if not selected_profiles:
@@ -305,13 +317,20 @@ def investigate_sync():
             elif os.path.exists(target_photo_path):
                 actual_photo_path = target_photo_path
 
-        # Run investigation
+        # Run investigation - use fast mode by default
         searcher = Phase2CombinedSearch()
-        results = searcher.investigate(
-            selected_profiles=selected_profiles,
-            target_name=target_name,
-            target_photo_path=actual_photo_path
-        )
+        if fast_mode:
+            results = searcher.investigate_fast(
+                selected_profiles=selected_profiles,
+                target_name=target_name,
+                target_photo_path=actual_photo_path
+            )
+        else:
+            results = searcher.investigate(
+                selected_profiles=selected_profiles,
+                target_name=target_name,
+                target_photo_path=actual_photo_path
+            )
 
         # Convert to JSON-serializable format
         response = {
