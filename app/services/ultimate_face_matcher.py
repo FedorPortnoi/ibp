@@ -58,6 +58,10 @@ try:
     FACE_RECOGNITION_AVAILABLE = True
 except ImportError:
     FACE_RECOGNITION_AVAILABLE = False
+    # Create stub for type hints
+    class _NumpyStub:
+        ndarray = object
+    np = _NumpyStub()
     print("⚠️ face_recognition not installed. Install: pip install face_recognition")
 
 

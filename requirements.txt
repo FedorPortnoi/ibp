@@ -36,3 +36,24 @@ phonenumbers>=8.13.26
 
 # Development
 python-dateutil>=2.8.2
+
+# NLP & Text Analysis
+nltk>=3.8.1
+pymorphy2>=0.9.1
+pymorphy2-dicts-ru>=2.4.417127.4580142
+
+# Map Visualization
+folium>=0.15.1
+
+# Network Analysis
+networkx>=3.2.1
+
+# Video Processing
+opencv-python-headless>=4.9.0.80
+
+# PDF Generation
+reportlab>=4.1.0
+PyPDF2>=3.0.1
+
+# Word Clouds (for text analysis visualization)
+wordcloud>=1.9.3

@@ -1,20 +1,367 @@
 {% extends "base.html" %}
-
 {% block title %}IBP - Identity Card{% endblock %}
 
-{% block content %}
-<div class="max-w-4xl mx-auto px-4 pt-8">
-    <h1 class="text-3xl font-bold mb-6 text-text-primary">Identity Card</h1>
+{% block head %}
+<style>
+    .card-preview {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-default);
+        border-radius: 16px;
+        padding: 30px;
+        margin-bottom: 30px;
+    }
 
-    <div class="card text-center">
-        <span class="text-6xl mb-4 block">🎴</span>
-        <h2 class="text-xl font-semibold mb-2 text-text-primary">Identity Card Generator</h2>
-        <p class="text-text-secondary mb-4">
-            Investigation ID: <span class="text-violet font-mono">{{ investigation_id }}</span>
-        </p>
-        <p class="text-text-dim">
-            The final identity card will be generated here with all discovered information.
-        </p>
+    .preview-iframe {
+        width: 100%;
+        height: 700px;
+        border: none;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #030014 0%, #0a0618 50%, #110a1f 100%);
+    }
+
+    .export-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-top: 30px;
+    }
+
+    .export-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-dark);
+        border: 1px solid var(--border-default);
+        border-radius: 12px;
+        padding: 25px 20px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .export-btn:hover {
+        border-color: var(--violet);
+        background: rgba(139, 92, 246, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .export-btn:active {
+        transform: translateY(0);
+    }
+
+    .export-icon {
+        font-size: 36px;
+        margin-bottom: 12px;
+    }
+
+    .export-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+
+    .export-desc {
+        font-size: 11px;
+        color: var(--text-muted);
+        text-align: center;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 30px;
+    }
+
+    .stat-item {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-subtle);
+        border-radius: 10px;
+        padding: 16px;
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--violet);
+        font-family: var(--font-display);
+    }
+
+    .stat-label {
+        font-size: 11px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-top: 4px;
+    }
+
+    .loading-container {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 3px solid var(--border-default);
+        border-top-color: var(--violet);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .error-container {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 12px;
+        padding: 30px;
+        text-align: center;
+    }
+
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-text-primary font-display">
+                <span class="text-violet">Identity</span> Card
+            </h1>
+            <p class="text-text-dim mt-2">Investigation report and export options</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="/phase3/{{ investigation_id }}" class="btn btn-secondary">
+                Back to Phase 3
+            </a>
+            <a href="/phase1" class="btn btn-primary">
+                New Investigation
+            </a>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-state" class="card-preview">
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <h3 class="text-lg font-semibold text-text-primary mb-2">Generating Identity Card</h3>
+            <p class="text-text-dim">Compiling investigation data...</p>
+        </div>
+    </div>
+
+    <!-- Error State (hidden by default) -->
+    <div id="error-state" class="error-container hidden">
+        <span class="text-5xl mb-4 block">❌</span>
+        <h3 class="text-lg font-semibold text-error mb-2">Generation Failed</h3>
+        <p class="text-text-dim mb-4" id="error-message"></p>
+        <a href="/phase1" class="btn btn-primary">Start New Investigation</a>
+    </div>
+
+    <!-- Main Content (hidden until loaded) -->
+    <div id="main-content" class="hidden">
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-value" id="stat-profiles">0</div>
+                <div class="stat-label">Profiles</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="stat-contacts">0</div>
+                <div class="stat-label">Contacts</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="stat-business">0</div>
+                <div class="stat-label">Companies</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="stat-confidence">0%</div>
+                <div class="stat-label">Confidence</div>
+            </div>
+        </div>
+
+        <!-- Card Preview -->
+        <div class="card-preview">
+            <iframe id="card-iframe" class="preview-iframe"></iframe>
+        </div>
+
+        <!-- Export Options -->
+        <h3 class="text-lg font-semibold text-text-primary mb-4">Export Options</h3>
+        <div class="export-options">
+            <button class="export-btn" onclick="exportAs('html')">
+                <span class="export-icon">📄</span>
+                <span class="export-label">HTML Card</span>
+                <span class="export-desc">Self-contained webpage</span>
+            </button>
+            <button class="export-btn" onclick="exportAs('pdf')">
+                <span class="export-icon">📑</span>
+                <span class="export-label">PDF Report</span>
+                <span class="export-desc">Full investigation report</span>
+            </button>
+            <button class="export-btn" onclick="exportAs('json')">
+                <span class="export-icon">📦</span>
+                <span class="export-label">JSON Data</span>
+                <span class="export-desc">Machine-readable export</span>
+            </button>
+            <button class="export-btn" onclick="printCard()">
+                <span class="export-icon">🖨️</span>
+                <span class="export-label">Print</span>
+                <span class="export-desc">Print or save as PDF</span>
+            </button>
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const investigationId = '{{ investigation_id }}';
+let investigationData = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadInvestigationData();
+});
+
+function loadInvestigationData() {
+    // Try to get from sessionStorage first
+    const cached = sessionStorage.getItem('investigation_data');
+    if (cached) {
+        try {
+            investigationData = JSON.parse(cached);
+            generateCard();
+            return;
+        } catch (e) {
+            console.error('Failed to parse cached data:', e);
+        }
+    }
+
+    // Try to fetch from API
+    fetch(`/api/investigation/${investigationId}`)
+        .then(response => {
+            if (!response.ok) throw new Error('Investigation not found');
+            return response.json();
+        })
+        .then(data => {
+            investigationData = data;
+            sessionStorage.setItem('investigation_data', JSON.stringify(data));
+            generateCard();
+        })
+        .catch(error => {
+            // Use mock data for demo
+            investigationData = getMockData();
+            generateCard();
+        });
+}
+
+function getMockData() {
+    return {
+        investigation_id: investigationId,
+        target_name: 'Demo User',
+        profiles: [
+            { platform: 'VK', username: 'demo_user', url: 'https://vk.com/demo_user' },
+            { platform: 'Telegram', username: 'demo_tg', url: 'https://t.me/demo_tg' }
+        ],
+        phones: ['+7 (999) 123-45-67'],
+        emails: ['demo@example.com'],
+        business_records: [],
+        court_records: []
+    };
+}
+
+function generateCard() {
+    fetch('/report/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(investigationData)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.error) {
+            showError(result.error);
+            return;
+        }
+
+        // Update stats
+        updateStats(result.confidence_score);
+
+        // Display card in iframe
+        const iframe = document.getElementById('card-iframe');
+        iframe.srcdoc = result.html;
+
+        // Show content, hide loading
+        document.getElementById('loading-state').classList.add('hidden');
+        document.getElementById('main-content').classList.remove('hidden');
+    })
+    .catch(error => {
+        showError(error.message);
+    });
+}
+
+function updateStats(confidence) {
+    const profiles = investigationData.profiles || investigationData.discovered_profiles || [];
+    const phones = investigationData.phones || investigationData.discovered_phones || [];
+    const emails = investigationData.emails || investigationData.discovered_emails || [];
+    const business = investigationData.business_records || [];
+
+    document.getElementById('stat-profiles').textContent = profiles.length;
+    document.getElementById('stat-contacts').textContent = phones.length + emails.length;
+    document.getElementById('stat-business').textContent = business.length;
+    document.getElementById('stat-confidence').textContent = Math.round(confidence) + '%';
+}
+
+function showError(message) {
+    document.getElementById('loading-state').classList.add('hidden');
+    document.getElementById('main-content').classList.add('hidden');
+    document.getElementById('error-state').classList.remove('hidden');
+    document.getElementById('error-message').textContent = message;
+}
+
+function exportAs(format) {
+    const endpoint = `/report/download/${format}`;
+
+    fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(investigationData)
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Export failed');
+        return response.blob();
+    })
+    .then(blob => {
+        const ext = format === 'pdf' ? 'pdf' : format === 'json' ? 'json' : 'html';
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ibp_identity_${investigationId.slice(0, 8)}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+    })
+    .catch(error => {
+        alert('Export failed: ' + error.message);
+    });
+}
+
+function printCard() {
+    const iframe = document.getElementById('card-iframe');
+    if (iframe.contentWindow) {
+        iframe.contentWindow.print();
+    }
+}
+</script>
 {% endblock %}
