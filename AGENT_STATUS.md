@@ -21,7 +21,7 @@
 | 6 | Frontend/DB | COMPLETE | DATABASE READY, INTERFACES READY |
 | 5 | Entity Resolver | COMPLETE | INTERFACES READY |
 | 2 | VK Search | WAITING | - |
-| 3 | TG Search | WAITING | - |
+| 3 | TG Search | COMPLETE | TG SEARCH READY |
 | 4 | OK Search | WAITING | - |
 | 1 | Orchestrator | WAITING | - |
 
@@ -41,6 +41,10 @@
 | 2026-01-29 | Agent 5 | EntityResolver created (entity_resolver.py) |
 | 2026-01-29 | Agent 5 | ConnectionAnalyzer created (connection_analyzer.py) |
 | 2026-01-29 | Agent 5 | ALL TESTS PASSED - INTERFACES READY |
+| 2026-01-29 | Agent 3 | TelegramSearch created (telegram_search.py) |
+| 2026-01-29 | Agent 3 | Username generation with transliteration |
+| 2026-01-29 | Agent 3 | Profile check via t.me with parsing |
+| 2026-01-29 | Agent 3 | ALL TESTS PASSED - TG SEARCH READY |
 
 ---
 
@@ -79,6 +83,12 @@ Agent 1 depends on: Agents 2,3,4 (VK/TG/OK SEARCH READY)
 | 5 | Connection analysis | PASS | Friends, groups, workplace |
 | 5 | Graph data generation | PASS | vis.js compatible format |
 | 5 | Phase4 module exports | PASS | __all__ exports work |
+| 3 | TelegramSearch imports | PASS | telegram_search singleton |
+| 3 | Transliteration | PASS | Cyrillic to Latin |
+| 3 | Username generation | PASS | 30 variants generated |
+| 3 | Username validation | PASS | 5-32 chars, letter start |
+| 3 | Profile format | PASS | Contract-compliant |
+| 3 | Phase4 export | PASS | Imports from phase4 |
 
 ---
 
