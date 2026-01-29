@@ -1,7 +1,7 @@
 """
 Phase 3 Services - Deep Investigation
 =====================================
-Business records, court cases, property lookup.
+Business records, court cases, property lookup, text/video analysis.
 """
 
 from .business_registry import (
@@ -24,6 +24,13 @@ from .text_analyzer import (
     text_analyzer,
     TextAnalysisResult
 )
+from .video_analyzer import (
+    VideoAnalyzer,
+    video_analyzer,
+    VideoFrame,
+    VideoMetadata,
+    VideoAnalysisResult
+)
 
 __all__ = [
     'BusinessRegistrySearch',
@@ -38,4 +45,9 @@ __all__ = [
     'TextAnalyzer',
     'text_analyzer',
     'TextAnalysisResult',
+    'VideoAnalyzer',
+    'video_analyzer',
+    'VideoFrame',
+    'VideoMetadata',
+    'VideoAnalysisResult',
 ]

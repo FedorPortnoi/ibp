@@ -3,128 +3,189 @@
 
 ---
 
-## Activation Order
+## Project Progress
 
-1. **Agent 0 (Coordinator)** - FIRST
-2. **Agent 6 (Frontend/DB)** - After Agent 0
-3. **Agent 5 (Entity Resolver)** - After Agent 6
-4. **Agents 2,3,4 (VK,TG,OK)** - After Agent 5 (parallel)
-5. **Agent 1 (Orchestrator)** - LAST
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Phase 1 | COMPLETE | Social media discovery (VK, OK, Telegram, face matching) |
+| Phase 2 | COMPLETE | Contact discovery (email, phone, breach checking) |
+| Phase 3 | COMPLETE | Deep investigation (business, court, geo, text, video) |
+| Phase 4 | COMPLETE | Connection analysis and graph visualization |
+| Reports | COMPLETE | Identity card generation with HTML/PDF/JSON export |
+
+**Overall: 100% Complete**
 
 ---
 
-## Current Status
+## Feature Checklist
 
-| Agent | Role | Status | Signal |
-|-------|------|--------|--------|
-| 0 | Coordinator | COMPLETE | CONTRACT READY |
-| 6 | Frontend/DB | COMPLETE | DATABASE READY, INTERFACES READY |
-| 5 | Entity Resolver | COMPLETE | INTERFACES READY |
-| 2 | VK Search | COMPLETE | VK via app/services/vk_search.py |
-| 3 | TG Search | COMPLETE | TG SEARCH READY |
-| 4 | OK Search | COMPLETE | OK SEARCH READY |
-| 1 | Orchestrator | COMPLETE | ORCHESTRATION READY |
+### Category 1: Social Media Discovery
+- [x] VK search by username
+- [x] Odnoklassniki (OK) search
+- [x] Telegram search
+- [x] Username enumeration (Maigret, Sherlock)
+- [x] Russian name handling (diminutives, transliteration)
 
-## ALL AGENTS COMPLETE - PHASE 4 READY FOR USE
+### Category 2: Facial Recognition
+- [x] Face matching integration
+- [x] Yandex reverse image search
+- [x] Photo comparison with confidence scores
+
+### Category 3: Contact Discovery
+- [x] Email generation and validation
+- [x] Phone number lookup
+- [x] Breach data checking (HIBP)
+- [x] Holehe email verification
+- [x] YaSeeker Yandex services
+
+### Category 4: Geo-Information
+- [x] Location extraction from profiles
+- [x] City identification from social media
+- [x] Map visualization with Leaflet.js
+- [x] Location analysis (home/work detection)
+
+### Category 5: Text Analysis
+- [x] Sentiment analysis (Russian NLP)
+- [x] Keyword extraction
+- [x] Topic classification
+- [x] Emoji/hashtag/mention analysis
+
+### Category 6: Video/Audio Analysis
+- [x] Video frame extraction (OpenCV)
+- [x] Video metadata extraction
+- [x] Face detection in frames
+- [ ] Speech-to-text (planned for future)
+
+### Category 7: Business & Legal Records
+- [x] Russian business registry (Rusprofile.ru)
+- [x] List-org.com integration
+- [x] Court records (sudact.ru)
+- [x] Arbitration courts (kad.arbitr.ru)
+
+### Category 8: Connection Analysis
+- [x] Entity resolution (profile merging)
+- [x] Relationship extraction
+- [x] Graph building with vis.js
+- [x] Hidden connection detection
+
+### Category 9: Reporting
+- [x] Professional identity card generator
+- [x] HTML export (self-contained)
+- [x] PDF report generation
+- [x] JSON data export
+- [x] Print support
+
+### Category 10: User Interface
+- [x] Modern violet/purple theme
+- [x] Glassmorphism design elements
+- [x] Responsive layout
+- [x] Progress indicators
+- [x] Phase-based navigation
+
+---
+
+## Services Architecture
+
+### Phase 1 Services (`app/services/`)
+- `combined_search.py` - Main search orchestrator
+- `username_generator.py` - Russian name variations
+- `vk_search.py` - VK profile checking
+- `ok_search.py` - OK profile search
+- `telegram_search.py` - Telegram profile search
+- `yandex_image_search.py` - Reverse image search
+- `ultimate_face_matcher.py` - Face recognition
+
+### Phase 2 Services (`app/services/phase2/`)
+- `combined_search.py` - Phase 2 orchestrator
+- `email_generator.py` - Email pattern generation
+- `holehe_service.py` - Email verification
+- `breach_checker.py` - HIBP integration
+- `russian_phone_validator.py` - Phone validation
+
+### Phase 3 Services (`app/services/phase3/`)
+- `business_registry.py` - Rusprofile, List-org
+- `court_search.py` - Court records search
+- `geo_extractor.py` - Location extraction
+- `text_analyzer.py` - Russian NLP analysis
+- `video_analyzer.py` - Video frame extraction
+
+### Phase 4 Services (`app/services/phase4/`)
+- `research_orchestrator.py` - Multi-platform search
+- `entity_resolver.py` - Profile merging
+- `connection_analyzer.py` - Relationship analysis
+
+### Report Services (`app/services/`)
+- `report_generator.py` - Identity card generation
 
 ---
 
 ## Completion Log
 
-| Timestamp | Agent | Action |
-|-----------|-------|--------|
-| 2026-01-29 | Agent 0 | Contract and status files created |
-| 2026-01-29 | Agent 0 | Phase4 directory structure created |
-| 2026-01-29 | Agent 6 | Connection model created (app/models/connection.py) |
-| 2026-01-29 | Agent 6 | Phase 4 routes created (app/routes/phase4.py) |
-| 2026-01-29 | Agent 6 | Templates created (people_search.html, graph.html) |
-| 2026-01-29 | Agent 6 | Blueprint registered in app/__init__.py |
-| 2026-01-29 | Agent 6 | ALL TESTS PASSED - DATABASE READY |
-| 2026-01-29 | Agent 5 | EntityResolver created (entity_resolver.py) |
-| 2026-01-29 | Agent 5 | ConnectionAnalyzer created (connection_analyzer.py) |
-| 2026-01-29 | Agent 5 | ALL TESTS PASSED - INTERFACES READY |
-| 2026-01-29 | Agent 3 | TelegramSearch created (telegram_search.py) |
-| 2026-01-29 | Agent 3 | Username generation with transliteration |
-| 2026-01-29 | Agent 3 | Profile check via t.me with parsing |
-| 2026-01-29 | Agent 3 | ALL TESTS PASSED - TG SEARCH READY |
-| 2026-01-29 | Agent 4 | OKPeopleSearch created (ok_people_search.py) |
-| 2026-01-29 | Agent 4 | Name-based search with city/age filters |
-| 2026-01-29 | Agent 4 | ALL TESTS PASSED - OK SEARCH READY |
-| 2026-01-29 | Agent 1 | ResearchOrchestrator created (research_orchestrator.py) |
-| 2026-01-29 | Agent 1 | Parallel platform search (VK, OK, Telegram) |
-| 2026-01-29 | Agent 1 | Profile merging via EntityResolver |
-| 2026-01-29 | Agent 1 | Connection analysis via ConnectionAnalyzer |
-| 2026-01-29 | Agent 1 | ALL TESTS PASSED - ORCHESTRATION READY |
+| Date | Component | Action |
+|------|-----------|--------|
+| 2026-01-29 | Phase 1 | Complete social discovery pipeline |
+| 2026-01-29 | Phase 2 | Complete contact discovery |
+| 2026-01-29 | Phase 4 | Complete connection analysis |
+| 2026-01-29 | Phase 3 | Added business registry search |
+| 2026-01-29 | Phase 3 | Added court records search |
+| 2026-01-29 | Phase 3 | Added geo-information extraction |
+| 2026-01-29 | Phase 3 | Added text analysis (Russian NLP) |
+| 2026-01-29 | Phase 3 | Added video analyzer |
+| 2026-01-29 | Reports | Added identity card generator |
+| 2026-01-29 | Reports | Added PDF/HTML/JSON export |
+| 2026-01-29 | UI | Updated Phase 3 template with map |
+| 2026-01-29 | UI | Updated identity card template |
 
 ---
 
-## Dependencies
-
-```
-Agent 6 depends on: Agent 0 (CONTRACT READY)
-Agent 5 depends on: Agent 6 (DATABASE READY, INTERFACES READY)
-Agent 2 depends on: Agent 5 (ENTITY RESOLVER READY)
-Agent 3 depends on: Agent 5 (ENTITY RESOLVER READY)
-Agent 4 depends on: Agent 5 (ENTITY RESOLVER READY)
-Agent 1 depends on: Agents 2,3,4 (VK/TG/OK SEARCH READY)
-```
-
----
-
-## Test Results
-
-*(Agents will log their test results here)*
-
-| Agent | Test | Result | Notes |
-|-------|------|--------|-------|
-| 0 | Contract file exists | PASS | |
-| 0 | Status file exists | PASS | |
-| 0 | Phase4 directory exists | PENDING | |
-| 6 | Connection model imports | PASS | to_dict, to_vis_edge, to_vis_node |
-| 6 | Phase 4 routes import | PASS | Blueprint: phase4 |
-| 6 | Templates exist | PASS | people_search.html, graph.html |
-| 6 | App initialization | PASS | Routes registered in Flask app |
-| 5 | EntityResolver imports | PASS | entity_resolver singleton |
-| 5 | Diminutive matching | PASS | Pavel/Pasha, 40+ Russian names |
-| 5 | Phone normalization | PASS | +7XXXXXXXXXX format |
-| 5 | Match score calculation | PASS | 32.26% for matching profiles |
-| 5 | Profile merging | PASS | Confidence scoring |
-| 5 | ConnectionAnalyzer imports | PASS | connection_analyzer singleton |
-| 5 | Connection analysis | PASS | Friends, groups, workplace |
-| 5 | Graph data generation | PASS | vis.js compatible format |
-| 5 | Phase4 module exports | PASS | __all__ exports work |
-| 3 | TelegramSearch imports | PASS | telegram_search singleton |
-| 3 | Transliteration | PASS | Cyrillic to Latin |
-| 3 | Username generation | PASS | 30 variants generated |
-| 3 | Username validation | PASS | 5-32 chars, letter start |
-| 3 | Profile format | PASS | Contract-compliant |
-| 3 | Phase4 export | PASS | Imports from phase4 |
-| 4 | OKPeopleSearch imports | PASS | ok_people_search singleton |
-| 4 | search_people method | PASS | Name/city/age filters |
-| 4 | Profile parsing | PASS | BeautifulSoup HTML parsing |
-| 4 | Rate limiting | PASS | 1.0s delay |
-| 4 | Phase4 export | PASS | Imports from phase4 |
-| 1 | ResearchOrchestrator imports | PASS | research_orchestrator singleton |
-| 1 | VK module lazy load | PASS | check_vk_usernames |
-| 1 | TG module lazy load | PASS | telegram_search |
-| 1 | OK module lazy load | PASS | ok_people_search |
-| 1 | EntityResolver lazy load | PASS | entity_resolver |
-| 1 | ConnectionAnalyzer lazy load | PASS | connection_analyzer |
-| 1 | Username generator | PASS | 10+ usernames generated |
-| 1 | search_person method | PASS | Full parallel search |
-| 1 | quick_search method | PASS | VK+TG quick search |
-| 1 | Full integration test | PASS | All modules work together |
-
----
-
-## Next Action
-
-**PHASE 4 COMPLETE - Ready for testing!**
+## Running the Application
 
 ```bash
-# Start Flask server
+# Install dependencies
+pip install -r requirements.txt --break-system-packages
+
+# Start development server
 python run.py
 
 # Open browser to:
-# http://127.0.0.1:5000/search/people
+# http://127.0.0.1:5000/
 ```
+
+---
+
+## API Endpoints
+
+### Phase 1
+- `POST /phase1/start` - Start social media discovery
+- `GET /phase1/status/<task_id>` - Get search progress
+- `GET /phase1/results` - Display results
+
+### Phase 2
+- `POST /phase2/start` - Start contact discovery
+- `GET /phase2/status/<task_id>` - Get progress
+
+### Phase 3
+- `POST /phase3/start` - Start deep investigation
+- `GET /phase3/progress/<task_id>` - Get progress
+- `GET /phase3/results/<task_id>` - Get results
+- `POST /phase3/api/business-search` - Search business records
+- `POST /phase3/api/court-search` - Search court records
+- `POST /phase3/api/geo-extract` - Extract locations
+- `POST /phase3/api/text-analyze` - Analyze text
+
+### Phase 4
+- `POST /phase4/search` - Multi-platform search
+- `GET /api/investigation/<id>/graph-data` - Get graph data
+
+### Reports
+- `POST /report/generate` - Generate identity card
+- `POST /report/download/html` - Download HTML
+- `POST /report/download/pdf` - Download PDF
+- `POST /report/download/json` - Download JSON
+- `POST /report/preview` - Preview card
+
+---
+
+## GitHub Repository
+
+https://github.com/FedorPortnoi/ibp
