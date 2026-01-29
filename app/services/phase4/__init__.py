@@ -1,21 +1,20 @@
 """
 Phase 4 Services - Advanced OSINT Features
 ==========================================
-
-Multi-agent developed modules for social graph analysis
-and advanced people search capabilities.
-
-Modules:
-- Agent 2: VK People Search (vk_people_search.py)
-- Agent 3: Telegram Search (telegram_search.py)
-- Agent 4: OK People Search (ok_people_search.py)
-- Agent 5: Entity Resolver (entity_resolver.py), Connection Analyzer (connection_analyzer.py)
-- Agent 1: Research Orchestrator (research_orchestrator.py)
-
-Data Structures:
-- All services use standardized Profile and Connection objects
-- See AGENT_CONTRACT.md for schema definitions
+Agent-developed modules:
+- Agent 5: EntityResolver, ConnectionAnalyzer (COMPLETE)
+- Agent 2: VK People Search (pending)
+- Agent 3: Telegram Search (pending)
+- Agent 4: OK People Search (pending)
+- Agent 1: Research Orchestrator (pending)
 """
 
-# Imports will be added by each agent as they complete their modules
-__all__ = []
+from app.services.phase4.entity_resolver import EntityResolver, entity_resolver
+from app.services.phase4.connection_analyzer import ConnectionAnalyzer, connection_analyzer
+
+__all__ = [
+    'EntityResolver',
+    'entity_resolver',
+    'ConnectionAnalyzer',
+    'connection_analyzer',
+]
