@@ -172,6 +172,116 @@ def parse_holehe_output(output: str) -> List[str]:
     return services
 
 
+def calculate_name_similarity(name1: str, name2: str) -> float:
+    """
+    Calculate similarity between two names (0.0 - 1.0).
+
+    Handles:
+    - Case insensitivity
+    - Partial matches (first name or last name only)
+    - Cyrillic/Latin transliteration variations
+    - Common Russian diminutives
+
+    Returns:
+        Float between 0.0 (no match) and 1.0 (exact match)
+    """
+    if not name1 or not name2:
+        return 0.0
+
+    # Normalize: lowercase, strip whitespace
+    n1 = name1.lower().strip()
+    n2 = name2.lower().strip()
+
+    # Exact match
+    if n1 == n2:
+        return 1.0
+
+    # Split into parts
+    parts1 = set(n1.split())
+    parts2 = set(n2.split())
+
+    # If any part matches exactly (first name or last name)
+    common_parts = parts1 & parts2
+    if common_parts:
+        # Calculate score based on how many parts match
+        max_parts = max(len(parts1), len(parts2))
+        return 0.5 + (0.5 * len(common_parts) / max_parts)
+
+    # Try transliteration
+    transliterated1 = _transliterate_name(n1)
+    transliterated2 = _transliterate_name(n2)
+
+    if transliterated1 == transliterated2:
+        return 0.9
+
+    # Check if transliterated parts match
+    trans_parts1 = set(transliterated1.split())
+    trans_parts2 = set(transliterated2.split())
+    trans_common = trans_parts1 & trans_parts2
+    if trans_common:
+        max_parts = max(len(trans_parts1), len(trans_parts2))
+        return 0.4 + (0.4 * len(trans_common) / max_parts)
+
+    # Levenshtein-like similarity for fuzzy matching
+    return _fuzzy_similarity(transliterated1, transliterated2)
+
+
+def _transliterate_name(name: str) -> str:
+    """Transliterate Cyrillic to Latin for comparison."""
+    translit_map = {
+        'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e',
+        'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+        'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+        'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch',
+        'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
+    }
+    result = ""
+    for char in name.lower():
+        result += translit_map.get(char, char)
+    return result
+
+
+def _fuzzy_similarity(s1: str, s2: str) -> float:
+    """Calculate fuzzy string similarity (Jaro-like)."""
+    if not s1 or not s2:
+        return 0.0
+
+    if s1 == s2:
+        return 1.0
+
+    len1, len2 = len(s1), len(s2)
+
+    # Simple character overlap
+    set1, set2 = set(s1), set(s2)
+    overlap = len(set1 & set2)
+    union = len(set1 | set2)
+
+    if union == 0:
+        return 0.0
+
+    # Jaccard similarity
+    jaccard = overlap / union
+
+    # Penalize length difference
+    length_diff = abs(len1 - len2) / max(len1, len2)
+    length_penalty = 1.0 - (length_diff * 0.3)
+
+    return jaccard * length_penalty * 0.3  # Cap at 0.3 for fuzzy matches
+
+
+def extract_name_from_source(source: str) -> Optional[str]:
+    """
+    Try to extract a person's name from a phone source string.
+
+    Examples:
+    - "OK.ru profile (https://ok.ru/profile/123)" -> Try to fetch name from profile
+    - "VK profile deep scan" -> No name available
+    """
+    # For now, return None - name extraction would require additional API calls
+    # This is a placeholder for future enhancement
+    return None
+
+
 def retry_with_backoff(func, max_retries: int = 3, initial_delay: float = 1.0):
     """Execute function with exponential backoff retry."""
     last_exception = None
@@ -225,15 +335,24 @@ class DiscoveredPhone:
     confidence_score: float = 0.7  # 0-1, higher = more confident
     is_duplicate: bool = False  # True if found for multiple targets
     duplicate_targets: List[str] = field(default_factory=list)  # Other targets with same phone
+    source_profile_name: Optional[str] = None  # Name from source profile (if extracted)
+    name_match_score: float = 0.5  # How well source name matches target (0-1)
 
-    def calculate_confidence(self) -> float:
-        """Calculate confidence score based on source and duplicate status."""
+    def calculate_confidence(self, target_name: str = None) -> float:
+        """
+        Calculate confidence score based on source, duplicate status, and name match.
+
+        Args:
+            target_name: If provided, calculate name match with source profile
+        """
         source_scores = {
             'profile contacts': 0.95,
             'VK profile contacts': 0.95,
+            'VK API contacts': 0.95,
             'OK.ru profile': 0.90,
             'VK JSON data': 0.90,
             'VK wall post': 0.75,
+            'VK profile deep scan': 0.70,
             'Telegram bio': 0.85,
             'Username pattern': 0.50,
             'Email local part': 0.60,
@@ -251,6 +370,23 @@ class DiscoveredPhone:
             # Default based on confidence string
             default_scores = {'high': 0.80, 'medium': 0.60, 'low': 0.40}
             base_score = default_scores.get(self.confidence, 0.50)
+
+        # Calculate name match if we have source profile name and target name
+        if target_name and self.source_profile_name:
+            self.name_match_score = calculate_name_similarity(
+                self.source_profile_name, target_name
+            )
+            # Boost or penalize based on name match
+            if self.name_match_score >= 0.8:
+                # Strong name match - boost confidence
+                base_score = min(base_score + 0.1, 0.95)
+            elif self.name_match_score < 0.3:
+                # Poor name match - likely different person
+                base_score = base_score * 0.6
+                logger.debug(
+                    f"Low name match ({self.name_match_score:.2f}) for phone {self.number}: "
+                    f"'{self.source_profile_name}' vs '{target_name}'"
+                )
 
         # CRITICAL: Heavily penalize duplicates (same phone for multiple targets)
         if self.is_duplicate:
@@ -368,6 +504,9 @@ class ProfileContactResult:
     platform: str
     username: str
 
+    # Target name (for name matching validation)
+    target_name: str = ""
+
     # Only VERIFIED emails (no pattern guesses)
     verified_emails: List[VerifiedEmail] = field(default_factory=list)
 
@@ -398,7 +537,8 @@ class ProfileContactResult:
         """Get phones that are not duplicates and meet minimum confidence."""
         valid = []
         for phone in self.phones:
-            phone.calculate_confidence()
+            # Calculate confidence with name matching if target_name is set
+            phone.calculate_confidence(target_name=self.target_name if self.target_name else None)
             # Skip duplicates (same phone found for multiple targets)
             if phone.is_duplicate:
                 continue
@@ -472,7 +612,8 @@ class PerProfileResults:
             for phone in pr.phones:
                 # Use proper normalization
                 key = normalize_phone(phone.number)
-                phone.calculate_confidence()
+                # Calculate confidence with name matching
+                phone.calculate_confidence(target_name=pr.target_name if pr.target_name else self.target_name)
 
                 # Skip duplicates if requested
                 if not include_duplicates and phone.is_duplicate:
@@ -797,7 +938,8 @@ class PerProfileSearchService:
         result = ProfileContactResult(
             profile_url=url,
             platform=platform,
-            username=username
+            username=username,
+            target_name=target_name  # Store for name matching validation
         )
 
         try:
