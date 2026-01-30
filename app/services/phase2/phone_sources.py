@@ -365,15 +365,198 @@ class NumBusterChecker:
         self.session.close()
 
 
+class TelegramPhoneLookup:
+    """
+    Telegram phone lookup (Cycle 6).
+
+    Check if a phone number is registered on Telegram.
+    Uses multiple methods:
+    1. Telegram web preview (t.me)
+    2. Web search for Telegram associations
+    3. Check if phone appears in public channels
+    """
+
+    def __init__(self, rate_limit_delay: float = 2.0):
+        self.rate_limit_delay = rate_limit_delay
+        self._last_request = 0
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9,ru;q=0.8',
+        })
+
+    def lookup(self, phone: str) -> PhoneSourceResult:
+        """
+        Check if phone is registered on Telegram.
+
+        Args:
+            phone: Phone number (any format)
+
+        Returns:
+            PhoneSourceResult with Telegram info if found
+        """
+        # Rate limiting
+        elapsed = time.time() - self._last_request
+        if elapsed < self.rate_limit_delay:
+            time.sleep(self.rate_limit_delay - elapsed)
+        self._last_request = time.time()
+
+        normalized = normalize_phone(phone)
+        result = PhoneSourceResult(
+            phone=normalized,
+            source="telegram",
+            confidence=0.0
+        )
+
+        try:
+            clean_phone = phone.replace('+', '').replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+
+            # Method 1: Search Google for phone + Telegram associations
+            tg_result = self._google_telegram_search(clean_phone)
+            if tg_result:
+                result.name_found = tg_result.get('name')
+                result.confidence = tg_result.get('confidence', 0.70)
+                result.details = tg_result
+                if result.name_found:
+                    logger.info(f"Telegram: Found '{result.name_found}' for {normalized}")
+                    return result
+
+            # Method 2: Check tgstat.ru for phone-associated channels
+            tgstat_result = self._check_tgstat(clean_phone)
+            if tgstat_result:
+                result.name_found = tgstat_result.get('name')
+                result.confidence = 0.65
+                result.details = tgstat_result
+                if result.name_found:
+                    logger.info(f"Telegram (tgstat): Found '{result.name_found}' for {normalized}")
+                    return result
+
+            # Method 3: Search combot.org for phone
+            combot_result = self._check_combot(clean_phone)
+            if combot_result:
+                result.details = combot_result
+                result.confidence = 0.50
+                result.details['is_telegram_user'] = True
+
+        except Exception as e:
+            result.error = str(e)
+            logger.debug(f"Telegram lookup error for {phone}: {e}")
+
+        return result
+
+    def _google_telegram_search(self, phone: str) -> Optional[Dict]:
+        """Search Google for Telegram associations with phone."""
+        try:
+            # Search for phone + telegram username patterns
+            query = f'"{phone}" (site:t.me OR telegram OR "@")'
+            url = f"https://www.google.com/search?q={query}"
+
+            response = self.session.get(url, timeout=15)
+
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                text = soup.get_text()
+
+                result = {}
+
+                # Look for Telegram username patterns
+                username_match = re.search(r'@([a-zA-Z][a-zA-Z0-9_]{4,31})', text)
+                if username_match:
+                    result['telegram_username'] = username_match.group(1)
+                    result['confidence'] = 0.75
+
+                # Look for name patterns near the phone
+                name_patterns = [
+                    r'([А-ЯЁ][а-яё]+)\s+([А-ЯЁ][а-яё]+).{0,30}telegram',
+                    r'telegram.{0,30}([А-ЯЁ][а-яё]+)\s+([А-ЯЁ][а-яё]+)',
+                    r'([A-Z][a-z]+)\s+([A-Z][a-z]+).{0,30}telegram',
+                ]
+
+                for pattern in name_patterns:
+                    match = re.search(pattern, text, re.IGNORECASE)
+                    if match:
+                        result['name'] = f"{match.group(1)} {match.group(2)}"
+                        result['confidence'] = 0.70
+                        break
+
+                return result if result else None
+
+        except Exception as e:
+            logger.debug(f"Google Telegram search error: {e}")
+
+        return None
+
+    def _check_tgstat(self, phone: str) -> Optional[Dict]:
+        """Check tgstat.ru for Telegram channels/users."""
+        try:
+            # tgstat.ru is a Telegram analytics service
+            url = f"https://tgstat.ru/search?q={phone}"
+            response = self.session.get(url, timeout=10)
+
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                # Look for channel/user results
+                results = soup.select('.channel-card, .peer-item')
+                if results:
+                    first = results[0]
+                    name_elem = first.select_one('.channel-name, .peer-name, h5')
+                    if name_elem:
+                        return {
+                            'name': name_elem.get_text(strip=True),
+                            'source': 'tgstat.ru',
+                            'is_telegram_user': True
+                        }
+
+        except Exception as e:
+            logger.debug(f"tgstat error: {e}")
+
+        return None
+
+    def _check_combot(self, phone: str) -> Optional[Dict]:
+        """Check combot.org for Telegram user info."""
+        try:
+            # combot.org tracks Telegram users in groups
+            url = f"https://combot.org/search?q={phone}"
+            response = self.session.get(url, timeout=10)
+
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                # Look for user results
+                results = soup.select('.user-card, .search-result')
+                if results:
+                    return {
+                        'source': 'combot.org',
+                        'is_telegram_user': True,
+                        'results_found': len(results)
+                    }
+
+        except Exception as e:
+            logger.debug(f"combot error: {e}")
+
+        return None
+
+    def close(self):
+        self.session.close()
+
+
 class VKPhoneSearcher:
     """
-    Search VK by phone number (Cycle 4).
+    Search VK by phone number (Cycle 4, enhanced Cycle 6).
 
     VK allows searching for users by phone number.
-    Returns profile information if found.
+    Methods:
+    1. VK API users.search (if access_token available)
+    2. Web search fallback
+    3. Google search for VK profiles with phone
     """
 
-    def __init__(self):
+    VK_API_VERSION = "5.131"
+
+    def __init__(self, access_token: Optional[str] = None):
+        self.access_token = access_token or os.environ.get('VK_ACCESS_TOKEN')
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -398,39 +581,37 @@ class VKPhoneSearcher:
         )
 
         try:
-            # Try VK search with phone
-            clean_phone = phone.replace('+', '').replace(' ', '').replace('-', '')
+            clean_phone = phone.replace('+', '').replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
 
-            url = f"https://vk.com/search?c[q]={clean_phone}&c[section]=people"
-            response = self.session.get(url, timeout=15)
+            # Method 1: Try VK API if we have access token
+            if self.access_token:
+                api_result = self._search_via_api(clean_phone)
+                if api_result:
+                    result.name_found = api_result.get('name')
+                    result.confidence = 0.90
+                    result.details = api_result
+                    if result.name_found:
+                        logger.info(f"VK API: Found '{result.name_found}' for {normalized}")
+                        return result
 
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
+            # Method 2: Web search
+            web_result = self._search_via_web(clean_phone)
+            if web_result:
+                result.name_found = web_result.get('name')
+                result.confidence = 0.80
+                result.details = web_result
+                if result.name_found:
+                    logger.info(f"VK Web: Found '{result.name_found}' for {normalized}")
+                    return result
 
-                # Look for search results
-                results_elem = soup.select('.people_row, .search_row')
-
-                if results_elem:
-                    first_result = results_elem[0]
-
-                    # Get name
-                    name_elem = first_result.select_one('.people_name, .search_name a')
-                    if name_elem:
-                        result.name_found = name_elem.get_text(strip=True)
-                        result.confidence = 0.80
-
-                        # Get profile URL
-                        link = name_elem.get('href', '') if name_elem.name == 'a' else ''
-                        if not link:
-                            link_elem = first_result.select_one('a[href*="/id"]')
-                            link = link_elem.get('href', '') if link_elem else ''
-
-                        result.details = {
-                            'vk_profile': link,
-                            'name': result.name_found
-                        }
-
-                        logger.info(f"VK Phone Search: Found '{result.name_found}' for {normalized}")
+            # Method 3: Google search for VK + phone
+            google_result = self._search_via_google(clean_phone)
+            if google_result:
+                result.name_found = google_result.get('name')
+                result.confidence = 0.70
+                result.details = google_result
+                if result.name_found:
+                    logger.info(f"VK (Google): Found '{result.name_found}' for {normalized}")
 
         except Exception as e:
             result.error = str(e)
@@ -438,23 +619,144 @@ class VKPhoneSearcher:
 
         return result
 
+    def _search_via_api(self, phone: str) -> Optional[Dict]:
+        """Search VK using official API."""
+        try:
+            # VK users.search doesn't search by phone directly
+            # But we can use account.lookupContacts (requires special permissions)
+            # Fallback: search users with the phone number in query
+
+            url = "https://api.vk.com/method/users.search"
+            params = {
+                'q': phone,
+                'count': 5,
+                'fields': 'first_name,last_name,screen_name,photo_200,contacts',
+                'access_token': self.access_token,
+                'v': self.VK_API_VERSION
+            }
+
+            response = requests.get(url, params=params, timeout=15)
+            data = response.json()
+
+            if 'response' in data and data['response'].get('items'):
+                user = data['response']['items'][0]
+                name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip()
+                if name:
+                    return {
+                        'name': name,
+                        'vk_id': user.get('id'),
+                        'screen_name': user.get('screen_name'),
+                        'photo': user.get('photo_200'),
+                        'source': 'vk_api'
+                    }
+
+        except Exception as e:
+            logger.debug(f"VK API search error: {e}")
+
+        return None
+
+    def _search_via_web(self, phone: str) -> Optional[Dict]:
+        """Search VK via web interface."""
+        try:
+            url = f"https://vk.com/search?c[q]={phone}&c[section]=people"
+            response = self.session.get(url, timeout=15)
+
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                # Look for search results (multiple selector patterns)
+                selectors = [
+                    '.people_row', '.search_row', '.page_search_row',
+                    '[data-id]', '.Entity--person'
+                ]
+
+                for selector in selectors:
+                    results = soup.select(selector)
+                    if results:
+                        first = results[0]
+
+                        # Try various name selectors
+                        name_selectors = ['.people_name', '.search_name a', '.Entity__title', 'a.owner_name']
+                        for ns in name_selectors:
+                            name_elem = first.select_one(ns)
+                            if name_elem:
+                                name = name_elem.get_text(strip=True)
+                                if name and len(name) > 1:
+                                    # Get profile link
+                                    link = ''
+                                    link_elem = first.select_one('a[href*="/id"], a[href*="vk.com"]')
+                                    if link_elem:
+                                        link = link_elem.get('href', '')
+
+                                    return {
+                                        'name': name,
+                                        'vk_profile': link,
+                                        'source': 'vk_web'
+                                    }
+                        break
+
+        except Exception as e:
+            logger.debug(f"VK web search error: {e}")
+
+        return None
+
+    def _search_via_google(self, phone: str) -> Optional[Dict]:
+        """Search Google for VK profiles with this phone."""
+        try:
+            query = f'site:vk.com "{phone}"'
+            url = f"https://www.google.com/search?q={query}"
+
+            response = self.session.get(url, timeout=15)
+
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                # Look in search results
+                for result in soup.select('.g')[:5]:
+                    text = result.get_text()
+
+                    # Extract VK name patterns
+                    name_match = re.search(r'([А-ЯЁ][а-яё]+)\s+([А-ЯЁ][а-яё]+)\s*[\|–-]?\s*(?:VK|ВКонтакте|vk\.com)', text)
+                    if name_match:
+                        return {
+                            'name': f"{name_match.group(1)} {name_match.group(2)}",
+                            'source': 'google_vk'
+                        }
+
+                    # Try English name pattern
+                    name_match = re.search(r'([A-Z][a-z]+)\s+([A-Z][a-z]+)\s*[\|–-]?\s*VK', text)
+                    if name_match:
+                        return {
+                            'name': f"{name_match.group(1)} {name_match.group(2)}",
+                            'source': 'google_vk'
+                        }
+
+        except Exception as e:
+            logger.debug(f"Google VK search error: {e}")
+
+        return None
+
     def close(self):
         self.session.close()
 
 
 class OKPhoneSearcher:
     """
-    Search OK.ru by phone number (Cycle 4).
+    Search OK.ru by phone number (Cycle 4, enhanced Cycle 6).
 
     OK.ru allows searching for users by phone number.
-    Returns profile information if found.
+    Methods:
+    1. OK.ru web search
+    2. OK.ru API search (if available)
+    3. Google search for OK profiles with phone
     """
 
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
             'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         })
 
     def search(self, phone: str) -> PhoneSourceResult:
@@ -475,43 +777,171 @@ class OKPhoneSearcher:
         )
 
         try:
-            # Try OK.ru search with phone
-            clean_phone = phone.replace('+', '').replace(' ', '').replace('-', '')
+            clean_phone = phone.replace('+', '').replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
 
-            url = f"https://ok.ru/search?st.query={clean_phone}&st.cmd=friendsFriends"
-            response = self.session.get(url, timeout=15)
+            # Method 1: OK.ru web search (multiple URL formats)
+            web_result = self._search_via_web(clean_phone)
+            if web_result:
+                result.name_found = web_result.get('name')
+                result.confidence = 0.80
+                result.details = web_result
+                if result.name_found:
+                    logger.info(f"OK.ru Web: Found '{result.name_found}' for {normalized}")
+                    return result
 
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
+            # Method 2: Google search for OK.ru + phone
+            google_result = self._search_via_google(clean_phone)
+            if google_result:
+                result.name_found = google_result.get('name')
+                result.confidence = 0.70
+                result.details = google_result
+                if result.name_found:
+                    logger.info(f"OK.ru (Google): Found '{result.name_found}' for {normalized}")
+                    return result
 
-                # Look for search results
-                results_elem = soup.select('.user-card, .ucard')
-
-                if results_elem:
-                    first_result = results_elem[0]
-
-                    # Get name
-                    name_elem = first_result.select_one('.user-card_name, .ucard__name')
-                    if name_elem:
-                        result.name_found = name_elem.get_text(strip=True)
-                        result.confidence = 0.80
-
-                        # Get profile URL
-                        link_elem = first_result.select_one('a[href*="/profile/"]')
-                        link = link_elem.get('href', '') if link_elem else ''
-
-                        result.details = {
-                            'ok_profile': link,
-                            'name': result.name_found
-                        }
-
-                        logger.info(f"OK.ru Phone Search: Found '{result.name_found}' for {normalized}")
+            # Method 3: Try m.ok.ru (mobile version)
+            mobile_result = self._search_mobile(clean_phone)
+            if mobile_result:
+                result.name_found = mobile_result.get('name')
+                result.confidence = 0.75
+                result.details = mobile_result
+                if result.name_found:
+                    logger.info(f"OK.ru Mobile: Found '{result.name_found}' for {normalized}")
 
         except Exception as e:
             result.error = str(e)
             logger.debug(f"OK.ru phone search error: {e}")
 
         return result
+
+    def _search_via_web(self, phone: str) -> Optional[Dict]:
+        """Search OK.ru via web interface."""
+        try:
+            # Try multiple OK.ru search URL formats
+            urls = [
+                f"https://ok.ru/search?st.query={phone}&st.cmd=friendsFriends",
+                f"https://ok.ru/search?st.query={phone}&st.cmd=userMain",
+                f"https://ok.ru/dk?cmd=PortalSearchResults&st.query={phone}",
+            ]
+
+            for url in urls:
+                try:
+                    response = self.session.get(url, timeout=15)
+
+                    if response.status_code == 200:
+                        soup = BeautifulSoup(response.text, 'html.parser')
+
+                        # Multiple selector patterns for OK.ru results
+                        selectors = [
+                            '.user-card', '.ucard', '.ugrid_i',
+                            '.entity-card', '[data-module="UserCard"]'
+                        ]
+
+                        for selector in selectors:
+                            results = soup.select(selector)
+                            if results:
+                                first = results[0]
+
+                                # Try various name selectors
+                                name_selectors = [
+                                    '.user-card_name', '.ucard__name', '.ugrid_i_name a',
+                                    '.entity-card_name', '.o', 'a.bold'
+                                ]
+
+                                for ns in name_selectors:
+                                    name_elem = first.select_one(ns)
+                                    if name_elem:
+                                        name = name_elem.get_text(strip=True)
+                                        if name and len(name) > 1:
+                                            # Get profile link
+                                            link = ''
+                                            link_elem = first.select_one('a[href*="/profile/"], a[href*="ok.ru"]')
+                                            if link_elem:
+                                                link = link_elem.get('href', '')
+
+                                            return {
+                                                'name': name,
+                                                'ok_profile': link,
+                                                'source': 'ok_web'
+                                            }
+                except:
+                    continue
+
+        except Exception as e:
+            logger.debug(f"OK.ru web search error: {e}")
+
+        return None
+
+    def _search_via_google(self, phone: str) -> Optional[Dict]:
+        """Search Google for OK.ru profiles with this phone."""
+        try:
+            query = f'site:ok.ru "{phone}"'
+            url = f"https://www.google.com/search?q={query}"
+
+            response = self.session.get(url, timeout=15)
+
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                # Look in search results
+                for result in soup.select('.g')[:5]:
+                    text = result.get_text()
+
+                    # Extract OK.ru name patterns
+                    name_match = re.search(r'([А-ЯЁ][а-яё]+)\s+([А-ЯЁ][а-яё]+)\s*[\|–-]?\s*(?:OK\.ru|Одноклассники|ok\.ru)', text)
+                    if name_match:
+                        return {
+                            'name': f"{name_match.group(1)} {name_match.group(2)}",
+                            'source': 'google_ok'
+                        }
+
+                    # Look for profile links
+                    links = result.select('a[href*="ok.ru/profile"]')
+                    if links:
+                        # Extract name from title
+                        title_elem = result.select_one('h3')
+                        if title_elem:
+                            title = title_elem.get_text()
+                            # Try to extract name from title
+                            name_match = re.search(r'^([А-ЯЁ][а-яё]+)\s+([А-ЯЁ][а-яё]+)', title)
+                            if name_match:
+                                return {
+                                    'name': f"{name_match.group(1)} {name_match.group(2)}",
+                                    'ok_profile': links[0].get('href', ''),
+                                    'source': 'google_ok'
+                                }
+
+        except Exception as e:
+            logger.debug(f"Google OK search error: {e}")
+
+        return None
+
+    def _search_mobile(self, phone: str) -> Optional[Dict]:
+        """Search OK.ru mobile version."""
+        try:
+            url = f"https://m.ok.ru/search?query={phone}"
+            response = self.session.get(url, timeout=15)
+
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                # Mobile version selectors
+                results = soup.select('.item, .search-item, .user-item')
+                if results:
+                    first = results[0]
+                    name_elem = first.select_one('.name, .title, a')
+                    if name_elem:
+                        name = name_elem.get_text(strip=True)
+                        if name and len(name) > 1 and re.match(r'^[А-ЯЁA-Z]', name):
+                            return {
+                                'name': name,
+                                'source': 'ok_mobile'
+                            }
+
+        except Exception as e:
+            logger.debug(f"OK.ru mobile search error: {e}")
+
+        return None
 
     def close(self):
         self.session.close()
@@ -1094,19 +1524,22 @@ class CombinedPhoneSources:
 
     Cycle 4: GetContact, NumBuster, VK/OK phone search
     Cycle 5: TrueCaller, Sync.me, Eyecon, CallApp
+    Cycle 6: Telegram phone lookup + enhanced VK/OK
     """
 
     def __init__(self):
         # Cycle 4 sources
         self.getcontact = GetContactChecker()
         self.numbuster = NumBusterChecker()
-        self.vk_searcher = VKPhoneSearcher()
-        self.ok_searcher = OKPhoneSearcher()
+        self.vk_searcher = VKPhoneSearcher()  # Enhanced in Cycle 6
+        self.ok_searcher = OKPhoneSearcher()  # Enhanced in Cycle 6
         # Cycle 5 sources
         self.truecaller = TrueCallerChecker()
         self.syncme = SyncMeChecker()
         self.eyecon = EyeconChecker()
         self.callapp = CallAppChecker()
+        # Cycle 6 sources
+        self.telegram = TelegramPhoneLookup()
 
     def lookup(self, phone: str, target_name: Optional[str] = None) -> Dict:
         """
@@ -1261,6 +1694,28 @@ class CombinedPhoneSources:
         except Exception as e:
             logger.debug(f"CallApp error: {e}")
 
+        # Cycle 6: Check Telegram
+        try:
+            tg_result = self.telegram.lookup(phone)
+            if tg_result.name_found:
+                source_results.append(tg_result)
+                results['sources'].append('telegram')
+                results['names_found'].append({
+                    'name': tg_result.name_found,
+                    'source': 'telegram',
+                    'confidence': tg_result.confidence
+                })
+                results['details']['telegram'] = tg_result.details
+            elif tg_result.details.get('is_telegram_user'):
+                # Phone is on Telegram but no name found
+                results['sources'].append('telegram')
+                results['details']['telegram'] = {
+                    'is_telegram_user': True,
+                    'username': tg_result.details.get('telegram_username')
+                }
+        except Exception as e:
+            logger.debug(f"Telegram error: {e}")
+
         # Aggregate confidence
         if source_results:
             results['confidence'] = max(r.confidence for r in source_results)
@@ -1300,6 +1755,8 @@ class CombinedPhoneSources:
         self.syncme.close()
         self.eyecon.close()
         self.callapp.close()
+        # Cycle 6 sources
+        self.telegram.close()
 
 
 # Convenience functions
