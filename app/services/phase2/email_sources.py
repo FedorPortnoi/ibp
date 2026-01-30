@@ -871,12 +871,229 @@ class OKEmailExtractor:
         self.session.close()
 
 
+class GitHubEmailExtractor:
+    """
+    Extract emails from GitHub user activity (Cycle 3).
+
+    GitHub users often have their email visible in:
+    - Public profile
+    - Commit history (git log shows author email)
+    - Patches and pull requests
+
+    Uses GitHub API (unauthenticated) with rate limits.
+    """
+
+    BASE_URL = "https://api.github.com"
+
+    def __init__(self, api_token: Optional[str] = None):
+        self.api_token = api_token or os.environ.get('GITHUB_TOKEN', '')
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': 'IBP-OSINT-Tool/2.0',
+            'Accept': 'application/vnd.github.v3+json',
+        })
+        if self.api_token:
+            self.session.headers['Authorization'] = f'token {self.api_token}'
+
+    def extract_from_username(self, username: str) -> List[EmailSourceResult]:
+        """
+        Extract emails from GitHub username.
+
+        Checks:
+        1. User profile (if email is public)
+        2. User's public events (commit emails)
+        3. User's public repos (commit history)
+        """
+        results = []
+        found_emails = set()
+
+        try:
+            # Method 1: Check user profile
+            user_url = f"{self.BASE_URL}/users/{username}"
+            response = self.session.get(user_url, timeout=15)
+
+            if response.status_code == 200:
+                user_data = response.json()
+
+                # Public email in profile
+                email = user_data.get('email')
+                if email:
+                    found_emails.add(email.lower())
+                    logger.info(f"GitHub: Found public email {email} for {username}")
+
+            # Method 2: Check user events for commit emails
+            events_url = f"{self.BASE_URL}/users/{username}/events/public"
+            response = self.session.get(events_url, timeout=15)
+
+            if response.status_code == 200:
+                events = response.json()
+
+                for event in events[:30]:  # Check recent events
+                    if event.get('type') == 'PushEvent':
+                        payload = event.get('payload', {})
+                        commits = payload.get('commits', [])
+
+                        for commit in commits:
+                            author = commit.get('author', {})
+                            email = author.get('email', '')
+
+                            if email and '@' in email:
+                                # Filter out noreply emails
+                                if 'noreply' not in email.lower() and 'github' not in email.lower():
+                                    found_emails.add(email.lower())
+
+            # Method 3: Check recent repos for commit emails
+            repos_url = f"{self.BASE_URL}/users/{username}/repos?sort=pushed&per_page=5"
+            response = self.session.get(repos_url, timeout=15)
+
+            if response.status_code == 200:
+                repos = response.json()
+
+                for repo in repos[:3]:  # Check top 3 recent repos
+                    repo_name = repo.get('full_name', '')
+                    if repo_name:
+                        # Get recent commits
+                        commits_url = f"{self.BASE_URL}/repos/{repo_name}/commits?per_page=10"
+                        commits_response = self.session.get(commits_url, timeout=15)
+
+                        if commits_response.status_code == 200:
+                            commits = commits_response.json()
+
+                            for commit in commits:
+                                commit_data = commit.get('commit', {})
+                                author = commit_data.get('author', {})
+                                email = author.get('email', '')
+
+                                if email and '@' in email:
+                                    if 'noreply' not in email.lower() and 'github' not in email.lower():
+                                        found_emails.add(email.lower())
+
+                    time.sleep(0.5)  # Rate limiting
+
+            # Convert found emails to results
+            for email in found_emails:
+                results.append(EmailSourceResult(
+                    email=email,
+                    source="github_commits",
+                    exists=True,
+                    confidence=0.95,  # High confidence - directly from commits
+                    details={'github_username': username}
+                ))
+
+        except Exception as e:
+            logger.debug(f"GitHub extraction error for {username}: {e}")
+
+        return results
+
+    def search_by_email(self, email: str) -> Optional[str]:
+        """
+        Search GitHub for users with a specific email.
+
+        Returns GitHub username if found, None otherwise.
+        """
+        try:
+            # GitHub search API
+            search_url = f"{self.BASE_URL}/search/users?q={email}+in:email"
+            response = self.session.get(search_url, timeout=15)
+
+            if response.status_code == 200:
+                data = response.json()
+                items = data.get('items', [])
+
+                if items:
+                    return items[0].get('login')
+
+        except Exception as e:
+            logger.debug(f"GitHub search error: {e}")
+
+        return None
+
+    def close(self):
+        self.session.close()
+
+
+class TelegramEmailExtractor:
+    """
+    Extract emails from Telegram public channels/bots (Cycle 3).
+
+    Checks:
+    - t.me preview page for email mentions in bio/description
+    - Public channel descriptions
+    """
+
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        })
+        self.email_pattern = re.compile(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}')
+
+    def extract_from_username(self, username: str) -> List[EmailSourceResult]:
+        """
+        Extract emails from Telegram username's public page.
+        """
+        results = []
+
+        try:
+            # Check t.me preview page
+            url = f"https://t.me/{username}"
+            response = self.session.get(url, timeout=15)
+
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                # Check description
+                desc_elem = soup.select_one('.tgme_page_description')
+                if desc_elem:
+                    text = desc_elem.get_text()
+                    emails = self.email_pattern.findall(text)
+
+                    for email in emails:
+                        email_lower = email.lower()
+                        if 'example' not in email_lower and 'test' not in email_lower:
+                            results.append(EmailSourceResult(
+                                email=email_lower,
+                                source="telegram_bio",
+                                exists=True,
+                                confidence=0.85,
+                                details={'telegram_username': username}
+                            ))
+                            logger.info(f"Telegram: Found email {email_lower} for @{username}")
+
+                # Check extra info
+                extra_elem = soup.select_one('.tgme_page_extra')
+                if extra_elem:
+                    text = extra_elem.get_text()
+                    emails = self.email_pattern.findall(text)
+
+                    for email in emails:
+                        email_lower = email.lower()
+                        existing = [r.email for r in results]
+                        if email_lower not in existing and 'example' not in email_lower:
+                            results.append(EmailSourceResult(
+                                email=email_lower,
+                                source="telegram_info",
+                                exists=True,
+                                confidence=0.80,
+                                details={'telegram_username': username}
+                            ))
+
+        except Exception as e:
+            logger.debug(f"Telegram extraction error for {username}: {e}")
+
+        return results
+
+    def close(self):
+        self.session.close()
+
+
 class CombinedEmailSources:
     """
     Combined email verification using multiple sources.
     Aggregates results from all available sources.
 
     Cycle 2: Added Snov.io and enhanced SMTP verification.
+    Cycle 3: Added GitHub and Telegram email extraction.
     """
 
     def __init__(
@@ -892,6 +1109,8 @@ class CombinedEmailSources:
         self.snov = SnovIOChecker(client_id=snov_client_id, client_secret=snov_client_secret)
         self.vk_extractor = VKEmailExtractor()
         self.ok_extractor = OKEmailExtractor()
+        self.github_extractor = GitHubEmailExtractor()  # Cycle 3
+        self.telegram_extractor = TelegramEmailExtractor()  # Cycle 3
 
     def verify_email(self, email: str) -> Dict:
         """
@@ -993,14 +1212,63 @@ class CombinedEmailSources:
         for profile in profile_urls:
             url = profile.get('url', '')
             platform = profile.get('platform', '').lower()
+            username = profile.get('username', '')
 
             try:
                 if platform == 'vk' or 'vk.com' in url:
                     results.extend(self.vk_extractor.extract_from_profile(url))
                 elif platform in ['ok', 'odnoklassniki'] or 'ok.ru' in url:
                     results.extend(self.ok_extractor.extract_from_profile(url))
+                elif platform == 'github' or 'github.com' in url:
+                    # Extract username from GitHub URL
+                    gh_user = username or url.split('github.com/')[-1].split('/')[0]
+                    if gh_user:
+                        results.extend(self.github_extractor.extract_from_username(gh_user))
+                elif platform == 'telegram' or 't.me' in url:
+                    # Extract username from Telegram URL
+                    tg_user = username or url.split('t.me/')[-1].split('/')[0].lstrip('@')
+                    if tg_user:
+                        results.extend(self.telegram_extractor.extract_from_username(tg_user))
             except Exception as e:
                 logger.debug(f"Profile extraction error for {url}: {e}")
+
+        return results
+
+    def extract_from_usernames(
+        self,
+        usernames: List[str],
+        platforms: List[str] = None
+    ) -> List[EmailSourceResult]:
+        """
+        Extract emails from usernames across multiple platforms (Cycle 3).
+
+        Args:
+            usernames: List of usernames to check
+            platforms: Platforms to check (default: github, telegram)
+
+        Returns:
+            List of EmailSourceResult
+        """
+        if platforms is None:
+            platforms = ['github', 'telegram']
+
+        results = []
+
+        for username in usernames:
+            # Clean username
+            clean_user = username.strip().lstrip('@')
+            if not clean_user or len(clean_user) < 2:
+                continue
+
+            try:
+                if 'github' in platforms:
+                    results.extend(self.github_extractor.extract_from_username(clean_user))
+
+                if 'telegram' in platforms:
+                    results.extend(self.telegram_extractor.extract_from_username(clean_user))
+
+            except Exception as e:
+                logger.debug(f"Username extraction error for {username}: {e}")
 
         return results
 
@@ -1012,6 +1280,8 @@ class CombinedEmailSources:
         self.snov.close()
         self.vk_extractor.close()
         self.ok_extractor.close()
+        self.github_extractor.close()
+        self.telegram_extractor.close()
 
 
 # Convenience functions
