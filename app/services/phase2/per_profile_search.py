@@ -8,10 +8,33 @@ SUCCESS CRITERIA:
 - Each profile must have at least 1 VERIFIED email AND 1 phone
 - Emails are only counted if verified via Holehe/Gravatar/profile-scraping
 - Pattern-generated emails without verification are EXCLUDED
+
+FEATURES:
+- Fast mode with parallel email verification
+- VK API integration for profile extraction
+- Telegram, OK.ru, Mail.ru, Yandex phone lookup
+- In-memory caching for performance
+- Confidence scoring for results
+- JSON/CSV export support
+- Error recovery with fallback methods
+
+USAGE:
+    from app.services.phase2.per_profile_search import PerProfileSearchService
+
+    service = PerProfileSearchService(fast_mode=True)
+    results = service.investigate_all_profiles(
+        profiles=[{'url': '...', 'platform': 'vk', 'username': '...'}],
+        target_name="John Doe"
+    )
+
+    print(f"Passing: {results.passing_profiles}/{results.total_profiles}")
+    print(f"Emails: {results.total_verified_emails}")
+    print(f"Phones: {results.total_phones}")
+
+    # Export results
+    results.save_json("results.json")
 """
 
-import asyncio
-import aiohttp
 import logging
 import subprocess
 import re
