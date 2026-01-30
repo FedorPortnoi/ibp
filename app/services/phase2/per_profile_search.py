@@ -758,11 +758,17 @@ class PerProfileSearchService:
     """
     Processes Phase 2 contact discovery PER PROFILE.
     Only returns VERIFIED emails - no pattern guesses.
+
+    Performance optimizations (Cycle 9):
+    - Shared HTTP session for connection pooling
+    - Parallel email verification using ThreadPoolExecutor
+    - Caching across profiles with TTL
+    - Early termination when enough results found
     """
 
     def __init__(self, fast_mode: bool = True, vk_token: str = None):
         self.validator = RussianPhoneValidator()
-        self._executor = ThreadPoolExecutor(max_workers=5)  # Increased for parallelism
+        self._executor = ThreadPoolExecutor(max_workers=8)  # Increased for more parallelism
         self.holehe_timeout = 5 if fast_mode else 8  # Reduced timeout in fast mode
         self.phone_service = PhoneDiscoveryService()
         self.breach_checker = BreachChecker(use_h8mail=False)  # Use API-only for speed
@@ -771,12 +777,28 @@ class PerProfileSearchService:
         self.min_verified_emails = 3  # Stop after finding this many verified emails
         self.max_email_candidates = 15 if fast_mode else 30  # Fewer candidates in fast mode
 
+        # Shared HTTP session for connection pooling (Cycle 9 optimization)
+        import requests
+        self._shared_session = requests.Session()
+        self._shared_session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
+        })
+
         # Caching for performance
         self._email_cache: Dict[str, Dict] = {}  # email -> verification result
         self._phone_cache: Dict[str, List] = {}  # name_hash -> phones found
         self._profile_cache: Dict[str, Dict] = {}  # url -> scraped data
         self.cache_ttl = 300  # 5 minute cache TTL
         self._cache_times: Dict[str, float] = {}
+
+        # Statistics for performance tracking (Cycle 9)
+        self._stats = {
+            'cache_hits': 0,
+            'cache_misses': 0,
+            'requests_made': 0,
+            'parallel_batches': 0,
+        }
 
     def _cache_get(self, cache_type: str, key: str):
         """Get item from cache if not expired."""
@@ -1348,8 +1370,10 @@ class PerProfileSearchService:
             # Check cache first
             cached = self._cache_get('email', email.lower())
             if cached is not None:
+                self._stats['cache_hits'] += 1
                 logger.debug(f"Email cache hit: {email}")
                 return cached if cached else None
+            self._stats['cache_misses'] += 1
 
             try:
                 result = subprocess.run(
@@ -1494,47 +1518,59 @@ class PerProfileSearchService:
         Mail.ru and Yandex allow checking if an email exists via their
         password recovery or people search features.
 
+        Optimized (Cycle 9): Uses shared session and caching.
+
         Returns list of dicts: {'email': ..., 'services': [...]}
         """
         verified = []
-        import requests
-
-        session = requests.Session()
-        session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        })
+        session = self._shared_session  # Use shared session (Cycle 9)
 
         for email in emails[:15]:  # Limit checks
             email_lower = email.lower()
 
+            # Check cache first (Cycle 9 optimization)
+            cache_key = f"provider:{email_lower}"
+            cached = self._cache_get('email', cache_key)
+            if cached is not None:
+                self._stats['cache_hits'] += 1
+                if cached:
+                    verified.append(cached)
+                continue
+            self._stats['cache_misses'] += 1
+
             try:
+                result_data = None
+                self._stats['requests_made'] += 1
+
                 # Check Mail.ru emails (@mail.ru, @bk.ru, @inbox.ru, @list.ru)
                 if any(email_lower.endswith(d) for d in ['@mail.ru', '@bk.ru', '@inbox.ru', '@list.ru']):
                     if self._check_mailru_email_exists(email, session):
-                        verified.append({'email': email, 'services': ['mail.ru']})
+                        result_data = {'email': email, 'services': ['mail.ru']}
                         logger.info(f"VERIFIED email via Mail.ru: {email}")
-                        continue
 
                 # Check Yandex emails (@yandex.ru, @ya.ru, @yandex.com)
-                if any(email_lower.endswith(d) for d in ['@yandex.ru', '@ya.ru', '@yandex.com']):
+                elif any(email_lower.endswith(d) for d in ['@yandex.ru', '@ya.ru', '@yandex.com']):
                     if self._check_yandex_email_exists(email, session):
-                        verified.append({'email': email, 'services': ['yandex']})
+                        result_data = {'email': email, 'services': ['yandex']}
                         logger.info(f"VERIFIED email via Yandex: {email}")
-                        continue
 
                 # Check Gmail (@gmail.com)
-                if email_lower.endswith('@gmail.com'):
+                elif email_lower.endswith('@gmail.com'):
                     if self._check_gmail_exists(email, session):
-                        verified.append({'email': email, 'services': ['google']})
+                        result_data = {'email': email, 'services': ['google']}
                         logger.info(f"VERIFIED email via Google: {email}")
-                        continue
 
-                time.sleep(0.3)  # Rate limiting
+                # Cache result (positive or negative)
+                self._cache_set('email', cache_key, result_data if result_data else {})
+
+                if result_data:
+                    verified.append(result_data)
+
+                time.sleep(0.2)  # Reduced rate limiting (Cycle 9)
 
             except Exception as e:
                 logger.debug(f"Russian provider check error for {email}: {e}")
 
-        session.close()
         return verified
 
     def _check_mailru_email_exists(self, email: str, session) -> bool:
@@ -2551,7 +2587,21 @@ class PerProfileSearchService:
         return phones[:3]  # Limit results
 
     def close(self):
-        """Clean up resources."""
+        """Clean up resources and log performance stats (Cycle 9)."""
+        # Log performance statistics
+        total_cache_ops = self._stats['cache_hits'] + self._stats['cache_misses']
+        if total_cache_ops > 0:
+            hit_rate = self._stats['cache_hits'] / total_cache_ops * 100
+            logger.info(f"Cache stats: {self._stats['cache_hits']} hits, "
+                       f"{self._stats['cache_misses']} misses ({hit_rate:.1f}% hit rate)")
+            logger.info(f"Total requests: {self._stats['requests_made']}")
+
+        # Close shared session
+        try:
+            self._shared_session.close()
+        except Exception:
+            pass
+
         self._executor.shutdown(wait=False)
         try:
             self.phone_service.close()
