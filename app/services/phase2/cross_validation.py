@@ -64,6 +64,29 @@ def calculate_name_similarity(name1: str, name2: str) -> float:
     if n1 == n2:
         return 1.0
 
+    # Handle Cyrillic/Latin transliteration (Cycle 10 improvement)
+    # If one is Cyrillic and other is Latin, transliterate for comparison
+    n1_cyrillic = _is_cyrillic(n1)
+    n2_cyrillic = _is_cyrillic(n2)
+
+    if n1_cyrillic != n2_cyrillic:
+        # Mixed scripts - transliterate Cyrillic to Latin
+        if n1_cyrillic:
+            n1_translit = _transliterate_to_latin(n1).lower()
+            n2_translit = n2.lower()
+        else:
+            n1_translit = n1.lower()
+            n2_translit = _transliterate_to_latin(n2).lower()
+
+        # Check if transliterated versions match
+        if n1_translit == n2_translit:
+            return 1.0
+
+        # Calculate similarity on transliterated versions
+        translit_sim = SequenceMatcher(None, n1_translit, n2_translit).ratio()
+        if translit_sim > 0.75:  # High similarity after transliteration
+            return translit_sim
+
     # Split into parts
     parts1 = n1.split()
     parts2 = n2.split()
@@ -101,6 +124,40 @@ def calculate_name_similarity(name1: str, name2: str) -> float:
 
     # Return highest score, capped at 1.0
     return min(1.0, max(scores) if scores else 0.0)
+
+
+def _transliterate_to_latin(text: str) -> str:
+    """
+    Transliterate Cyrillic text to Latin.
+    Uses standard Russian-to-Latin transliteration rules.
+    """
+    # Cyrillic to Latin mapping (Russian)
+    translit_map = {
+        'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo',
+        'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+        'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+        'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch',
+        'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
+        # Uppercase
+        'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ё': 'Yo',
+        'Ж': 'Zh', 'З': 'Z', 'И': 'I', 'Й': 'Y', 'К': 'K', 'Л': 'L', 'М': 'M',
+        'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R', 'С': 'S', 'Т': 'T', 'У': 'U',
+        'Ф': 'F', 'Х': 'Kh', 'Ц': 'Ts', 'Ч': 'Ch', 'Ш': 'Sh', 'Щ': 'Shch',
+        'Ъ': '', 'Ы': 'Y', 'Ь': '', 'Э': 'E', 'Ю': 'Yu', 'Я': 'Ya',
+    }
+
+    result = []
+    for char in text:
+        result.append(translit_map.get(char, char))
+    return ''.join(result)
+
+
+def _is_cyrillic(text: str) -> bool:
+    """Check if text contains Cyrillic characters."""
+    for char in text:
+        if '\u0400' <= char <= '\u04FF':
+            return True
+    return False
 
 
 def _normalize_name(name: str) -> str:
