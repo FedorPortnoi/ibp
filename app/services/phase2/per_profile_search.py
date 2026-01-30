@@ -36,6 +36,26 @@ class VerifiedEmail:
     source: str
     verification_method: str  # holehe, gravatar, profile_scraping, breach
     services: List[str] = field(default_factory=list)  # Services where registered
+    confidence_score: float = 0.7  # 0-1, higher = more confident
+
+    def calculate_confidence(self) -> float:
+        """Calculate confidence score based on verification method and services."""
+        base_scores = {
+            'profile_scraping': 0.95,  # Found directly in profile = high confidence
+            'holehe': 0.85,            # Verified via service registration
+            'gravatar': 0.80,          # Has gravatar = likely real
+            'breach': 0.75,            # In breach = exists, but may be old
+        }
+        base = base_scores.get(self.verification_method, 0.5)
+
+        # Boost if registered on multiple services
+        if len(self.services) >= 3:
+            base = min(base + 0.1, 1.0)
+        elif len(self.services) >= 2:
+            base = min(base + 0.05, 1.0)
+
+        self.confidence_score = base
+        return base
 
 
 @dataclass
@@ -44,6 +64,32 @@ class DiscoveredPhone:
     number: str
     source: str
     confidence: str  # high, medium, low
+    confidence_score: float = 0.7  # 0-1, higher = more confident
+
+    def calculate_confidence(self) -> float:
+        """Calculate confidence score based on source."""
+        source_scores = {
+            'profile contacts': 0.95,
+            'VK profile contacts': 0.95,
+            'OK.ru profile': 0.90,
+            'VK JSON data': 0.90,
+            'VK wall post': 0.75,
+            'Telegram bio': 0.85,
+            'Username pattern': 0.50,
+            'Email local part': 0.60,
+        }
+
+        # Find best matching source
+        source_lower = self.source.lower()
+        for key, score in source_scores.items():
+            if key.lower() in source_lower:
+                self.confidence_score = score
+                return score
+
+        # Default based on confidence string
+        default_scores = {'high': 0.80, 'medium': 0.60, 'low': 0.40}
+        self.confidence_score = default_scores.get(self.confidence, 0.50)
+        return self.confidence_score
 
 
 @dataclass
@@ -108,6 +154,50 @@ class PerProfileResults:
     @property
     def total_phones(self) -> int:
         return sum(len(p.phones) for p in self.profile_results)
+
+    def get_unique_emails(self) -> List[VerifiedEmail]:
+        """Get deduplicated emails across all profiles, keeping highest confidence."""
+        email_map: Dict[str, VerifiedEmail] = {}
+        for pr in self.profile_results:
+            for email in pr.verified_emails:
+                key = email.email.lower()
+                email.calculate_confidence()
+                if key not in email_map or email.confidence_score > email_map[key].confidence_score:
+                    email_map[key] = email
+        return sorted(email_map.values(), key=lambda e: -e.confidence_score)
+
+    def get_unique_phones(self) -> List[DiscoveredPhone]:
+        """Get deduplicated phones across all profiles, keeping highest confidence."""
+        phone_map: Dict[str, DiscoveredPhone] = {}
+        for pr in self.profile_results:
+            for phone in pr.phones:
+                # Normalize phone for dedup
+                key = phone.number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+                phone.calculate_confidence()
+                if key not in phone_map or phone.confidence_score > phone_map[key].confidence_score:
+                    phone_map[key] = phone
+        return sorted(phone_map.values(), key=lambda p: -p.confidence_score)
+
+    def get_summary(self) -> Dict:
+        """Get summary statistics for the investigation."""
+        unique_emails = self.get_unique_emails()
+        unique_phones = self.get_unique_phones()
+
+        return {
+            'target_name': self.target_name,
+            'profiles_tested': self.total_profiles,
+            'profiles_complete': self.passing_profiles,
+            'all_pass': self.all_pass,
+            'unique_emails': len(unique_emails),
+            'unique_phones': len(unique_phones),
+            'total_emails': self.total_verified_emails,
+            'total_phones': self.total_phones,
+            'time_seconds': round(self.total_time, 1),
+            'top_emails': [e.email for e in unique_emails[:5]],
+            'top_phones': [p.number for p in unique_phones[:5]],
+            'avg_email_confidence': sum(e.confidence_score for e in unique_emails) / len(unique_emails) if unique_emails else 0,
+            'avg_phone_confidence': sum(p.confidence_score for p in unique_phones) / len(unique_phones) if unique_phones else 0,
+        }
 
 
 # Russian email domains
