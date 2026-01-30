@@ -902,7 +902,31 @@ class PerProfileSearchService:
                         services=['gravatar']
                     ))
 
-            # Step 4.5: If still need more, check breach databases (email exists if in breach)
+            # Step 4.5: Check Russian email providers (Mail.ru, Yandex) - no API key needed
+            if len(result.verified_emails) < self.min_verified_emails:
+                # Filter to Russian provider emails for efficiency
+                russian_emails = [e for e in email_candidates[:15]
+                                 if any(e.lower().endswith(d) for d in
+                                       ['@mail.ru', '@bk.ru', '@inbox.ru', '@list.ru',
+                                        '@yandex.ru', '@ya.ru', '@yandex.com', '@gmail.com'])]
+
+                if russian_emails:
+                    provider_verified = self._verify_emails_russian_providers(russian_emails)
+                    for verified in provider_verified:
+                        existing = [e.email.lower() for e in result.verified_emails]
+                        if verified['email'].lower() not in existing:
+                            result.verified_emails.append(VerifiedEmail(
+                                email=verified['email'],
+                                source="Provider verification",
+                                verification_method="provider_api",
+                                services=verified['services']
+                            ))
+
+                            # Stop if we have enough
+                            if len(result.verified_emails) >= self.min_verified_emails:
+                                break
+
+            # Step 4.6: If still need more, check breach databases (email exists if in breach)
             if len(result.verified_emails) < self.min_verified_emails:
                 breach_verified = self._verify_emails_via_breach(email_candidates[:10])
                 for email in breach_verified:
@@ -1259,6 +1283,133 @@ class PerProfileSearchService:
 
         session.close()
         return verified
+
+    def _verify_emails_russian_providers(self, emails: List[str]) -> List[Dict]:
+        """
+        Verify emails by checking Russian email provider APIs/pages.
+
+        Mail.ru and Yandex allow checking if an email exists via their
+        password recovery or people search features.
+
+        Returns list of dicts: {'email': ..., 'services': [...]}
+        """
+        verified = []
+        import requests
+
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+
+        for email in emails[:15]:  # Limit checks
+            email_lower = email.lower()
+
+            try:
+                # Check Mail.ru emails (@mail.ru, @bk.ru, @inbox.ru, @list.ru)
+                if any(email_lower.endswith(d) for d in ['@mail.ru', '@bk.ru', '@inbox.ru', '@list.ru']):
+                    if self._check_mailru_email_exists(email, session):
+                        verified.append({'email': email, 'services': ['mail.ru']})
+                        logger.info(f"VERIFIED email via Mail.ru: {email}")
+                        continue
+
+                # Check Yandex emails (@yandex.ru, @ya.ru, @yandex.com)
+                if any(email_lower.endswith(d) for d in ['@yandex.ru', '@ya.ru', '@yandex.com']):
+                    if self._check_yandex_email_exists(email, session):
+                        verified.append({'email': email, 'services': ['yandex']})
+                        logger.info(f"VERIFIED email via Yandex: {email}")
+                        continue
+
+                # Check Gmail (@gmail.com)
+                if email_lower.endswith('@gmail.com'):
+                    if self._check_gmail_exists(email, session):
+                        verified.append({'email': email, 'services': ['google']})
+                        logger.info(f"VERIFIED email via Google: {email}")
+                        continue
+
+                time.sleep(0.3)  # Rate limiting
+
+            except Exception as e:
+                logger.debug(f"Russian provider check error for {email}: {e}")
+
+        session.close()
+        return verified
+
+    def _check_mailru_email_exists(self, email: str, session) -> bool:
+        """Check if Mail.ru email exists via password recovery page."""
+        try:
+            # Mail.ru recovery endpoint
+            url = "https://account.mail.ru/api/v1/user/password/restore"
+            data = {'email': email}
+
+            response = session.post(url, data=data, timeout=10)
+
+            # If email exists, response will have specific status
+            if response.status_code == 200:
+                result = response.json()
+                # 'exists' or specific error indicates email exists
+                if result.get('status') == 'ok' or 'user' in str(result).lower():
+                    return True
+                # "email not found" type errors mean it doesn't exist
+                if 'not found' in str(result).lower() or 'не найден' in str(result).lower():
+                    return False
+
+            # Fallback: try checking my.mail.ru profile
+            profile_url = f"https://my.mail.ru/mail/{email.split('@')[0]}/"
+            resp = session.get(profile_url, timeout=5, allow_redirects=False)
+            if resp.status_code == 200:
+                return True
+
+        except Exception as e:
+            logger.debug(f"Mail.ru check error: {e}")
+
+        return False
+
+    def _check_yandex_email_exists(self, email: str, session) -> bool:
+        """Check if Yandex email exists via passport recovery."""
+        try:
+            # Yandex passport recovery check
+            url = "https://passport.yandex.ru/registration-validations/checklogin"
+            data = {'login': email.split('@')[0], 'track_id': ''}
+
+            response = session.post(url, data=data, timeout=10)
+
+            if response.status_code == 200:
+                result = response.json()
+                # If login is "occupied", the email exists
+                status = result.get('status', '')
+                if status == 'ok':
+                    # Login available = email doesn't exist
+                    return False
+                elif 'occupied' in str(result).lower() or 'error' in str(result).lower():
+                    # Login taken = email exists
+                    return True
+
+        except Exception as e:
+            logger.debug(f"Yandex check error: {e}")
+
+        return False
+
+    def _check_gmail_exists(self, email: str, session) -> bool:
+        """Check if Gmail exists via Google's people API (limited)."""
+        try:
+            # Check if Gravatar exists for this email (many Gmail users have Gravatars)
+            email_hash = hashlib.md5(email.lower().encode()).hexdigest()
+            url = f"https://www.gravatar.com/avatar/{email_hash}?d=404"
+            response = session.head(url, timeout=5)
+            if response.status_code == 200:
+                return True
+
+            # Try Google's people search
+            # Note: This is limited without API key
+            search_url = f"https://www.google.com/search?q={email}"
+            response = session.get(search_url, timeout=5)
+            if email.lower() in response.text.lower():
+                return True
+
+        except Exception as e:
+            logger.debug(f"Gmail check error: {e}")
+
+        return False
 
     def _extract_phones_deep(
         self,
