@@ -402,13 +402,16 @@ class PerProfileSearchService:
         logger.info(f"Profiles to process: {min(len(profiles), max_profiles)} of {len(profiles)}")
         logger.info("=" * 60)
 
-        # Process each profile
-        for profile in profiles[:max_profiles]:
+        # Process each profile (sequential to avoid rate limiting issues)
+        profiles_to_process = profiles[:max_profiles]
+        total = len(profiles_to_process)
+
+        for i, profile in enumerate(profiles_to_process, 1):
             url = profile.get('url', '')
             platform = profile.get('platform', '')
             username = profile.get('username', '')
 
-            logger.info(f"Processing profile: {platform} - {username} ({url})")
+            logger.info(f"[{i}/{total}] Processing: {platform}/{username}")
 
             profile_result = self._process_single_profile(
                 url=url,
@@ -420,11 +423,10 @@ class PerProfileSearchService:
             results.profile_results.append(profile_result)
 
             # Log per-profile status
-            status_icon = "✓" if profile_result.is_complete else "✗"
+            status_icon = "PASS" if profile_result.is_complete else "FAIL"
             logger.info(
-                f"  {status_icon} {platform}/{username}: "
-                f"{len(profile_result.verified_emails)} verified emails, "
-                f"{len(profile_result.phones)} phones"
+                f"  [{status_icon}] {len(profile_result.verified_emails)} emails, "
+                f"{len(profile_result.phones)} phones ({profile_result.processing_time:.1f}s)"
             )
 
         results.total_time = time.time() - start_time
