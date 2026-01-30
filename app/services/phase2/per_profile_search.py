@@ -24,6 +24,7 @@ from concurrent.futures import ThreadPoolExecutor
 from .russian_phone_validator import RussianPhoneValidator, PhoneInfo
 from .profile_scraper import scrape_profile
 from .phone_discovery import PhoneDiscoveryService
+from .breach_checker import BreachChecker
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +126,7 @@ class PerProfileSearchService:
         self._executor = ThreadPoolExecutor(max_workers=5)  # Increased for parallelism
         self.holehe_timeout = 5 if fast_mode else 8  # Reduced timeout in fast mode
         self.phone_service = PhoneDiscoveryService()
+        self.breach_checker = BreachChecker(use_h8mail=False)  # Use API-only for speed
         self.fast_mode = fast_mode
         self.min_verified_emails = 3  # Stop after finding this many verified emails
         self.max_email_candidates = 15 if fast_mode else 30  # Fewer candidates in fast mode
@@ -269,6 +271,23 @@ class PerProfileSearchService:
                         verification_method="gravatar",
                         services=['gravatar']
                     ))
+
+            # Step 4.5: If still need more, check breach databases (email exists if in breach)
+            if len(result.verified_emails) < self.min_verified_emails:
+                breach_verified = self._verify_emails_via_breach(email_candidates[:10])
+                for email in breach_verified:
+                    existing = [e.email.lower() for e in result.verified_emails]
+                    if email.lower() not in existing:
+                        result.verified_emails.append(VerifiedEmail(
+                            email=email,
+                            source="Breach database",
+                            verification_method="breach",
+                            services=['breach_db']
+                        ))
+
+                        # Stop if we have enough
+                        if len(result.verified_emails) >= self.min_verified_emails:
+                            break
 
             # Step 5: If no phones yet, try deeper extraction
             if not result.phones:
@@ -503,6 +522,56 @@ class PerProfileSearchService:
             time.sleep(0.2)  # Brief pause between batches
 
         return verified
+
+    def _verify_emails_via_breach(self, emails: List[str]) -> List[str]:
+        """Verify emails by checking if they appear in breach databases."""
+        verified = []
+
+        for email in emails:
+            if len(verified) >= 3:  # Limit breach checks
+                break
+
+            try:
+                result = self.breach_checker.check_email(email)
+                if result.found_in_breaches and result.breach_count > 0:
+                    verified.append(email)
+                    logger.info(f"VERIFIED email via breach DB: {email} (in {result.breach_count} breaches)")
+
+                time.sleep(0.5)  # Rate limiting
+
+            except Exception as e:
+                logger.debug(f"Breach check error for {email}: {e}")
+
+        return verified
+
+    def _verify_email_google(self, email: str) -> bool:
+        """Check if email is a Google account via public API."""
+        import requests
+
+        try:
+            # Google People API endpoint for public profile check
+            url = f"https://www.google.com/profiles/{email.split('@')[0]}"
+
+            session = requests.Session()
+            session.headers.update({'User-Agent': 'Mozilla/5.0'})
+
+            response = session.get(url, timeout=5, allow_redirects=True)
+
+            # If redirected to a profile page, account exists
+            if response.status_code == 200 and 'google.com/u/' in response.url:
+                return True
+
+            # Alternative: Try Google+ legacy check
+            plus_url = f"https://plus.google.com/_/people/profilecard?&q={email}"
+            response = session.get(plus_url, timeout=5)
+            if response.status_code == 200 and 'name' in response.text.lower():
+                return True
+
+            session.close()
+            return False
+
+        except Exception:
+            return False
 
     def _verify_emails_gravatar(self, emails: List[str]) -> List[str]:
         """Check Gravatar for email existence."""
