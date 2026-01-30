@@ -49,6 +49,13 @@ from .profile_scraper import scrape_profile
 from .phone_discovery import PhoneDiscoveryService
 from .breach_checker import BreachChecker
 from .vk_api_extractor import VKAPIExtractor, VKContact
+from .email_sources import (
+    CombinedEmailSources,
+    EpieosChecker,
+    HunterIOChecker,
+    EmailRepChecker,
+    smtp_verify_email
+)
 
 logger = logging.getLogger(__name__)
 
@@ -777,6 +784,14 @@ class PerProfileSearchService:
         self.min_verified_emails = 3  # Stop after finding this many verified emails
         self.max_email_candidates = 15 if fast_mode else 30  # Fewer candidates in fast mode
 
+        # Extended email sources (Cycle 1 - NEW)
+        import os
+        self.email_sources = CombinedEmailSources(
+            hunter_api_key=os.environ.get('HUNTER_API_KEY'),
+            emailrep_api_key=os.environ.get('EMAILREP_API_KEY')
+        )
+        self.epieos_checker = EpieosChecker(rate_limit_delay=1.5)
+
         # Shared HTTP session for connection pooling (Cycle 9 optimization)
         import requests
         self._shared_session = requests.Session()
@@ -1095,6 +1110,25 @@ class PerProfileSearchService:
                             # Stop if we have enough
                             if len(result.verified_emails) >= self.min_verified_emails:
                                 break
+
+            # Step 4.55: Extended email sources (Epieos, Hunter.io, EmailRep) - Cycle 1 NEW
+            if len(result.verified_emails) < self.min_verified_emails:
+                extended_verified = self._verify_emails_extended_sources(email_candidates[:10])
+                for ext_result in extended_verified:
+                    email = ext_result['email']
+                    existing = [e.email.lower() for e in result.verified_emails]
+                    if email.lower() not in existing:
+                        result.verified_emails.append(VerifiedEmail(
+                            email=email,
+                            source=f"Extended: {', '.join(ext_result.get('sources', []))}",
+                            verification_method="extended_sources",
+                            services=ext_result.get('sources', []),
+                            confidence_score=ext_result.get('confidence', 0.75)
+                        ))
+                        logger.info(f"Extended source verified: {email} via {ext_result.get('sources', [])}")
+
+                        if len(result.verified_emails) >= self.min_verified_emails:
+                            break
 
             # Step 4.6: If still need more, check breach databases (email exists if in breach)
             if len(result.verified_emails) < self.min_verified_emails:
@@ -1423,6 +1457,43 @@ class PerProfileSearchService:
                     logger.debug(f"Holehe future error: {e}")
 
             time.sleep(0.2)  # Brief pause between batches
+
+        return verified
+
+    def _verify_emails_extended_sources(self, emails: List[str]) -> List[Dict]:
+        """
+        Verify emails using extended sources (Cycle 1 NEW).
+
+        Sources:
+        - Epieos: Google account detection
+        - Hunter.io: Email verification API (if API key available)
+        - EmailRep.io: Email reputation check
+
+        Returns list of dicts: {'email': ..., 'sources': [...], 'confidence': ...}
+        """
+        verified = []
+
+        for email in emails:
+            if len(verified) >= 3:  # Limit checks to save time
+                break
+
+            try:
+                # Check with extended email sources
+                result = self.email_sources.verify_email(email)
+
+                if result.get('exists', False):
+                    verified.append({
+                        'email': email,
+                        'sources': result.get('sources', []),
+                        'confidence': result.get('confidence', 0.70),
+                        'details': result.get('details', {})
+                    })
+                    logger.info(f"Extended source verified: {email} via {result.get('sources', [])}")
+
+                time.sleep(0.3)  # Rate limiting
+
+            except Exception as e:
+                logger.debug(f"Extended source check error for {email}: {e}")
 
         return verified
 
@@ -2599,6 +2670,17 @@ class PerProfileSearchService:
         # Close shared session
         try:
             self._shared_session.close()
+        except Exception:
+            pass
+
+        # Close extended email sources (Cycle 1)
+        try:
+            self.email_sources.close()
+        except Exception:
+            pass
+
+        try:
+            self.epieos_checker.close()
         except Exception:
             pass
 
