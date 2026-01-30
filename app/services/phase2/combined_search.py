@@ -43,6 +43,9 @@ from .email_discovery import EmailDiscoveryService, EmailDiscoveryResults
 # NEW: API-based face search (discovers NEW profiles from photo)
 from .face_search_api import ApiFaceSearchService, FaceMatch as ApiFaceMatch
 
+# NEW: Phone discovery service
+from .phone_discovery import PhoneDiscoveryService, PhoneDiscoveryResults
+
 logger = logging.getLogger(__name__)
 
 
@@ -984,6 +987,45 @@ class Phase2CombinedSearch:
         except Exception as e:
             errors.append(f"Email discovery error: {str(e)}")
             self.logger.error(f"Email discovery error: {e}")
+
+        # ===== STEP 2.5: Phone Discovery =====
+        self._update_progress("Discovering phones...", 40)
+
+        try:
+            phone_service = PhoneDiscoveryService()
+
+            # Get emails for phone extraction (some emails use phone as local part)
+            found_email_strings = [e.email for e in emails] if emails else []
+
+            phone_results = phone_service.discover_sync(
+                first_name=first_name,
+                last_name=last_name,
+                usernames=username_hints,
+                profile_urls=selected_profiles,
+                emails=found_email_strings
+            )
+
+            # Add discovered phones
+            for discovered in phone_results.phones:
+                phones.append(DiscoveredPhone(
+                    number=discovered.number,
+                    source=discovered.source,
+                    confidence=discovered.confidence
+                ))
+
+            errors.extend(phone_results.errors)
+
+            self.logger.info(
+                f"Phone discovery: {len(phone_results.phones)} phones found, "
+                f"{phone_results.candidates_generated} candidates, "
+                f"{phone_results.discovery_time:.1f}s"
+            )
+
+            phone_service.close()
+
+        except Exception as e:
+            errors.append(f"Phone discovery error: {str(e)}")
+            self.logger.error(f"Phone discovery error: {e}")
 
         # ===== STEP 3: Quick Yandex Check (limited for speed) =====
         self._update_progress("Checking Yandex services...", 60)
