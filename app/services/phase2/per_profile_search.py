@@ -372,8 +372,12 @@ class PerProfileSearchService:
         start_time = time.time()
         results = PerProfileResults(target_name=target_name)
 
-        logger.info(f"Starting per-profile investigation for {target_name}")
-        logger.info(f"Processing {min(len(profiles), max_profiles)} profiles")
+        logger.info("=" * 60)
+        logger.info(f"PER-PROFILE INVESTIGATION START")
+        logger.info(f"Target: {target_name}")
+        logger.info(f"Mode: {'FAST' if self.fast_mode else 'STANDARD'}")
+        logger.info(f"Profiles to process: {min(len(profiles), max_profiles)} of {len(profiles)}")
+        logger.info("=" * 60)
 
         # Process each profile
         for profile in profiles[:max_profiles]:
@@ -404,14 +408,31 @@ class PerProfileSearchService:
 
         # Summary
         logger.info("=" * 60)
-        logger.info(f"PER-PROFILE RESULTS SUMMARY:")
+        logger.info(f"PER-PROFILE RESULTS SUMMARY")
+        logger.info("=" * 60)
         logger.info(f"  Target: {target_name}")
+        logger.info(f"  Mode: {'FAST' if self.fast_mode else 'STANDARD'}")
         logger.info(f"  Profiles processed: {results.total_profiles}")
         logger.info(f"  Profiles passing: {results.passing_profiles}/{results.total_profiles}")
         logger.info(f"  Total verified emails: {results.total_verified_emails}")
         logger.info(f"  Total phones: {results.total_phones}")
+
+        # Unique counts
+        unique_emails = results.get_unique_emails()
+        unique_phones = results.get_unique_phones()
+        logger.info(f"  Unique emails: {len(unique_emails)}")
+        logger.info(f"  Unique phones: {len(unique_phones)}")
+
+        # Per-profile breakdown
+        logger.info("  Per-profile breakdown:")
+        for pr in results.profile_results:
+            status = "PASS" if pr.is_complete else "FAIL"
+            logger.info(f"    [{status}] {pr.platform}/{pr.username}: "
+                       f"{len(pr.verified_emails)} emails, {len(pr.phones)} phones "
+                       f"({pr.processing_time:.1f}s)")
+
         logger.info(f"  Overall status: {'PASS' if results.all_pass else 'FAIL'}")
-        logger.info(f"  Time: {results.total_time:.1f}s")
+        logger.info(f"  Total time: {results.total_time:.1f}s")
         logger.info("=" * 60)
 
         return results
@@ -1336,6 +1357,11 @@ class PerProfileSearchService:
                 yandex_phones = self._check_yandex_people(email)
                 phones.extend(yandex_phones)
 
+            # Method 3: For Mail.ru emails, check Mail.ru profile
+            if any(d in email.lower() for d in ['mail.ru', 'bk.ru', 'inbox.ru', 'list.ru']):
+                mailru_phones = self._check_mailru_profile(email)
+                phones.extend(mailru_phones)
+
         except Exception as e:
             logger.debug(f"Email phone lookup error: {e}")
 
@@ -1375,6 +1401,46 @@ class PerProfileSearchService:
             logger.debug(f"Yandex people check error: {e}")
 
         return phones[:2]  # Limit
+
+    def _check_mailru_profile(self, email: str) -> List[DiscoveredPhone]:
+        """Check Mail.ru profile for phone hints."""
+        phones = []
+
+        import requests
+
+        if not any(d in email.lower() for d in ['mail.ru', 'bk.ru', 'inbox.ru', 'list.ru']):
+            return phones
+
+        try:
+            username = email.split('@')[0]
+            session = requests.Session()
+            session.headers.update({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            })
+
+            # Check Mail.ru profile
+            url = f"https://my.mail.ru/mail/{username}/"
+            response = session.get(url, timeout=10, allow_redirects=True)
+
+            if response.status_code == 200 and 'profile' in response.url:
+                logger.info(f"Mail.ru profile found: {username}")
+
+                # Extract phone from page if visible
+                found = self.validator.extract_phones(response.text)
+                for info in found:
+                    phones.append(DiscoveredPhone(
+                        number=info.display_format,
+                        source=f"Mail.ru profile ({username})",
+                        confidence="medium",
+                        confidence_score=0.80
+                    ))
+
+            session.close()
+
+        except Exception as e:
+            logger.debug(f"Mail.ru profile check error: {e}")
+
+        return phones[:2]
 
     def close(self):
         """Clean up resources."""
