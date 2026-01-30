@@ -402,7 +402,7 @@ class PhoneDiscoveryService:
         return phones
 
     def _scrape_ok_profile(self, url: str) -> List[DiscoveredPhone]:
-        """Scrape an OK.ru profile for phone numbers."""
+        """Scrape an OK.ru profile for phone numbers and extract profile name."""
         phones = []
 
         try:
@@ -411,6 +411,38 @@ class PhoneDiscoveryService:
                 return phones
 
             text = response.text
+            soup = BeautifulSoup(text, 'html.parser')
+
+            # Extract profile owner's name for validation
+            profile_name = None
+            # Try various OK.ru name selectors
+            name_selectors = [
+                'h1.profile-user-info_name',  # Modern OK.ru
+                '.user-header__name',
+                '.ucard__name',
+                'h1[data-tsid="user-name"]',
+                '.profile-page_name',
+            ]
+            for selector in name_selectors:
+                name_elem = soup.select_one(selector)
+                if name_elem:
+                    profile_name = name_elem.get_text(strip=True)
+                    break
+
+            # Fallback: try to find name in title
+            if not profile_name:
+                title = soup.find('title')
+                if title:
+                    title_text = title.get_text(strip=True)
+                    # OK.ru titles often include name
+                    if '|' in title_text:
+                        profile_name = title_text.split('|')[0].strip()
+
+            # Build source string including profile name for validation
+            if profile_name:
+                source = f"OK.ru profile ({url}) [name: {profile_name}]"
+            else:
+                source = f"OK.ru profile ({url})"
 
             # Extract phones from page content
             for pattern in PHONE_PATTERNS:
@@ -427,7 +459,7 @@ class PhoneDiscoveryService:
                         if info.is_valid and info.is_mobile:
                             phones.append(DiscoveredPhone(
                                 number=info.display_format,
-                                source=f"OK.ru profile ({url})",
+                                source=source,
                                 confidence="high"
                             ))
 

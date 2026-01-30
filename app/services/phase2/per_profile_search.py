@@ -274,11 +274,17 @@ def extract_name_from_source(source: str) -> Optional[str]:
     Try to extract a person's name from a phone source string.
 
     Examples:
-    - "OK.ru profile (https://ok.ru/profile/123)" -> Try to fetch name from profile
-    - "VK profile deep scan" -> No name available
+    - "OK.ru profile (url) [name: John Doe]" -> "John Doe"
+    - "VK profile deep scan" -> None
+
+    Returns:
+        Name if found in source string, None otherwise
     """
-    # For now, return None - name extraction would require additional API calls
-    # This is a placeholder for future enhancement
+    # Check for [name: ...] pattern added by phone_discovery
+    name_match = re.search(r'\[name:\s*([^\]]+)\]', source)
+    if name_match:
+        return name_match.group(1).strip()
+
     return None
 
 
@@ -1111,10 +1117,13 @@ class PerProfileSearchService:
                     )
 
                     for p in phone_results.phones[:3]:  # Max 3 phones
+                        # Extract source profile name for validation
+                        source_name = extract_name_from_source(p.source)
                         result.phones.append(DiscoveredPhone(
                             number=p.number,
                             source=p.source,
-                            confidence=p.confidence
+                            confidence=p.confidence,
+                            source_profile_name=source_name  # For name matching
                         ))
 
                 except Exception as e:
