@@ -1091,6 +1091,31 @@ class PerProfileSearchService:
                         if len(result.verified_emails) >= self.min_verified_emails:
                             break
 
+            # Step 4.7: Combined fallback verification (VK/OK search, social check, DNS)
+            if len(result.verified_emails) < self.min_verified_emails:
+                fallback_verified = self._verify_emails_combined_fallback(
+                    email_candidates[:15],
+                    target_name
+                )
+                for fb_result in fallback_verified:
+                    email = fb_result['email']
+                    existing = [e.email.lower() for e in result.verified_emails]
+                    if email.lower() not in existing:
+                        # Only accept fallback results with confidence >= 0.60
+                        confidence = fb_result.get('confidence', 0.5)
+                        if confidence >= 0.60:
+                            result.verified_emails.append(VerifiedEmail(
+                                email=email,
+                                source=f"Fallback: {fb_result.get('verification_method', 'unknown')}",
+                                verification_method=fb_result.get('verification_method', 'fallback'),
+                                services=fb_result.get('services', []),
+                                confidence_score=confidence
+                            ))
+                            logger.info(f"Added fallback-verified email: {email} (conf={confidence:.2f})")
+
+                            if len(result.verified_emails) >= self.min_verified_emails:
+                                break
+
             # Step 5: If no phones yet, try deeper extraction
             if not result.phones:
                 deep_phones = self._extract_phones_deep(url, platform, username, target_name)
@@ -1141,6 +1166,24 @@ class PerProfileSearchService:
                     email_phones = self._phone_from_email_lookup(ve.email)
                     for phone in email_phones:
                         result.phones.append(phone)
+
+            # Step 9: Fallback phone discovery if still no phones
+            if not result.phones:
+                fallback_phones = self._fallback_phone_discovery(
+                    target_name=target_name,
+                    username=username,
+                    verified_emails=result.verified_emails
+                )
+                for phone in fallback_phones:
+                    result.phones.append(phone)
+
+            # Step 10: Verify phones via multiple sources (enhance confidence)
+            if result.phones:
+                verified_phones = []
+                for phone in result.phones[:5]:  # Limit to top 5
+                    verified_phone = self._verify_phone_multiple_sources(phone, target_name)
+                    verified_phones.append(verified_phone)
+                result.phones = verified_phones
 
         except Exception as e:
             error_msg = str(e)
@@ -1570,6 +1613,256 @@ class PerProfileSearchService:
             logger.debug(f"Gmail check error: {e}")
 
         return False
+
+    # =========================================================================
+    # FALLBACK VERIFICATION METHODS (Cycle 8)
+    # =========================================================================
+
+    def _verify_email_dns(self, email: str) -> bool:
+        """
+        Verify email domain has valid MX records.
+        This is a basic check that filters out completely invalid domains.
+        """
+        import socket
+        try:
+            domain = email.split('@')[1]
+            # Try to resolve MX records
+            socket.getaddrinfo(domain, 25, socket.AF_INET, socket.SOCK_STREAM)
+            return True
+        except (socket.gaierror, IndexError):
+            return False
+
+    def _verify_emails_via_vk_search(self, emails: List[str], target_name: str) -> List[Dict]:
+        """
+        Search VK by email to find associated profiles.
+        VK allows searching users by email in some cases.
+
+        Returns list of dicts: {'email': ..., 'services': ['vk'], 'profile_url': ...}
+        """
+        verified = []
+        import requests
+        from bs4 import BeautifulSoup
+
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
+        })
+
+        for email in emails[:10]:  # Limit to avoid rate limiting
+            try:
+                # Try VK people search with email
+                search_url = f"https://vk.com/search?c[q]={email}&c[section]=people"
+                response = session.get(search_url, timeout=10)
+
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+
+                    # Check if any results found
+                    results = soup.select('.people_row, .search_row')
+                    if results:
+                        # Check if any result name matches target
+                        for result in results[:3]:
+                            name_elem = result.select_one('.people_name, .search_name')
+                            if name_elem:
+                                found_name = name_elem.get_text(strip=True)
+                                # Check name similarity
+                                similarity = calculate_name_similarity(target_name, found_name)
+                                if similarity >= 0.6:
+                                    # Get profile URL
+                                    link = result.select_one('a[href*="/id"], a[href^="https://vk.com/"]')
+                                    profile_url = link.get('href', '') if link else ''
+
+                                    verified.append({
+                                        'email': email,
+                                        'services': ['vk_search'],
+                                        'profile_url': profile_url,
+                                        'matched_name': found_name,
+                                        'name_similarity': similarity
+                                    })
+                                    logger.info(f"VERIFIED email via VK search: {email} (matched: {found_name})")
+                                    break
+
+                time.sleep(0.5)  # Rate limiting
+
+            except Exception as e:
+                logger.debug(f"VK email search error for {email}: {e}")
+
+        session.close()
+        return verified
+
+    def _verify_emails_via_ok_search(self, emails: List[str], target_name: str) -> List[Dict]:
+        """
+        Search OK.ru by email to find associated profiles.
+
+        Returns list of dicts: {'email': ..., 'services': ['ok'], 'profile_url': ...}
+        """
+        verified = []
+        import requests
+        from bs4 import BeautifulSoup
+
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
+        })
+
+        for email in emails[:10]:  # Limit
+            try:
+                # Try OK.ru people search with email
+                search_url = f"https://ok.ru/search?st.query={email}&st.grmode=Groups&st.cmd=friendsFriends"
+                response = session.get(search_url, timeout=10)
+
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+
+                    # Check if any results found
+                    results = soup.select('.user-card, .search-card, .ucard')
+                    if results:
+                        for result in results[:3]:
+                            name_elem = result.select_one('.user-card_name, .ucard__name')
+                            if name_elem:
+                                found_name = name_elem.get_text(strip=True)
+                                similarity = calculate_name_similarity(target_name, found_name)
+                                if similarity >= 0.6:
+                                    link = result.select_one('a[href*="/profile/"]')
+                                    profile_url = link.get('href', '') if link else ''
+
+                                    verified.append({
+                                        'email': email,
+                                        'services': ['ok_search'],
+                                        'profile_url': profile_url,
+                                        'matched_name': found_name,
+                                        'name_similarity': similarity
+                                    })
+                                    logger.info(f"VERIFIED email via OK.ru search: {email} (matched: {found_name})")
+                                    break
+
+                time.sleep(0.5)
+
+            except Exception as e:
+                logger.debug(f"OK.ru email search error for {email}: {e}")
+
+        session.close()
+        return verified
+
+    def _verify_emails_via_social_check(self, emails: List[str]) -> List[Dict]:
+        """
+        Check if emails appear on social media sites via quick checks.
+        Uses profile page existence checks for derived usernames.
+
+        Returns list of dicts: {'email': ..., 'services': [...]}
+        """
+        verified = []
+        import requests
+
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+
+        # Social platforms that use email prefix as username
+        platforms = [
+            ('twitter.com', 'https://twitter.com/{}'),
+            ('github.com', 'https://github.com/{}'),
+            ('instagram.com', 'https://instagram.com/{}'),
+        ]
+
+        for email in emails[:8]:  # Limit
+            try:
+                username = email.split('@')[0]
+                # Clean username - remove dots and numbers for better matching
+                clean_username = re.sub(r'[.\d]+', '', username)
+
+                found_services = []
+
+                for platform_name, url_template in platforms:
+                    try:
+                        url = url_template.format(username)
+                        response = session.head(url, timeout=5, allow_redirects=True)
+
+                        if response.status_code == 200:
+                            found_services.append(platform_name)
+                            logger.debug(f"Found {username} on {platform_name}")
+
+                    except Exception:
+                        pass
+
+                    time.sleep(0.2)  # Rate limit
+
+                if found_services:
+                    verified.append({
+                        'email': email,
+                        'services': found_services,
+                        'username_derived': username
+                    })
+                    logger.info(f"VERIFIED email via social check: {email} on {found_services}")
+
+            except Exception as e:
+                logger.debug(f"Social check error for {email}: {e}")
+
+        session.close()
+        return verified
+
+    def _verify_emails_combined_fallback(
+        self,
+        emails: List[str],
+        target_name: str
+    ) -> List[Dict]:
+        """
+        Combined fallback verification using multiple methods.
+        Tries each method and aggregates results with confidence scoring.
+
+        Returns list of dicts with confidence-scored results.
+        """
+        verified = []
+        seen_emails = set()
+
+        # Method 1: VK Search (high confidence if name matches)
+        vk_results = self._verify_emails_via_vk_search(emails, target_name)
+        for result in vk_results:
+            email = result['email']
+            if email not in seen_emails:
+                result['confidence'] = 0.85 if result.get('name_similarity', 0) >= 0.7 else 0.70
+                result['verification_method'] = 'vk_search'
+                verified.append(result)
+                seen_emails.add(email)
+
+        # Method 2: OK.ru Search (high confidence if name matches)
+        ok_results = self._verify_emails_via_ok_search(emails, target_name)
+        for result in ok_results:
+            email = result['email']
+            if email not in seen_emails:
+                result['confidence'] = 0.85 if result.get('name_similarity', 0) >= 0.7 else 0.70
+                result['verification_method'] = 'ok_search'
+                verified.append(result)
+                seen_emails.add(email)
+
+        # Method 3: Social media check (medium confidence)
+        remaining_emails = [e for e in emails if e not in seen_emails]
+        social_results = self._verify_emails_via_social_check(remaining_emails[:5])
+        for result in social_results:
+            email = result['email']
+            if email not in seen_emails:
+                result['confidence'] = 0.65
+                result['verification_method'] = 'social_check'
+                verified.append(result)
+                seen_emails.add(email)
+
+        # Method 4: DNS validation as basic filter (low confidence alone)
+        remaining_emails = [e for e in emails if e not in seen_emails]
+        for email in remaining_emails[:10]:
+            if self._verify_email_dns(email):
+                # DNS valid but not verified elsewhere - low confidence
+                verified.append({
+                    'email': email,
+                    'services': ['dns_valid'],
+                    'confidence': 0.40,
+                    'verification_method': 'dns_only'
+                })
+                seen_emails.add(email)
+
+        return verified
 
     def _extract_phones_deep(
         self,
@@ -2094,6 +2387,168 @@ class PerProfileSearchService:
             logger.debug(f"Mail.ru profile check error: {e}")
 
         return phones[:2]
+
+    # =========================================================================
+    # PHONE VERIFICATION FALLBACK METHODS (Cycle 8)
+    # =========================================================================
+
+    def _verify_phone_multiple_sources(
+        self,
+        phone: DiscoveredPhone,
+        target_name: str
+    ) -> DiscoveredPhone:
+        """
+        Enhance phone confidence by checking multiple sources.
+        Returns phone with updated confidence score.
+        """
+        import requests
+
+        verification_hits = 0
+        sources_checked = []
+
+        normalized = normalize_phone(phone.number)
+        if not normalized:
+            return phone
+
+        try:
+            session = requests.Session()
+            session.headers.update({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            })
+
+            # Method 1: Check if Telegram username contains phone pattern
+            digits = re.sub(r'\D', '', normalized)
+            if len(digits) >= 10:
+                suffix = digits[-7:]  # Last 7 digits
+                # Try common Telegram username patterns
+                for prefix in ['id', 'tel', 'phone', 't', '']:
+                    try:
+                        tg_url = f"https://t.me/{prefix}{suffix}"
+                        resp = session.head(tg_url, timeout=5, allow_redirects=True)
+                        if resp.status_code == 200:
+                            verification_hits += 1
+                            sources_checked.append('telegram_pattern')
+                            break
+                    except Exception:
+                        pass
+
+            # Method 2: Check VK search for phone
+            try:
+                search_url = f"https://vk.com/search?c[q]={phone.number}&c[section]=people"
+                resp = session.get(search_url, timeout=10)
+                if resp.status_code == 200 and ('search_row' in resp.text or 'people_row' in resp.text):
+                    # Check if any result name matches target
+                    from bs4 import BeautifulSoup
+                    soup = BeautifulSoup(resp.text, 'html.parser')
+                    results = soup.select('.people_row, .search_row')[:3]
+                    for result in results:
+                        name_elem = result.select_one('.people_name, .search_name')
+                        if name_elem:
+                            found_name = name_elem.get_text(strip=True)
+                            similarity = calculate_name_similarity(target_name, found_name)
+                            if similarity >= 0.6:
+                                verification_hits += 2  # High value hit
+                                sources_checked.append(f'vk_search:{found_name}')
+                                break
+            except Exception as e:
+                logger.debug(f"VK phone search error: {e}")
+
+            # Method 3: Check OK.ru for phone
+            try:
+                search_url = f"https://ok.ru/search?st.query={phone.number}"
+                resp = session.get(search_url, timeout=10)
+                if resp.status_code == 200:
+                    from bs4 import BeautifulSoup
+                    soup = BeautifulSoup(resp.text, 'html.parser')
+                    results = soup.select('.user-card, .ucard')[:3]
+                    for result in results:
+                        name_elem = result.select_one('.user-card_name, .ucard__name')
+                        if name_elem:
+                            found_name = name_elem.get_text(strip=True)
+                            similarity = calculate_name_similarity(target_name, found_name)
+                            if similarity >= 0.6:
+                                verification_hits += 2
+                                sources_checked.append(f'ok_search:{found_name}')
+                                break
+            except Exception as e:
+                logger.debug(f"OK phone search error: {e}")
+
+            session.close()
+
+        except Exception as e:
+            logger.debug(f"Phone verification error: {e}")
+
+        # Update confidence based on verification hits
+        if verification_hits > 0:
+            # Boost confidence based on verification hits
+            boost = min(0.20, verification_hits * 0.08)
+            phone.confidence_score = min(0.95, phone.confidence_score + boost)
+            if sources_checked:
+                phone.source = f"{phone.source} [verified: {', '.join(sources_checked)}]"
+            logger.info(f"Phone {phone.number} verified via {sources_checked}, conf={phone.confidence_score:.2f}")
+
+        return phone
+
+    def _fallback_phone_discovery(
+        self,
+        target_name: str,
+        username: str,
+        verified_emails: List['VerifiedEmail']
+    ) -> List[DiscoveredPhone]:
+        """
+        Fallback phone discovery using alternative methods.
+        Called when primary methods fail to find phones.
+        """
+        phones = []
+        import requests
+        from bs4 import BeautifulSoup
+
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
+        })
+
+        try:
+            # Method 1: Search Google for "username phone" or "name phone"
+            for query in [f'"{target_name}" phone', f'"{username}" телефон']:
+                try:
+                    # Note: This is rate-limited by Google
+                    search_url = f"https://www.google.com/search?q={query}"
+                    resp = session.get(search_url, timeout=10)
+                    if resp.status_code == 200:
+                        found = self.validator.extract_phones(resp.text)
+                        for info in found[:2]:
+                            existing = [p.number for p in phones]
+                            if info.display_format not in existing:
+                                phones.append(DiscoveredPhone(
+                                    number=info.display_format,
+                                    source="Google search",
+                                    confidence="low",
+                                    confidence_score=0.50
+                                ))
+                    time.sleep(1)  # Rate limit
+                except Exception:
+                    pass
+
+            # Method 2: Check if username contains digits that could be phone
+            phones.extend(self._phone_from_username(username))
+
+            # Method 3: For each verified email, try email-based lookup
+            for email in verified_emails[:2]:
+                email_phones = self._phone_from_email_lookup(email.email)
+                for p in email_phones:
+                    existing = [ph.number for ph in phones]
+                    if p.number not in existing:
+                        phones.append(p)
+
+        except Exception as e:
+            logger.debug(f"Fallback phone discovery error: {e}")
+
+        finally:
+            session.close()
+
+        return phones[:3]  # Limit results
 
     def close(self):
         """Clean up resources."""
