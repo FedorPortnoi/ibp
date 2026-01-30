@@ -30,6 +30,21 @@ from .vk_api_extractor import VKAPIExtractor, VKContact
 logger = logging.getLogger(__name__)
 
 
+def retry_with_backoff(func, max_retries: int = 3, initial_delay: float = 1.0):
+    """Execute function with exponential backoff retry."""
+    last_exception = None
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except Exception as e:
+            last_exception = e
+            if attempt < max_retries - 1:
+                delay = initial_delay * (2 ** attempt)
+                time.sleep(delay)
+                logger.debug(f"Retry {attempt + 1}/{max_retries} after {delay}s: {e}")
+    raise last_exception
+
+
 @dataclass
 class VerifiedEmail:
     """An email that has been VERIFIED to exist (not just pattern-generated)."""
@@ -222,6 +237,46 @@ class PerProfileSearchService:
         self.fast_mode = fast_mode
         self.min_verified_emails = 3  # Stop after finding this many verified emails
         self.max_email_candidates = 15 if fast_mode else 30  # Fewer candidates in fast mode
+
+        # Caching for performance
+        self._email_cache: Dict[str, Dict] = {}  # email -> verification result
+        self._phone_cache: Dict[str, List] = {}  # name_hash -> phones found
+        self._profile_cache: Dict[str, Dict] = {}  # url -> scraped data
+        self.cache_ttl = 300  # 5 minute cache TTL
+        self._cache_times: Dict[str, float] = {}
+
+    def _cache_get(self, cache_type: str, key: str):
+        """Get item from cache if not expired."""
+        cache_map = {
+            'email': self._email_cache,
+            'phone': self._phone_cache,
+            'profile': self._profile_cache
+        }
+        cache = cache_map.get(cache_type, {})
+        cache_key = f"{cache_type}:{key}"
+
+        if key in cache:
+            # Check if expired
+            cached_time = self._cache_times.get(cache_key, 0)
+            if time.time() - cached_time < self.cache_ttl:
+                return cache[key]
+            # Expired - remove from cache
+            del cache[key]
+            if cache_key in self._cache_times:
+                del self._cache_times[cache_key]
+        return None
+
+    def _cache_set(self, cache_type: str, key: str, value):
+        """Set item in cache."""
+        cache_map = {
+            'email': self._email_cache,
+            'phone': self._phone_cache,
+            'profile': self._profile_cache
+        }
+        cache = cache_map.get(cache_type)
+        if cache is not None:
+            cache[key] = value
+            self._cache_times[f"{cache_type}:{key}"] = time.time()
 
     def investigate_all_profiles(
         self,
@@ -471,8 +526,32 @@ class PerProfileSearchService:
                         result.phones.append(phone)
 
         except Exception as e:
-            result.errors.append(str(e))
+            error_msg = str(e)
+            result.errors.append(error_msg)
             logger.error(f"Error processing profile {url}: {e}")
+
+            # Try to salvage partial results even on error
+            if not result.verified_emails and not result.phones:
+                logger.warning(f"No data recovered for {url}, trying minimal extraction...")
+                try:
+                    # Last-ditch effort: just try phone discovery by name
+                    name_parts = target_name.strip().split()
+                    if len(name_parts) >= 2:
+                        phone_results = self.phone_service.discover_sync(
+                            first_name=name_parts[0],
+                            last_name=name_parts[-1],
+                            usernames=[username],
+                            profile_urls=[{'url': url, 'platform': platform, 'username': username}],
+                            emails=[]
+                        )
+                        for p in phone_results.phones[:2]:
+                            result.phones.append(DiscoveredPhone(
+                                number=p.number,
+                                source=f"Recovery search ({p.source})",
+                                confidence=p.confidence
+                            ))
+                except Exception as recovery_error:
+                    logger.debug(f"Recovery search also failed: {recovery_error}")
 
         # Set status
         result.processing_time = time.time() - start_time
@@ -596,6 +675,7 @@ class PerProfileSearchService:
         """
         Fast parallel email verification using Holehe.
         Stops early once minimum verified emails found.
+        Uses caching to avoid redundant checks.
         """
         from concurrent.futures import as_completed
 
@@ -603,7 +683,13 @@ class PerProfileSearchService:
         futures = []
 
         def check_single_email(email: str) -> Optional[Dict]:
-            """Check single email with Holehe."""
+            """Check single email with Holehe, with caching."""
+            # Check cache first
+            cached = self._cache_get('email', email.lower())
+            if cached is not None:
+                logger.debug(f"Email cache hit: {email}")
+                return cached if cached else None
+
             try:
                 result = subprocess.run(
                     ['holehe', email, '--only-used', '--no-color', '--no-clear', '-T', '3'],
@@ -624,7 +710,12 @@ class PerProfileSearchService:
                                 services.append(service)
 
                 if services:
-                    return {'email': email, 'services': services}
+                    result_data = {'email': email, 'services': services}
+                    self._cache_set('email', email.lower(), result_data)
+                    return result_data
+
+                # Cache negative result too
+                self._cache_set('email', email.lower(), {})
                 return None
 
             except Exception as e:
