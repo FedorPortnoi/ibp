@@ -52,6 +52,125 @@ from .vk_api_extractor import VKAPIExtractor, VKContact
 
 logger = logging.getLogger(__name__)
 
+# Known services that Holehe can detect (for validation)
+# This list is used to filter out false positives from header parsing
+KNOWN_HOLEHE_SERVICES = {
+    # Social Media
+    'twitter', 'twitter.com', 'instagram', 'instagram.com', 'facebook', 'facebook.com',
+    'tiktok', 'tiktok.com', 'snapchat', 'snapchat.com', 'pinterest', 'pinterest.com',
+    'tumblr', 'tumblr.com', 'reddit', 'reddit.com', 'linkedin', 'linkedin.com',
+    'vk', 'vk.com', 'ok.ru', 'odnoklassniki',
+    # Tech/Dev
+    'github', 'github.com', 'gitlab', 'gitlab.com', 'bitbucket', 'bitbucket.org',
+    'stackoverflow', 'stackoverflow.com', 'docker', 'docker.com', 'npmjs', 'npm',
+    # Gaming
+    'steam', 'steampowered.com', 'twitch', 'twitch.tv', 'discord', 'discord.com',
+    'epicgames', 'epicgames.com', 'playstation', 'xbox', 'ea', 'origin',
+    'blizzard', 'battle.net', 'riotgames', 'ubisoft',
+    # Streaming/Media
+    'spotify', 'spotify.com', 'netflix', 'netflix.com', 'hulu', 'soundcloud',
+    'soundcloud.com', 'deezer', 'deezer.com', 'vimeo', 'vimeo.com', 'dailymotion',
+    'youtube', 'youtube.com', 'apple', 'music.apple.com',
+    # Shopping
+    'amazon', 'amazon.com', 'ebay', 'ebay.com', 'aliexpress', 'etsy', 'etsy.com',
+    'wish', 'shopify',
+    # Email/Comms
+    'protonmail', 'protonmail.com', 'mailru', 'mail.ru', 'yahoo', 'yahoo.com',
+    'outlook', 'outlook.com', 'zoho', 'yandex', 'yandex.ru', 'gmx',
+    # Cloud/Storage
+    'dropbox', 'dropbox.com', 'box', 'box.com', 'mega', 'mega.nz', 'icloud',
+    'onedrive', 'google', 'drive', 'pcloud',
+    # Other
+    'adobe', 'adobe.com', 'canva', 'figma', 'notion', 'trello', 'slack',
+    'zoom', 'zoom.us', 'skype', 'teams', 'webex', 'telegram', 'telegram.org',
+    'signal', 'whatsapp', 'viber', 'line', 'wechat',
+    'paypal', 'paypal.com', 'stripe', 'venmo', 'cashapp',
+    'airbnb', 'airbnb.com', 'booking', 'booking.com', 'uber', 'lyft',
+    'wordpress', 'wordpress.com', 'medium', 'medium.com', 'blogger', 'wix',
+    'gravatar', 'gravatar.com', 'about.me', 'linktree',
+    'quora', 'quora.com', 'flickr', 'flickr.com', 'imgur', 'imgur.com',
+    'patreon', 'patreon.com', 'onlyfans', 'gumroad',
+    'duolingo', 'duolingo.com', 'codecademy', 'coursera', 'udemy',
+    'eventbrite', 'eventbrite.com', 'meetup', 'meetup.com',
+    'lastpass', 'lastpass.com', '1password', 'bitwarden', 'dashlane',
+    'bodybuilding', 'bodybuilding.com', 'strava', 'strava.com', 'fitbit',
+    'komoot', 'komoot.com', 'nike', 'nikeplus', 'adidas',
+    'office365', 'office365.com', 'microsoft.com', 'live.com',
+    'rambler', 'rambler.ru', 'mail', 'bk.ru', 'list.ru', 'inbox.ru',
+}
+
+
+def parse_holehe_output(output: str) -> List[str]:
+    """
+    Parse Holehe CLI output and extract REAL service names.
+
+    CRITICAL: Filters out the header line that contains "[+] Email used"
+    which was causing false positives where "Email" was being extracted
+    as a service name.
+
+    Valid service lines look like:
+        [+] twitter.com
+        [+] spotify
+        [+] instagram.com
+
+    Invalid lines to skip:
+        [+] Email used, [-] Email not used, [x] Rate limit  (HEADER)
+        [-] twitter.com  (not found)
+        [x] Rate limit  (rate limited)
+
+    Returns:
+        List of actual service names where the email is registered
+    """
+    services = []
+
+    for line in output.split('\n'):
+        line = line.strip()
+
+        # Skip empty lines
+        if not line:
+            continue
+
+        # Skip lines without [+] (we only want positive matches)
+        if '[+]' not in line:
+            continue
+
+        # CRITICAL: Skip the header line
+        # Header format: "[+] Email used, [-] Email not used, [x] Rate limit"
+        if 'Email used' in line or 'not used' in line or 'Rate limit' in line:
+            continue
+
+        # Skip informational lines
+        if 'email' in line.lower() and ('used' in line.lower() or 'check' in line.lower()):
+            continue
+
+        # Extract service name after [+]
+        # Format: "[+] servicename" or "[+] servicename : extra info"
+        match = re.search(r'\[\+\]\s*(\S+)', line)
+        if not match:
+            continue
+
+        service = match.group(1).strip().rstrip(':').lower()
+
+        # Skip if too short (likely parsing error)
+        if len(service) < 2:
+            continue
+
+        # Skip the word "Email" itself (artifact of header parsing)
+        if service == 'email':
+            continue
+
+        # Validate: must be a known service OR contain a dot (domain)
+        is_known = service in KNOWN_HOLEHE_SERVICES
+        has_domain = '.' in service
+
+        if is_known or has_domain:
+            services.append(service)
+        else:
+            # Log unknown services for debugging (but don't include them)
+            logger.debug(f"Holehe: Unknown service '{service}' - skipping")
+
+    return services
+
 
 def retry_with_backoff(func, max_retries: int = 3, initial_delay: float = 1.0):
     """Execute function with exponential backoff retry."""
@@ -748,7 +867,11 @@ class PerProfileSearchService:
     def _verify_emails_holehe(self, emails: List[str]) -> List[Dict]:
         """
         Verify emails using Holehe CLI.
-        Returns only emails that are registered on at least 1 service.
+        Returns only emails that are registered on at least 1 REAL service.
+
+        FIXED: Now uses parse_holehe_output() which correctly filters out
+        the header line "[+] Email used, [-] Email not used, [x] Rate limit"
+        that was causing false positives.
         """
         verified = []
 
@@ -763,21 +886,15 @@ class PerProfileSearchService:
                     errors='replace'
                 )
 
-                services = []
-                for line in result.stdout.split('\n'):
-                    if '[+]' in line:
-                        parts = line.split('[+]')
-                        if len(parts) > 1:
-                            service = parts[1].strip().split(':')[0].split()[0]
-                            if service and len(service) > 1:
-                                services.append(service)
+                # Use the fixed parser that filters out header line
+                services = parse_holehe_output(result.stdout)
 
-                if services:  # Only add if registered on at least 1 service
+                if services:  # Only add if registered on at least 1 REAL service
                     verified.append({
                         'email': email,
                         'services': services
                     })
-                    logger.info(f"VERIFIED email: {email} on {services}")
+                    logger.info(f"VERIFIED email: {email} on REAL services: {services}")
 
                 time.sleep(0.3)  # Rate limiting
 
@@ -796,6 +913,9 @@ class PerProfileSearchService:
         Fast parallel email verification using Holehe.
         Stops early once minimum verified emails found.
         Uses caching to avoid redundant checks.
+
+        FIXED: Now uses parse_holehe_output() which correctly filters out
+        the header line that was causing false positives.
         """
         from concurrent.futures import as_completed
 
@@ -820,14 +940,8 @@ class PerProfileSearchService:
                     errors='replace'
                 )
 
-                services = []
-                for line in result.stdout.split('\n'):
-                    if '[+]' in line:
-                        parts = line.split('[+]')
-                        if len(parts) > 1:
-                            service = parts[1].strip().split(':')[0].split()[0]
-                            if service and len(service) > 1:
-                                services.append(service)
+                # Use the fixed parser that filters out header line
+                services = parse_holehe_output(result.stdout)
 
                 if services:
                     result_data = {'email': email, 'services': services}
@@ -854,7 +968,7 @@ class PerProfileSearchService:
                     result = future.result()
                     if result:
                         verified.append(result)
-                        logger.info(f"VERIFIED email: {result['email']} on {result['services']}")
+                        logger.info(f"VERIFIED email: {result['email']} on REAL services: {result['services']}")
 
                         # Stop early if we have enough
                         if self.fast_mode and len(verified) >= self.min_verified_emails:
