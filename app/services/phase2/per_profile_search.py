@@ -1351,8 +1351,17 @@ class PerProfileSearchService:
         return verified
 
     def _verify_emails_via_breach(self, emails: List[str]) -> List[str]:
-        """Verify emails by checking if they appear in breach databases."""
+        """
+        Verify emails by checking if they appear in breach databases.
+
+        NOTE: Requires HIBP API key to function. Without API key, returns empty list.
+        """
         verified = []
+
+        # Check if breach checker can actually work (needs HIBP API key)
+        if not self.breach_checker.hibp_api_key:
+            logger.debug("Skipping breach check - HIBP API key not configured")
+            return verified
 
         for email in emails:
             if len(verified) >= 3:  # Limit breach checks

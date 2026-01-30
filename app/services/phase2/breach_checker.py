@@ -163,10 +163,14 @@ class BreachChecker:
         """Check email against Have I Been Pwned."""
         breaches = []
 
+        # HIBP v3 API requires an API key - skip if not available
+        if not self.hibp_api_key:
+            logger.warning("HIBP API key required for this request")
+            return breaches
+
         try:
             headers = {**self.HEADERS}
-            if self.hibp_api_key:
-                headers['hibp-api-key'] = self.hibp_api_key
+            headers['hibp-api-key'] = self.hibp_api_key
 
             # Rate limit: HIBP requires 1500ms between requests
             time.sleep(1.6)
