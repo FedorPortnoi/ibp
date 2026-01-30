@@ -288,16 +288,358 @@ class PhoneNameValidator:
             self._phone_sources.close()
 
 
+class EmailSocialValidator:
+    """
+    Validate emails by checking associated social profiles.
+
+    Cycle 8: Email→Social validation.
+
+    Methods:
+    1. Check if email is linked to VK/OK profiles
+    2. Check Gravatar for profile info
+    3. Check if email appears in GitHub commits
+    4. Validate email domain and format
+    """
+
+    def __init__(self):
+        self._email_sources = None
+        import requests
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+
+    def _get_email_sources(self):
+        """Lazy load email sources."""
+        if self._email_sources is None:
+            try:
+                from app.services.phase2.email_sources import CombinedEmailSources
+                self._email_sources = CombinedEmailSources()
+            except ImportError:
+                self._email_sources = None
+        return self._email_sources
+
+    def validate_email(self, email: str, target_name: str, profile_url: Optional[str] = None) -> ValidationResult:
+        """
+        Validate that an email belongs to the target person.
+
+        Args:
+            email: Email address to validate
+            target_name: Expected owner's name
+            profile_url: Optional social profile URL to check against
+
+        Returns:
+            ValidationResult with confidence score
+        """
+        result = ValidationResult(
+            item=email,
+            item_type='email',
+            target_name=target_name
+        )
+
+        try:
+            # Method 1: Check Gravatar for profile info
+            gravatar_result = self._check_gravatar(email)
+            if gravatar_result:
+                result.sources_checked.append('gravatar')
+                name = gravatar_result.get('name', '')
+                if name:
+                    similarity = calculate_name_similarity(target_name, name)
+                    if similarity > result.name_similarity:
+                        result.name_similarity = similarity
+                        result.matched_name = name
+                        result.details['gravatar'] = gravatar_result
+                        if similarity >= 0.60:
+                            result.sources_matched.append('gravatar')
+
+            # Method 2: Check email sources (Epieos, Hunter.io, etc.)
+            email_sources = self._get_email_sources()
+            if email_sources:
+                try:
+                    # Check Epieos for Google account info
+                    epieos_result = email_sources.epieos.check(email)
+                    if epieos_result and epieos_result.get('exists'):
+                        result.sources_checked.append('epieos')
+                        name = epieos_result.get('name', '')
+                        if name:
+                            similarity = calculate_name_similarity(target_name, name)
+                            if similarity > result.name_similarity:
+                                result.name_similarity = similarity
+                                result.matched_name = name
+                            result.details['epieos'] = epieos_result
+                            if similarity >= 0.60:
+                                result.sources_matched.append('epieos')
+                except Exception as e:
+                    logger.debug(f"Epieos check error: {e}")
+
+            # Method 3: Check if email domain matches profile domain
+            if profile_url:
+                domain_match = self._check_domain_match(email, profile_url)
+                if domain_match:
+                    result.details['domain_match'] = True
+                    result.sources_checked.append('domain_match')
+                    if domain_match.get('confidence', 0) >= 0.5:
+                        result.sources_matched.append('domain_match')
+
+            # Method 4: Check GitHub for email in commits
+            github_result = self._check_github_email(email)
+            if github_result:
+                result.sources_checked.append('github')
+                name = github_result.get('name', '')
+                if name:
+                    similarity = calculate_name_similarity(target_name, name)
+                    if similarity > result.name_similarity:
+                        result.name_similarity = similarity
+                        result.matched_name = name
+                    result.details['github'] = github_result
+                    if similarity >= 0.60:
+                        result.sources_matched.append('github')
+
+            # Method 5: Check VK/OK for email association
+            social_result = self._check_social_email(email, target_name)
+            if social_result:
+                result.sources_checked.extend(social_result.get('sources', []))
+                name = social_result.get('matched_name', '')
+                if name:
+                    similarity = social_result.get('similarity', 0)
+                    if similarity > result.name_similarity:
+                        result.name_similarity = similarity
+                        result.matched_name = name
+                    if similarity >= 0.60:
+                        result.sources_matched.extend(social_result.get('sources', []))
+                result.details['social'] = social_result
+
+            # Calculate final validation result
+            if result.name_similarity >= 0.80:
+                result.validated = True
+                result.confidence = min(0.95, result.name_similarity * 1.1)
+            elif result.name_similarity >= 0.60:
+                result.validated = True
+                result.confidence = result.name_similarity * 0.9
+            elif result.sources_matched:
+                # Some sources matched but name similarity is low
+                result.validated = True
+                result.confidence = 0.50 + (len(result.sources_matched) * 0.1)
+            elif result.name_similarity >= 0.40:
+                result.validated = False
+                result.confidence = result.name_similarity * 0.5
+            else:
+                result.validated = False
+                result.confidence = 0.0
+
+        except Exception as e:
+            result.errors.append(str(e))
+            logger.error(f"Email validation error for {email}: {e}")
+
+        return result
+
+    def _check_gravatar(self, email: str) -> Optional[Dict]:
+        """Check Gravatar for profile information."""
+        import hashlib
+
+        try:
+            # Gravatar uses MD5 hash of lowercase email
+            email_hash = hashlib.md5(email.lower().strip().encode()).hexdigest()
+            url = f"https://www.gravatar.com/{email_hash}.json"
+
+            response = self.session.get(url, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                if 'entry' in data and data['entry']:
+                    entry = data['entry'][0]
+                    return {
+                        'exists': True,
+                        'name': entry.get('displayName', '') or entry.get('preferredUsername', ''),
+                        'profile_url': entry.get('profileUrl', ''),
+                        'photos': [p.get('value') for p in entry.get('photos', [])],
+                        'accounts': [a.get('domain') for a in entry.get('accounts', [])]
+                    }
+
+        except Exception as e:
+            logger.debug(f"Gravatar check error: {e}")
+
+        return None
+
+    def _check_github_email(self, email: str) -> Optional[Dict]:
+        """Check if email appears in GitHub commits."""
+        try:
+            # Search GitHub for commits with this email
+            url = f"https://api.github.com/search/commits?q=author-email:{email}"
+            headers = {'Accept': 'application/vnd.github.cloak-preview'}
+
+            response = self.session.get(url, headers=headers, timeout=15)
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('total_count', 0) > 0:
+                    items = data.get('items', [])
+                    if items:
+                        commit = items[0]
+                        author = commit.get('author', {}) or {}
+                        return {
+                            'exists': True,
+                            'name': author.get('login', ''),
+                            'commit_count': data.get('total_count', 0),
+                            'github_url': author.get('html_url', '')
+                        }
+
+        except Exception as e:
+            logger.debug(f"GitHub email check error: {e}")
+
+        return None
+
+    def _check_domain_match(self, email: str, profile_url: str) -> Optional[Dict]:
+        """Check if email domain matches profile URL domain."""
+        try:
+            import re
+            from urllib.parse import urlparse
+
+            # Extract email domain
+            email_domain = email.split('@')[-1].lower() if '@' in email else ''
+
+            # Extract profile domain
+            parsed = urlparse(profile_url)
+            profile_domain = parsed.netloc.lower()
+
+            # Check for match
+            if email_domain and profile_domain:
+                # Direct match
+                if email_domain in profile_domain or profile_domain in email_domain:
+                    return {'confidence': 0.7, 'email_domain': email_domain, 'profile_domain': profile_domain}
+
+                # Check for common username-based emails
+                username_match = re.search(r'(?:id|user)?(\d+|[a-z_]+)', profile_url, re.I)
+                if username_match:
+                    username = username_match.group(1)
+                    if username.lower() in email.lower():
+                        return {'confidence': 0.5, 'username_match': username}
+
+        except Exception as e:
+            logger.debug(f"Domain match error: {e}")
+
+        return None
+
+    def _check_social_email(self, email: str, target_name: str) -> Optional[Dict]:
+        """Check if email is associated with VK/OK profiles."""
+        results = {'sources': [], 'matched_name': None, 'similarity': 0.0}
+
+        try:
+            # Try VK email search
+            vk_result = self._search_vk_by_email(email, target_name)
+            if vk_result:
+                results['sources'].append('vk')
+                if vk_result.get('similarity', 0) > results['similarity']:
+                    results['similarity'] = vk_result['similarity']
+                    results['matched_name'] = vk_result.get('name')
+                results['vk'] = vk_result
+
+            # Try OK email search
+            ok_result = self._search_ok_by_email(email, target_name)
+            if ok_result:
+                results['sources'].append('ok')
+                if ok_result.get('similarity', 0) > results['similarity']:
+                    results['similarity'] = ok_result['similarity']
+                    results['matched_name'] = ok_result.get('name')
+                results['ok'] = ok_result
+
+        except Exception as e:
+            logger.debug(f"Social email check error: {e}")
+
+        return results if results['sources'] else None
+
+    def _search_vk_by_email(self, email: str, target_name: str) -> Optional[Dict]:
+        """Search VK for profiles with this email."""
+        try:
+            from bs4 import BeautifulSoup
+
+            # VK search doesn't directly search by email, but we can try
+            url = f"https://vk.com/search?c[q]={email}&c[section]=people"
+            response = self.session.get(url, timeout=15)
+
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                # Look for results
+                results = soup.select('.people_row, .search_row')
+                if results:
+                    first = results[0]
+                    name_elem = first.select_one('.people_name, .search_name a')
+                    if name_elem:
+                        name = name_elem.get_text(strip=True)
+                        similarity = calculate_name_similarity(target_name, name)
+                        return {
+                            'name': name,
+                            'similarity': similarity,
+                            'source': 'vk_search'
+                        }
+
+        except Exception as e:
+            logger.debug(f"VK email search error: {e}")
+
+        return None
+
+    def _search_ok_by_email(self, email: str, target_name: str) -> Optional[Dict]:
+        """Search OK.ru for profiles with this email."""
+        try:
+            from bs4 import BeautifulSoup
+
+            # OK.ru search
+            url = f"https://ok.ru/search?st.query={email}&st.cmd=friendsFriends"
+            response = self.session.get(url, timeout=15)
+
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                # Look for results
+                results = soup.select('.user-card, .ucard')
+                if results:
+                    first = results[0]
+                    name_elem = first.select_one('.user-card_name, .ucard__name')
+                    if name_elem:
+                        name = name_elem.get_text(strip=True)
+                        similarity = calculate_name_similarity(target_name, name)
+                        return {
+                            'name': name,
+                            'similarity': similarity,
+                            'source': 'ok_search'
+                        }
+
+        except Exception as e:
+            logger.debug(f"OK email search error: {e}")
+
+        return None
+
+    def validate_emails(self, emails: List[str], target_name: str) -> List[ValidationResult]:
+        """Validate multiple emails."""
+        results = []
+        for email in emails:
+            result = self.validate_email(email, target_name)
+            results.append(result)
+        return results
+
+    def close(self):
+        """Clean up resources."""
+        self.session.close()
+        if self._email_sources:
+            try:
+                self._email_sources.close()
+            except:
+                pass
+
+
 class CrossValidator:
     """
     Main cross-validation orchestrator.
 
     Combines phone→name and email→social validation.
+    Cycle 7: Phone validation
+    Cycle 8: Email validation
     """
 
     def __init__(self):
         self.phone_validator = PhoneNameValidator()
-        self._email_validator = None  # Will be added in Cycle 8
+        self.email_validator = EmailSocialValidator()
 
     def validate_phone(self, phone: str, target_name: str) -> ValidationResult:
         """Validate a phone number against target name."""
@@ -306,6 +648,14 @@ class CrossValidator:
     def validate_phones(self, phones: List[str], target_name: str) -> List[ValidationResult]:
         """Validate multiple phones against target name."""
         return self.phone_validator.validate_phones(phones, target_name)
+
+    def validate_email(self, email: str, target_name: str, profile_url: Optional[str] = None) -> ValidationResult:
+        """Validate an email against target name and optional profile."""
+        return self.email_validator.validate_email(email, target_name, profile_url)
+
+    def validate_emails(self, emails: List[str], target_name: str) -> List[ValidationResult]:
+        """Validate multiple emails against target name."""
+        return self.email_validator.validate_emails(emails, target_name)
 
     def get_validated_phones(
         self,
@@ -335,9 +685,55 @@ class CrossValidator:
         validated.sort(key=lambda x: x[1], reverse=True)
         return validated
 
+    def get_validated_emails(
+        self,
+        emails: List[str],
+        target_name: str,
+        min_confidence: float = 0.60
+    ) -> List[Tuple[str, float]]:
+        """
+        Get emails that pass validation with minimum confidence.
+
+        Args:
+            emails: List of emails to validate
+            target_name: Target person's name
+            min_confidence: Minimum confidence threshold
+
+        Returns:
+            List of (email, confidence) tuples that passed validation
+        """
+        validated = []
+        results = self.validate_emails(emails, target_name)
+
+        for result in results:
+            if result.validated and result.confidence >= min_confidence:
+                validated.append((result.item, result.confidence))
+
+        # Sort by confidence descending
+        validated.sort(key=lambda x: x[1], reverse=True)
+        return validated
+
+    def validate_all(
+        self,
+        phones: List[str],
+        emails: List[str],
+        target_name: str
+    ) -> Dict[str, List[ValidationResult]]:
+        """
+        Validate all contact information.
+
+        Returns:
+            Dict with 'phones' and 'emails' keys containing validation results
+        """
+        return {
+            'phones': self.validate_phones(phones, target_name),
+            'emails': self.validate_emails(emails, target_name)
+        }
+
     def close(self):
         """Clean up all resources."""
         self.phone_validator.close()
+        self.email_validator.close()
 
 
 # Convenience functions
@@ -368,5 +764,50 @@ def get_validated_phones(
     validator = CrossValidator()
     try:
         return validator.get_validated_phones(phones, target_name, min_confidence)
+    finally:
+        validator.close()
+
+
+# Email validation convenience functions (Cycle 8)
+def validate_email_ownership(email: str, target_name: str, profile_url: Optional[str] = None) -> ValidationResult:
+    """Convenience function to validate a single email."""
+    validator = EmailSocialValidator()
+    try:
+        return validator.validate_email(email, target_name, profile_url)
+    finally:
+        validator.close()
+
+
+def validate_emails_batch(emails: List[str], target_name: str) -> List[ValidationResult]:
+    """Convenience function to validate multiple emails."""
+    validator = EmailSocialValidator()
+    try:
+        return validator.validate_emails(emails, target_name)
+    finally:
+        validator.close()
+
+
+def get_validated_emails(
+    emails: List[str],
+    target_name: str,
+    min_confidence: float = 0.60
+) -> List[Tuple[str, float]]:
+    """Convenience function to get validated emails above threshold."""
+    validator = CrossValidator()
+    try:
+        return validator.get_validated_emails(emails, target_name, min_confidence)
+    finally:
+        validator.close()
+
+
+def validate_all_contacts(
+    phones: List[str],
+    emails: List[str],
+    target_name: str
+) -> Dict[str, List[ValidationResult]]:
+    """Convenience function to validate all contact info."""
+    validator = CrossValidator()
+    try:
+        return validator.validate_all(phones, emails, target_name)
     finally:
         validator.close()
