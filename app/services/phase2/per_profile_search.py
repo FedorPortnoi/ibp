@@ -120,11 +120,14 @@ class PerProfileSearchService:
     Only returns VERIFIED emails - no pattern guesses.
     """
 
-    def __init__(self):
+    def __init__(self, fast_mode: bool = True):
         self.validator = RussianPhoneValidator()
-        self._executor = ThreadPoolExecutor(max_workers=3)
-        self.holehe_timeout = 8  # seconds per email
-        self.phone_service = PhoneDiscoveryService()  # Use existing phone discovery
+        self._executor = ThreadPoolExecutor(max_workers=5)  # Increased for parallelism
+        self.holehe_timeout = 5 if fast_mode else 8  # Reduced timeout in fast mode
+        self.phone_service = PhoneDiscoveryService()
+        self.fast_mode = fast_mode
+        self.min_verified_emails = 3  # Stop after finding this many verified emails
+        self.max_email_candidates = 15 if fast_mode else 30  # Fewer candidates in fast mode
 
     def investigate_all_profiles(
         self,
@@ -232,8 +235,10 @@ class PerProfileSearchService:
             # Step 2: Generate and VERIFY email candidates for this username
             email_candidates = self._generate_email_candidates(username, target_name)
 
-            # Step 3: Verify emails with Holehe (only verified ones make it)
-            verified_emails = self._verify_emails_holehe(email_candidates[:10])
+            # Step 3: Verify emails with Holehe (stop early if we have enough)
+            # Use concurrent futures for faster verification
+            emails_to_check = email_candidates[:self.max_email_candidates]
+            verified_emails = self._verify_emails_holehe_fast(emails_to_check)
 
             for verified in verified_emails:
                 # Avoid duplicates
@@ -246,8 +251,14 @@ class PerProfileSearchService:
                         services=verified['services']
                     ))
 
-            # Step 4: Check Gravatar for email candidates
-            gravatar_verified = self._verify_emails_gravatar(email_candidates[:15])
+                # Stop early if we have enough verified emails
+                if self.fast_mode and len(result.verified_emails) >= self.min_verified_emails:
+                    break
+
+            # Step 4: Check Gravatar for email candidates (only if we need more)
+            gravatar_verified = []
+            if len(result.verified_emails) < self.min_verified_emails:
+                gravatar_verified = self._verify_emails_gravatar(email_candidates[:10])
 
             for email in gravatar_verified:
                 existing = [e.email.lower() for e in result.verified_emails]
@@ -426,6 +437,70 @@ class PerProfileSearchService:
                 break
             except Exception as e:
                 logger.debug(f"Holehe error for {email}: {e}")
+
+        return verified
+
+    def _verify_emails_holehe_fast(self, emails: List[str]) -> List[Dict]:
+        """
+        Fast parallel email verification using Holehe.
+        Stops early once minimum verified emails found.
+        """
+        from concurrent.futures import as_completed
+
+        verified = []
+        futures = []
+
+        def check_single_email(email: str) -> Optional[Dict]:
+            """Check single email with Holehe."""
+            try:
+                result = subprocess.run(
+                    ['holehe', email, '--only-used', '--no-color', '--no-clear', '-T', '3'],
+                    capture_output=True,
+                    text=True,
+                    timeout=self.holehe_timeout,
+                    encoding='utf-8',
+                    errors='replace'
+                )
+
+                services = []
+                for line in result.stdout.split('\n'):
+                    if '[+]' in line:
+                        parts = line.split('[+]')
+                        if len(parts) > 1:
+                            service = parts[1].strip().split(':')[0].split()[0]
+                            if service and len(service) > 1:
+                                services.append(service)
+
+                if services:
+                    return {'email': email, 'services': services}
+                return None
+
+            except Exception as e:
+                logger.debug(f"Holehe fast check error for {email}: {e}")
+                return None
+
+        # Submit all email checks to thread pool (max 3 concurrent to avoid rate limiting)
+        batch_size = 3
+        for i in range(0, len(emails), batch_size):
+            batch = emails[i:i + batch_size]
+
+            futures = [self._executor.submit(check_single_email, email) for email in batch]
+
+            for future in as_completed(futures, timeout=self.holehe_timeout * 2):
+                try:
+                    result = future.result()
+                    if result:
+                        verified.append(result)
+                        logger.info(f"VERIFIED email: {result['email']} on {result['services']}")
+
+                        # Stop early if we have enough
+                        if self.fast_mode and len(verified) >= self.min_verified_emails:
+                            return verified
+
+                except Exception as e:
+                    logger.debug(f"Holehe future error: {e}")
+
+            time.sleep(0.2)  # Brief pause between batches
 
         return verified
 
