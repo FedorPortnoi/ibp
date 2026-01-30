@@ -10,8 +10,11 @@ Sources implemented:
 4. SMTP Verification - Direct mail server check
 5. VK Profile Email Extraction
 6. OK.ru Profile Email Extraction
+7. Snov.io - Email verification API (Cycle 2)
+8. Enhanced SMTP with catch-all detection (Cycle 2)
 
 Cycle 1 Focus: Epieos + Hunter.io
+Cycle 2 Focus: Snov.io + Enhanced SMTP Verification
 """
 
 import logging
@@ -454,6 +457,260 @@ def smtp_verify_email(email: str, timeout: int = 10) -> Dict:
     return result
 
 
+class SnovIOChecker:
+    """
+    Snov.io email verification API (Cycle 2).
+
+    Free tier: 50 credits/month
+    Requires API credentials (client_id and client_secret).
+
+    If no credentials available, falls back to SMTP verification.
+    """
+
+    BASE_URL = "https://api.snov.io"
+
+    def __init__(
+        self,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None
+    ):
+        self.client_id = client_id or os.environ.get('SNOV_CLIENT_ID', '')
+        self.client_secret = client_secret or os.environ.get('SNOV_CLIENT_SECRET', '')
+        self.session = requests.Session()
+        self._access_token = None
+        self._token_expires = 0
+        self._has_credentials = bool(self.client_id and self.client_secret)
+
+    def _get_access_token(self) -> Optional[str]:
+        """Get or refresh access token."""
+        if not self._has_credentials:
+            return None
+
+        # Check if token is still valid
+        if self._access_token and time.time() < self._token_expires:
+            return self._access_token
+
+        try:
+            url = f"{self.BASE_URL}/v1/oauth/access_token"
+            params = {
+                'grant_type': 'client_credentials',
+                'client_id': self.client_id,
+                'client_secret': self.client_secret
+            }
+
+            response = self.session.post(url, data=params, timeout=15)
+
+            if response.status_code == 200:
+                data = response.json()
+                self._access_token = data.get('access_token')
+                # Token expires in 1 hour, refresh 5 min early
+                self._token_expires = time.time() + 3300
+                return self._access_token
+
+        except Exception as e:
+            logger.debug(f"Snov.io token error: {e}")
+
+        return None
+
+    def verify_email(self, email: str) -> EmailSourceResult:
+        """
+        Verify email using Snov.io API.
+
+        Returns verification result with deliverability status.
+        """
+        result = EmailSourceResult(
+            email=email,
+            source="snov.io",
+            exists=False,
+            confidence=0.0
+        )
+
+        if not self._has_credentials:
+            # Fallback to enhanced SMTP verification
+            return self._verify_email_fallback(email)
+
+        token = self._get_access_token()
+        if not token:
+            return self._verify_email_fallback(email)
+
+        try:
+            # Add email to verification queue
+            url = f"{self.BASE_URL}/v1/add-emails-to-verification"
+            headers = {'Authorization': f'Bearer {token}'}
+            params = {'emails': [email]}
+
+            response = self.session.post(url, headers=headers, json=params, timeout=15)
+
+            if response.status_code == 200:
+                # Wait briefly for verification
+                time.sleep(1)
+
+                # Get verification result
+                result_url = f"{self.BASE_URL}/v1/get-emails-verification-status"
+                result_params = {'emails': [email]}
+
+                response = self.session.post(result_url, headers=headers, json=result_params, timeout=15)
+
+                if response.status_code == 200:
+                    data = response.json()
+                    emails_data = data.get('data', [])
+
+                    if emails_data:
+                        email_info = emails_data[0]
+                        status = email_info.get('status', 'unknown')
+
+                        # Map Snov.io status to result
+                        if status == 'valid':
+                            result.exists = True
+                            result.confidence = 0.95
+                        elif status == 'uncertain':
+                            result.exists = True
+                            result.confidence = 0.70
+                        elif status == 'catchall':
+                            result.exists = True
+                            result.confidence = 0.60
+                        elif status == 'invalid':
+                            result.exists = False
+                            result.confidence = 0.90
+
+                        result.details = {
+                            'status': status,
+                            'result': email_info.get('result', {}),
+                            'domain': email_info.get('domain', '')
+                        }
+
+                        if result.exists:
+                            logger.info(f"Snov.io: Email {email} verified (status: {status})")
+
+            elif response.status_code == 401:
+                logger.warning("Snov.io: Invalid credentials")
+                self._has_credentials = False
+                return self._verify_email_fallback(email)
+
+            elif response.status_code == 429:
+                result.error = "Rate limit exceeded"
+
+        except Exception as e:
+            result.error = str(e)
+            logger.debug(f"Snov.io error for {email}: {e}")
+
+        return result
+
+    def _verify_email_fallback(self, email: str) -> EmailSourceResult:
+        """Fallback to enhanced SMTP verification."""
+        result = EmailSourceResult(
+            email=email,
+            source="snov.io_smtp_fallback",
+            exists=False,
+            confidence=0.0
+        )
+
+        smtp_result = enhanced_smtp_verify(email)
+        if smtp_result:
+            result.exists = smtp_result.get('exists', False)
+            result.confidence = smtp_result.get('confidence', 0.50)
+            result.details = smtp_result
+
+        return result
+
+    def close(self):
+        self.session.close()
+
+
+def enhanced_smtp_verify(email: str, timeout: int = 10) -> Dict:
+    """
+    Enhanced SMTP verification with catch-all detection (Cycle 2).
+
+    Improvements over basic SMTP verify:
+    - Detects catch-all domains (accept any address)
+    - Multiple verification attempts with different probes
+    - Better error handling and confidence scoring
+    """
+    result = {
+        'exists': False,
+        'mx_record': None,
+        'smtp_response': None,
+        'is_catchall': False,
+        'confidence': 0.0,
+        'error': None
+    }
+
+    try:
+        domain = email.split('@')[-1]
+
+        # Get MX record
+        import dns.resolver
+        try:
+            mx_records = dns.resolver.resolve(domain, 'MX')
+            mx_host = str(sorted(mx_records, key=lambda x: x.preference)[0].exchange).rstrip('.')
+            result['mx_record'] = mx_host
+        except dns.resolver.NXDOMAIN:
+            result['error'] = "Domain does not exist"
+            return result
+        except dns.resolver.NoAnswer:
+            # Fallback to common MX patterns
+            mx_host = f"mail.{domain}"
+            result['mx_record'] = mx_host
+        except Exception:
+            mx_host = f"mail.{domain}"
+            result['mx_record'] = mx_host
+
+        # Connect to SMTP server
+        with smtplib.SMTP(timeout=timeout) as smtp:
+            smtp.connect(mx_host, 25)
+            smtp.helo('mail.verification.local')
+
+            # First, test with the actual email
+            code, message = smtp.rcpt(email)
+            result['smtp_response'] = f"{code}: {message.decode('utf-8', errors='ignore')}"
+
+            if code == 250:
+                # Email accepted - but might be catch-all
+                # Test with a random non-existent address
+                import random
+                import string
+                random_user = ''.join(random.choices(string.ascii_lowercase, k=20))
+                random_email = f"{random_user}@{domain}"
+
+                code2, _ = smtp.rcpt(random_email)
+
+                if code2 == 250:
+                    # Server accepts any address = catch-all
+                    result['is_catchall'] = True
+                    result['exists'] = True
+                    result['confidence'] = 0.50  # Lower confidence for catch-all
+                else:
+                    # Only accepts real addresses
+                    result['exists'] = True
+                    result['confidence'] = 0.85
+
+            elif code == 550:
+                # Email explicitly rejected
+                result['exists'] = False
+                result['confidence'] = 0.90
+
+            elif code in [451, 452, 503]:
+                # Temporary error or greylisting
+                result['exists'] = None  # Unknown
+                result['confidence'] = 0.30
+                result['error'] = "Temporary server error or greylisting"
+
+            else:
+                # Ambiguous response
+                result['confidence'] = 0.40
+
+    except socket.timeout:
+        result['error'] = "Connection timeout"
+    except smtplib.SMTPConnectError as e:
+        result['error'] = f"SMTP connection error: {e}"
+    except smtplib.SMTPServerDisconnected:
+        result['error'] = "Server disconnected"
+    except Exception as e:
+        result['error'] = str(e)
+
+    return result
+
+
 class VKEmailExtractor:
     """
     Extract emails from VK profile pages.
@@ -618,16 +875,21 @@ class CombinedEmailSources:
     """
     Combined email verification using multiple sources.
     Aggregates results from all available sources.
+
+    Cycle 2: Added Snov.io and enhanced SMTP verification.
     """
 
     def __init__(
         self,
         hunter_api_key: Optional[str] = None,
-        emailrep_api_key: Optional[str] = None
+        emailrep_api_key: Optional[str] = None,
+        snov_client_id: Optional[str] = None,
+        snov_client_secret: Optional[str] = None
     ):
         self.epieos = EpieosChecker()
         self.hunter = HunterIOChecker(api_key=hunter_api_key)
         self.emailrep = EmailRepChecker(api_key=emailrep_api_key)
+        self.snov = SnovIOChecker(client_id=snov_client_id, client_secret=snov_client_secret)
         self.vk_extractor = VKEmailExtractor()
         self.ok_extractor = OKEmailExtractor()
 
@@ -677,6 +939,29 @@ class CombinedEmailSources:
         except Exception as e:
             logger.debug(f"EmailRep error: {e}")
 
+        # Check with Snov.io (Cycle 2)
+        try:
+            snov_result = self.snov.verify_email(email)
+            if snov_result.exists:
+                source_results.append(snov_result)
+                results['sources'].append('snov.io')
+                results['details']['snov'] = snov_result.details
+        except Exception as e:
+            logger.debug(f"Snov.io error: {e}")
+
+        # If no results from APIs, try enhanced SMTP verification (Cycle 2)
+        if not source_results:
+            try:
+                smtp_result = enhanced_smtp_verify(email)
+                if smtp_result.get('exists'):
+                    results['sources'].append('smtp')
+                    results['details']['smtp'] = smtp_result
+                    results['exists'] = True
+                    results['confidence'] = smtp_result.get('confidence', 0.50)
+                    return results
+            except Exception as e:
+                logger.debug(f"SMTP verification error: {e}")
+
         # Aggregate results
         if source_results:
             results['exists'] = True
@@ -724,6 +1009,7 @@ class CombinedEmailSources:
         self.epieos.close()
         self.hunter.close()
         self.emailrep.close()
+        self.snov.close()
         self.vk_extractor.close()
         self.ok_extractor.close()
 
