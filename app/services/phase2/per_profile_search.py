@@ -215,6 +215,80 @@ class PerProfileResults:
             'avg_phone_confidence': sum(p.confidence_score for p in unique_phones) / len(unique_phones) if unique_phones else 0,
         }
 
+    def to_json(self) -> Dict:
+        """Export results as JSON-serializable dict."""
+        import json
+
+        unique_emails = self.get_unique_emails()
+        unique_phones = self.get_unique_phones()
+
+        return {
+            'target_name': self.target_name,
+            'investigation_time_seconds': round(self.total_time, 1),
+            'summary': {
+                'profiles_tested': self.total_profiles,
+                'profiles_complete': self.passing_profiles,
+                'all_pass': self.all_pass,
+            },
+            'emails': [
+                {
+                    'email': e.email,
+                    'source': e.source,
+                    'verification_method': e.verification_method,
+                    'services': e.services,
+                    'confidence': round(e.confidence_score, 2)
+                }
+                for e in unique_emails
+            ],
+            'phones': [
+                {
+                    'number': p.number,
+                    'source': p.source,
+                    'confidence_level': p.confidence,
+                    'confidence_score': round(p.confidence_score, 2)
+                }
+                for p in unique_phones
+            ],
+            'profiles': [
+                {
+                    'url': pr.profile_url,
+                    'platform': pr.platform,
+                    'username': pr.username,
+                    'status': pr.status,
+                    'emails_count': len(pr.verified_emails),
+                    'phones_count': len(pr.phones),
+                    'processing_time': round(pr.processing_time, 1),
+                    'errors': pr.errors
+                }
+                for pr in self.profile_results
+            ]
+        }
+
+    def save_json(self, filepath: str) -> bool:
+        """Save results to JSON file."""
+        import json
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(self.to_json(), f, ensure_ascii=False, indent=2)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save JSON: {e}")
+            return False
+
+    def to_csv_lines(self) -> List[str]:
+        """Export results as CSV lines."""
+        lines = []
+        lines.append('Profile URL,Platform,Username,Emails,Phones,Status,Time')
+
+        for pr in self.profile_results:
+            emails = ';'.join(e.email for e in pr.verified_emails)
+            phones = ';'.join(p.number for p in pr.phones)
+            lines.append(
+                f'"{pr.profile_url}",{pr.platform},{pr.username},"{emails}","{phones}",{pr.status},{pr.processing_time:.1f}'
+            )
+
+        return lines
+
 
 # Russian email domains
 RUSSIAN_DOMAINS = ['mail.ru', 'yandex.ru', 'ya.ru', 'bk.ru', 'list.ru', 'inbox.ru', 'rambler.ru']
@@ -1242,7 +1316,8 @@ class PerProfileSearchService:
                     phones.append(DiscoveredPhone(
                         number=info.display_format,
                         source=f"Email local part ({email})",
-                        confidence="medium"
+                        confidence="medium",
+                        confidence_score=0.65
                     ))
 
             elif len(digits) == 11 and digits.startswith(('7', '8')):
@@ -1252,25 +1327,54 @@ class PerProfileSearchService:
                     phones.append(DiscoveredPhone(
                         number=info.display_format,
                         source=f"Email local part ({email})",
-                        confidence="medium"
+                        confidence="medium",
+                        confidence_score=0.65
                     ))
 
-            # Method 2: Try Epieos-style lookup (public API)
-            session = requests.Session()
-            session.headers.update({'User-Agent': 'Mozilla/5.0'})
-
-            # Try VK password recovery to get masked phone hint
-            try:
-                vk_url = "https://vk.com/restore"
-                # Note: This is a passive check, not actually triggering recovery
-                # Just checking if VK associates a phone with this email
-            except Exception:
-                pass
+            # Method 2: For Yandex emails, check Yandex People
+            if 'yandex' in email.lower() or 'ya.ru' in email.lower():
+                yandex_phones = self._check_yandex_people(email)
+                phones.extend(yandex_phones)
 
         except Exception as e:
             logger.debug(f"Email phone lookup error: {e}")
 
         return phones
+
+    def _check_yandex_people(self, email: str) -> List[DiscoveredPhone]:
+        """Check Yandex People/Collections for phone hints."""
+        phones = []
+
+        import requests
+
+        try:
+            username = email.split('@')[0]
+            session = requests.Session()
+            session.headers.update({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            })
+
+            # Check Yandex Collections profile
+            url = f"https://yandex.ru/collections/user/{username}/"
+            response = session.get(url, timeout=10, allow_redirects=True)
+
+            if response.status_code == 200:
+                # Extract phone from page if visible
+                found = self.validator.extract_phones(response.text)
+                for info in found:
+                    phones.append(DiscoveredPhone(
+                        number=info.display_format,
+                        source=f"Yandex Collections ({username})",
+                        confidence="medium",
+                        confidence_score=0.75
+                    ))
+
+            session.close()
+
+        except Exception as e:
+            logger.debug(f"Yandex people check error: {e}")
+
+        return phones[:2]  # Limit
 
     def close(self):
         """Clean up resources."""
