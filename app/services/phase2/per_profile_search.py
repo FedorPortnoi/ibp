@@ -25,6 +25,7 @@ from .russian_phone_validator import RussianPhoneValidator, PhoneInfo
 from .profile_scraper import scrape_profile
 from .phone_discovery import PhoneDiscoveryService
 from .breach_checker import BreachChecker
+from .vk_api_extractor import VKAPIExtractor, VKContact
 
 logger = logging.getLogger(__name__)
 
@@ -211,12 +212,13 @@ class PerProfileSearchService:
     Only returns VERIFIED emails - no pattern guesses.
     """
 
-    def __init__(self, fast_mode: bool = True):
+    def __init__(self, fast_mode: bool = True, vk_token: str = None):
         self.validator = RussianPhoneValidator()
         self._executor = ThreadPoolExecutor(max_workers=5)  # Increased for parallelism
         self.holehe_timeout = 5 if fast_mode else 8  # Reduced timeout in fast mode
         self.phone_service = PhoneDiscoveryService()
         self.breach_checker = BreachChecker(use_h8mail=False)  # Use API-only for speed
+        self.vk_extractor = VKAPIExtractor(access_token=vk_token)  # VK API for better extraction
         self.fast_mode = fast_mode
         self.min_verified_emails = 3  # Stop after finding this many verified emails
         self.max_email_candidates = 15 if fast_mode else 30  # Fewer candidates in fast mode
@@ -302,27 +304,68 @@ class PerProfileSearchService:
         )
 
         try:
+            # Step 0: Use VK API for VK profiles (more reliable than scraping)
+            if platform.lower() == 'vk':
+                try:
+                    vk_contact = self.vk_extractor.extract_from_url(url)
+                    if not vk_contact.error:
+                        # Add VK API emails
+                        for email in vk_contact.emails:
+                            result.verified_emails.append(VerifiedEmail(
+                                email=email,
+                                source="VK API contacts",
+                                verification_method="profile_scraping",
+                                services=['vk_api'],
+                                confidence_score=0.95
+                            ))
+
+                        # Add VK API phones
+                        for phone in vk_contact.phones:
+                            info = self.validator.validate(phone)
+                            if info.is_valid:
+                                result.phones.append(DiscoveredPhone(
+                                    number=info.display_format,
+                                    source="VK API contacts",
+                                    confidence="high",
+                                    confidence_score=0.95
+                                ))
+
+                        # Add linked Telegram username (can help find phone)
+                        if vk_contact.telegram:
+                            tg_phones = self._check_telegram_for_phone(vk_contact.telegram)
+                            for p in tg_phones:
+                                result.phones.append(p)
+
+                        logger.info(f"VK API extracted: {len(vk_contact.phones)} phones, {len(vk_contact.emails)} emails")
+                except Exception as e:
+                    logger.debug(f"VK API extraction error: {e}")
+
             # Step 1: Scrape profile page for visible emails and phones
             scraped_data = self._scrape_profile_contacts(url, platform)
 
             # Add scraped emails (these are verified - found in profile)
             for email in scraped_data.get('emails', []):
-                result.verified_emails.append(VerifiedEmail(
-                    email=email,
-                    source=f"{platform.upper()} profile page",
-                    verification_method="profile_scraping",
-                    services=[platform]
-                ))
+                # Avoid duplicates
+                existing = [e.email.lower() for e in result.verified_emails]
+                if email.lower() not in existing:
+                    result.verified_emails.append(VerifiedEmail(
+                        email=email,
+                        source=f"{platform.upper()} profile page",
+                        verification_method="profile_scraping",
+                        services=[platform]
+                    ))
 
             # Add scraped phones
             for phone in scraped_data.get('phones', []):
                 info = self.validator.validate(phone)
                 if info.is_valid:
-                    result.phones.append(DiscoveredPhone(
-                        number=info.display_format,
-                        source=f"{platform.upper()} profile page",
-                        confidence="high"
-                    ))
+                    existing = [p.number for p in result.phones]
+                    if info.display_format not in existing:
+                        result.phones.append(DiscoveredPhone(
+                            number=info.display_format,
+                            source=f"{platform.upper()} profile page",
+                            confidence="high"
+                        ))
 
             # Step 2: Generate and VERIFY email candidates for this username
             email_candidates = self._generate_email_candidates(username, target_name)
@@ -859,17 +902,20 @@ class PerProfileSearchService:
         import requests
         from bs4 import BeautifulSoup
 
-        try:
-            session = requests.Session()
-            session.headers.update({'User-Agent': 'Mozilla/5.0'})
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
 
+        try:
+            # Method 1: Check t.me preview page
             url = f"https://t.me/{username}"
             response = session.get(url, timeout=10)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
 
-                # Check bio/description
+                # Check bio/description for phone numbers
                 desc = soup.select_one('.tgme_page_description')
                 if desc:
                     text = desc.get_text()
@@ -878,13 +924,34 @@ class PerProfileSearchService:
                         phones.append(DiscoveredPhone(
                             number=info.display_format,
                             source=f"Telegram bio (@{username})",
-                            confidence="high"
+                            confidence="high",
+                            confidence_score=0.90
                         ))
 
-            session.close()
+                # Also check if username itself contains phone pattern
+                username_phones = self._phone_from_username(username)
+                phones.extend(username_phones)
+
+                # Check page extra info
+                extra = soup.select_one('.tgme_page_extra')
+                if extra:
+                    extra_text = extra.get_text()
+                    found = self.validator.extract_phones(extra_text)
+                    for info in found:
+                        existing = [p.number for p in phones]
+                        if info.display_format not in existing:
+                            phones.append(DiscoveredPhone(
+                                number=info.display_format,
+                                source=f"Telegram info (@{username})",
+                                confidence="high",
+                                confidence_score=0.85
+                            ))
 
         except Exception as e:
             logger.debug(f"Telegram phone check error: {e}")
+
+        finally:
+            session.close()
 
         return phones
 
