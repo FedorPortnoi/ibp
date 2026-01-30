@@ -223,9 +223,11 @@ class DiscoveredPhone:
     source: str
     confidence: str  # high, medium, low
     confidence_score: float = 0.7  # 0-1, higher = more confident
+    is_duplicate: bool = False  # True if found for multiple targets
+    duplicate_targets: List[str] = field(default_factory=list)  # Other targets with same phone
 
     def calculate_confidence(self) -> float:
-        """Calculate confidence score based on source."""
+        """Calculate confidence score based on source and duplicate status."""
         source_scores = {
             'profile contacts': 0.95,
             'VK profile contacts': 0.95,
@@ -239,15 +241,124 @@ class DiscoveredPhone:
 
         # Find best matching source
         source_lower = self.source.lower()
+        base_score = None
         for key, score in source_scores.items():
             if key.lower() in source_lower:
-                self.confidence_score = score
-                return score
+                base_score = score
+                break
 
-        # Default based on confidence string
-        default_scores = {'high': 0.80, 'medium': 0.60, 'low': 0.40}
-        self.confidence_score = default_scores.get(self.confidence, 0.50)
+        if base_score is None:
+            # Default based on confidence string
+            default_scores = {'high': 0.80, 'medium': 0.60, 'low': 0.40}
+            base_score = default_scores.get(self.confidence, 0.50)
+
+        # CRITICAL: Heavily penalize duplicates (same phone for multiple targets)
+        if self.is_duplicate:
+            # Reduce confidence by 50% for duplicates
+            base_score = base_score * 0.5
+            # Further reduce if found for 3+ targets
+            if len(self.duplicate_targets) >= 3:
+                base_score = base_score * 0.5
+
+        self.confidence_score = max(0.0, min(1.0, base_score))
         return self.confidence_score
+
+
+def normalize_phone(phone: str) -> str:
+    """
+    Normalize phone number to standard format for comparison.
+    Converts various formats to +7XXXXXXXXXX.
+    """
+    # Remove all non-digits
+    digits = re.sub(r'\D', '', phone)
+
+    # Handle different formats
+    if len(digits) == 11:
+        # Russian format: 8XXXXXXXXXX or 7XXXXXXXXXX
+        if digits.startswith('8'):
+            digits = '7' + digits[1:]
+        return '+' + digits
+    elif len(digits) == 10:
+        # Missing country code, assume Russia
+        return '+7' + digits
+    elif len(digits) == 12 and digits.startswith('7'):
+        # Already has +7
+        return '+' + digits
+
+    # Return as-is if we can't normalize
+    return '+' + digits if not phone.startswith('+') else phone
+
+
+class PhoneDeduplicator:
+    """
+    Tracks phones across multiple targets to detect duplicates.
+
+    A phone appearing for multiple different targets is suspicious -
+    it likely means the phone was scraped from a generic search result,
+    not from the actual target's profile.
+    """
+
+    def __init__(self):
+        # phone (normalized) -> list of (target_name, source, profile_url)
+        self._phone_registry: Dict[str, List[Dict]] = {}
+
+    def register_phone(self, phone: str, target_name: str, source: str, profile_url: str = ""):
+        """Register a phone found for a target."""
+        normalized = normalize_phone(phone)
+        if normalized not in self._phone_registry:
+            self._phone_registry[normalized] = []
+
+        self._phone_registry[normalized].append({
+            'target': target_name,
+            'source': source,
+            'profile_url': profile_url
+        })
+
+    def is_duplicate(self, phone: str) -> bool:
+        """Check if phone was found for multiple different targets."""
+        normalized = normalize_phone(phone)
+        entries = self._phone_registry.get(normalized, [])
+
+        # Get unique targets
+        unique_targets = set(e['target'] for e in entries)
+        return len(unique_targets) > 1
+
+    def get_duplicate_targets(self, phone: str) -> List[str]:
+        """Get list of targets that share this phone."""
+        normalized = normalize_phone(phone)
+        entries = self._phone_registry.get(normalized, [])
+        return list(set(e['target'] for e in entries))
+
+    def get_duplicate_count(self, phone: str) -> int:
+        """Get count of different targets with this phone."""
+        return len(self.get_duplicate_targets(phone))
+
+    def get_all_duplicates(self) -> Dict[str, List[str]]:
+        """Get all phones that appear for multiple targets."""
+        duplicates = {}
+        for phone, entries in self._phone_registry.items():
+            unique_targets = list(set(e['target'] for e in entries))
+            if len(unique_targets) > 1:
+                duplicates[phone] = unique_targets
+        return duplicates
+
+    def clear(self):
+        """Clear all registered phones."""
+        self._phone_registry.clear()
+
+
+# Global deduplicator instance (used across investigate_all_profiles calls)
+_global_phone_deduplicator = PhoneDeduplicator()
+
+
+def get_phone_deduplicator() -> PhoneDeduplicator:
+    """Get the global phone deduplicator instance."""
+    return _global_phone_deduplicator
+
+
+def reset_phone_deduplicator():
+    """Reset the global phone deduplicator (call between test runs)."""
+    _global_phone_deduplicator.clear()
 
 
 @dataclass
@@ -275,12 +386,36 @@ class ProfileContactResult:
 
     @property
     def has_phone(self) -> bool:
-        """Check if profile has at least 1 phone."""
+        """Check if profile has at least 1 VALID phone (excluding duplicates)."""
+        return len(self.get_valid_phones()) > 0
+
+    @property
+    def has_any_phone(self) -> bool:
+        """Check if profile has at least 1 phone (including duplicates)."""
         return len(self.phones) > 0
+
+    def get_valid_phones(self, min_confidence: float = 0.3) -> List[DiscoveredPhone]:
+        """Get phones that are not duplicates and meet minimum confidence."""
+        valid = []
+        for phone in self.phones:
+            phone.calculate_confidence()
+            # Skip duplicates (same phone found for multiple targets)
+            if phone.is_duplicate:
+                continue
+            # Skip low confidence phones
+            if phone.confidence_score < min_confidence:
+                continue
+            valid.append(phone)
+        return valid
+
+    @property
+    def duplicate_phones_count(self) -> int:
+        """Count of phones that are duplicates (found for multiple targets)."""
+        return sum(1 for p in self.phones if p.is_duplicate)
 
     @property
     def is_complete(self) -> bool:
-        """Check if profile has both email AND phone."""
+        """Check if profile has both email AND valid phone (no duplicates)."""
         return self.has_email and self.has_phone
 
 
@@ -324,17 +459,52 @@ class PerProfileResults:
                     email_map[key] = email
         return sorted(email_map.values(), key=lambda e: -e.confidence_score)
 
-    def get_unique_phones(self) -> List[DiscoveredPhone]:
-        """Get deduplicated phones across all profiles, keeping highest confidence."""
+    def get_unique_phones(self, include_duplicates: bool = False) -> List[DiscoveredPhone]:
+        """
+        Get deduplicated phones across all profiles, keeping highest confidence.
+
+        Args:
+            include_duplicates: If False (default), excludes phones that were
+                               found for multiple different targets.
+        """
         phone_map: Dict[str, DiscoveredPhone] = {}
         for pr in self.profile_results:
             for phone in pr.phones:
-                # Normalize phone for dedup
-                key = phone.number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+                # Use proper normalization
+                key = normalize_phone(phone.number)
                 phone.calculate_confidence()
+
+                # Skip duplicates if requested
+                if not include_duplicates and phone.is_duplicate:
+                    continue
+
                 if key not in phone_map or phone.confidence_score > phone_map[key].confidence_score:
                     phone_map[key] = phone
+
         return sorted(phone_map.values(), key=lambda p: -p.confidence_score)
+
+    def get_duplicate_phones(self) -> List[DiscoveredPhone]:
+        """Get all phones that were found for multiple targets (suspicious)."""
+        duplicates = []
+        seen = set()
+        for pr in self.profile_results:
+            for phone in pr.phones:
+                if phone.is_duplicate:
+                    key = normalize_phone(phone.number)
+                    if key not in seen:
+                        seen.add(key)
+                        duplicates.append(phone)
+        return duplicates
+
+    @property
+    def total_valid_phones(self) -> int:
+        """Count of phones that are valid (not duplicates, meet confidence threshold)."""
+        return len(self.get_unique_phones(include_duplicates=False))
+
+    @property
+    def total_duplicate_phones(self) -> int:
+        """Count of phones that are duplicates (found for multiple targets)."""
+        return len(self.get_duplicate_phones())
 
     def get_summary(self) -> Dict:
         """Get summary statistics for the investigation."""
@@ -514,6 +684,9 @@ class PerProfileSearchService:
         start_time = time.time()
         results = PerProfileResults(target_name=target_name)
 
+        # Get global deduplicator for cross-target phone tracking
+        deduplicator = get_phone_deduplicator()
+
         logger.info("=" * 60)
         logger.info(f"PER-PROFILE INVESTIGATION START")
         logger.info(f"Target: {target_name}")
@@ -539,14 +712,36 @@ class PerProfileSearchService:
                 target_name=target_name
             )
 
+            # Register all phones with the deduplicator BEFORE adding to results
+            for phone in profile_result.phones:
+                deduplicator.register_phone(
+                    phone=phone.number,
+                    target_name=target_name,
+                    source=phone.source,
+                    profile_url=url
+                )
+
             results.profile_results.append(profile_result)
 
-            # Log per-profile status
+            # Log per-profile status (preliminary - before dedup check)
             status_icon = "PASS" if profile_result.is_complete else "FAIL"
             logger.info(
                 f"  [{status_icon}] {len(profile_result.verified_emails)} emails, "
                 f"{len(profile_result.phones)} phones ({profile_result.processing_time:.1f}s)"
             )
+
+        # DEDUPLICATION PASS: Mark phones that appear for multiple targets
+        duplicates_found = 0
+        for pr in results.profile_results:
+            for phone in pr.phones:
+                if deduplicator.is_duplicate(phone.number):
+                    phone.is_duplicate = True
+                    phone.duplicate_targets = deduplicator.get_duplicate_targets(phone.number)
+                    duplicates_found += 1
+                    logger.warning(
+                        f"DUPLICATE PHONE: {phone.number} found for multiple targets: "
+                        f"{phone.duplicate_targets}"
+                    )
 
         results.total_time = time.time() - start_time
 
@@ -561,18 +756,26 @@ class PerProfileSearchService:
         logger.info(f"  Total verified emails: {results.total_verified_emails}")
         logger.info(f"  Total phones: {results.total_phones}")
 
+        # Duplicate warning
+        if duplicates_found > 0:
+            logger.warning(f"  DUPLICATES DETECTED: {duplicates_found} phones found for multiple targets")
+            logger.warning(f"  Valid phones (excluding duplicates): {results.total_valid_phones}")
+
         # Unique counts
         unique_emails = results.get_unique_emails()
-        unique_phones = results.get_unique_phones()
+        unique_phones = results.get_unique_phones(include_duplicates=False)
         logger.info(f"  Unique emails: {len(unique_emails)}")
-        logger.info(f"  Unique phones: {len(unique_phones)}")
+        logger.info(f"  Unique valid phones: {len(unique_phones)}")
 
         # Per-profile breakdown
         logger.info("  Per-profile breakdown:")
         for pr in results.profile_results:
+            valid_phones = pr.get_valid_phones()
+            dup_count = pr.duplicate_phones_count
             status = "PASS" if pr.is_complete else "FAIL"
+            dup_note = f" ({dup_count} dup)" if dup_count > 0 else ""
             logger.info(f"    [{status}] {pr.platform}/{pr.username}: "
-                       f"{len(pr.verified_emails)} emails, {len(pr.phones)} phones "
+                       f"{len(pr.verified_emails)} emails, {len(valid_phones)} valid phones{dup_note} "
                        f"({pr.processing_time:.1f}s)")
 
         logger.info(f"  Overall status: {'PASS' if results.all_pass else 'FAIL'}")
