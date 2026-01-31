@@ -56,105 +56,56 @@ class Phase3TaskStatus:
 
 
 def run_phase3_task(task_id: str):
-    """Background task to run Phase 3 investigation."""
+    """
+    Background task to run Phase 3 investigation.
+
+    Uses Phase3CombinedSearch orchestrator for Буратино-style deep investigation.
+    """
     task = phase3_tasks.get(task_id)
     if not task:
         return
 
     try:
-        task.add_message(f'Starting Phase 3 investigation for {task.target_name}', 'info')
-
-        results = {
-            'business_records': [],
-            'court_cases': [],
-            'locations': [],
-            'text_analysis': None,
-            'stats': {}
-        }
+        task.add_message(f'Starting Phase 3 deep investigation for {task.target_name}', 'info')
 
         # Get investigation data
         profiles = task.investigation_data.get('profiles', [])
+        contacts = task.investigation_data.get('contacts', {})
         target_name = task.target_name
 
-        # Step 1: Business Registry Search
-        task.current_step = 'Searching business records...'
-        task.percent_complete = 10
-        task.add_message('Searching Russian business registries (ЕГРЮЛ/ЕГРИП)...', 'info')
+        # Use Phase 3 Combined Search orchestrator
+        from app.services.phase3.combined_search import Phase3CombinedSearch
 
-        try:
-            from app.services.phase3.business_registry import business_registry_search
+        searcher = Phase3CombinedSearch()
 
-            business_records = business_registry_search.search_by_name(target_name)
-            results['business_records'] = [r.to_dict() for r in business_records]
-            task.add_message(f'Found {len(business_records)} business affiliations', 'success')
-        except Exception as e:
-            task.add_message(f'Business search error: {str(e)}', 'warning')
-            logger.warning(f"Business search failed: {e}")
+        # Progress callback
+        def update_progress(step: str, percent: int):
+            task.current_step = step
+            task.percent_complete = percent
+            task.add_message(step, 'info')
 
-        # Step 2: Court Records Search
-        task.current_step = 'Searching court records...'
-        task.percent_complete = 30
-        task.add_message('Searching court databases (sudact.ru, arbitration)...', 'info')
+        searcher.set_progress_callback(update_progress)
 
-        try:
-            from app.services.phase3.court_search import court_search
+        # Run the investigation
+        phase3_results = searcher.investigate(
+            target_name=target_name,
+            confirmed_profiles=profiles,
+            discovered_contacts=contacts,
+            search_business=True,
+            search_courts=True,
+            build_social_graph=True,
+            analyze_text=True
+        )
 
-            court_cases = court_search.search_by_name(target_name)
-            results['court_cases'] = [c.to_dict() for c in court_cases]
-            task.add_message(f'Found {len(court_cases)} court cases', 'success')
-        except Exception as e:
-            task.add_message(f'Court search error: {str(e)}', 'warning')
-            logger.warning(f"Court search failed: {e}")
+        # Convert results to dict format
+        results = phase3_results.to_dict()
 
-        # Step 3: Geo-Information Extraction
-        task.current_step = 'Extracting location data...'
-        task.percent_complete = 50
-        task.add_message('Extracting geo-information from social media...', 'info')
-
-        try:
-            from app.services.phase3.geo_extractor import geo_extractor
-
-            location_analysis = geo_extractor.extract_from_profiles(profiles)
-            results['locations'] = location_analysis.to_dict()
-            results['map_data'] = geo_extractor.generate_map_data(location_analysis.locations)
-            task.add_message(f'Found {len(location_analysis.locations)} location points', 'success')
-        except Exception as e:
-            task.add_message(f'Geo extraction error: {str(e)}', 'warning')
-            logger.warning(f"Geo extraction failed: {e}")
-
-        # Step 4: Text Analysis
-        task.current_step = 'Analyzing text content...'
-        task.percent_complete = 70
-        task.add_message('Running sentiment and keyword analysis...', 'info')
-
-        # Collect posts from profiles
-        posts = task.investigation_data.get('posts', [])
-        if posts:
-            try:
-                from app.services.phase3.text_analyzer import text_analyzer
-
-                text_result = text_analyzer.analyze_posts(posts)
-                results['text_analysis'] = text_result.to_dict()
-                task.add_message(
-                    f'Text analysis complete: {text_result.sentiment.label if text_result.sentiment else "N/A"} sentiment',
-                    'success'
-                )
-            except Exception as e:
-                task.add_message(f'Text analysis error: {str(e)}', 'warning')
-                logger.warning(f"Text analysis failed: {e}")
-        else:
-            task.add_message('No posts available for text analysis', 'info')
-
-        # Step 5: Compile stats
-        task.current_step = 'Finalizing...'
-        task.percent_complete = 90
-
-        results['stats'] = {
-            'business_records_found': len(results['business_records']),
-            'court_cases_found': len(results['court_cases']),
-            'locations_found': len(results.get('locations', {}).get('locations', [])),
-            'text_analyzed': bool(results.get('text_analysis'))
-        }
+        # Add summary messages
+        stats = results.get('stats', {})
+        task.add_message(f"Found {stats.get('business_records_found', 0)} business records", 'success')
+        task.add_message(f"Found {stats.get('court_cases_found', 0)} court cases", 'success')
+        task.add_message(f"Found {stats.get('social_connections_found', 0)} social connections", 'success')
+        task.add_message(f"Risk level: {stats.get('overall_risk', 'unknown')}", 'info')
 
         # Complete
         task.results = results
@@ -163,7 +114,7 @@ def run_phase3_task(task_id: str):
         task.current_step = 'Complete'
 
         elapsed = (task.completed_at - task.started_at).total_seconds()
-        task.add_message(f'Phase 3 investigation complete in {elapsed:.1f}s', 'success')
+        task.add_message(f'Phase 3 deep investigation complete in {elapsed:.1f}s', 'success')
 
     except Exception as e:
         task.error = str(e)
