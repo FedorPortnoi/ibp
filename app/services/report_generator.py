@@ -18,16 +18,20 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class IdentityCardData:
-    """Data for identity card generation."""
+    """
+    Data for identity card generation.
+
+    Буратино-style: All data comes from VERIFIED sources.
+    """
     # Basic info
     full_name: str = ""
     aliases: List[str] = field(default_factory=list)
     photo_url: str = ""
 
-    # Social profiles
+    # Social profiles (Phase 1)
     profiles: List[Dict] = field(default_factory=list)
 
-    # Contact info
+    # Contact info (Phase 2)
     phones: List[str] = field(default_factory=list)
     emails: List[str] = field(default_factory=list)
 
@@ -36,13 +40,23 @@ class IdentityCardData:
     country: str = "Russia"
     locations: List[Dict] = field(default_factory=list)
 
-    # Business
+    # Business (Phase 3)
     companies: List[Dict] = field(default_factory=list)
     court_cases: List[Dict] = field(default_factory=list)
+
+    # Social graph (Phase 3)
+    social_connections: List[Dict] = field(default_factory=list)
+    risk_indicators: List[Dict] = field(default_factory=list)
 
     # Analysis
     sentiment: str = "neutral"
     keywords: List[str] = field(default_factory=list)
+    overall_risk: str = "low"  # low, medium, high
+
+    # Phase stats
+    phase1_stats: Dict = field(default_factory=dict)
+    phase2_stats: Dict = field(default_factory=dict)
+    phase3_stats: Dict = field(default_factory=dict)
 
     # Metadata
     investigation_id: str = ""
@@ -148,20 +162,59 @@ class ReportGenerator:
                 courts = []
         data.court_cases = courts[:5]
 
-        # Calculate confidence
+        # Social connections (Phase 3)
+        connections = investigation.get('social_connections', [])
+        if isinstance(connections, str):
+            try:
+                connections = json.loads(connections)
+            except Exception:
+                connections = []
+        data.social_connections = connections[:10]
+
+        # Risk indicators (Phase 3)
+        risks = investigation.get('risk_indicators', [])
+        if isinstance(risks, str):
+            try:
+                risks = json.loads(risks)
+            except Exception:
+                risks = []
+        data.risk_indicators = risks[:10]
+
+        # Overall risk assessment
+        data.overall_risk = investigation.get('overall_risk', 'low')
+
+        # Phase stats
+        data.phase1_stats = investigation.get('phase1_stats', {})
+        data.phase2_stats = investigation.get('phase2_stats', {})
+        data.phase3_stats = investigation.get('phase3_stats', {})
+
+        # Calculate confidence (Буратино-style: based on verified data)
         confidence = 0
+
+        # Phase 1: Profile discovery (30 points max)
         if data.profiles:
-            confidence += 20
+            high_conf_profiles = sum(1 for p in data.profiles if p.get('confidence_level') == 'high')
+            confidence += min(30, 10 + high_conf_profiles * 5)
+
+        # Phase 2: Contact verification (30 points max)
         if data.phones:
-            confidence += 20
+            confidence += min(15, len(data.phones) * 5)
         if data.emails:
-            confidence += 15
+            confidence += min(15, len(data.emails) * 5)
+
+        # Phase 3: Deep investigation (25 points max)
         if data.companies:
-            confidence += 20
+            confidence += min(15, len(data.companies) * 5)
+        if data.court_cases:
+            confidence += 5  # Court records are significant
+        if data.social_connections:
+            confidence += min(5, len(data.social_connections))
+
+        # Supporting data (15 points max)
         if data.photo_url:
             confidence += 10
         if data.city:
-            confidence += 15
+            confidence += 5
 
         data.confidence_score = min(100, confidence)
 
@@ -211,6 +264,39 @@ class ReportGenerator:
             <div class="business-item">
                 <span class="company-name">{name}</span>
                 <span class="role">{role}</span>
+            </div>
+            '''
+
+        # Build risk indicators HTML
+        risks_html = ""
+        risk_colors = {
+            'critical': '#dc2626',
+            'high': '#ef4444',
+            'medium': '#eab308',
+            'low': '#22c55e'
+        }
+        for risk in data.risk_indicators[:4]:
+            severity = risk.get('severity', 'low')
+            color = risk_colors.get(severity, '#888')
+            description = risk.get('description', '')
+            category = risk.get('category', '').upper()
+            risks_html += f'''
+            <div class="risk-item" style="border-left: 3px solid {color}">
+                <span class="risk-category">{category}</span>
+                <span class="risk-desc">{description}</span>
+            </div>
+            '''
+
+        # Build social connections HTML
+        connections_html = ""
+        for conn in data.social_connections[:5]:
+            name = conn.get('name', 'Unknown')
+            relationship = conn.get('relationship', 'contact')
+            platform = conn.get('platform', '')
+            connections_html += f'''
+            <div class="connection-item">
+                <span class="conn-name">{name}</span>
+                <span class="conn-rel">{relationship} ({platform})</span>
             </div>
             '''
 
@@ -481,6 +567,53 @@ class ReportGenerator:
             font-family: 'JetBrains Mono', monospace;
         }}
 
+        /* Risk indicators */
+        .risk-item {{
+            background: rgba(0,0,0,0.3);
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            padding-left: 16px;
+        }}
+
+        .risk-item .risk-category {{
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 4px;
+        }}
+
+        .risk-item .risk-desc {{
+            display: block;
+            color: rgba(255,255,255,0.85);
+            font-size: 12px;
+        }}
+
+        /* Social connections */
+        .connection-item {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+        }}
+
+        .connection-item:last-child {{
+            border-bottom: none;
+        }}
+
+        .connection-item .conn-name {{
+            color: rgba(255,255,255,0.85);
+            font-size: 13px;
+        }}
+
+        .connection-item .conn-rel {{
+            color: rgba(139, 92, 246, 0.6);
+            font-size: 11px;
+        }}
+
         @media print {{
             body {{
                 background: white;
@@ -526,6 +659,14 @@ class ReportGenerator:
             {'''<div class="section">
                 <div class="section-title">Business Affiliations</div>''' + business_html + '''
             </div>''' if business_html else ''}
+
+            {'''<div class="section">
+                <div class="section-title">Risk Indicators</div>''' + risks_html + '''
+            </div>''' if risks_html else ''}
+
+            {'''<div class="section">
+                <div class="section-title">Social Connections</div>''' + connections_html + '''
+            </div>''' if connections_html else ''}
         </div>
 
         <div class="card-footer">
