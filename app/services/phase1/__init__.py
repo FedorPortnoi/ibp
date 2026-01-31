@@ -28,6 +28,12 @@ from app.services.phase1.telegram_people_search import (
     search_telegram_people
 )
 
+from app.services.phase1.face_search import (
+    FaceSearchService,
+    face_search_service,
+    search_faces
+)
+
 __all__ = [
     # VK People Search
     'VKPeopleSearch',
@@ -41,4 +47,8 @@ __all__ = [
     'TelegramPeopleSearch',
     'telegram_people_search',
     'search_telegram_people',
+    # Face Search
+    'FaceSearchService',
+    'face_search_service',
+    'search_faces',
 ]

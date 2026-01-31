@@ -33,6 +33,7 @@ from app.models.profile import ProfileMatch, Phase1Result, Platform, convert_leg
 from app.services.phase1.vk_people_search import vk_people_search
 from app.services.phase1.ok_people_search import ok_people_search
 from app.services.phase1.telegram_people_search import telegram_people_search
+from app.services.phase1.face_search import face_search_service
 
 
 @dataclass
@@ -351,31 +352,30 @@ class CombinedSearchService:
                 ok_results = []
                 self.progress.log(f"OK username search error: {e}")
 
-            # PHASE 8: Yandex reverse image search (if photo provided)
-            yandex_results = []
+            # PHASE 8: Face Search (search4faces + Yandex Images)
+            face_search_results = []
             if target_photo_path and os.path.exists(target_photo_path):
-                self._update_progress(phase="yandex_search", current_step=8,
-                                      message="Searching Yandex Images...")
-                self.progress.log("Phase 8: Yandex reverse image search")
+                self._update_progress(phase="face_search", current_step=8,
+                                      message="Searching by face (search4faces)...")
+                self.progress.log("Phase 8: Face search (search4faces + Yandex)")
                 try:
-                    yandex_raw = yandex_reverse_image_search(target_photo_path)
-                    # Filter Yandex results to only include VK/OK/Telegram
-                    for r in yandex_raw:
-                        url = r.get('url', '').lower()
-                        if 'vk.com' in url or 'ok.ru' in url or 't.me' in url or 'telegram' in url:
-                            yandex_results.append(r)
-                    self.progress.log(f"Yandex found {len(yandex_raw)} raw, {len(yandex_results)} Russia-only results")
+                    face_search_results = face_search_service.search_by_photo(
+                        target_photo_path,
+                        target_name=target_name,
+                        limit=30
+                    )
+                    self.progress.log(f"Face search found {len(face_search_results)} profiles")
                 except Exception as e:
-                    self.progress.log(f"Yandex search error: {e}")
+                    self.progress.log(f"Face search error: {e}")
             else:
-                self.progress.log("Phase 8: Yandex search skipped (no photo)")
+                self.progress.log("Phase 8: Face search skipped (no photo)")
 
-            # Combine all results - People Search results are prioritized
-            all_results = vk_people_results + ok_people_results + telegram_people_results + telegram_results + vk_results + ok_results + yandex_results
-            self.progress.log(f"Total raw results: {len(all_results)} (VK People: {len(vk_people_results)}, OK People: {len(ok_people_results)}, Telegram People: {len(telegram_people_results)})")
+            # Combine all results - People Search results are prioritized, then face search
+            all_results = vk_people_results + ok_people_results + telegram_people_results + face_search_results + telegram_results + vk_results + ok_results
+            self.progress.log(f"Total raw results: {len(all_results)} (VK People: {len(vk_people_results)}, OK People: {len(ok_people_results)}, Telegram People: {len(telegram_people_results)}, Face Search: {len(face_search_results)})")
             self._update_progress(accounts_found=len(all_results))
 
-            # PHASE 9: Face matching (if enabled)
+            # PHASE 9: Face matching on remaining results (if enabled)
             if target_photo_path and self.enable_face_matching and all_results:
                 self._update_progress(phase="face_matching", current_step=9,
                                       items_total=len(all_results),
@@ -423,10 +423,10 @@ class CombinedSearchService:
                     'vk_people_found': len(vk_people_results),
                     'ok_people_found': len(ok_people_results),
                     'telegram_people_found': len(telegram_people_results),
+                    'face_search_found': len(face_search_results),
                     'telegram_found': len(telegram_results),
                     'vk_found': len(vk_results),
                     'ok_found': len(ok_results),
-                    'yandex_found': len(yandex_results),
                     'accounts_final': len(final_results),
                     'face_matches': len(face_matches),
                     'high_confidence': len(high_confidence),
