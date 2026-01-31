@@ -16,8 +16,19 @@ from app.services.phase1.vk_people_search import (
     search_vk_people
 )
 
+from app.services.phase1.ok_people_search import (
+    OKPeopleSearch,
+    ok_people_search,
+    search_ok_people
+)
+
 __all__ = [
+    # VK People Search
     'VKPeopleSearch',
     'vk_people_search',
     'search_vk_people',
+    # OK People Search
+    'OKPeopleSearch',
+    'ok_people_search',
+    'search_ok_people',
 ]

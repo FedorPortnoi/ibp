@@ -31,6 +31,7 @@ from app.services.ok_search import check_ok_usernames
 from app.services.yandex_image_search import yandex_reverse_image_search
 from app.models.profile import ProfileMatch, Phase1Result, Platform, convert_legacy_results_to_phase1
 from app.services.phase1.vk_people_search import vk_people_search
+from app.services.phase1.ok_people_search import ok_people_search
 
 
 @dataclass
@@ -38,7 +39,7 @@ class SearchProgress:
     """Tracks search progress for UI updates."""
     phase: str = "initializing"
     current_step: int = 0
-    total_steps: int = 9
+    total_steps: int = 10
     current_item: str = ""
     items_processed: int = 0
     items_total: int = 0
@@ -159,13 +160,14 @@ class CombinedSearchService:
     Pipeline:
     1. Generate usernames (100+)
     2. VK People Search (by name - real search, not username guessing)
-    3. Telegram username search
-    4. VK username search
-    5. OK username search
-    6. Yandex reverse image search (if photo)
-    7. Face matching (if photo)
-    8. Deduplicate
-    9. Calculate confidence scores
+    3. OK People Search (by name - real search)
+    4. Telegram username search
+    5. VK username search
+    6. OK username search
+    7. Yandex reverse image search (if photo)
+    8. Face matching (if photo)
+    9. Deduplicate
+    10. Calculate confidence scores
     """
 
     DEFAULT_MAX_USERNAMES = 100
@@ -277,18 +279,43 @@ class CombinedSearchService:
             except Exception as e:
                 self.progress.log(f"VK People Search error: {e}")
 
-            # PHASE 3: Telegram search (fast, direct API)
-            self._update_progress(phase="telegram_search", current_step=3,
+            # PHASE 3: OK People Search (by name - real search)
+            self._update_progress(phase="ok_people_search", current_step=3,
+                                  message="Searching OK.ru by name...")
+            self.progress.log("Phase 3: OK People Search (by name)")
+            ok_people_results = []
+            try:
+                # Search by original name
+                ok_people_results = ok_people_search.search_people(
+                    target_name,
+                    limit=20,
+                    target_name=target_name
+                )
+                self.progress.log(f"OK People Search found {len(ok_people_results)} profiles by name")
+
+                # Also search by name variations
+                variations = ok_people_search.generate_search_variations(target_name)
+                for var in variations[1:3]:  # Just first 2 variations to save time
+                    try:
+                        more = ok_people_search.search_people(var, limit=5, target_name=target_name)
+                        ok_people_results.extend(more)
+                    except Exception:
+                        pass
+            except Exception as e:
+                self.progress.log(f"OK People Search error: {e}")
+
+            # PHASE 4: Telegram search (fast, direct API)
+            self._update_progress(phase="telegram_search", current_step=4,
                                   message="Checking Telegram...")
 
-            self.progress.log("Phase 3: Telegram search (fast)")
+            self.progress.log("Phase 4: Telegram search (fast)")
             telegram_results = check_telegram_usernames(usernames)
             self.progress.log(f"Telegram found {len(telegram_results)} accounts")
 
-            # PHASE 4: VK username search (check if username exists)
-            self._update_progress(phase="vk_search", current_step=4,
+            # PHASE 5: VK username search (check if username exists)
+            self._update_progress(phase="vk_search", current_step=5,
                                   message="Checking VK usernames...")
-            self.progress.log("Phase 4: VK username search")
+            self.progress.log("Phase 5: VK username search")
             try:
                 vk_results = check_vk_usernames(usernames)
                 self.progress.log(f"VK username search found {len(vk_results)} accounts")
@@ -296,23 +323,23 @@ class CombinedSearchService:
                 vk_results = []
                 self.progress.log(f"VK username search error: {e}")
 
-            # PHASE 5: OK (Odnoklassniki) direct search
-            self._update_progress(phase="ok_search", current_step=5,
-                                  message="Checking OK profiles...")
-            self.progress.log("Phase 5: OK username search")
+            # PHASE 6: OK username search
+            self._update_progress(phase="ok_search", current_step=6,
+                                  message="Checking OK usernames...")
+            self.progress.log("Phase 6: OK username search")
             try:
                 ok_results = check_ok_usernames(usernames)
                 self.progress.log(f"OK username search found {len(ok_results)} accounts")
             except Exception as e:
                 ok_results = []
-                self.progress.log(f"OK search error: {e}")
+                self.progress.log(f"OK username search error: {e}")
 
-            # PHASE 6: Yandex reverse image search (if photo provided)
+            # PHASE 7: Yandex reverse image search (if photo provided)
             yandex_results = []
             if target_photo_path and os.path.exists(target_photo_path):
-                self._update_progress(phase="yandex_search", current_step=6,
+                self._update_progress(phase="yandex_search", current_step=7,
                                       message="Searching Yandex Images...")
-                self.progress.log("Phase 6: Yandex reverse image search")
+                self.progress.log("Phase 7: Yandex reverse image search")
                 try:
                     yandex_raw = yandex_reverse_image_search(target_photo_path)
                     # Filter Yandex results to only include VK/OK/Telegram
@@ -324,35 +351,35 @@ class CombinedSearchService:
                 except Exception as e:
                     self.progress.log(f"Yandex search error: {e}")
             else:
-                self.progress.log("Phase 6: Yandex search skipped (no photo)")
+                self.progress.log("Phase 7: Yandex search skipped (no photo)")
 
-            # Combine all results - VK People Search results are prioritized
-            all_results = vk_people_results + telegram_results + vk_results + ok_results + yandex_results
-            self.progress.log(f"Total raw results: {len(all_results)} (VK People: {len(vk_people_results)})")
+            # Combine all results - People Search results are prioritized
+            all_results = vk_people_results + ok_people_results + telegram_results + vk_results + ok_results + yandex_results
+            self.progress.log(f"Total raw results: {len(all_results)} (VK People: {len(vk_people_results)}, OK People: {len(ok_people_results)})")
             self._update_progress(accounts_found=len(all_results))
 
-            # PHASE 7: Face matching (if enabled)
+            # PHASE 8: Face matching (if enabled)
             if target_photo_path and self.enable_face_matching and all_results:
-                self._update_progress(phase="face_matching", current_step=7,
+                self._update_progress(phase="face_matching", current_step=8,
                                       items_total=len(all_results),
                                       message="Face matching...")
 
-                self.progress.log("Phase 7: Face matching")
+                self.progress.log("Phase 8: Face matching")
                 all_results = self._run_face_matching(all_results, target_photo_path)
                 face_matching_enabled = True
             else:
-                self.progress.log("Phase 7: Face matching skipped")
+                self.progress.log("Phase 8: Face matching skipped")
 
-            # PHASE 8: Deduplicate
-            self._update_progress(phase="finalizing", current_step=8,
+            # PHASE 9: Deduplicate
+            self._update_progress(phase="finalizing", current_step=9,
                                   message="Finalizing...")
 
-            self.progress.log("Phase 8: Deduplicating")
+            self.progress.log("Phase 9: Deduplicating")
             final_results = self._deduplicate(all_results)
             self.progress.log(f"Final results: {len(final_results)}")
 
-            # PHASE 9: Calculate confidence scores
-            self.progress.log("Phase 9: Calculating confidence scores")
+            # PHASE 10: Calculate confidence scores
+            self.progress.log("Phase 10: Calculating confidence scores")
             final_results = self._calculate_confidence_scores(final_results, target_name)
 
             face_matches = [r for r in final_results if r.get('face_match', False)]
@@ -377,6 +404,7 @@ class CombinedSearchService:
                     'raw_accounts': len(all_results),
                     'accounts_found': len(all_results),
                     'vk_people_found': len(vk_people_results),
+                    'ok_people_found': len(ok_people_results),
                     'telegram_found': len(telegram_results),
                     'vk_found': len(vk_results),
                     'ok_found': len(ok_results),
