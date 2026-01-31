@@ -2,6 +2,12 @@
 Phase 3 Services - Deep Investigation
 =====================================
 Business records, court cases, property lookup, text/video analysis.
+
+Буратино-style workflow:
+1. Search REAL business records (ЕГРЮЛ/ЕГРИП)
+2. Search REAL court cases
+3. Build social graph from confirmed profiles
+4. Risk assessment
 """
 
 from .business_registry import (
@@ -31,23 +37,41 @@ from .video_analyzer import (
     VideoMetadata,
     VideoAnalysisResult
 )
+from .combined_search import (
+    Phase3CombinedSearch,
+    phase3_combined_search,
+    Phase3Results,
+    SocialConnection,
+    RiskIndicator
+)
 
 __all__ = [
+    # Business Registry
     'BusinessRegistrySearch',
     'business_registry_search',
     'BusinessRecord',
+    # Court Search
     'CourtRecordSearch',
     'court_search',
     'CourtCase',
+    # Geo Extractor
     'GeoExtractor',
     'geo_extractor',
     'LocationPoint',
+    # Text Analyzer
     'TextAnalyzer',
     'text_analyzer',
     'TextAnalysisResult',
+    # Video Analyzer
     'VideoAnalyzer',
     'video_analyzer',
     'VideoFrame',
     'VideoMetadata',
     'VideoAnalysisResult',
+    # Combined Search (Orchestrator)
+    'Phase3CombinedSearch',
+    'phase3_combined_search',
+    'Phase3Results',
+    'SocialConnection',
+    'RiskIndicator',
 ]
