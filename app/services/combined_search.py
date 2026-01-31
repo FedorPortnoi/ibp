@@ -1,17 +1,18 @@
 """
-Combined Search Service v9.0 - Russia-Only
-==========================================
-Restricted to VK, OK, Telegram only (no Maigret/Sherlock).
-Enhanced username generation (50+ usernames).
+Combined Search Service v10.0 - Буратино-Style
+==============================================
+Russia-only OSINT with confidence scoring.
 
-Changes from v8:
-- Removed Maigret/Sherlock (too slow, too many irrelevant results)
-- Added OK (Odnoklassniki) direct search
-- Increased username limit to 50
-- Pipeline: Telegram -> VK -> OK -> Yandex Images -> Face matching
+Changes from v9:
+- Added ProfileMatch/Phase1Result data models
+- Confidence scoring for each profile
+- Name similarity calculation
+- Better source tracking
+
+Pipeline: Telegram -> VK -> OK -> Yandex Images -> Face matching -> Confidence scoring
 
 Author: IBP Project
-Version: 9.0
+Version: 10.0
 """
 
 import os
@@ -21,12 +22,14 @@ import time
 from typing import List, Dict, Optional, Callable, Any
 from dataclasses import dataclass, field
 import re
+from difflib import SequenceMatcher
 
 from app.services.username_generator import SmartUsernameGenerator
 from app.services.telegram_search import check_telegram_usernames
 from app.services.vk_search import check_vk_usernames
 from app.services.ok_search import check_ok_usernames
 from app.services.yandex_image_search import yandex_reverse_image_search
+from app.models.profile import ProfileMatch, Phase1Result, Platform, convert_legacy_results_to_phase1
 
 
 @dataclass
@@ -80,6 +83,72 @@ class SearchProgress:
 ALLOWED_PLATFORMS = {
     'vk', 'vkontakte', 'ok', 'odnoklassniki', 'telegram', 't.me'
 }
+
+
+def calculate_name_similarity(target_name: str, found_name: str) -> float:
+    """
+    Calculate similarity between target name and found display name.
+
+    Uses multiple strategies:
+    1. Direct comparison (normalized)
+    2. First name / last name matching
+    3. Transliteration matching (Cyrillic <-> Latin)
+
+    Returns: 0-100 similarity score
+    """
+    if not target_name or not found_name:
+        return 0.0
+
+    # Normalize names
+    target = target_name.lower().strip()
+    found = found_name.lower().strip()
+
+    # Direct sequence matching
+    direct_ratio = SequenceMatcher(None, target, found).ratio() * 100
+
+    # Split into parts and check individual matches
+    target_parts = target.split()
+    found_parts = found.split()
+
+    # Check if any target name part appears in found name
+    part_matches = 0
+    for tp in target_parts:
+        for fp in found_parts:
+            if tp in fp or fp in tp:
+                part_matches += 1
+                break
+            # Check with SequenceMatcher for partial matches
+            if SequenceMatcher(None, tp, fp).ratio() > 0.8:
+                part_matches += 1
+                break
+
+    part_ratio = (part_matches / len(target_parts)) * 100 if target_parts else 0
+
+    # Return the better match
+    return max(direct_ratio, part_ratio)
+
+
+def normalize_name_for_comparison(name: str) -> str:
+    """
+    Normalize name for comparison (handle Cyrillic/Latin, remove special chars).
+    """
+    # Cyrillic to Latin transliteration map
+    translit_map = {
+        'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e',
+        'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+        'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+        'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch',
+        'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'
+    }
+
+    result = []
+    for char in name.lower():
+        if char in translit_map:
+            result.append(translit_map[char])
+        else:
+            result.append(char)
+
+    return ''.join(result)
 
 
 class CombinedSearchService:
@@ -253,12 +322,20 @@ class CombinedSearchService:
             final_results = self._deduplicate(all_results)
             self.progress.log(f"Final results: {len(final_results)}")
 
+            # PHASE 7: Calculate confidence scores
+            self.progress.log("Phase 7: Calculating confidence scores")
+            final_results = self._calculate_confidence_scores(final_results, target_name)
+
             face_matches = [r for r in final_results if r.get('face_match', False)]
+            high_confidence = [r for r in final_results if r.get('confidence_level') == 'high']
+
+            # Sort by confidence score (highest first)
+            final_results.sort(key=lambda x: x.get('confidence_score', 0), reverse=True)
 
             self._update_progress(phase="complete", accounts_validated=len(final_results),
-                                  message=f"Found {len(final_results)} accounts")
+                                  message=f"Found {len(final_results)} accounts ({len(high_confidence)} high confidence)")
 
-            self.progress.log(f"Search complete: {len(final_results)} accounts, {len(face_matches)} face matches")
+            self.progress.log(f"Search complete: {len(final_results)} accounts, {len(face_matches)} face matches, {len(high_confidence)} high confidence")
 
             return {
                 'success': True,
@@ -276,6 +353,7 @@ class CombinedSearchService:
                     'yandex_found': len(yandex_results),
                     'accounts_final': len(final_results),
                     'face_matches': len(face_matches),
+                    'high_confidence': len(high_confidence),
                     'photos_scanned': self.progress.photos_scanned,
                     'face_matching_enabled': face_matching_enabled,
                     'search_time': self.progress.elapsed_time()
@@ -306,6 +384,61 @@ class CombinedSearchService:
                 seen.add(url)
                 unique.append(r)
         return unique
+
+    def _calculate_confidence_scores(self, results: List[Dict], target_name: str) -> List[Dict]:
+        """
+        Calculate confidence scores for each result.
+
+        Scoring based on:
+        - Face match (50 points max): face_similarity / 2
+        - Name match (30 points max): name_similarity * 0.3
+        - Has photo (5 points)
+        - Has bio (5 points)
+        - Source quality bonus (10 points for yandex/search4faces)
+        """
+        for r in results:
+            score = 0.0
+
+            # Calculate name similarity
+            display_name = r.get('display_name', '')
+            if display_name:
+                name_sim = calculate_name_similarity(target_name, display_name)
+                r['name_similarity'] = round(name_sim, 1)
+                r['name_match'] = name_sim > 50  # Consider it a match if > 50%
+
+                if r['name_match']:
+                    score += min(30.0, name_sim * 0.3)
+
+            # Face matching score
+            if r.get('face_match', False):
+                face_sim = r.get('face_similarity', 0)
+                score += min(50.0, face_sim / 2)
+
+            # Profile completeness
+            if r.get('photo_url'):
+                score += 5.0
+            if r.get('bio'):
+                score += 5.0
+
+            # Source quality bonus
+            source = r.get('source', '').lower()
+            if 'yandex' in source or 'search4faces' in source:
+                score += 10.0
+
+            # Set confidence score and level
+            r['confidence_score'] = round(min(100.0, score), 1)
+
+            # Determine confidence level
+            if score >= 70 or (r.get('face_match') and r.get('name_match')):
+                r['confidence_level'] = 'high'
+            elif score >= 40 or r.get('face_match'):
+                r['confidence_level'] = 'medium'
+            elif score >= 20 or r.get('name_match'):
+                r['confidence_level'] = 'low'
+            else:
+                r['confidence_level'] = 'uncertain'
+
+        return results
 
     def _run_face_matching(self, accounts: List[Dict], target_photo_path: str) -> List[Dict]:
         """Run face matching on accounts."""
