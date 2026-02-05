@@ -1,0 +1,768 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "ИАС Буратино - Reconstructed API Specification",
+    "description": "Reverse-engineered API specification based on feature analysis",
+    "version": "1.4.0",
+    "note": "This is a reconstructed specification, not official documentation"
+  },
+
+  "servers": [
+    {
+      "url": "https://byratino.info/api",
+      "description": "Production server (assumed)"
+    }
+  ],
+
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "summary": "User authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {"type": "string"},
+                  "password": {"type": "string"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful login",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {"type": "string"},
+                    "user": {"$ref": "#/components/schemas/User"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/search/vk": {
+      "post": {
+        "summary": "Search VKontakte for people",
+        "description": "Queries VK API users.search with provided parameters",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {"type": "string", "description": "Name to search for"},
+                  "city": {"type": "string"},
+                  "country": {"type": "string"},
+                  "age_from": {"type": "integer"},
+                  "age_to": {"type": "integer"},
+                  "birth_day": {"type": "integer"},
+                  "birth_month": {"type": "integer"},
+                  "university": {"type": "string"},
+                  "workplace": {"type": "string"},
+                  "count": {"type": "integer", "default": 50},
+                  "offset": {"type": "integer", "default": 0}
+                },
+                "required": ["query"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_count": {"type": "integer"},
+                    "profiles": {
+                      "type": "array",
+                      "items": {"$ref": "#/components/schemas/VKProfileSummary"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/search/web": {
+      "post": {
+        "summary": "Search across multiple web platforms",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"},
+                  "location": {"type": "string"},
+                  "platforms": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "default": ["vk", "ok", "facebook"]
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cross-platform search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {"$ref": "#/components/schemas/WebSearchResult"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/profile/{vk_id}": {
+      "get": {
+        "summary": "Get full VK profile data",
+        "parameters": [
+          {
+            "name": "vk_id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Full profile data",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/VKProfileFull"}
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/profile/{vk_id}/friends": {
+      "get": {
+        "summary": "Get user's friends list",
+        "parameters": [
+          {"name": "vk_id", "in": "path", "required": true, "schema": {"type": "integer"}},
+          {"name": "count", "in": "query", "schema": {"type": "integer", "default": 1000}},
+          {"name": "offset", "in": "query", "schema": {"type": "integer", "default": 0}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Friends list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_count": {"type": "integer"},
+                    "friends": {
+                      "type": "array",
+                      "items": {"$ref": "#/components/schemas/VKProfileSummary"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/profile/{vk_id}/groups": {
+      "get": {
+        "summary": "Get user's group memberships",
+        "parameters": [
+          {"name": "vk_id", "in": "path", "required": true, "schema": {"type": "integer"}},
+          {"name": "count", "in": "query", "schema": {"type": "integer", "default": 200}},
+          {"name": "offset", "in": "query", "schema": {"type": "integer", "default": 0}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Groups list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_count": {"type": "integer"},
+                    "groups": {
+                      "type": "array",
+                      "items": {"$ref": "#/components/schemas/VKGroup"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/profile/{vk_id}/wall": {
+      "get": {
+        "summary": "Get user's wall posts",
+        "parameters": [
+          {"name": "vk_id", "in": "path", "required": true, "schema": {"type": "integer"}},
+          {"name": "count", "in": "query", "schema": {"type": "integer", "default": 100}},
+          {"name": "offset", "in": "query", "schema": {"type": "integer", "default": 0}},
+          {"name": "filter", "in": "query", "schema": {"type": "string", "enum": ["all", "owner", "others"]}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Wall posts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_count": {"type": "integer"},
+                    "posts": {
+                      "type": "array",
+                      "items": {"$ref": "#/components/schemas/WallPost"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/profile/{vk_id}/photos": {
+      "get": {
+        "summary": "Get user's photos",
+        "parameters": [
+          {"name": "vk_id", "in": "path", "required": true, "schema": {"type": "integer"}},
+          {"name": "album_id", "in": "query", "schema": {"type": "string"}},
+          {"name": "count", "in": "query", "schema": {"type": "integer", "default": 200}},
+          {"name": "offset", "in": "query", "schema": {"type": "integer", "default": 0}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Photos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_count": {"type": "integer"},
+                    "photos": {
+                      "type": "array",
+                      "items": {"$ref": "#/components/schemas/Photo"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/analysis/{vk_id}/run": {
+      "post": {
+        "summary": "Start full profile analysis",
+        "parameters": [
+          {"name": "vk_id", "in": "path", "required": true, "schema": {"type": "integer"}}
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "include_friends_analysis": {"type": "boolean", "default": true},
+                  "include_text_analysis": {"type": "boolean", "default": true},
+                  "include_graph": {"type": "boolean", "default": true},
+                  "custom_dictionary_id": {"type": "integer"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Analysis started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "task_id": {"type": "string"},
+                    "status": {"type": "string", "enum": ["queued", "running"]}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/analysis/{vk_id}/status": {
+      "get": {
+        "summary": "Check analysis status",
+        "parameters": [
+          {"name": "vk_id", "in": "path", "required": true, "schema": {"type": "integer"}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Analysis status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "string", "enum": ["queued", "running", "completed", "failed"]},
+                    "progress": {"type": "number"},
+                    "current_stage": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/analysis/{vk_id}/results": {
+      "get": {
+        "summary": "Get analysis results",
+        "parameters": [
+          {"name": "vk_id", "in": "path", "required": true, "schema": {"type": "integer"}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Analysis results",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/AnalysisResults"}
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/graph/{vk_id}": {
+      "get": {
+        "summary": "Get social graph data",
+        "parameters": [
+          {"name": "vk_id", "in": "path", "required": true, "schema": {"type": "integer"}},
+          {"name": "depth", "in": "query", "schema": {"type": "integer", "default": 1, "maximum": 2}},
+          {"name": "include_mutual", "in": "query", "schema": {"type": "boolean", "default": true}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Graph data for visualization",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/SocialGraph"}
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/graph/{vk_id}/mutual/{other_vk_id}": {
+      "get": {
+        "summary": "Get mutual friends between two users",
+        "parameters": [
+          {"name": "vk_id", "in": "path", "required": true, "schema": {"type": "integer"}},
+          {"name": "other_vk_id", "in": "path", "required": true, "schema": {"type": "integer"}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Mutual friends",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mutual_count": {"type": "integer"},
+                    "mutual_friends": {
+                      "type": "array",
+                      "items": {"$ref": "#/components/schemas/VKProfileSummary"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/dictionaries": {
+      "get": {
+        "summary": "List custom dictionaries",
+        "responses": {
+          "200": {
+            "description": "Dictionary list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/Dictionary"}
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create custom dictionary",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/DictionaryCreate"}
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Dictionary created"
+          }
+        }
+      }
+    },
+
+    "/reports/generate": {
+      "post": {
+        "summary": "Generate PDF report",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "vk_id": {"type": "integer"},
+                  "sections": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "default": ["profile", "friends", "analysis", "graph"]
+                  },
+                  "include_photos": {"type": "boolean", "default": true}
+                },
+                "required": ["vk_id"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Report URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "report_url": {"type": "string"},
+                    "expires_at": {"type": "string", "format": "date-time"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/investigations": {
+      "get": {
+        "summary": "List investigations",
+        "responses": {
+          "200": {
+            "description": "Investigation list"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create new investigation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"},
+                  "description": {"type": "string"},
+                  "target_vk_id": {"type": "integer"}
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Investigation created"
+          }
+        }
+      }
+    }
+  },
+
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer"},
+          "email": {"type": "string"},
+          "name": {"type": "string"},
+          "subscription_expires": {"type": "string", "format": "date"}
+        }
+      },
+
+      "VKProfileSummary": {
+        "type": "object",
+        "properties": {
+          "vk_id": {"type": "integer"},
+          "first_name": {"type": "string"},
+          "last_name": {"type": "string"},
+          "photo_url": {"type": "string"},
+          "city": {"type": "string"},
+          "age": {"type": "integer"},
+          "profile_url": {"type": "string"}
+        }
+      },
+
+      "VKProfileFull": {
+        "type": "object",
+        "properties": {
+          "vk_id": {"type": "integer"},
+          "first_name": {"type": "string"},
+          "last_name": {"type": "string"},
+          "maiden_name": {"type": "string"},
+          "screen_name": {"type": "string"},
+          "bdate": {"type": "string"},
+          "city": {"type": "object"},
+          "country": {"type": "object"},
+          "photo_max_orig": {"type": "string"},
+          "status": {"type": "string"},
+          "last_seen": {"type": "object"},
+          "education": {
+            "type": "object",
+            "properties": {
+              "university": {"type": "integer"},
+              "university_name": {"type": "string"},
+              "faculty": {"type": "integer"},
+              "faculty_name": {"type": "string"},
+              "graduation": {"type": "integer"}
+            }
+          },
+          "career": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "company": {"type": "string"},
+                "position": {"type": "string"},
+                "from": {"type": "integer"},
+                "until": {"type": "integer"}
+              }
+            }
+          },
+          "contacts": {
+            "type": "object",
+            "properties": {
+              "mobile_phone": {"type": "string"},
+              "home_phone": {"type": "string"}
+            }
+          },
+          "friends_count": {"type": "integer"},
+          "followers_count": {"type": "integer"}
+        }
+      },
+
+      "VKGroup": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer"},
+          "name": {"type": "string"},
+          "screen_name": {"type": "string"},
+          "type": {"type": "string"},
+          "members_count": {"type": "integer"},
+          "photo_url": {"type": "string"}
+        }
+      },
+
+      "WallPost": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer"},
+          "from_id": {"type": "integer"},
+          "date": {"type": "integer"},
+          "text": {"type": "string"},
+          "likes_count": {"type": "integer"},
+          "comments_count": {"type": "integer"},
+          "reposts_count": {"type": "integer"},
+          "attachments": {"type": "array"}
+        }
+      },
+
+      "Photo": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer"},
+          "album_id": {"type": "integer"},
+          "date": {"type": "integer"},
+          "url": {"type": "string"},
+          "width": {"type": "integer"},
+          "height": {"type": "integer"},
+          "text": {"type": "string"}
+        }
+      },
+
+      "AnalysisResults": {
+        "type": "object",
+        "properties": {
+          "vk_id": {"type": "integer"},
+          "analyzed_at": {"type": "string", "format": "date-time"},
+          "risk_scores": {
+            "type": "object",
+            "properties": {
+              "overall": {"type": "number"},
+              "extremism": {"type": "number"},
+              "violence": {"type": "number"},
+              "substance_abuse": {"type": "number"},
+              "gambling": {"type": "number"},
+              "financial_risk": {"type": "number"}
+            }
+          },
+          "activity_metrics": {
+            "type": "object",
+            "properties": {
+              "openness_score": {"type": "number"},
+              "activity_level": {"type": "number"},
+              "chattiness_score": {"type": "number"},
+              "engagement_rate": {"type": "number"}
+            }
+          },
+          "text_analysis": {
+            "type": "object",
+            "properties": {
+              "sentiment_overall": {"type": "string"},
+              "topics": {"type": "array", "items": {"type": "string"}},
+              "flagged_posts": {"type": "array"}
+            }
+          },
+          "dictionary_matches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "word": {"type": "string"},
+                "count": {"type": "integer"},
+                "posts": {"type": "array"}
+              }
+            }
+          }
+        }
+      },
+
+      "SocialGraph": {
+        "type": "object",
+        "properties": {
+          "center_node": {"type": "integer"},
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "integer"},
+                "label": {"type": "string"},
+                "image": {"type": "string"},
+                "group": {"type": "string"},
+                "level": {"type": "integer"}
+              }
+            }
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": {"type": "integer"},
+                "to": {"type": "integer"},
+                "mutual_count": {"type": "integer"}
+              }
+            }
+          },
+          "clusters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string"},
+                "label": {"type": "string"},
+                "members": {"type": "array", "items": {"type": "integer"}}
+              }
+            }
+          }
+        }
+      },
+
+      "Dictionary": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer"},
+          "name": {"type": "string"},
+          "words": {"type": "array", "items": {"type": "string"}},
+          "created_at": {"type": "string", "format": "date-time"}
+        }
+      },
+
+      "DictionaryCreate": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "words": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["name", "words"]
+      },
+
+      "WebSearchResult": {
+        "type": "object",
+        "properties": {
+          "platform": {"type": "string"},
+          "profile_url": {"type": "string"},
+          "name": {"type": "string"},
+          "photo_url": {"type": "string"},
+          "match_confidence": {"type": "number"}
+        }
+      }
+    }
+  }
+}

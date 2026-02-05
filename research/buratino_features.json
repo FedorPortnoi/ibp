@@ -1,0 +1,279 @@
+{
+  "product": {
+    "name": "ИАС Буратино",
+    "name_en": "IAS Buratino",
+    "version": "1.4",
+    "developer": "ООО Санкт-Петербургская школа профессиональных аналитиков",
+    "founder": "Бочков Максим Вадимович",
+    "since": 2008,
+    "pricing": {
+      "annual_license_rub": 25000,
+      "annual_license_usd_approx": 270
+    },
+    "website": "https://byratino.info/",
+    "support_email": "support@byratino.info",
+    "phone": "+7 (800) 550-10-73"
+  },
+
+  "modules": [
+    {
+      "id": "people_search",
+      "name": "People Search",
+      "name_ru": "Поиск людей",
+      "description": "Search for people by real identity attributes",
+      "modes": [
+        {
+          "id": "vk_search",
+          "name": "VKontakte Search",
+          "mechanism": "VK API users.search",
+          "inputs": [
+            {"field": "name", "type": "string", "required": true},
+            {"field": "city", "type": "string", "required": false},
+            {"field": "age_from", "type": "integer", "required": false},
+            {"field": "age_to", "type": "integer", "required": false},
+            {"field": "birth_day", "type": "integer", "required": false},
+            {"field": "birth_month", "type": "integer", "required": false},
+            {"field": "university", "type": "string", "required": false},
+            {"field": "workplace", "type": "string", "required": false}
+          ],
+          "outputs": ["profile_list", "photos", "basic_info"]
+        },
+        {
+          "id": "web_search",
+          "name": "Web Search",
+          "mechanism": "Multi-platform web scraping",
+          "platforms": ["VK", "OK", "Facebook", "Instagram"],
+          "outputs": ["profile_list", "cross_platform_matches"]
+        }
+      ],
+      "ibp_status": "not_implemented",
+      "ibp_priority": "P0_CRITICAL"
+    },
+
+    {
+      "id": "profile_analysis",
+      "name": "Profile Analysis",
+      "name_ru": "Анализ профиля",
+      "description": "Deep extraction of all profile data",
+      "data_extracted": [
+        {
+          "category": "basic_info",
+          "fields": ["full_name", "dob", "city", "country", "status", "last_seen"]
+        },
+        {
+          "category": "education",
+          "fields": ["university", "faculty", "graduation_year", "schools"]
+        },
+        {
+          "category": "career",
+          "fields": ["employers", "positions", "dates"]
+        },
+        {
+          "category": "contacts",
+          "fields": ["phone", "email", "website", "skype", "telegram"]
+        },
+        {
+          "category": "photos",
+          "fields": ["profile_photo", "albums", "tagged_photos", "saved_photos"]
+        },
+        {
+          "category": "wall",
+          "fields": ["posts", "reposts", "likes_received", "comments"]
+        },
+        {
+          "category": "friends",
+          "fields": ["friends_list", "mutual_friends", "friend_count"]
+        },
+        {
+          "category": "groups",
+          "fields": ["communities", "admin_groups", "subscriptions"]
+        }
+      ],
+      "ibp_status": "not_implemented",
+      "ibp_priority": "P0_CRITICAL"
+    },
+
+    {
+      "id": "text_analysis",
+      "name": "Text Analysis & Characterization",
+      "name_ru": "Текстовый анализ и характеристика",
+      "description": "NLP-based analysis of user's posts and activity",
+      "features": [
+        {
+          "id": "risk_scoring",
+          "name": "Risk Group Classification",
+          "categories": [
+            "extremism",
+            "violence",
+            "substance_abuse",
+            "gambling",
+            "financial_risk",
+            "criminal_associations"
+          ]
+        },
+        {
+          "id": "sentiment_analysis",
+          "name": "Sentiment Analysis",
+          "model": "RuSentiment-based",
+          "outputs": ["positive", "negative", "neutral"]
+        },
+        {
+          "id": "activity_metrics",
+          "name": "Activity Metrics",
+          "metrics": [
+            "openness_score",
+            "activity_level",
+            "chattiness_score",
+            "engagement_rate"
+          ]
+        },
+        {
+          "id": "custom_dictionary",
+          "name": "Custom Dictionary Search",
+          "description": "User-defined word/phrase matching"
+        }
+      ],
+      "ibp_status": "not_implemented",
+      "ibp_priority": "P2_HIGH"
+    },
+
+    {
+      "id": "social_graph",
+      "name": "Social Graph Visualization",
+      "name_ru": "Социальный граф",
+      "description": "Interactive friend network visualization",
+      "features": [
+        {
+          "id": "graph_rendering",
+          "name": "Interactive Graph",
+          "properties": ["zoomable", "pannable", "clickable_nodes"]
+        },
+        {
+          "id": "cluster_detection",
+          "name": "Cluster Detection",
+          "algorithms": ["modularity", "community_detection"]
+        },
+        {
+          "id": "relationship_inference",
+          "name": "Relationship Inference",
+          "types": ["family", "colleagues", "classmates", "friends"]
+        },
+        {
+          "id": "mutual_friends",
+          "name": "Mutual Friends Overlay",
+          "description": "Show connections between any two nodes"
+        }
+      ],
+      "likely_tech": ["vis.js", "d3.js", "cytoscape.js"],
+      "ibp_status": "not_implemented",
+      "ibp_priority": "P1_CRITICAL"
+    },
+
+    {
+      "id": "pivoting",
+      "name": "Pivoting Investigation",
+      "name_ru": "Переход к анализу связей",
+      "description": "Click any person to run full analysis on them",
+      "features": [
+        "recursive_analysis",
+        "investigation_path_tracking",
+        "cross_connection_mapping",
+        "degrees_of_separation"
+      ],
+      "ibp_status": "not_implemented",
+      "ibp_priority": "P2_HIGH"
+    },
+
+    {
+      "id": "monitoring",
+      "name": "Profile Monitoring",
+      "name_ru": "Мониторинг профиля",
+      "description": "Detect and alert on profile changes",
+      "monitored_changes": [
+        "new_posts",
+        "friend_list_changes",
+        "group_membership_changes",
+        "profile_info_changes",
+        "photo_uploads"
+      ],
+      "ibp_status": "not_implemented",
+      "ibp_priority": "P3_MEDIUM"
+    },
+
+    {
+      "id": "reporting",
+      "name": "Report Generation",
+      "name_ru": "Генерация отчетов",
+      "description": "Export investigation results",
+      "formats": ["PDF"],
+      "sections": [
+        "profile_summary",
+        "friends_analysis",
+        "text_analysis_results",
+        "social_graph_snapshot",
+        "risk_assessment",
+        "activity_timeline"
+      ],
+      "ibp_status": "not_implemented",
+      "ibp_priority": "P3_MEDIUM"
+    }
+  ],
+
+  "target_users": [
+    "corporate_security_departments",
+    "hr_departments",
+    "private_investigators",
+    "law_enforcement",
+    "due_diligence_firms"
+  ],
+
+  "use_cases": [
+    "employee_background_checks",
+    "contractor_verification",
+    "fraud_investigation",
+    "counterparty_due_diligence",
+    "conflict_of_interest_detection",
+    "insider_threat_detection"
+  ],
+
+  "platforms_supported": {
+    "primary": ["VKontakte"],
+    "secondary": ["Odnoklassniki", "Facebook"],
+    "web_search": true
+  },
+
+  "ibp_implementation_mapping": {
+    "critical_gaps": [
+      {
+        "feature": "VK People Search",
+        "buratino": "Native VK API users.search",
+        "ibp_current": "Username guessing with Sherlock/Maigret",
+        "implementation": "Add VK API integration with users.search"
+      },
+      {
+        "feature": "Profile Deep Analysis",
+        "buratino": "Full VK profile extraction",
+        "ibp_current": "None",
+        "implementation": "VK API users.get, friends.get, wall.get, photos.getAll"
+      },
+      {
+        "feature": "Social Graph",
+        "buratino": "Interactive JS visualization",
+        "ibp_current": "None",
+        "implementation": "NetworkX backend + vis.js/Cytoscape.js frontend"
+      }
+    ],
+    "ibp_advantages": [
+      {
+        "feature": "Multi-platform username search",
+        "buratino": "None",
+        "ibp_current": "Sherlock + Maigret (2500+ sites)"
+      },
+      {
+        "feature": "Face recognition matching",
+        "buratino": "Unknown",
+        "ibp_current": "face_recognition library"
+      }
+    ]
+  }
+}
