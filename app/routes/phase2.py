@@ -656,57 +656,172 @@ def start_buratino_analysis(investigation_id):
                     logger.warning(f"VK extraction error: {e}")
                     task.add_message(f'VK extraction error: {str(e)[:50]}', 'warning')
 
-                # ===== STEP 2: Generate Email Candidates =====
-                task.add_message('Generating email candidates...', 'info')
+                # ===== STEP 2: Collect ALL Usernames =====
+                task.add_message('Collecting usernames for email generation...', 'info')
+                task.update_progress('Collecting usernames', 20)
+
+                # Collect ALL discovered usernames for email generation
+                all_usernames = []
+                if username:
+                    all_usernames.append(username)
+
+                # Add usernames from discovered accounts
+                for acc in alternate_accounts:
+                    acc_username = acc.get('username', '')
+                    if acc_username and acc_username not in all_usernames:
+                        all_usernames.append(acc_username)
+
+                task.add_message(f'Found {len(all_usernames)} usernames: {all_usernames[:5]}', 'info')
+
+                # ===== STEP 3: Generate Smart Email Candidates =====
+                task.add_message('Generating email candidates with name patterns + diminutives...', 'info')
                 task.update_progress('Email Generation', 25)
 
                 try:
+                    # Import enhanced email generator
+                    from app.services.phase2.email_generator import (
+                        generate_smart_email_candidates,
+                        verify_email_candidates
+                    )
+
                     # Parse name
                     name_parts = input_name.strip().split()
                     first_name = name_parts[0] if name_parts else ""
                     last_name = name_parts[-1] if len(name_parts) > 1 else ""
 
-                    # Generate candidates
-                    email_candidates = generate_email_candidates(
+                    # Generate candidates with ALL usernames and diminutives
+                    email_candidates = generate_smart_email_candidates(
                         first_name=first_name,
                         last_name=last_name,
-                        username_hints=[username] if username else []
+                        usernames=all_usernames,
+                        max_candidates=50
                     )
 
-                    # Also from username
-                    if username:
-                        email_candidates.extend(generate_from_username(username))
-
-                    # Deduplicate and limit
-                    email_candidates = list(set(email_candidates))[:50]
-                    task.add_message(f'Generated {len(email_candidates)} email candidates', 'info')
+                    task.add_message(f'Generated {len(email_candidates)} prioritized email candidates', 'info')
+                    if email_candidates:
+                        sample = [c['email'] for c in email_candidates[:3]]
+                        task.add_message(f'Top candidates: {sample}', 'info')
 
                 except Exception as e:
                     logger.warning(f"Email generation error: {e}")
                     email_candidates = []
 
-                # ===== STEP 3: Verify Emails with Gravatar =====
-                task.add_message('Verifying emails with Gravatar...', 'info')
-                task.update_progress('Gravatar Check', 40)
+                # ===== STEP 4: SMTP Verification (with fallback) =====
+                task.add_message('Verifying emails...', 'info')
+                task.update_progress('Email Verification', 35)
+
+                smtp_verified_count = 0
+                smtp_attempted = False
+
+                try:
+                    # Try SMTP verification on a few emails first to see if it works
+                    test_result = None
+                    if email_candidates:
+                        from app.services.phase2.email_generator import smtp_verify_email
+                        test_email = email_candidates[0]['email']
+                        test_result = smtp_verify_email(test_email, timeout=5)
+
+                    if test_result is not None:
+                        # SMTP verification working - use it
+                        smtp_attempted = True
+                        task.add_message('SMTP verification available, checking emails...', 'info')
+
+                        verified_candidates = verify_email_candidates(
+                            email_candidates,
+                            max_to_verify=15,
+                            delay=0.8
+                        )
+
+                        for candidate in verified_candidates:
+                            verification = candidate.get('verification', 'unverified')
+
+                            if verification == 'smtp_verified':
+                                smtp_verified_count += 1
+                                discovered_emails.append({
+                                    'email': candidate['email'],
+                                    'source': candidate.get('source', 'Email pattern'),
+                                    'confidence': 'high',
+                                    'verified_on': ['smtp'],
+                                    'verification': 'smtp_verified'
+                                })
+                                task.add_message(f'SMTP verified: {candidate["email"]}', 'success')
+
+                            elif verification == 'catch_all_domain':
+                                discovered_emails.append({
+                                    'email': candidate['email'],
+                                    'source': candidate.get('source', 'Email pattern'),
+                                    'confidence': 'medium',
+                                    'verified_on': [],
+                                    'verification': 'likely'
+                                })
+                    else:
+                        # SMTP blocked - use pattern-based confidence
+                        task.add_message('SMTP verification unavailable (blocked by mail servers)', 'warning')
+                        task.add_message('Using pattern-based confidence instead...', 'info')
+
+                        for candidate in email_candidates:
+                            priority = candidate.get('priority', 99)
+
+                            # Priority 1-2: High quality patterns - mark as "likely"
+                            if priority <= 2:
+                                discovered_emails.append({
+                                    'email': candidate['email'],
+                                    'source': candidate.get('source', 'Email pattern'),
+                                    'confidence': 'medium',
+                                    'verified_on': [],
+                                    'verification': 'likely'
+                                })
+                            # Priority 3-4: Diminutive/username patterns - mark as "possible"
+                            elif priority <= 4 and len(discovered_emails) < 15:
+                                discovered_emails.append({
+                                    'email': candidate['email'],
+                                    'source': candidate.get('source', 'Email pattern'),
+                                    'confidence': 'low',
+                                    'verified_on': [],
+                                    'verification': 'pattern'
+                                })
+
+                    if smtp_attempted:
+                        task.add_message(f'SMTP verified {smtp_verified_count} emails', 'info')
+                    else:
+                        task.add_message(f'Added {len(discovered_emails)} pattern-based email candidates', 'info')
+
+                except Exception as e:
+                    logger.warning(f"Email verification error: {e}")
+                    # Fallback: add top candidates based on priority
+                    for candidate in email_candidates[:12]:
+                        priority = candidate.get('priority', 99)
+                        discovered_emails.append({
+                            'email': candidate['email'],
+                            'source': candidate.get('source', 'Email pattern'),
+                            'confidence': 'medium' if priority <= 2 else 'low',
+                            'verified_on': [],
+                            'verification': 'pattern'
+                        })
+
+                # ===== STEP 5: Gravatar Check on Verified Emails =====
+                task.add_message('Checking Gravatar profiles...', 'info')
+                task.update_progress('Gravatar Check', 50)
 
                 gravatar_verified = 0
                 try:
-                    # Check top 20 candidates with Gravatar (fast, free)
-                    for i, email in enumerate(email_candidates[:20]):
+                    # Check Gravatar for high-confidence emails first
+                    emails_to_check = [e['email'] for e in discovered_emails if e.get('confidence') in ['high', 'medium']][:15]
+
+                    for i, email in enumerate(emails_to_check):
                         try:
                             gravatar = check_gravatar(email)
                             if gravatar.exists:
-                                # Email is real and has Gravatar profile!
-                                discovered_emails.append({
-                                    'email': email,
-                                    'source': 'Gravatar verification',
-                                    'confidence': 'high',
-                                    'verified_on': ['gravatar'],
-                                    'gravatar_name': gravatar.display_name,
-                                    'gravatar_url': gravatar.profile_url
-                                })
-                                task.add_message(f'Verified email: {email}', 'success')
                                 gravatar_verified += 1
+                                # Update the email's verified_on list
+                                for disc_email in discovered_emails:
+                                    if disc_email['email'].lower() == email.lower():
+                                        if 'gravatar' not in disc_email.get('verified_on', []):
+                                            disc_email['verified_on'] = disc_email.get('verified_on', []) + ['gravatar']
+                                        disc_email['confidence'] = 'high'
+                                        break
+
+                                task.add_message(f'Gravatar found: {email}', 'success')
 
                                 # Add linked accounts from Gravatar
                                 for account in gravatar.accounts:
@@ -718,36 +833,18 @@ def start_buratino_analysis(investigation_id):
                                             'source': f'Gravatar ({email})'
                                         })
 
-                            time.sleep(0.2)  # Rate limiting
+                            time.sleep(0.2)
 
                         except Exception as e:
                             logger.debug(f"Gravatar check error for {email}: {e}")
 
-                        # Update progress
                         if i % 5 == 0:
-                            task.update_progress(f'Checking emails ({i+1}/20)', 40 + (i * 2))
+                            task.update_progress(f'Gravatar check ({i+1}/{len(emails_to_check)})', 50 + (i * 2))
 
                     task.add_message(f'Gravatar verified {gravatar_verified} emails', 'info')
 
                 except Exception as e:
                     logger.warning(f"Gravatar verification error: {e}")
-
-                # ===== STEP 4: Generate likely emails from username =====
-                task.update_progress('Username-based emails', 60)
-
-                if username and gravatar_verified == 0:
-                    # If no Gravatar hits, add top username-based emails as medium confidence
-                    username_emails = generate_from_username(username)[:10]
-                    for email in username_emails:
-                        # Check if not already discovered
-                        existing_emails = [e['email'].lower() for e in discovered_emails]
-                        if email.lower() not in existing_emails:
-                            discovered_emails.append({
-                                'email': email,
-                                'source': 'Username pattern',
-                                'confidence': 'medium',
-                                'verified_on': []
-                            })
 
                 # ===== STEP 5: Extract Friends =====
                 task.add_message('Extracting friends network...', 'info')
