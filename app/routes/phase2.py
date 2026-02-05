@@ -12,6 +12,7 @@ import threading
 import uuid
 from datetime import datetime
 
+from app import db
 from app.services.phase2.combined_search import Phase2CombinedSearch, Phase2Results
 
 phase2_bp = Blueprint('phase2', __name__, url_prefix='/phase2')
@@ -391,3 +392,193 @@ def get_status():
         'status': 'ready',
         'active_tasks': len([t for t in phase2_tasks.values() if not t.results and not t.error])
     })
+
+
+# ============================================
+# BURATINO-STYLE ROUTES (Investigation-based)
+# ============================================
+
+@phase2_bp.route('/analyze/<investigation_id>')
+def analyze_investigation(investigation_id):
+    """
+    Start Phase 2 analysis for a confirmed investigation.
+    This is the entry point from Phase 1 Buratino flow.
+    """
+    from app.models import Investigation, SocialProfile
+
+    investigation = Investigation.query.get(investigation_id)
+    if not investigation:
+        return render_template('error.html', error='Investigation not found'), 404
+
+    # Get confirmed profile
+    confirmed_profile = SocialProfile.query.filter_by(
+        investigation_id=investigation_id,
+        is_confirmed=True
+    ).first()
+
+    if not confirmed_profile:
+        return render_template('error.html', error='No confirmed profile found'), 400
+
+    return render_template('phase2_analyze.html',
+                         investigation=investigation,
+                         profile=confirmed_profile)
+
+
+@phase2_bp.route('/buratino/results/<investigation_id>')
+def buratino_results(investigation_id):
+    """
+    Display Phase 2 results with social graph visualization.
+    """
+    from app.models import Investigation, SocialProfile, Friend
+
+    investigation = Investigation.query.get(investigation_id)
+    if not investigation:
+        return render_template('error.html', error='Investigation not found'), 404
+
+    # Get confirmed profile
+    confirmed_profile = SocialProfile.query.filter_by(
+        investigation_id=investigation_id,
+        is_confirmed=True
+    ).first()
+
+    # Get friends count
+    friends_count = Friend.query.filter_by(investigation_id=investigation_id).count()
+
+    return render_template('phase2_buratino_results.html',
+                         investigation=investigation,
+                         profile=confirmed_profile,
+                         friends_count=friends_count)
+
+
+@phase2_bp.route('/api/graph/<investigation_id>')
+def get_graph_data(investigation_id):
+    """
+    Get social graph data in vis.js format.
+    """
+    from app.models import Investigation, SocialProfile, Friend
+    from app.services.phase2.social_graph import SocialGraphBuilder
+
+    investigation = Investigation.query.get(investigation_id)
+    if not investigation:
+        return jsonify({'error': 'Investigation not found'}), 404
+
+    # Get confirmed profile
+    confirmed_profile = SocialProfile.query.filter_by(
+        investigation_id=investigation_id,
+        is_confirmed=True
+    ).first()
+
+    if not confirmed_profile:
+        return jsonify({'error': 'No confirmed profile'}), 400
+
+    # Get friends
+    friends = Friend.query.filter_by(investigation_id=investigation_id).all()
+
+    # Build graph
+    builder = SocialGraphBuilder()
+
+    # If no friends, return demo graph
+    if not friends:
+        demo_name = f"{confirmed_profile.first_name or ''} {confirmed_profile.last_name or ''}"
+        graph = builder.get_demo_graph(demo_name.strip() or "Пользователь")
+        vis_data = builder.export_visjs(graph)
+        vis_data['is_demo'] = True
+        return jsonify(vis_data)
+
+    # Build real graph from friends
+    center_data = {
+        'first_name': confirmed_profile.first_name,
+        'last_name': confirmed_profile.last_name,
+        'photo_100': confirmed_profile.photo_url,
+        'city': {'title': confirmed_profile.city} if confirmed_profile.city else None
+    }
+
+    friend_data = [f.to_dict() for f in friends]
+
+    graph = builder.build_from_friends(
+        center_vk_id=int(confirmed_profile.platform_id),
+        center_data=center_data,
+        friends=friend_data
+    )
+
+    vis_data = builder.export_visjs(graph)
+    vis_data['is_demo'] = False
+
+    return jsonify(vis_data)
+
+
+@phase2_bp.route('/api/start-analysis/<investigation_id>', methods=['POST'])
+def start_buratino_analysis(investigation_id):
+    """
+    Start Phase 2 analysis for an investigation (async).
+    Extracts friends and contacts from the confirmed VK profile.
+    """
+    from app.models import Investigation, SocialProfile, Friend, db
+    from app.services.phase1.buratino_vk_search import buratino_vk_search
+
+    investigation = Investigation.query.get(investigation_id)
+    if not investigation:
+        return jsonify({'error': 'Investigation not found'}), 404
+
+    confirmed_profile = SocialProfile.query.filter_by(
+        investigation_id=investigation_id,
+        is_confirmed=True
+    ).first()
+
+    if not confirmed_profile:
+        return jsonify({'error': 'No confirmed profile'}), 400
+
+    # Create a task for background processing
+    task_id = uuid.uuid4().hex
+
+    def run_analysis():
+        try:
+            vk_id = int(confirmed_profile.platform_id)
+
+            # Get friends via VK API (handles demo mode internally)
+            friends_data = buratino_vk_search.fetch_friends(vk_id)
+
+            # Save friends to database
+            for friend in friends_data:
+                f = Friend(
+                    investigation_id=investigation_id,
+                    platform='vk',
+                    platform_id=str(friend.get('id', '')),
+                    first_name=friend.get('first_name', ''),
+                    last_name=friend.get('last_name', ''),
+                    city=friend.get('city', {}).get('title') if isinstance(friend.get('city'), dict) else friend.get('city'),
+                    photo_url=friend.get('photo_100') or friend.get('photo_url')
+                )
+                db.session.add(f)
+
+            # Update investigation status
+            investigation.status = 'phase_2_complete'
+            db.session.commit()
+
+            phase2_tasks[task_id].results = {'friends_count': len(friends_data)}
+            phase2_tasks[task_id].completed_at = datetime.now()
+
+        except Exception as e:
+            logger.error(f"Phase 2 analysis error: {e}", exc_info=True)
+            phase2_tasks[task_id].error = str(e)
+
+    # Create task status
+    task = Phase2TaskStatus(task_id, investigation.input_name, [])
+    task.add_message('Starting friend extraction', 'info')
+    phase2_tasks[task_id] = task
+
+    # Start background thread
+    thread = threading.Thread(target=run_analysis)
+    thread.daemon = True
+    thread.start()
+
+    return jsonify({'success': True, 'task_id': task_id})
+
+
+@phase2_bp.route('/results/<investigation_id>')
+def results_by_investigation(investigation_id):
+    """
+    Display Phase 2 results for a specific investigation.
+    Redirects to buratino_results for consistency.
+    """
+    return buratino_results(investigation_id)

@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}Select Profile - {{ investigation.input_name }} - IBP{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="text-center mb-6">
+        <h1 class="text-2xl font-bold text-violet mb-2 font-display">Select the Correct Profile</h1>
+        <p class="text-gray-400">
+            Found <span class="text-violet font-semibold">{{ profiles|length }}</span> VK profiles for
+            <span class="text-white font-medium">"{{ investigation.input_name }}"</span>
+            {% if city %}<span class="text-gray-500">in {{ city }}</span>{% endif %}
+        </p>
+    </div>
+
+    <!-- Progress Steps -->
+    <div class="flex items-center justify-center mb-8 space-x-2">
+        <div class="flex items-center opacity-50">
+            <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">✓</div>
+            <span class="ml-2 text-green-400 font-medium">Enter Name</span>
+        </div>
+        <div class="w-8 h-px bg-violet"></div>
+        <div class="flex items-center">
+            <div class="w-8 h-8 rounded-full bg-violet flex items-center justify-center text-white font-bold text-sm">2</div>
+            <span class="ml-2 text-violet font-medium">Select Profile</span>
+        </div>
+        <div class="w-8 h-px bg-gray-600"></div>
+        <div class="flex items-center opacity-50">
+            <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-gray-400 font-bold text-sm">3</div>
+            <span class="ml-2 text-gray-500">Analyze</span>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 mb-6">
+        <div class="flex flex-wrap items-center gap-4">
+            <div class="flex items-center space-x-2">
+                <label class="text-sm text-gray-400">Filter:</label>
+                <select id="sortBy" class="bg-bg-dark border border-violet-200 rounded px-3 py-1 text-sm text-white">
+                    <option value="similarity">By Name Match</option>
+                    <option value="confidence">By Confidence</option>
+                    <option value="age">By Age</option>
+                </select>
+            </div>
+            <div class="flex items-center space-x-2">
+                <input type="text" id="cityFilter" placeholder="City filter..." value="{{ city or '' }}"
+                       class="bg-bg-dark border border-violet-200 rounded px-3 py-1 text-sm text-white w-32">
+            </div>
+            <button onclick="refreshSearch()" class="text-violet hover:text-violet-bright text-sm flex items-center">
+                <span class="mr-1">🔄</span> Refresh Search
+            </button>
+            <div class="ml-auto text-sm text-gray-500">
+                Click on a profile to confirm it's the right person
+            </div>
+        </div>
+    </div>
+
+    <!-- Profiles Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="profilesGrid">
+        {% for profile in profiles %}
+        {% if not profile.is_rejected %}
+        <div class="profile-card bg-bg-panel rounded-xl border border-violet-200 overflow-hidden hover:border-violet transition-all cursor-pointer group"
+             data-profile-id="{{ profile.id }}"
+             data-similarity="{{ profile.name_similarity or 0 }}"
+             data-confidence="{{ profile.confidence_score or 0 }}"
+             data-age="{{ profile.age or 0 }}"
+             onclick="selectProfile({{ profile.id }})">
+
+            <!-- Header with photo -->
+            <div class="relative">
+                <div class="bg-gradient-to-b from-violet-400 to-bg-panel h-24"></div>
+                <div class="absolute -bottom-10 left-4">
+                    {% if profile.photo_url %}
+                    <img src="{{ profile.photo_url }}" alt="{{ profile.full_name }}"
+                         class="w-20 h-20 rounded-full border-4 border-bg-panel object-cover"
+                         onerror="this.src='https://vk.com/images/camera_200.png'">
+                    {% else %}
+                    <div class="w-20 h-20 rounded-full border-4 border-bg-panel bg-violet flex items-center justify-center text-2xl text-white font-bold">
+                        {{ profile.first_name[0] if profile.first_name else '?' }}
+                    </div>
+                    {% endif %}
+                </div>
+                <!-- Confidence badge -->
+                {% if profile.confidence_score and profile.confidence_score >= 70 %}
+                <div class="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                    High Match
+                </div>
+                {% elif profile.name_match %}
+                <div class="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">
+                    Name Match
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Content -->
+            <div class="pt-12 p-4">
+                <!-- Name -->
+                <h3 class="font-semibold text-white group-hover:text-violet transition-colors">
+                    {{ profile.full_name or profile.display_name or profile.username }}
+                </h3>
+                <p class="text-sm text-violet">@{{ profile.username or profile.platform_id }}</p>
+
+                <!-- Info -->
+                <div class="mt-3 space-y-1 text-sm text-gray-400">
+                    {% if profile.city %}
+                    <div class="flex items-center">
+                        <span class="w-5">📍</span>
+                        <span>{{ profile.city }}{% if profile.country %}, {{ profile.country }}{% endif %}</span>
+                    </div>
+                    {% endif %}
+                    {% if profile.age %}
+                    <div class="flex items-center">
+                        <span class="w-5">📅</span>
+                        <span>{{ profile.age }} years old</span>
+                    </div>
+                    {% endif %}
+                    {% if profile.education %}
+                    {% for edu in profile.education[:1] %}
+                    <div class="flex items-center">
+                        <span class="w-5">🎓</span>
+                        <span class="truncate">{{ edu.university or edu }}</span>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                    {% if profile.is_closed %}
+                    <div class="flex items-center text-yellow-500">
+                        <span class="w-5">🔒</span>
+                        <span>Private profile</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Match Score -->
+                {% if profile.name_similarity %}
+                <div class="mt-3 pt-3 border-t border-violet-100">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-500">Name similarity</span>
+                        <span class="text-violet font-medium">{{ "%.0f"|format(profile.name_similarity) }}%</span>
+                    </div>
+                    <div class="mt-1 h-1 bg-bg-dark rounded-full overflow-hidden">
+                        <div class="h-full bg-violet rounded-full" style="width: {{ profile.name_similarity }}%"></div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Action buttons (shown on hover) -->
+                <div class="mt-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onclick="event.stopPropagation(); confirmProfile({{ profile.id }})"
+                            class="flex-1 bg-violet hover:bg-violet-dim text-white text-sm py-2 px-3 rounded-lg transition-colors">
+                        This is them ✓
+                    </button>
+                    <button onclick="event.stopPropagation(); rejectProfile({{ profile.id }})"
+                            class="bg-red-500/20 hover:bg-red-500/40 text-red-400 text-sm py-2 px-3 rounded-lg transition-colors">
+                        ✕
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Empty State -->
+    {% if not profiles %}
+    <div class="text-center py-12">
+        <span class="text-5xl mb-4 block">🔍</span>
+        <h3 class="text-xl font-semibold text-gray-300 mb-2">No profiles found</h3>
+        <p class="text-gray-500 mb-4">Try adjusting the search filters or search with a different name</p>
+        <a href="/phase1/new" class="btn btn-primary">Start New Search</a>
+    </div>
+    {% endif %}
+
+    <!-- None of these -->
+    {% if profiles %}
+    <div class="mt-8 text-center">
+        <p class="text-gray-500 mb-4">Can't find the right profile?</p>
+        <div class="flex justify-center space-x-4">
+            <a href="/phase1/new" class="text-violet hover:text-violet-bright">
+                ← Search with different name
+            </a>
+            <span class="text-gray-600">|</span>
+            <a href="/phase1" class="text-gray-400 hover:text-violet-bright">
+                Use advanced username search →
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmModal" class="fixed inset-0 bg-black/80 backdrop-blur flex items-center justify-center z-50 hidden">
+    <div class="bg-bg-panel rounded-xl border border-violet p-6 max-w-md mx-4">
+        <div class="text-center">
+            <div id="modalPhoto" class="w-24 h-24 mx-auto rounded-full bg-violet mb-4"></div>
+            <h3 class="text-xl font-semibold text-white mb-2">Confirm Profile</h3>
+            <p class="text-gray-400 mb-4">
+                Is <span id="modalName" class="text-violet font-medium"></span> the person you're looking for?
+            </p>
+            <p class="text-sm text-gray-500 mb-6">
+                Once confirmed, we'll extract detailed information from their profile.
+            </p>
+            <div class="flex space-x-3">
+                <button onclick="closeModal()" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-2 px-4 rounded-lg transition-colors">
+                    Cancel
+                </button>
+                <button onclick="doConfirm()" class="flex-1 bg-violet hover:bg-violet-dim text-white py-2 px-4 rounded-lg transition-colors">
+                    Yes, confirm
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const investigationId = '{{ investigation.id }}';
+    let selectedProfileId = null;
+
+    function selectProfile(profileId) {
+        // Find the profile card
+        const card = document.querySelector(`[data-profile-id="${profileId}"]`);
+        if (!card) return;
+
+        // Show confirmation modal
+        selectedProfileId = profileId;
+
+        // Get profile info from card
+        const name = card.querySelector('h3').textContent;
+        const photo = card.querySelector('img');
+
+        document.getElementById('modalName').textContent = name;
+        if (photo) {
+            document.getElementById('modalPhoto').innerHTML = `<img src="${photo.src}" class="w-24 h-24 rounded-full object-cover">`;
+        } else {
+            document.getElementById('modalPhoto').innerHTML = `<div class="w-24 h-24 rounded-full bg-violet flex items-center justify-center text-3xl text-white">${name[0]}</div>`;
+        }
+
+        document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    function confirmProfile(profileId) {
+        selectedProfileId = profileId;
+        doConfirm();
+    }
+
+    function closeModal() {
+        document.getElementById('confirmModal').classList.add('hidden');
+        selectedProfileId = null;
+    }
+
+    async function doConfirm() {
+        if (!selectedProfileId) return;
+
+        try {
+            const response = await fetch(`/phase1/confirm/${investigationId}/${selectedProfileId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.redirect) {
+                window.location.href = data.redirect;
+            } else {
+                throw new Error(data.error || 'Confirmation failed');
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+            closeModal();
+        }
+    }
+
+    async function rejectProfile(profileId) {
+        try {
+            const response = await fetch(`/phase1/reject/${investigationId}/${profileId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Hide the card
+                const card = document.querySelector(`[data-profile-id="${profileId}"]`);
+                if (card) {
+                    card.style.display = 'none';
+                }
+            }
+        } catch (error) {
+            console.error('Reject error:', error);
+        }
+    }
+
+    async function refreshSearch() {
+        const city = document.getElementById('cityFilter').value;
+
+        try {
+            const response = await fetch(`/phase1/api/search/${investigationId}/refresh`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ city: city })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                window.location.reload();
+            }
+        } catch (error) {
+            alert('Error refreshing search: ' + error.message);
+        }
+    }
+
+    // Sorting
+    document.getElementById('sortBy').addEventListener('change', function() {
+        const sortBy = this.value;
+        const grid = document.getElementById('profilesGrid');
+        const cards = Array.from(grid.children);
+
+        cards.sort((a, b) => {
+            const aVal = parseFloat(a.dataset[sortBy]) || 0;
+            const bVal = parseFloat(b.dataset[sortBy]) || 0;
+            return bVal - aVal;
+        });
+
+        cards.forEach(card => grid.appendChild(card));
+    });
+
+    // Close modal on outside click
+    document.getElementById('confirmModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeModal();
+        }
+    });
+
+    // Close modal on Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeModal();
+        }
+    });
+</script>
+{% endblock %}

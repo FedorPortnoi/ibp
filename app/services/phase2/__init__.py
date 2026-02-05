@@ -98,6 +98,18 @@ from .face_search_api import (
     search_faces_async,
 )
 
+# NEW: Social Graph Builder for vis.js visualization
+from .social_graph import (
+    SocialGraphBuilder,
+    SocialGraphData,
+    GraphNode,
+    GraphEdge,
+    GraphCluster,
+    build_social_graph,
+    get_demo_social_graph,
+    social_graph_builder,
+)
+
 __all__ = [
     # Email generation
     'generate_email_candidates',

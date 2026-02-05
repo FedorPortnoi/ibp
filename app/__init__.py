@@ -1,12 +1,16 @@
 """
 IBP - Identity-Based Profiler
 =============================
-Flask application factory.
+Flask application factory with Buratino-style workflow.
 """
 
 import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Initialize extensions
 db = SQLAlchemy()
@@ -14,16 +18,23 @@ db = SQLAlchemy()
 
 def create_app(config_name='development'):
     """Application factory for IBP."""
-    
+
     app = Flask(__name__)
-    
+
     # Load configuration
     if config_name == 'development':
         app.config['DEBUG'] = True
-        app.config['SECRET_KEY'] = 'dev-secret-key-change-in-production'
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ibp.db'
+        app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+        app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///ibp.db')
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
+
+        # VK API configuration
+        app.config['VK_SERVICE_TOKEN'] = os.environ.get('VK_SERVICE_TOKEN')
+        app.config['VK_API_VERSION'] = os.environ.get('VK_API_VERSION', '5.199')
+
+        # Search4Faces API (optional)
+        app.config['SEARCH4FACES_API_KEY'] = os.environ.get('SEARCH4FACES_API_KEY')
     
     # Initialize extensions with app
     db.init_app(app)

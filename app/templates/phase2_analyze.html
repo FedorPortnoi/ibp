@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Analyzing Profile - {{ investigation.input_name }} - IBP{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-violet mb-2 font-display">Phase 2: Contact Discovery</h1>
+        <p class="text-gray-400">Extracting contacts and building social graph</p>
+    </div>
+
+    <!-- Progress Steps -->
+    <div class="flex items-center justify-center mb-8 space-x-2">
+        <div class="flex items-center opacity-50">
+            <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">1</div>
+            <span class="ml-2 text-green-400 font-medium">Name</span>
+        </div>
+        <div class="w-8 h-px bg-green-500"></div>
+        <div class="flex items-center opacity-50">
+            <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">2</div>
+            <span class="ml-2 text-green-400 font-medium">Profile</span>
+        </div>
+        <div class="w-8 h-px bg-violet"></div>
+        <div class="flex items-center">
+            <div class="w-8 h-8 rounded-full bg-violet flex items-center justify-center text-white font-bold text-sm">3</div>
+            <span class="ml-2 text-violet font-medium">Analyze</span>
+        </div>
+        <div class="w-8 h-px bg-gray-600"></div>
+        <div class="flex items-center opacity-50">
+            <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-gray-400 font-bold text-sm">4</div>
+            <span class="ml-2 text-gray-500">Report</span>
+        </div>
+    </div>
+
+    <!-- Profile Card -->
+    <div class="bg-bg-panel rounded-xl border border-violet-200 p-6 mb-8">
+        <div class="flex items-center space-x-6">
+            {% if profile.photo_url %}
+            <img src="{{ profile.photo_url }}" alt="" class="w-24 h-24 rounded-full object-cover border-4 border-violet">
+            {% else %}
+            <div class="w-24 h-24 rounded-full bg-violet flex items-center justify-center text-3xl text-white font-bold">
+                {{ profile.first_name[0] if profile.first_name else '?' }}
+            </div>
+            {% endif %}
+            <div>
+                <h2 class="text-2xl font-bold text-white">{{ profile.full_name }}</h2>
+                <p class="text-violet">@{{ profile.username or profile.platform_id }}</p>
+                {% if profile.city %}
+                <p class="text-gray-400 mt-1">{{ profile.city }}{% if profile.country %}, {{ profile.country }}{% endif %}</p>
+                {% endif %}
+                <a href="https://vk.com/id{{ profile.platform_id }}" target="_blank"
+                   class="inline-block mt-2 text-sm text-violet hover:text-violet-bright">
+                    View VK Profile
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Container -->
+    <div class="bg-bg-panel rounded-xl border border-violet-200 p-6" id="analysisContainer">
+        <div class="text-center py-8" id="loadingState">
+            <div class="animate-spin text-5xl mb-4">
+                <svg class="w-16 h-16 mx-auto text-violet" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+            <p class="text-violet font-semibold text-lg" id="statusText">Starting analysis...</p>
+            <p class="text-gray-500 text-sm mt-2" id="progressText">Initializing</p>
+
+            <!-- Progress Bar -->
+            <div class="w-full max-w-md mx-auto mt-4 bg-bg-dark rounded-full h-2 overflow-hidden">
+                <div class="h-full bg-violet rounded-full transition-all duration-300" id="progressBar" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Success State -->
+        <div class="text-center py-8 hidden" id="successState">
+            <div class="text-5xl mb-4">
+                <span class="text-green-500">&#10003;</span>
+            </div>
+            <p class="text-green-400 font-semibold text-lg">Analysis Complete!</p>
+            <p class="text-gray-400 mt-2" id="resultsText">Found 0 friends</p>
+            <a href="/phase2/buratino/results/{{ investigation.id }}"
+               class="inline-block mt-6 bg-violet hover:bg-violet-dim text-white font-semibold py-3 px-8 rounded-lg transition-colors">
+                View Results & Social Graph
+            </a>
+        </div>
+
+        <!-- Error State -->
+        <div class="text-center py-8 hidden" id="errorState">
+            <div class="text-5xl mb-4">
+                <span class="text-red-500">!</span>
+            </div>
+            <p class="text-red-400 font-semibold text-lg">Analysis Failed</p>
+            <p class="text-gray-400 mt-2" id="errorText">Unknown error</p>
+            <button onclick="startAnalysis()"
+                    class="inline-block mt-6 bg-violet hover:bg-violet-dim text-white font-semibold py-3 px-8 rounded-lg transition-colors">
+                Retry
+            </button>
+        </div>
+    </div>
+
+    <!-- What We're Looking For -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
+            <div class="text-violet text-2xl mb-2">&#128101;</div>
+            <h3 class="text-white font-semibold">Friends Network</h3>
+            <p class="text-gray-500 text-sm">Extracting friend connections for social graph analysis</p>
+        </div>
+        <div class="bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
+            <div class="text-violet text-2xl mb-2">&#128222;</div>
+            <h3 class="text-white font-semibold">Phone Numbers</h3>
+            <p class="text-gray-500 text-sm">Searching for contact information in profile and posts</p>
+        </div>
+        <div class="bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
+            <div class="text-violet text-2xl mb-2">&#128231;</div>
+            <h3 class="text-white font-semibold">Email Addresses</h3>
+            <p class="text-gray-500 text-sm">Discovering email addresses from various sources</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const investigationId = '{{ investigation.id }}';
+    let taskId = null;
+    let pollInterval = null;
+
+    // Start analysis on page load
+    document.addEventListener('DOMContentLoaded', startAnalysis);
+
+    async function startAnalysis() {
+        // Reset UI
+        document.getElementById('loadingState').classList.remove('hidden');
+        document.getElementById('successState').classList.add('hidden');
+        document.getElementById('errorState').classList.add('hidden');
+        document.getElementById('progressBar').style.width = '0%';
+
+        try {
+            const response = await fetch(`/phase2/api/start-analysis/${investigationId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.task_id) {
+                taskId = data.task_id;
+                startPolling();
+            } else {
+                showError(data.error || 'Failed to start analysis');
+            }
+        } catch (error) {
+            showError('Network error: ' + error.message);
+        }
+    }
+
+    function startPolling() {
+        pollInterval = setInterval(checkProgress, 1000);
+    }
+
+    async function checkProgress() {
+        try {
+            const response = await fetch(`/phase2/progress/${taskId}`);
+            const data = await response.json();
+
+            // Update progress
+            document.getElementById('progressText').textContent = data.current_step || 'Processing...';
+            document.getElementById('progressBar').style.width = (data.percent_complete || 0) + '%';
+
+            if (data.is_complete) {
+                clearInterval(pollInterval);
+
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    showSuccess(data);
+                }
+            }
+        } catch (error) {
+            console.error('Poll error:', error);
+        }
+    }
+
+    function showSuccess(data) {
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('successState').classList.remove('hidden');
+
+        // Fetch results to show count
+        fetch(`/phase2/results/${taskId}`)
+            .then(r => r.json())
+            .then(results => {
+                if (results.results) {
+                    const friendsCount = results.results.friends_count || 0;
+                    document.getElementById('resultsText').textContent = `Found ${friendsCount} friends`;
+                }
+            })
+            .catch(() => {});
+    }
+
+    function showError(message) {
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('errorState').classList.remove('hidden');
+        document.getElementById('errorText').textContent = message;
+
+        if (pollInterval) {
+            clearInterval(pollInterval);
+        }
+    }
+</script>
+{% endblock %}

@@ -18,7 +18,87 @@ logger = logging.getLogger(__name__)
 @report_bp.route('/<investigation_id>')
 def view(investigation_id):
     """View the generated identity card."""
-    return render_template('identity_card.html', investigation_id=investigation_id)
+    from app.models import Investigation, SocialProfile, Friend, BusinessRecord, CourtRecord
+
+    investigation = Investigation.query.get(investigation_id)
+    if not investigation:
+        return render_template('error.html', error='Investigation not found'), 404
+
+    # Get confirmed profile
+    confirmed_profile = SocialProfile.query.filter_by(
+        investigation_id=investigation_id,
+        is_confirmed=True
+    ).first()
+
+    # Get friends
+    friends = Friend.query.filter_by(investigation_id=investigation_id).all()
+
+    # Get business records
+    business_records = BusinessRecord.query.filter_by(investigation_id=investigation_id).all()
+
+    # Get court records
+    court_records = CourtRecord.query.filter_by(investigation_id=investigation_id).all()
+
+    return render_template('identity_card.html',
+                         investigation_id=investigation_id,
+                         investigation=investigation,
+                         profile=confirmed_profile,
+                         friends=friends,
+                         business_records=business_records,
+                         court_records=court_records)
+
+
+@report_bp.route('/api/investigation-data/<investigation_id>')
+def get_investigation_data(investigation_id):
+    """Get full investigation data for identity card generation."""
+    from app.models import Investigation, SocialProfile, Friend, BusinessRecord, CourtRecord
+
+    investigation = Investigation.query.get(investigation_id)
+    if not investigation:
+        return jsonify({'error': 'Investigation not found'}), 404
+
+    # Get confirmed profile
+    confirmed_profile = SocialProfile.query.filter_by(
+        investigation_id=investigation_id,
+        is_confirmed=True
+    ).first()
+
+    # Get friends
+    friends = Friend.query.filter_by(investigation_id=investigation_id).all()
+
+    # Get business records
+    business_records = BusinessRecord.query.filter_by(investigation_id=investigation_id).all()
+
+    # Get court records
+    court_records = CourtRecord.query.filter_by(investigation_id=investigation_id).all()
+
+    # Build response
+    data = {
+        'investigation_id': investigation_id,
+        'target_name': investigation.input_name,
+        'status': investigation.status,
+        'photo_url': confirmed_profile.photo_url if confirmed_profile else None,
+        'city': confirmed_profile.city if confirmed_profile else None,
+        'profiles': [],
+        'phones': investigation.discovered_phones or [],
+        'emails': investigation.discovered_emails or [],
+        'aliases': investigation.discovered_usernames or [],
+        'business_records': [r.to_dict() for r in business_records],
+        'court_records': [r.to_dict() for r in court_records],
+        'friends_count': len(friends),
+    }
+
+    # Add confirmed profile
+    if confirmed_profile:
+        data['profiles'].append({
+            'platform': confirmed_profile.platform,
+            'username': confirmed_profile.username or confirmed_profile.platform_id,
+            'full_name': confirmed_profile.full_name,
+            'url': f"https://vk.com/id{confirmed_profile.platform_id}",
+            'photo_url': confirmed_profile.photo_url
+        })
+
+    return jsonify(data)
 
 
 @report_bp.route('/generate', methods=['POST'])

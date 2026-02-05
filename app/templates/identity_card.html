@@ -236,30 +236,21 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function loadInvestigationData() {
-    // Try to get from sessionStorage first
-    const cached = sessionStorage.getItem('investigation_data');
-    if (cached) {
-        try {
-            investigationData = JSON.parse(cached);
-            generateCard();
-            return;
-        } catch (e) {
-            console.error('Failed to parse cached data:', e);
-        }
-    }
-
-    // Try to fetch from API
-    fetch(`/api/investigation/${investigationId}`)
+    // Fetch from Buratino API endpoint
+    fetch(`/report/api/investigation-data/${investigationId}`)
         .then(response => {
             if (!response.ok) throw new Error('Investigation not found');
             return response.json();
         })
         .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
             investigationData = data;
-            sessionStorage.setItem('investigation_data', JSON.stringify(data));
             generateCard();
         })
         .catch(error => {
+            console.error('Failed to load investigation:', error);
             // Use mock data for demo
             investigationData = getMockData();
             generateCard();

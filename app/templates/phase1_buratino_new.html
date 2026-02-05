@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}New Investigation - IBP{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-violet mb-2 font-display">New Investigation</h1>
+        <p class="text-gray-400">Enter the target's name to find their social media profiles</p>
+    </div>
+
+    <!-- Progress Steps -->
+    <div class="flex items-center justify-center mb-8 space-x-2">
+        <div class="flex items-center">
+            <div class="w-8 h-8 rounded-full bg-violet flex items-center justify-center text-white font-bold text-sm">1</div>
+            <span class="ml-2 text-violet font-medium">Enter Name</span>
+        </div>
+        <div class="w-8 h-px bg-gray-600"></div>
+        <div class="flex items-center opacity-50">
+            <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-gray-400 font-bold text-sm">2</div>
+            <span class="ml-2 text-gray-500">Select Profile</span>
+        </div>
+        <div class="w-8 h-px bg-gray-600"></div>
+        <div class="flex items-center opacity-50">
+            <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-gray-400 font-bold text-sm">3</div>
+            <span class="ml-2 text-gray-500">Analyze</span>
+        </div>
+    </div>
+
+    <!-- Form Card -->
+    <div class="bg-bg-panel rounded-xl border border-violet-200 p-6">
+        <form id="newInvestigationForm" class="space-y-6">
+            <!-- Target Name -->
+            <div>
+                <label for="target_name" class="block text-sm font-medium text-gray-300 mb-2">
+                    Full Name (required)
+                </label>
+                <input
+                    type="text"
+                    id="target_name"
+                    name="target_name"
+                    required
+                    placeholder="Иванов Иван Иванович"
+                    class="w-full bg-bg-dark border border-violet-200 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition-colors"
+                >
+                <p class="text-xs text-gray-500 mt-1">Enter the full name in Russian or Latin</p>
+            </div>
+
+            <!-- City (optional) -->
+            <div>
+                <label for="city" class="block text-sm font-medium text-gray-300 mb-2">
+                    City (optional)
+                </label>
+                <input
+                    type="text"
+                    id="city"
+                    name="city"
+                    placeholder="Москва"
+                    class="w-full bg-bg-dark border border-violet-200 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition-colors"
+                >
+            </div>
+
+            <!-- Age Range (optional) -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="age_from" class="block text-sm font-medium text-gray-300 mb-2">
+                        Age From
+                    </label>
+                    <input
+                        type="number"
+                        id="age_from"
+                        name="age_from"
+                        min="14"
+                        max="100"
+                        placeholder="18"
+                        class="w-full bg-bg-dark border border-violet-200 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition-colors"
+                    >
+                </div>
+                <div>
+                    <label for="age_to" class="block text-sm font-medium text-gray-300 mb-2">
+                        Age To
+                    </label>
+                    <input
+                        type="number"
+                        id="age_to"
+                        name="age_to"
+                        min="14"
+                        max="100"
+                        placeholder="50"
+                        class="w-full bg-bg-dark border border-violet-200 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition-colors"
+                    >
+                </div>
+            </div>
+
+            <!-- Photo Upload (optional) -->
+            <div>
+                <label for="photo" class="block text-sm font-medium text-gray-300 mb-2">
+                    Reference Photo (optional)
+                </label>
+                <div class="border-2 border-dashed border-violet-200 rounded-lg p-6 text-center hover:border-violet transition-colors cursor-pointer" id="dropzone">
+                    <input type="file" id="photo" name="photo" accept="image/*" class="hidden">
+                    <div id="dropzoneContent">
+                        <span class="text-3xl mb-2 block">📷</span>
+                        <p class="text-gray-400 text-sm">Drop photo here or click to upload</p>
+                        <p class="text-xs text-gray-500 mt-1">For face matching in search results</p>
+                    </div>
+                    <div id="photoPreview" class="hidden">
+                        <img id="previewImage" src="" alt="Preview" class="max-h-32 mx-auto rounded-lg">
+                        <button type="button" id="removePhoto" class="text-red-400 text-sm mt-2 hover:text-red-300">Remove photo</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="submitBtn" class="w-full bg-violet hover:bg-violet-dim text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2">
+                <span>Search VK Profiles</span>
+                <span>→</span>
+            </button>
+        </form>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="hidden text-center py-8">
+            <div class="animate-spin text-4xl mb-4">🔍</div>
+            <p class="text-violet font-medium">Searching VKontakte...</p>
+            <p class="text-gray-500 text-sm mt-2">This may take a few seconds</p>
+        </div>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="mt-6 bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
+        <h3 class="text-violet font-semibold mb-2 flex items-center">
+            <span class="mr-2">💡</span> How it works
+        </h3>
+        <ul class="text-sm text-gray-400 space-y-1">
+            <li>• We search VKontakte for people matching the name</li>
+            <li>• Results are ranked by name similarity</li>
+            <li>• You select the correct profile from the list</li>
+            <li>• We then extract all available information</li>
+        </ul>
+    </div>
+
+    <!-- Link to legacy search -->
+    <div class="mt-4 text-center">
+        <a href="/phase1" class="text-sm text-gray-500 hover:text-violet-bright">
+            Or use classic search (username guessing) →
+        </a>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const form = document.getElementById('newInvestigationForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const loadingState = document.getElementById('loadingState');
+    const dropzone = document.getElementById('dropzone');
+    const photoInput = document.getElementById('photo');
+    const dropzoneContent = document.getElementById('dropzoneContent');
+    const photoPreview = document.getElementById('photoPreview');
+    const previewImage = document.getElementById('previewImage');
+    const removePhotoBtn = document.getElementById('removePhoto');
+
+    // Photo upload handling
+    dropzone.addEventListener('click', () => photoInput.click());
+
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('border-violet', 'bg-violet-50');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('border-violet', 'bg-violet-50');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('border-violet', 'bg-violet-50');
+        if (e.dataTransfer.files.length) {
+            photoInput.files = e.dataTransfer.files;
+            showPreview(e.dataTransfer.files[0]);
+        }
+    });
+
+    photoInput.addEventListener('change', (e) => {
+        if (e.target.files.length) {
+            showPreview(e.target.files[0]);
+        }
+    });
+
+    function showPreview(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            previewImage.src = e.target.result;
+            dropzoneContent.classList.add('hidden');
+            photoPreview.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    removePhotoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        photoInput.value = '';
+        dropzoneContent.classList.remove('hidden');
+        photoPreview.classList.add('hidden');
+    });
+
+    // Form submission
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const targetName = document.getElementById('target_name').value.trim();
+        if (!targetName) {
+            alert('Please enter a name');
+            return;
+        }
+
+        // Show loading
+        form.classList.add('hidden');
+        loadingState.classList.remove('hidden');
+
+        const formData = new FormData(form);
+
+        try {
+            const response = await fetch('/phase1/new', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.redirect) {
+                window.location.href = data.redirect;
+            } else {
+                throw new Error(data.error || 'Search failed');
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+            form.classList.remove('hidden');
+            loadingState.classList.add('hidden');
+        }
+    });
+</script>
+{% endblock %}

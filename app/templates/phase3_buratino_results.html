@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Phase 3 Results - {{ investigation.input_name }} - IBP{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-violet font-display">Phase 3: Deep Investigation Results</h1>
+            <p class="text-gray-400">Business records, court cases, and risk assessment</p>
+        </div>
+        <div class="flex space-x-3">
+            <a href="/report/{{ investigation.id }}" class="btn btn-primary">
+                Generate Identity Card
+            </a>
+        </div>
+    </div>
+
+    <!-- Profile Summary -->
+    {% if profile %}
+    <div class="bg-bg-panel rounded-xl border border-violet-200 p-6 mb-8">
+        <div class="flex items-center space-x-6">
+            {% if profile.photo_url %}
+            <img src="{{ profile.photo_url }}" alt="" class="w-16 h-16 rounded-full object-cover border-2 border-violet">
+            {% else %}
+            <div class="w-16 h-16 rounded-full bg-violet flex items-center justify-center text-xl text-white font-bold">
+                {{ investigation.input_name[0] }}
+            </div>
+            {% endif %}
+            <div class="flex-1">
+                <h2 class="text-xl font-bold text-white">{{ investigation.input_name }}</h2>
+                {% if profile %}
+                <p class="text-violet">{{ profile.platform }} - @{{ profile.username or profile.platform_id }}</p>
+                {% endif %}
+            </div>
+            <span class="px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-sm">
+                Phase 3 Complete
+            </span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
+            <div class="text-3xl font-bold text-violet">{{ business_records|length }}</div>
+            <div class="text-gray-500 text-sm">Business Records</div>
+        </div>
+        <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
+            <div class="text-3xl font-bold text-violet">{{ court_records|length }}</div>
+            <div class="text-gray-500 text-sm">Court Cases</div>
+        </div>
+        <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
+            {% set director_count = business_records|selectattr('role', 'equalto', 'director')|list|length %}
+            <div class="text-3xl font-bold text-green-400">{{ director_count }}</div>
+            <div class="text-gray-500 text-sm">Director Roles</div>
+        </div>
+        <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
+            {% set defendant_count = court_records|selectattr('person_role', 'equalto', 'defendant')|list|length %}
+            <div class="text-3xl font-bold {% if defendant_count > 0 %}text-yellow-400{% else %}text-green-400{% endif %}">
+                {{ defendant_count }}
+            </div>
+            <div class="text-gray-500 text-sm">Defendant Cases</div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Business Records -->
+        <div class="bg-bg-panel rounded-xl border border-violet-200 p-6">
+            <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                <span class="mr-2">&#127970;</span>
+                Business Records
+                <span class="ml-auto text-sm text-gray-500">{{ business_records|length }} found</span>
+            </h3>
+
+            {% if business_records %}
+            <div class="space-y-3 max-h-96 overflow-y-auto">
+                {% for record in business_records %}
+                <div class="bg-bg-dark rounded-lg border border-violet-100 p-4">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-white">{{ record.company_name }}</h4>
+                            {% if record.inn %}
+                            <p class="text-gray-500 text-sm">INN: {{ record.inn }}</p>
+                            {% endif %}
+                        </div>
+                        <span class="px-2 py-1 rounded text-xs font-medium
+                            {% if record.role == 'director' %}bg-green-500/20 text-green-400
+                            {% elif record.role == 'founder' %}bg-purple-500/20 text-purple-400
+                            {% else %}bg-gray-500/20 text-gray-400{% endif %}">
+                            {{ record.role_display }}
+                        </span>
+                    </div>
+                    {% if record.status %}
+                    <p class="text-sm mt-2
+                        {% if 'liqui' in record.status|lower or 'ликвид' in record.status|lower %}text-red-400
+                        {% else %}text-green-400{% endif %}">
+                        Status: {{ record.status }}
+                    </p>
+                    {% endif %}
+                    {% if record.address %}
+                    <p class="text-gray-500 text-xs mt-1">{{ record.address }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8 text-gray-500">
+                <div class="text-4xl mb-2">&#127970;</div>
+                <p>No business records found</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Court Records -->
+        <div class="bg-bg-panel rounded-xl border border-violet-200 p-6">
+            <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                <span class="mr-2">&#9878;</span>
+                Court Cases
+                <span class="ml-auto text-sm text-gray-500">{{ court_records|length }} found</span>
+            </h3>
+
+            {% if court_records %}
+            <div class="space-y-3 max-h-96 overflow-y-auto">
+                {% for case in court_records %}
+                <div class="bg-bg-dark rounded-lg border border-violet-100 p-4">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-white">{{ case.case_number }}</h4>
+                            <p class="text-gray-500 text-sm">{{ case.court_name }}</p>
+                        </div>
+                        <span class="px-2 py-1 rounded text-xs font-medium
+                            {% if case.person_role == 'plaintiff' %}bg-blue-500/20 text-blue-400
+                            {% elif case.person_role == 'defendant' %}bg-red-500/20 text-red-400
+                            {% else %}bg-gray-500/20 text-gray-400{% endif %}">
+                            {{ case.role_display }}
+                        </span>
+                    </div>
+                    {% if case.case_type %}
+                    <p class="text-sm text-violet mt-2">{{ case.type_display }}</p>
+                    {% endif %}
+                    {% if case.category %}
+                    <p class="text-gray-500 text-xs mt-1">{{ case.category }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8 text-gray-500">
+                <div class="text-4xl mb-2">&#9878;</div>
+                <p>No court cases found</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Risk Assessment -->
+    <div class="bg-bg-panel rounded-xl border border-violet-200 p-6 mt-6">
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+            <span class="mr-2">&#9888;</span>
+            Risk Assessment
+        </h3>
+
+        {% set liquidated_count = business_records|selectattr('status', 'search', 'ликвид')|list|length %}
+        {% set defendant_count = court_records|selectattr('person_role', 'equalto', 'defendant')|list|length %}
+        {% set criminal_count = court_records|selectattr('case_type', 'equalto', 'criminal')|list|length %}
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Business Risk -->
+            <div class="bg-bg-dark rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-gray-400">Business Risk</span>
+                    {% if liquidated_count > 2 %}
+                    <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs">HIGH</span>
+                    {% elif liquidated_count > 0 %}
+                    <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">MEDIUM</span>
+                    {% else %}
+                    <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">LOW</span>
+                    {% endif %}
+                </div>
+                <p class="text-sm text-gray-500">{{ liquidated_count }} liquidated companies</p>
+            </div>
+
+            <!-- Legal Risk -->
+            <div class="bg-bg-dark rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-gray-400">Legal Risk</span>
+                    {% if criminal_count > 0 or defendant_count > 3 %}
+                    <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs">HIGH</span>
+                    {% elif defendant_count > 0 %}
+                    <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">MEDIUM</span>
+                    {% else %}
+                    <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">LOW</span>
+                    {% endif %}
+                </div>
+                <p class="text-sm text-gray-500">{{ defendant_count }} cases as defendant</p>
+            </div>
+
+            <!-- Overall Risk -->
+            <div class="bg-bg-dark rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-gray-400">Overall Risk</span>
+                    {% if criminal_count > 0 or (liquidated_count > 2 and defendant_count > 2) %}
+                    <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs font-bold">HIGH</span>
+                    {% elif liquidated_count > 0 or defendant_count > 0 %}
+                    <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs font-bold">MEDIUM</span>
+                    {% else %}
+                    <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs font-bold">LOW</span>
+                    {% endif %}
+                </div>
+                <p class="text-sm text-gray-500">Based on all available data</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="flex items-center justify-between mt-8">
+        <a href="/phase2/buratino/results/{{ investigation.id }}" class="text-violet hover:text-violet-bright">
+            &#8592; Back to Phase 2
+        </a>
+        <a href="/report/{{ investigation.id }}" class="btn btn-primary">
+            Generate Identity Card &#8594;
+        </a>
+    </div>
+</div>
+{% endblock %}

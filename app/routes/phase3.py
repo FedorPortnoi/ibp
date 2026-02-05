@@ -2,6 +2,8 @@
 Phase 3 Routes - Deep Investigation
 ===================================
 Business records, court cases, geo-information, text analysis.
+
+Buratino-style integration with Investigation model.
 """
 
 import logging
@@ -9,6 +11,8 @@ import uuid
 import threading
 from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify
+
+from app import db
 
 phase3_bp = Blueprint('phase3', __name__, url_prefix='/phase3')
 logger = logging.getLogger(__name__)
@@ -296,3 +300,175 @@ def api_text_analyze():
     except Exception as e:
         logger.error(f"Text analysis API error: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================
+# BURATINO-STYLE ROUTES (Investigation-based)
+# ============================================
+
+@phase3_bp.route('/buratino/<investigation_id>')
+def buratino_page(investigation_id):
+    """Phase 3 start page for Buratino flow - uses database investigation."""
+    from app.models import Investigation, SocialProfile
+
+    investigation = Investigation.query.get(investigation_id)
+    if not investigation:
+        return render_template('error.html', error='Investigation not found'), 404
+
+    confirmed_profile = SocialProfile.query.filter_by(
+        investigation_id=investigation_id,
+        is_confirmed=True
+    ).first()
+
+    return render_template('phase3_buratino.html',
+                         investigation=investigation,
+                         profile=confirmed_profile)
+
+
+@phase3_bp.route('/api/buratino/start/<investigation_id>', methods=['POST'])
+def start_buratino_investigation(investigation_id):
+    """Start Phase 3 investigation for a Buratino-flow investigation."""
+    from app.models import Investigation, SocialProfile, BusinessRecord as DBBusinessRecord, CourtRecord as DBCourtRecord
+
+    investigation = Investigation.query.get(investigation_id)
+    if not investigation:
+        return jsonify({'error': 'Investigation not found'}), 404
+
+    confirmed_profile = SocialProfile.query.filter_by(
+        investigation_id=investigation_id,
+        is_confirmed=True
+    ).first()
+
+    task_id = uuid.uuid4().hex
+
+    def run_buratino_phase3():
+        try:
+            from app.services.phase3.combined_search import Phase3CombinedSearch
+
+            task = phase3_tasks[task_id]
+            task.add_message('Starting Phase 3 deep investigation', 'info')
+
+            # Prepare profile data
+            profiles = []
+            if confirmed_profile:
+                profiles.append({
+                    'platform': confirmed_profile.platform,
+                    'username': confirmed_profile.username,
+                    'full_name': confirmed_profile.full_name,
+                    'bio': confirmed_profile.bio,
+                    'url': f"https://vk.com/id{confirmed_profile.platform_id}"
+                })
+
+            # Get discovered contacts from Phase 2
+            contacts = {
+                'phones': investigation.discovered_phones or [],
+                'emails': investigation.discovered_emails or []
+            }
+
+            # Run investigation
+            searcher = Phase3CombinedSearch()
+            searcher.set_progress_callback(
+                lambda step, pct: (setattr(task, 'current_step', step), setattr(task, 'percent_complete', pct), task.add_message(step, 'info'))
+            )
+
+            results = searcher.investigate(
+                target_name=investigation.input_name,
+                confirmed_profiles=profiles,
+                discovered_contacts=contacts,
+                search_business=True,
+                search_courts=True,
+                build_social_graph=True,
+                analyze_text=True
+            )
+
+            # Save business records to database
+            for biz in results.business_records:
+                db_record = DBBusinessRecord(
+                    investigation_id=investigation_id,
+                    company_name=biz.company_name,
+                    inn=biz.inn,
+                    ogrn=biz.ogrn,
+                    role=biz.role,
+                    status=biz.status,
+                    legal_address=biz.address,
+                    source=biz.source,
+                    source_url=biz.url
+                )
+                # Parse registration date if it's a string
+                if biz.registration_date:
+                    try:
+                        from dateutil.parser import parse
+                        db_record.registration_date = parse(biz.registration_date).date()
+                    except:
+                        pass
+                db.session.add(db_record)
+
+            # Save court records to database
+            for court in results.court_cases:
+                db_court = DBCourtRecord(
+                    investigation_id=investigation_id,
+                    case_number=court.case_number,
+                    court_name=court.court_name,
+                    category=court.case_type,  # case_type → category
+                    person_role=court.role,
+                    subcategory=court.category,  # category → subcategory
+                    decision_summary=court.result,
+                    source=court.source,
+                    source_url=court.url
+                )
+                db.session.add(db_court)
+
+            # Update investigation status
+            investigation.status = 'phase_3_complete'
+            db.session.commit()
+
+            task.results = results.to_dict()
+            task.completed_at = datetime.now()
+            task.percent_complete = 100
+            task.current_step = 'Complete'
+
+            elapsed = (task.completed_at - task.started_at).total_seconds()
+            task.add_message(f'Phase 3 complete in {elapsed:.1f}s', 'success')
+
+        except Exception as e:
+            logger.error(f"Buratino Phase 3 error: {e}", exc_info=True)
+            phase3_tasks[task_id].error = str(e)
+            phase3_tasks[task_id].add_message(f'Error: {str(e)}', 'error')
+
+    # Create task
+    task = Phase3TaskStatus(task_id, {
+        'target_name': investigation.input_name,
+        'investigation_id': investigation_id
+    })
+    phase3_tasks[task_id] = task
+
+    # Start background thread
+    thread = threading.Thread(target=run_buratino_phase3)
+    thread.daemon = True
+    thread.start()
+
+    return jsonify({'success': True, 'task_id': task_id})
+
+
+@phase3_bp.route('/buratino/results/<investigation_id>')
+def buratino_results(investigation_id):
+    """Display Phase 3 results for Buratino flow."""
+    from app.models import Investigation, SocialProfile, BusinessRecord as DBBusinessRecord, CourtRecord as DBCourtRecord
+
+    investigation = Investigation.query.get(investigation_id)
+    if not investigation:
+        return render_template('error.html', error='Investigation not found'), 404
+
+    confirmed_profile = SocialProfile.query.filter_by(
+        investigation_id=investigation_id,
+        is_confirmed=True
+    ).first()
+
+    business_records = DBBusinessRecord.query.filter_by(investigation_id=investigation_id).all()
+    court_records = DBCourtRecord.query.filter_by(investigation_id=investigation_id).all()
+
+    return render_template('phase3_buratino_results.html',
+                         investigation=investigation,
+                         profile=confirmed_profile,
+                         business_records=business_records,
+                         court_records=court_records)

@@ -48,6 +48,7 @@ folium>=0.15.1
 
 # Network Analysis
 networkx>=3.2.1
+python-louvain>=0.16  # Community detection for social graphs
 
 # Video Processing
 opencv-python-headless>=4.9.0.80

@@ -37,6 +37,17 @@ class Config:
     # Output Settings
     IDENTITY_CARDS_FOLDER = os.path.join(BASE_DIR, 'app', 'static', 'identity_cards')
 
+    # VK API Settings (Buratino-style workflow)
+    # Get service token from https://vk.com/editapp?act=create (choose "Standalone app")
+    VK_SERVICE_TOKEN = os.environ.get('VK_SERVICE_TOKEN')
+    VK_API_VERSION = '5.199'
+
+    # Search4Faces API (optional face search)
+    SEARCH4FACES_API_KEY = os.environ.get('SEARCH4FACES_API_KEY')
+
+    # Demo mode: runs without API keys using simulated data
+    DEMO_MODE = not os.environ.get('VK_SERVICE_TOKEN')
+
 
 class DevelopmentConfig(Config):
     """Development configuration."""

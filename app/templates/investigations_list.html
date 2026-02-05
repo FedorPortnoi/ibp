@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Past Investigations - IBP{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-violet font-display">Past Investigations</h1>
+            <p class="text-gray-400">{{ investigations|length }} investigation(s)</p>
+        </div>
+        <a href="/phase1/new" class="btn btn-primary">
+            + New Investigation
+        </a>
+    </div>
+
+    <!-- Investigations List -->
+    <div class="space-y-4">
+        {% for inv in investigations %}
+        <div class="bg-bg-panel rounded-xl border border-violet-200 p-4 hover:border-violet transition-colors">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <!-- Photo or initials -->
+                    {% if inv.confirmed_profile and inv.confirmed_profile.photo_url %}
+                    <img src="{{ inv.confirmed_profile.photo_url }}" alt="" class="w-12 h-12 rounded-full object-cover">
+                    {% else %}
+                    <div class="w-12 h-12 rounded-full bg-violet flex items-center justify-center text-white font-bold">
+                        {{ inv.input_name[0] if inv.input_name else '?' }}
+                    </div>
+                    {% endif %}
+
+                    <!-- Info -->
+                    <div>
+                        <h3 class="font-semibold text-white">{{ inv.input_name }}</h3>
+                        <p class="text-sm text-gray-500">
+                            Created {{ inv.created_at.strftime('%d.%m.%Y %H:%M') if inv.created_at else 'N/A' }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <!-- Status Badge -->
+                    <span class="px-3 py-1 rounded-full text-xs font-medium
+                        {% if inv.status == 'complete' %}bg-green-500/20 text-green-400
+                        {% elif inv.status == 'phase_1_complete' %}bg-blue-500/20 text-blue-400
+                        {% elif inv.status == 'phase_2_complete' %}bg-purple-500/20 text-purple-400
+                        {% else %}bg-yellow-500/20 text-yellow-400{% endif %}">
+                        {% if inv.status == 'complete' %}Complete
+                        {% elif inv.status == 'phase_1_complete' %}Phase 1 Done
+                        {% elif inv.status == 'phase_2' %}Phase 2
+                        {% elif inv.status == 'phase_2_complete' %}Phase 2 Done
+                        {% elif inv.status == 'phase_3' %}Phase 3
+                        {% else %}{{ inv.status or 'In Progress' }}{% endif %}
+                    </span>
+
+                    <!-- Actions -->
+                    {% if inv.status == 'phase_1' %}
+                    <a href="/phase1/search/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
+                        Continue →
+                    </a>
+                    {% elif inv.status == 'phase_1_complete' %}
+                    <a href="/phase2/analyze/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
+                        Analyze →
+                    </a>
+                    {% elif inv.status in ['phase_2', 'phase_2_complete'] %}
+                    <a href="/phase2/results/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
+                        View Results →
+                    </a>
+                    {% elif inv.status == 'complete' %}
+                    <a href="/report/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
+                        View Report →
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            {% if inv.confirmed_profile %}
+            <div class="mt-4 pt-4 border-t border-violet-100 flex items-center space-x-6 text-sm text-gray-400">
+                <span>
+                    <span class="text-violet">Platform:</span>
+                    {{ inv.confirmed_platform or 'VK' }}
+                </span>
+                {% if inv.confirmed_username %}
+                <span>
+                    <span class="text-violet">Username:</span>
+                    @{{ inv.confirmed_username }}
+                </span>
+                {% endif %}
+                {% if inv.discovered_phones %}
+                <span>
+                    <span class="text-violet">Phones:</span>
+                    {{ inv.discovered_phones|length }}
+                </span>
+                {% endif %}
+                {% if inv.discovered_emails %}
+                <span>
+                    <span class="text-violet">Emails:</span>
+                    {{ inv.discovered_emails|length }}
+                </span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <!-- Empty State -->
+        {% if not investigations %}
+        <div class="text-center py-12">
+            <span class="text-5xl mb-4 block">📋</span>
+            <h3 class="text-xl font-semibold text-gray-300 mb-2">No investigations yet</h3>
+            <p class="text-gray-500 mb-4">Start your first investigation to see it here</p>
+            <a href="/phase1/new" class="btn btn-primary">Start Investigation</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
