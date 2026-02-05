@@ -159,10 +159,33 @@
             <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
                 <span class="mr-2">&#128222;</span>
                 Phone Numbers
-                <span class="ml-auto text-sm text-gray-500" id="phones-count">0 found</span>
+                <span class="ml-auto text-sm text-gray-500">{{ investigation.discovered_phones|length }} found</span>
             </h3>
-            <div id="phones-list" class="space-y-2">
+            <div class="space-y-2">
+                {% if investigation.discovered_phones %}
+                    {% for phone in investigation.discovered_phones %}
+                    <div class="flex items-center justify-between p-3 bg-bg-dark rounded-lg border border-violet-200/20">
+                        <div>
+                            <span class="text-white font-mono">{{ phone.number }}</span>
+                            <span class="text-xs text-gray-500 ml-2">{{ phone.source }}</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            {% if phone.confidence == 'high' %}
+                            <span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">High</span>
+                            {% elif phone.confidence == 'medium' %}
+                            <span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">Medium</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs rounded">Low</span>
+                            {% endif %}
+                            {% if phone.verified_on %}
+                            <span class="text-xs text-violet">&#10003; {{ phone.verified_on|join(', ') }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
                 <p class="text-gray-500 text-sm">No phone numbers discovered yet.</p>
+                {% endif %}
             </div>
         </div>
 
@@ -171,10 +194,33 @@
             <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
                 <span class="mr-2">&#128231;</span>
                 Email Addresses
-                <span class="ml-auto text-sm text-gray-500" id="emails-count">0 found</span>
+                <span class="ml-auto text-sm text-gray-500">{{ investigation.discovered_emails|length }} found</span>
             </h3>
-            <div id="emails-list" class="space-y-2">
+            <div class="space-y-2">
+                {% if investigation.discovered_emails %}
+                    {% for email in investigation.discovered_emails %}
+                    <div class="flex items-center justify-between p-3 bg-bg-dark rounded-lg border border-violet-200/20">
+                        <div>
+                            <span class="text-white font-mono text-sm">{{ email.email }}</span>
+                            <span class="text-xs text-gray-500 ml-2">{{ email.source }}</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            {% if email.confidence == 'high' %}
+                            <span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">High</span>
+                            {% elif email.confidence == 'medium' %}
+                            <span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">Medium</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs rounded">Low</span>
+                            {% endif %}
+                            {% if email.verified_on %}
+                            <span class="text-xs text-violet">&#10003; {{ email.verified_on|join(', ') }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
                 <p class="text-gray-500 text-sm">No email addresses discovered yet.</p>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -184,10 +230,43 @@
         <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
             <span class="mr-2">&#127760;</span>
             Additional Profiles
-            <span class="ml-auto text-sm text-gray-500" id="profiles-count">0 found</span>
+            <span class="ml-auto text-sm text-gray-500">{{ investigation.alternate_accounts|length }} found</span>
         </h3>
-        <div id="profiles-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% if investigation.alternate_accounts %}
+                {% for account in investigation.alternate_accounts %}
+                <a href="{{ account.url }}" target="_blank" rel="noopener"
+                   class="flex items-center p-3 bg-bg-dark rounded-lg border border-violet-200/20 hover:border-violet transition-colors">
+                    <div class="w-10 h-10 rounded-full bg-violet/20 flex items-center justify-center mr-3">
+                        {% if account.platform == 'telegram' %}
+                        <span class="text-lg">&#128172;</span>
+                        {% elif account.platform == 'instagram' %}
+                        <span class="text-lg">&#128247;</span>
+                        {% elif account.platform == 'twitter' %}
+                        <span class="text-lg">&#128038;</span>
+                        {% elif account.platform == 'facebook' %}
+                        <span class="text-lg">&#128100;</span>
+                        {% elif account.platform == 'github' %}
+                        <span class="text-lg">&#128187;</span>
+                        {% elif account.platform == 'youtube' %}
+                        <span class="text-lg">&#9654;</span>
+                        {% elif account.platform == 'website' %}
+                        <span class="text-lg">&#127760;</span>
+                        {% else %}
+                        <span class="text-lg">&#128279;</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-white font-medium capitalize">{{ account.platform }}</p>
+                        <p class="text-gray-400 text-sm truncate">{{ account.username or account.url }}</p>
+                        <p class="text-gray-500 text-xs">{{ account.source }}</p>
+                    </div>
+                    <span class="text-violet">&#8599;</span>
+                </a>
+                {% endfor %}
+            {% else %}
             <p class="text-gray-500 text-sm col-span-full">No additional profiles discovered yet.</p>
+            {% endif %}
         </div>
     </div>
 

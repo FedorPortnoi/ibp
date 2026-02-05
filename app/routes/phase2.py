@@ -511,7 +511,7 @@ def get_graph_data(investigation_id):
 def start_buratino_analysis(investigation_id):
     """
     Start Phase 2 analysis for an investigation (async).
-    Extracts friends and contacts from the confirmed VK profile.
+    Extracts friends AND contacts from the confirmed VK profile.
     """
     from app.models import Investigation, SocialProfile
 
@@ -536,21 +536,225 @@ def start_buratino_analysis(investigation_id):
     # Store data needed for background task (avoid passing SQLAlchemy objects)
     vk_id = int(confirmed_profile.platform_id)
     input_name = investigation.input_name
+    username = confirmed_profile.username or confirmed_profile.platform_id
+    profile_url = f"https://vk.com/id{vk_id}"
+    if confirmed_profile.username:
+        profile_url = f"https://vk.com/{confirmed_profile.username}"
 
-    def run_analysis(app, investigation_id, vk_id, task_id):
+    def run_analysis(app, investigation_id, vk_id, input_name, username, profile_url, task_id):
         with app.app_context():
             try:
                 from app import db
                 from app.models import Investigation, Friend
                 from app.services.phase1.buratino_vk_search import buratino_vk_search
 
+                # Import contact discovery services
+                from app.services.phase2.vk_api_extractor import VKAPIExtractor
+                from app.services.phase2.email_generator import generate_email_candidates, generate_from_username
+                from app.services.phase2.gravatar_lookup import check_gravatar
+                import os
+                import time
+
+                task = phase2_tasks[task_id]
+
                 # Re-query investigation inside app context
                 investigation = Investigation.query.get(investigation_id)
                 if not investigation:
                     raise Exception('Investigation not found')
 
-                # Get friends via VK API (handles demo mode internally)
+                discovered_phones = []
+                discovered_emails = []
+                alternate_accounts = []
+
+                # ===== STEP 1: VK API Contact Extraction =====
+                task.add_message('Extracting contacts from VK profile...', 'info')
+                task.update_progress('VK Contact Extraction', 10)
+
+                try:
+                    vk_token = os.environ.get('VK_SERVICE_TOKEN')
+                    extractor = VKAPIExtractor(access_token=vk_token)
+                    vk_contact = extractor.extract_from_url(profile_url)
+
+                    if not vk_contact.error:
+                        # Add phones from VK profile
+                        for phone in vk_contact.phones:
+                            discovered_phones.append({
+                                'number': phone,
+                                'source': 'VK Profile',
+                                'confidence': 'high',
+                                'verified_on': ['vk']
+                            })
+                            task.add_message(f'Found phone: {phone}', 'success')
+
+                        # Add emails from VK profile
+                        for email in vk_contact.emails:
+                            discovered_emails.append({
+                                'email': email,
+                                'source': 'VK Profile',
+                                'confidence': 'high',
+                                'verified_on': ['vk']
+                            })
+                            task.add_message(f'Found email: {email}', 'success')
+
+                        # Add linked social accounts
+                        if vk_contact.telegram:
+                            alternate_accounts.append({
+                                'platform': 'telegram',
+                                'username': vk_contact.telegram,
+                                'url': f'https://t.me/{vk_contact.telegram}',
+                                'source': 'VK Profile connections'
+                            })
+                            task.add_message(f'Found Telegram: @{vk_contact.telegram}', 'success')
+
+                        if vk_contact.instagram:
+                            alternate_accounts.append({
+                                'platform': 'instagram',
+                                'username': vk_contact.instagram,
+                                'url': f'https://instagram.com/{vk_contact.instagram}',
+                                'source': 'VK Profile connections'
+                            })
+                            task.add_message(f'Found Instagram: @{vk_contact.instagram}', 'success')
+
+                        if vk_contact.twitter:
+                            alternate_accounts.append({
+                                'platform': 'twitter',
+                                'username': vk_contact.twitter,
+                                'url': f'https://twitter.com/{vk_contact.twitter}',
+                                'source': 'VK Profile connections'
+                            })
+
+                        if vk_contact.facebook:
+                            alternate_accounts.append({
+                                'platform': 'facebook',
+                                'username': vk_contact.facebook,
+                                'url': f'https://facebook.com/{vk_contact.facebook}',
+                                'source': 'VK Profile connections'
+                            })
+
+                        if vk_contact.skype:
+                            alternate_accounts.append({
+                                'platform': 'skype',
+                                'username': vk_contact.skype,
+                                'url': f'skype:{vk_contact.skype}',
+                                'source': 'VK Profile connections'
+                            })
+
+                        # Add websites
+                        for website in vk_contact.websites:
+                            alternate_accounts.append({
+                                'platform': 'website',
+                                'username': website,
+                                'url': website if website.startswith('http') else f'https://{website}',
+                                'source': 'VK Profile site field'
+                            })
+
+                        logger.info(f"VK extraction: {len(vk_contact.phones)} phones, {len(vk_contact.emails)} emails")
+                    else:
+                        task.add_message(f'VK extraction limited: {vk_contact.error}', 'warning')
+
+                except Exception as e:
+                    logger.warning(f"VK extraction error: {e}")
+                    task.add_message(f'VK extraction error: {str(e)[:50]}', 'warning')
+
+                # ===== STEP 2: Generate Email Candidates =====
+                task.add_message('Generating email candidates...', 'info')
+                task.update_progress('Email Generation', 25)
+
+                try:
+                    # Parse name
+                    name_parts = input_name.strip().split()
+                    first_name = name_parts[0] if name_parts else ""
+                    last_name = name_parts[-1] if len(name_parts) > 1 else ""
+
+                    # Generate candidates
+                    email_candidates = generate_email_candidates(
+                        first_name=first_name,
+                        last_name=last_name,
+                        username_hints=[username] if username else []
+                    )
+
+                    # Also from username
+                    if username:
+                        email_candidates.extend(generate_from_username(username))
+
+                    # Deduplicate and limit
+                    email_candidates = list(set(email_candidates))[:50]
+                    task.add_message(f'Generated {len(email_candidates)} email candidates', 'info')
+
+                except Exception as e:
+                    logger.warning(f"Email generation error: {e}")
+                    email_candidates = []
+
+                # ===== STEP 3: Verify Emails with Gravatar =====
+                task.add_message('Verifying emails with Gravatar...', 'info')
+                task.update_progress('Gravatar Check', 40)
+
+                gravatar_verified = 0
+                try:
+                    # Check top 20 candidates with Gravatar (fast, free)
+                    for i, email in enumerate(email_candidates[:20]):
+                        try:
+                            gravatar = check_gravatar(email)
+                            if gravatar.exists:
+                                # Email is real and has Gravatar profile!
+                                discovered_emails.append({
+                                    'email': email,
+                                    'source': 'Gravatar verification',
+                                    'confidence': 'high',
+                                    'verified_on': ['gravatar'],
+                                    'gravatar_name': gravatar.display_name,
+                                    'gravatar_url': gravatar.profile_url
+                                })
+                                task.add_message(f'Verified email: {email}', 'success')
+                                gravatar_verified += 1
+
+                                # Add linked accounts from Gravatar
+                                for account in gravatar.accounts:
+                                    if account.get('url'):
+                                        alternate_accounts.append({
+                                            'platform': account.get('domain', 'unknown'),
+                                            'username': account.get('username', ''),
+                                            'url': account['url'],
+                                            'source': f'Gravatar ({email})'
+                                        })
+
+                            time.sleep(0.2)  # Rate limiting
+
+                        except Exception as e:
+                            logger.debug(f"Gravatar check error for {email}: {e}")
+
+                        # Update progress
+                        if i % 5 == 0:
+                            task.update_progress(f'Checking emails ({i+1}/20)', 40 + (i * 2))
+
+                    task.add_message(f'Gravatar verified {gravatar_verified} emails', 'info')
+
+                except Exception as e:
+                    logger.warning(f"Gravatar verification error: {e}")
+
+                # ===== STEP 4: Generate likely emails from username =====
+                task.update_progress('Username-based emails', 60)
+
+                if username and gravatar_verified == 0:
+                    # If no Gravatar hits, add top username-based emails as medium confidence
+                    username_emails = generate_from_username(username)[:10]
+                    for email in username_emails:
+                        # Check if not already discovered
+                        existing_emails = [e['email'].lower() for e in discovered_emails]
+                        if email.lower() not in existing_emails:
+                            discovered_emails.append({
+                                'email': email,
+                                'source': 'Username pattern',
+                                'confidence': 'medium',
+                                'verified_on': []
+                            })
+
+                # ===== STEP 5: Extract Friends =====
+                task.add_message('Extracting friends network...', 'info')
+                task.update_progress('Friends Extraction', 70)
+
                 friends_data = buratino_vk_search.fetch_friends(vk_id)
+                task.add_message(f'Found {len(friends_data)} friends', 'info')
 
                 # Save friends to database
                 for friend in friends_data:
@@ -565,12 +769,58 @@ def start_buratino_analysis(investigation_id):
                     )
                     db.session.add(f)
 
-                # Update investigation status
-                investigation.status = 'phase_2_complete'
-                db.session.commit()
+                task.update_progress('Saving results', 90)
 
-                phase2_tasks[task_id].results = {'friends_count': len(friends_data)}
-                phase2_tasks[task_id].completed_at = datetime.now()
+                # ===== STEP 6: Save Discovered Contacts =====
+                # Deduplicate phones
+                seen_phones = set()
+                unique_phones = []
+                for phone in discovered_phones:
+                    normalized = phone['number'].replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+                    if normalized not in seen_phones:
+                        seen_phones.add(normalized)
+                        unique_phones.append(phone)
+
+                # Deduplicate emails
+                seen_emails = set()
+                unique_emails = []
+                for email in discovered_emails:
+                    key = email['email'].lower()
+                    if key not in seen_emails:
+                        seen_emails.add(key)
+                        unique_emails.append(email)
+
+                # Deduplicate profiles
+                seen_urls = set()
+                unique_accounts = []
+                for acc in alternate_accounts:
+                    key = acc.get('url', '').lower()
+                    if key and key not in seen_urls:
+                        seen_urls.add(key)
+                        unique_accounts.append(acc)
+
+                # Update investigation with discovered contacts
+                investigation.discovered_phones = unique_phones
+                investigation.discovered_emails = unique_emails
+                investigation.alternate_accounts = unique_accounts
+                investigation.status = 'phase_2_complete'
+
+                db.session.commit()
+                task.add_message('Analysis complete!', 'success')
+
+                # Final stats
+                results = {
+                    'friends_count': len(friends_data),
+                    'phones_found': len(unique_phones),
+                    'emails_found': len(unique_emails),
+                    'profiles_found': len(unique_accounts)
+                }
+
+                task.results = results
+                task.completed_at = datetime.now()
+                task.update_progress('Complete', 100)
+
+                logger.info(f"Phase 2 complete: {results}")
 
             except Exception as e:
                 logger.error(f"Phase 2 analysis error: {e}", exc_info=True)
@@ -578,11 +828,14 @@ def start_buratino_analysis(investigation_id):
 
     # Create task status
     task = Phase2TaskStatus(task_id, input_name, [])
-    task.add_message('Starting friend extraction', 'info')
+    task.add_message('Starting Phase 2 analysis...', 'info')
     phase2_tasks[task_id] = task
 
     # Start background thread with app context
-    thread = threading.Thread(target=run_analysis, args=(app, investigation_id, vk_id, task_id))
+    thread = threading.Thread(
+        target=run_analysis,
+        args=(app, investigation_id, vk_id, input_name, username, profile_url, task_id)
+    )
     thread.daemon = True
     thread.start()
 
