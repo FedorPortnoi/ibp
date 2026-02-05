@@ -27,7 +27,8 @@ try:
 except ImportError:
     requests = None
 
-from flask import current_app
+from dotenv import load_dotenv
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 

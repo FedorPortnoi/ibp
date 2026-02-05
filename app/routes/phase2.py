@@ -513,7 +513,8 @@ def start_buratino_analysis(investigation_id):
     Start Phase 2 analysis for an investigation (async).
     Extracts friends and contacts from the confirmed VK profile.
     """
-    from app.models import Investigation, SocialProfile, Friend, db
+    from app import db
+    from app.models import Investigation, SocialProfile, Friend
     from app.services.phase1.buratino_vk_search import buratino_vk_search
 
     investigation = Investigation.query.get(investigation_id)
