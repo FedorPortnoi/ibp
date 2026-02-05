@@ -45,8 +45,8 @@ except ImportError:
 try:
     from weasyprint import HTML as WeasyHTML
     HAS_WEASYPRINT = True
-except ImportError:
-    logger.info("weasyprint not installed - PDF export disabled")
+except (ImportError, OSError) as e:
+    logger.info(f"weasyprint not available - PDF export disabled: {e}")
 
 
 @dataclass
