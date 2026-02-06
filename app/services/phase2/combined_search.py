@@ -46,6 +46,13 @@ from .face_search_api import ApiFaceSearchService, FaceMatch as ApiFaceMatch
 # NEW: Phone discovery service
 from .phone_discovery import PhoneDiscoveryService, PhoneDiscoveryResults
 
+# NEW: Snoop username enumeration (5,372+ sites, 2,600+ Russian)
+try:
+    from ..snoop_search import SnoopSearchService
+    SNOOP_AVAILABLE = True
+except ImportError:
+    SNOOP_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -120,6 +127,19 @@ class Phase2CombinedSearch:
 
         # ===== NEW: API-based face search (discovers NEW profiles) =====
         self.api_face_search = ApiFaceSearchService()
+
+        # ===== NEW: Snoop username search (5,372+ sites, 2,600+ Russian) =====
+        self.snoop_service = None
+        if SNOOP_AVAILABLE:
+            try:
+                self.snoop_service = SnoopSearchService()
+                if self.snoop_service.available:
+                    self.logger.info("Snoop service initialized (5,372+ sites)")
+                else:
+                    self.snoop_service = None
+                    self.logger.info("Snoop not available (dependencies missing)")
+            except Exception as e:
+                self.logger.debug(f"Snoop initialization failed: {e}")
 
     def set_progress_callback(self, callback: Callable[[str, int], None]):
         """
@@ -638,6 +658,47 @@ class Phase2CombinedSearch:
                 errors.append(error_msg)
                 self.logger.debug(error_msg)
 
+        # ===== STEP 4.5: Snoop Username Search (5,372+ sites, 2,600+ Russian) =====
+        if self.snoop_service and username_hints:
+            self._update_progress("Searching profiles via Snoop (5,372 sites)...", 52)
+            self.logger.info("Step 4.5: Snoop username enumeration (5,372+ sites)")
+
+            snoop_found = 0
+            try:
+                # Search top 3 usernames with Snoop
+                for username in username_hints[:3]:
+                    self._update_progress(f"Snoop: searching {username}...", 52)
+
+                    # Full search (not Russian-only) for comprehensive results
+                    snoop_results = self.snoop_service.search_username(
+                        username,
+                        timeout=180,  # 3 minutes per username
+                        russian_only=False
+                    )
+
+                    # Filter to found profiles
+                    found_profiles = self.snoop_service.get_found_profiles(snoop_results)
+
+                    # Sort with Russian platforms first
+                    found_profiles = self.snoop_service.sort_results(found_profiles, russian_first=True)
+
+                    for result in found_profiles:
+                        added = self._add_profile_if_valid({
+                            'platform': result.get('platform', 'unknown'),
+                            'url': result.get('url', ''),
+                            'username': username,
+                            'source': f"Snoop ({result.get('country', 'unknown')})"
+                        }, additional_profiles)
+                        if added:
+                            snoop_found += 1
+
+                self.logger.info(f"Snoop found {snoop_found} additional profiles across {len(username_hints[:3])} usernames")
+
+            except Exception as e:
+                error_msg = f"Snoop error: {str(e)}"
+                errors.append(error_msg)
+                self.logger.debug(error_msg)
+
         # ===== STEP 5: Verify Top Email Candidates with Holehe =====
         self._update_progress("Verifying emails with Holehe...", 55)
         self.logger.info("Step 5: Verifying emails with Holehe")
@@ -1057,6 +1118,42 @@ class Phase2CombinedSearch:
                         ))
             except Exception as e:
                 self.logger.debug(f"YaSeeker error: {e}")
+
+        # ===== STEP 3.5: Snoop Username Search (5,372+ sites, 2,600+ Russian) =====
+        if self.snoop_service and username_hints:
+            self._update_progress("Searching profiles via Snoop (5,372 sites)...", 75)
+            self.logger.info("Step 3.5: Snoop username enumeration")
+
+            try:
+                # Search first 2 usernames (limit for speed in fast mode)
+                snoop_found = 0
+                for username in username_hints[:2]:
+                    self._update_progress(f"Snoop: searching {username}...", 75)
+
+                    # Use Russian-focused search for speed
+                    snoop_results = self.snoop_service.search_username(
+                        username,
+                        timeout=120,  # 2 minutes per username
+                        russian_only=True  # Focus on Russian sites for speed
+                    )
+
+                    # Filter to found profiles
+                    found_profiles = self.snoop_service.get_found_profiles(snoop_results)
+
+                    for result in found_profiles:
+                        self._add_profile_if_valid({
+                            'platform': result.get('platform', 'unknown'),
+                            'url': result.get('url', ''),
+                            'username': username,
+                            'source': f"Snoop ({result.get('country', 'RU')})"
+                        }, additional_profiles)
+                        snoop_found += 1
+
+                self.logger.info(f"Snoop found {snoop_found} additional profiles")
+
+            except Exception as e:
+                errors.append(f"Snoop error: {str(e)}")
+                self.logger.debug(f"Snoop error: {e}")
 
         # ===== STEP 4: Deduplicate =====
         self._update_progress("Finalizing...", 90)
