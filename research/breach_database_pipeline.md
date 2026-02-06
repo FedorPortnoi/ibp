@@ -640,101 +640,290 @@ result = await client(ImportContactsRequest(
 
 ### 4.1 Government Database Leaks
 
-#### ГИБДД (Traffic Police)
-- **Data:** Car registrations (plate→owner), driver licenses, accident history
-- **Records:** 50+ million vehicle registrations
-- **Leak years:** Multiple leaks 2019-2023
-- **Fields:** ФИО, date of birth, registration address, vehicle details (VIN, plate, model, year), driver license number
-- **Access:** Telegram bots (Himera, Quick OSINT), direct database downloads on forums
-- **Last major update:** 2022-2023
+#### ФМС / МВД — Passport Databases (Паспортные данные)
 
-#### ФНС / ЕГРЮЛ / ЕГРИП (Federal Tax Service)
-- **Data:** Company registrations, INN (tax ID), individual entrepreneur records
-- **Records:** 12+ million legal entities, 4+ million IPs
-- **Status:** Partially public (egrul.nalog.ru), partially leaked
-- **Fields:** INN, ОГРН, company name, founder names, addresses, activity codes
-- **Access:** Public API (nalog.ru), Rusprofile.ru, Telegram bots
-- **Note:** ЕГРЮЛ/ЕГРИП data is technically public; private extensions (founder passports, etc.) are from leaks
+**Source:** Federal Migration Service (ФМС, now part of МВД)
+**Records:** Covers all ~146M Russian citizens; specific leaks range from 360K to tens of millions
+**Fields:** ФИО, date of birth, place of birth, passport series/number, issue date, issuing authority code, registration address (propiska), photo, nationality, phone number
 
-#### Росреестр (Property Registry)
-- **Data:** Property ownership, cadastral records
-- **Records:** 100+ million property records
-- **Leak years:** Various, 2020-2023
-- **Fields:** Owner FIO, cadastral number, property address, area, type, ownership date
-- **Access:** Official API (rosreestr.gov.ru — limited), leaked databases via Telegram bots
-- **Note:** Since March 2023, Rosreestr restricted public access to owner names
+**Known incidents:**
+- **2019:** Breach of 8+ government websites exposed passport data of 360,000 people including Deputy Chairman of State Duma and former Deputy PM
+- **2023:** FSB investigated claims of biometric passport data leak; evidence suggests "tens of percent of the passport database" may have been accessed
 
-#### ФССП (Federal Bailiff Service)
-- **Data:** Enforcement proceedings, debts
-- **Records:** Publicly searchable at fssp.gov.ru
-- **Fields:** Debtor FIO, date of birth, proceeding number, debt amount, type
-- **Access:** Public API exists (fssp.gov.ru/iss/), also via Telegram bots
-- **Note:** Legitimately public data; good for due diligence
+**Access:** Cronos-format dumps; insider access from MVD employees; Telegram probiv bots; paid services (historically 1,500-2,000 RUB per query, rising to 44,300 RUB by 2024)
+
+**MVD Internal Systems:**
+- **Rozysk-Magistral** (since 1999): Tracks intercity travel of citizens
+- **GIAC** (ГИАЦ): Central MVD database management. Seven people matching GIAC staff arrested in 2025 for data trafficking
+
+#### ФНС — Tax Databases (INN, Income, Business Registrations)
+
+**Source:** Federal Tax Service (Федеральная налоговая служба)
+**Records:** 20+ million exposed in one incident; entire taxpayer database covers ~80M+ individuals
+**Fields:** ФИО, INN, residential address, passport number, phone, employer name/phone, tax amounts, income declarations, residency status
+
+**Known incidents:**
+- **2018-2019:** 20 million taxpayer records found in unprotected Elasticsearch cluster on AWS. Two databases: 14M+ records (2010-2016) and 6M+ records (2009-2015). Primarily Moscow region. FNS called it a "provocation."
+
+**Official/Third-Party APIs:**
+
+| Service | URL | Cost | Notes |
+|---------|-----|------|-------|
+| nalog.ru EGRUL | egrul.nalog.ru | Free (CAPTCHA) | Search by INN, OGRN, company name |
+| api-fns.ru | api-fns.ru/api/multinfo | Free 100 req/day | GET/POST JSON API |
+| egrul.itsoft.ru | egrul.itsoft.ru | Free 100 req/day | EGRUL + financials in XML/JSON |
+| FNS bulk XML | nalog.gov.ru | 150,000 RUB/year each | Full EGRUL/EGRIP archives |
+
+#### ГИБДД — Vehicle Registration Database
+
+**Source:** Main Directorate for Traffic Safety (ГИБДД), under MVД
+**Records:** 129 million records offered for sale in one incident; covers all registered vehicles since 1960
+**Fields:** License plate, VIN, make/model, engine number, year, registration dates/place, owner ФИО, owner address, owner passport series/number, owner DOB, owner phone, driver license number
+
+**Known incidents:**
+- **2010:** Federal GIBDD database (all of Russia) in CronosPlus format on torrents
+- **2016:** Database of vehicle owners appeared online (source disputed: GIBDD vs RSA insurance union)
+- **2020 (May):** 129M records of Moscow car owners offered on dark web for 0.5 BTC (~$2,900)
+- **2020 (Oct):** Bellingcat used Moscow Oblast vehicle registration leak to unmask 305 GRU agents who registered vehicles to a non-existent address, exposing passport numbers and mobile phones
+
+#### ФССП — Federal Bailiff Service (OFFICIAL PUBLIC API)
+
+**Source:** Federal Bailiff Service (ФССП)
+**Status:** **Fully public with official REST API**
+**API Base URL:** `https://api-ip.fssp.gov.ru/api/v1.0/`
+**Registration:** Free at `https://api-ip.fssp.gov.ru/register`
+**Rate Limits:** 100 requests/hour, 1,000 requests/day
+
+**API Endpoints:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/search/physical` | GET | Search by physical person (region + lastname + firstname) |
+| `/search/legal` | GET | Search by legal entity (region + name) |
+| `/search/ip` | GET | Search by enforcement proceeding number |
+| `/search/group` | POST | Batch search (up to 50 sub-requests) |
+
+**Example:**
+```
+GET https://api-ip.fssp.gov.ru/api/v1.0/search/physical
+  ?region=66&lastname=Иванов&firstname=Иван&token=YOUR_TOKEN
+```
+
+**Response:** Debtor name, proceeding number, debt type, amount, bailiff department and contact info. Asynchronous — returns task ID that must be polled for results.
+
+#### Росреестр / ЕГРН — Property Registry
+
+**Source:** Federal Service for State Registration (Росреестр)
+**Fields:** Cadastral number, object type, status, ownership form, area, floor, address, cadastral value, encumbrances, rights, owner name (restricted since March 2023)
+
+**Known incident (January 2025):** Hacker group Silent Crow claimed 1 TB (2+ billion rows) from EGRN. Published 44.7 GB sample with ~82M records (current as of March 2024) including ФИО, email, phone, addresses, passport data, СНИЛС. Over 12,500 "rosreestr" emails found. Rosreestr denied breach.
+
+**Official APIs:**
+- **PKK (Public Cadastral Map):** `https://pkk5.rosreestr.ru/api/features/` — search by coordinates, get info by cadastral ID
+- **Python client:** `github.com/GregEremeev/rosreestr-api`
+
+**Important:** Since March 2023, owner identity data no longer provided to third parties without owner consent.
+
+#### ЕГРЮЛ / ЕГРИП — Business Registrations
+
+**Source:** ФНС (Federal Tax Service)
+**Records:** 12+ million legal entities, 4+ million individual entrepreneurs
+**Fields:** Company name, INN, ОГРН, КПП, legal address, charter capital, ОКВЭД codes, CEO/director name, founders with shares, registration/liquidation dates, financial statements, tax payments, employee count
+
+**Official access points:**
+
+| Service | Type | Cost |
+|---------|------|------|
+| egrul.nalog.ru | Web (CAPTCHA) | Free |
+| api-fns.ru | REST JSON | Free up to limits |
+| egrul.itsoft.ru | REST JSON/XML | Free 100/day |
+| DaData (dadata.ru) | REST JSON | Freemium |
+| zachestnyibiznes.ru | REST API | Paid tiers |
+
+#### Court Databases
+
+**Arbitration courts (kad.arbitr.ru):**
+- No official public API, but third-party services exist:
+  - `api-cloud.ru/api/kad_arbitr.php` — case info by number
+  - `parser-api.com/parser/arbitr_api/search` — case search
+  - `cyberjustice.ru` — unified API for all courts
+
+**General jurisdiction (ГАС Правосудие / sudrf.ru):**
+- **Official API** at `https://api.sudrf.ru` — opened 2018
+- Free HTTP/JSON access without CAPTCHA
+- Case search across all courts, calendar import, document import with OCR
+
+**sudact.ru:** Largest aggregator of judicial acts. No public API — scraping required.
+
+#### Military Registry (Единый реестр воинского учета)
+
+**Status:** Went live November 1, 2024
+**Fields planned:** ФИО, DOB, address, military category, health category, military specialty, education, employment, family status
+**Incidents:** Developer (Mikord) breached in 2024; MOD denied data leaks in December 2025
 
 #### Пенсионный Фонд / СНИЛС
-- **Data:** Social insurance numbers, employment history
-- **Records:** Leaked periodically
-- **Fields:** СНИЛС number, FIO, employer, pension contributions
-- **Access:** Leaked databases only; no public API
-- **Note:** Highly sensitive; СНИЛС is a primary identifier
 
-#### Паспортные Данные (Passport Databases)
-- **Data:** Passport numbers, issue dates, registration addresses
-- **Records:** Multiple leaks from МВД (Interior Ministry) databases
-- **Fields:** Passport series/number, FIO, date of birth, registration address, issue date/authority
-- **Access:** Telegram bots, leaked databases
-- **Legal risk:** Highest — passport data is classified personal data
+**Data:** Social insurance numbers, employment history, pension contributions
+**Fields:** СНИЛС number, ФИО, employer, pension contributions
+**Access:** Leaked databases only; no public API
+**Risk:** Highest sensitivity — СНИЛС is a primary identifier in Russia
 
-### 4.2 Commercial/Telecom Leaks
+### 4.2 Telecom Operator Leaks
 
-#### Telecom Subscriber Databases
-- **МТС (MTS):** Subscriber database leak (2022) — 21 million records: phone, FIO, email, passport, address
-- **Билайн (Beeline):** Multiple leaks — subscriber data including IMSI, phone, FIO
-- **Мегафон (MegaFon):** Subscriber leak (2022) — phone, FIO, tariff plan, address
-- **Теле2 (Tele2):** Subscriber data leak (2023) — 7.5 million records
-- **Combined:** Telegram bots cross-reference all telecom databases for phone→FIO lookups
+#### МТС (MTS)
+- **September 2023 (MTS Bank):** 21M rows (1M published as sample). Fields: ФИО, DOB, gender, citizenship, INN, partial card numbers, card dates, 1.8M phone numbers, 50K emails. Came in 3 CSV files.
 
-#### Delivery Service Leaks (2022-2023)
-- **Яндекс.Еда (Yandex.Eda):** March 2022 — 6.9 million records: name, phone, email, delivery addresses, order history
-- **Delivery Club:** May 2022 — 2.2 million records
-- **СДЭК (CDEK):** July 2022 — 19 million records: name, phone, email, address
-- **Wildberries:** 2022 — customer data leaked
-- **DNS (electronics retailer):** 2022 — 16 million records
+#### Билайн (Beeline)
+- **~2017:** 2+ million home internet subscriber records (names, phones, addresses)
+- **July 2022:** Home internet user passports (company said data from 2015)
+- **December 2022:** 89,519 mobile + 10,969 home phone numbers, 198K vimpelcom.ru logins, 67K+ beeline.ru emails. Corporate directory leak confirmed by company.
 
-**Impact:** These delivery leaks are particularly valuable because they contain **physical addresses** linked to phones/names — data not available in most breach databases.
+#### Мегафон (MegaFon)
+- **2022 (Start cinema):** 43.9M accounts — names, emails, hashed passwords, IPs, country, subscription dates. Start is a streaming service owned by MegaFon.
 
-#### Bank Database Leaks
-- **Сбербанк (Sberbank):** Multiple incidents; 60 million credit card records (2019); smaller leaks ongoing
-- **ВТБ (VTB):** Customer data leaks
-- **Тинькофф (Tinkoff):** Partial leaks
-- **Альфа-Банк (Alfa-Bank):** Customer data
-- **Fields typically include:** Card number (partial), FIO, phone, email, account balance, credit history
+#### Теле2 (Tele2)
+- **August 2022:** 7,530,149 rows from loyalty program. 7,457,370 unique phones, 5,707,696 unique emails. Data period: Sep 2017 – Jun 2022. Breach attributed to IT partner hack.
 
-### 4.3 Major Breach Compilations
+### 4.3 Social Network Dumps
 
-#### Russian Mega-Compilations
-- **"Глаз Бога" database:** Aggregation of 100+ Russian databases (ГИБДД, ФНС, паспорт, телеком, банки)
-- **Collection #1-5:** International compilations with significant Russian data; 2.7 billion records total
-- **COMB (Compilation of Many Breaches):** 3.2 billion email:password pairs
-- **RockYou2021:** 8.4 billion password entries
+#### VK (ВКонтакте)
+- **2012 breach (disclosed 2016):** 100,544,934 accounts. Fields: name, email, phone, location, password (cleartext/unsalted MD5). Sold for 1 BTC (~$580). 90% of passwords cracked in <3 hours by LeakedSource.
+- **2024 scraping:** 370-390M user profiles. Fields: names, genders, profile IDs, pictures, locations. 27.6 GB dataset. Web scraping, not intrusion.
 
-#### Yandex Source Code Leak (January 2023)
-- 44.7 GB of source code leaked
-- Revealed internal ranking algorithms, user data handling
-- Not a user data breach per se, but exposed infrastructure
+#### OK.ru (Одноклассники)
+- 2011 database exists with passwords and emails (several million accounts)
+- OK.ru data appears in MOAB compilation (26 billion accounts, Jan 2024)
 
-### 4.4 Database Freshness & Reliability
+#### Mail.ru
+- **2014:** 4.6M account passwords leaked
+- **January 2023:** 3,505,918 rows. 3.4M unique emails, 1.6M unique phones. Fields: ID, email, phone, first/last name, login. No passwords.
+
+### 4.4 Delivery Service Leaks (2022-2023)
+
+#### Яндекс.Еда (Yandex.Eda) — February/March 2022
+- **Records:** 49,441,507 rows across 3 SQL dumps
+- **Unique Russian phones:** 6,882,230
+- **Fields:** ФИО, phone, full delivery address, order dates, email, order amounts
+- **Impact:** Interactive geographic map created showing users' data; criminal case opened
+
+#### СДЭК (CDEK) — 2022
+- **File 1:** 160M+ records (client names, emails, company names, sender/recipient IDs)
+- **File 2:** 30M+ rows (individuals and legal entities)
+- **File 3:** 90M+ rows (phone numbers and IDs)
+- **After dedup:** ~25M unique phones, ~30K counterparties
+
+#### Delivery Club — May 2022
+- **Full database:** 250M rows (orders)
+- **Published:** 2.2M total. Fields: name, delivery address, order info
+
+#### Wildberries — 2022-2023
+- **May 2022:** Regional customer sets appeared on interactive map
+- **August 2023:** 553K rows supplier/seller database (company names, CEO names, ОГРН, ИНН, phones, addresses)
+
+#### OZON — 2019-2024
+- **2019:** 450K accounts (only 7% confirmed real)
+- **2024:** Ozon Bank client data — former employee convicted for selling data
+
+### 4.5 Financial/Bank Leaks
+
+#### Сбербанк (Sberbank) — October 2019
+- **Claimed:** 60M credit card holders
+- **Confirmed:** At least 5,000 cards
+- **Fields:** ФИО, passport, credit card details, credit limit, operations history
+- **Cause:** Manager used admin rights to download data over 10+ hours via 8 GB flash drive
+- **Note:** Sberbank had only 18M credit card holders total; PIN/CVV NOT included
+
+#### ВТБ (VTB)
+- **2019:** 5,000 depositors offered for sale
+- **October 2024:** 6.1M claimed (VTB denied; called it compilation from open sources, dated 2022)
+
+#### Альфа-Банк (Alfa-Bank)
+- **2019:** 55K+ clients (2014-2015 era), then 504 records (2018-2019)
+- **January 2024:** 38M unique individuals claimed (115M+ total rows since 2004). Ukrainian hacker group KibOrg claimed responsibility. Alfa-Bank denied, called it compilation.
+
+#### НБКИ (National Credit History Bureau) — March 2024
+- **Claimed:** 200M+ rows
+- **Confirmed unique phones:** 18.6M
+- **Fields:** ФИО, DOB, document details, phone, loan amounts, city, region
+- **NBKI response:** Internal investigation found "grounds to consider AO NBKI as the source"
+
+### 4.6 Medical Database Leaks
+
+| Date | Organization | Records | Key Fields |
+|------|-------------|---------|------------|
+| Spring 2022 | Гемотест (Gemotest) | 30M+ rows + 554M orders | ФИО, DOB, address, phone, email, passport, test results |
+| May 2023 | Ситилаб (Citilab) | ~500K people; 14 TB total | Names, DOB, phones, emails |
+| July 2023 | Хеликс (Helix) | 7.3M rows | ФИО, 870K phones, 770K emails |
+| Dec 2023 | ЛабКвест (LabQuest) | Hundreds of thousands | Personal client data |
+| Mar 2024 | СитиМед (CityMed) | ~500K clients | Personal data |
+
+**Gemotest was fined only 60,000 RUB (~$800) for the 30M+ record breach.**
+
+### 4.7 Other Notable Databases
+
+#### Cronos Database Format
+**Cronos is NOT a single database** — it's a Russian DBMS (CronosPro/CronosPlus) used by ГИБДД, МВД, ФМС for structured data. "Cronos database" in probiv context = leaked government DBs in CronosPlus format.
+- **Parser tools:** `github.com/occrp/cronosparser` (OCCRP), `github.com/alephdata/cronodump` (Aleph Data)
+
+#### FSB Kordon-2023 (Border Crossing Database)
+- **Leaked:** August 2024 via Telegram
+- **Data period:** 2014-2023
+- **Fields:** ФИО, date/location of border crossing, transportation mode, destination
+- **Significance:** One of the largest FSB leaks ever
+
+### 4.8 Official Russian Government APIs Summary
+
+| Service | Official URL | API? | Free? | Auth |
+|---------|-------------|------|-------|------|
+| ФССП (Bailiffs) | api-ip.fssp.gov.ru | YES | YES (token) | Register at /register |
+| ФНС ЕГРЮЛ | egrul.nalog.ru | Semi (web+CAPTCHA) | Yes (web) | None |
+| ГАС Правосудие | api.sudrf.ru | YES (since 2018) | YES | Unknown |
+| kad.arbitr.ru | kad.arbitr.ru | Unofficial only | Via 3rd parties | Third-party tokens |
+| Росреестр PKK | pkk5.rosreestr.ru | YES (map) | YES | None |
+| data.gov.ru | data.gov.ru | YES (open data) | YES | None |
+| ГИБДД | гибдд.рф | NO public API | N/A | N/A |
+
+### 4.9 Probiv Ecosystem & Market
+
+**"Probiv"** (пробив) = Russia's illicit personal data market operating through corrupt insiders and automated tools.
+
+**Pricing trends:**
+- 2019-2023: Government DB queries ~1,500-2,000 RUB per lookup
+- Early 2024: Average cost rose 2.5x to 44,300 RUB
+- Call detail records (CDR): Price increased 3.3x
+- Banking info: Cost increased 1.5x
+
+**2025 crackdown:** Moscow courts arrested 14+ people in data trafficking. New Criminal Code amendments impose up to 10 years imprisonment. However, crackdown backfired — many brokers relocated abroad, leading to MORE data becoming freely available.
+
+### 4.10 Aggregate Statistics
+
+| Year | Databases Stolen | Records Compromised | Notes |
+|------|-----------------|---------------------|-------|
+| 2021 | — | 33M | Pre-war baseline |
+| 2022 | 311 | 1.4 billion | 42x increase; Ukraine conflict |
+| 2023 | 420 | 1.12 billion | 60% increase over 2022 |
+| 2024 | 592 | 710M+ | Continued growth |
+| 2025 | — | 767M (projected) | Retail #1, government #2 |
+
+**Russia ranks second globally in data breach volume.**
+
+### 4.11 Database Freshness & Reliability
 
 | Database | Last Known Update | Records (approx.) | Reliability |
 |----------|------------------|--------------------|-------------|
-| ГИБДД | 2022-2023 | 50M+ vehicles | High |
+| ГИБДД | 2020 (129M) | 129M+ vehicles | High |
 | ФНС/ЕГРЮЛ | Current (public) | 12M+ companies | Very High |
-| Passport DB | 2021-2022 | 100M+ | Medium (aging) |
-| MTS subscribers | 2022 | 21M | High |
-| Sberbank | 2019-2022 | 60M+ cards | Medium |
-| Yandex.Eda | 2022 | 6.9M | High |
-| CDEK | 2022 | 19M | High |
+| Passport DB | 2019-2023 | 100M+ | Medium (aging) |
+| МТС Bank | 2023 | 21M | High |
+| VK (2012) | 2012 (historic) | 100.5M accounts | High (passwords) |
+| VK (2024) | 2024 (scraped) | 390M profiles | High (no passwords) |
+| Sberbank | 2019 | 5K-60M claimed | Medium |
+| Яндекс.Еда | 2022 | 49.4M rows | High |
+| СДЭК | 2022 | 160M+ rows | High |
 | ФССП | Current (public) | Millions | Very High |
+| Росреестр (EGRN) | 2024 (claimed) | 82M sample | Unverified |
+| НБКИ (Credit Bureau) | 2024 | 18.6M phones | High |
+| FSB Kordon | 2014-2023 | Unknown | High |
 
 ---
 
