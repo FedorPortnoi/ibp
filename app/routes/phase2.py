@@ -221,53 +221,65 @@ def get_results(task_id):
 
     results = task.results
 
-    # Convert to JSON-serializable format
-    response = {
-        'status': 'success',
-        'task_id': task_id,
-        'target_name': task.target_name,
-        'results': {
-            'phones': [
-                {
-                    'number': p.number,
-                    'source': p.source,
-                    'confidence': p.confidence,
-                    'verified_on': p.verified_on
-                }
-                for p in results.phones
-            ],
-            'emails': [
-                {
-                    'email': e.email,
-                    'source': e.source,
-                    'confidence': e.confidence,
-                    'verified_on': e.verified_on
-                }
-                for e in results.emails
-            ],
-            'additional_profiles': [
-                {
-                    'platform': p.platform,
-                    'url': p.url,
-                    'username': p.username,
-                    'source': p.source
-                }
-                for p in results.additional_profiles
-            ],
-            'face_matches': [
-                {
-                    'platform': f.platform,
-                    'profile_url': f.profile_url,
-                    'username': f.username,
-                    'similarity': f.similarity_score,
-                    'thumbnail_url': f.thumbnail_url
-                }
-                for f in results.face_matches
-            ]
-        },
-        'stats': results.stats,
-        'errors': results.errors
-    }
+    # Handle both dict results (from Buratino flow) and Phase2Results objects
+    if isinstance(results, dict):
+        # Results from Buratino flow - already a dict with different structure
+        response = {
+            'status': 'success',
+            'task_id': task_id,
+            'target_name': task.target_name,
+            'results': results,
+            'stats': results,
+            'errors': []
+        }
+    else:
+        # Results from Phase2Results object (original flow)
+        response = {
+            'status': 'success',
+            'task_id': task_id,
+            'target_name': task.target_name,
+            'results': {
+                'phones': [
+                    {
+                        'number': p.number,
+                        'source': p.source,
+                        'confidence': p.confidence,
+                        'verified_on': p.verified_on
+                    }
+                    for p in results.phones
+                ],
+                'emails': [
+                    {
+                        'email': e.email,
+                        'source': e.source,
+                        'confidence': e.confidence,
+                        'verified_on': e.verified_on
+                    }
+                    for e in results.emails
+                ],
+                'additional_profiles': [
+                    {
+                        'platform': p.platform,
+                        'url': p.url,
+                        'username': p.username,
+                        'source': p.source
+                    }
+                    for p in results.additional_profiles
+                ],
+                'face_matches': [
+                    {
+                        'platform': f.platform,
+                        'profile_url': f.profile_url,
+                        'username': f.username,
+                        'similarity': f.similarity_score,
+                        'thumbnail_url': f.thumbnail_url
+                    }
+                    for f in results.face_matches
+                ]
+            },
+            'stats': results.stats,
+            'errors': results.errors
+        }
 
     return jsonify(response)
 
@@ -714,12 +726,22 @@ def start_buratino_analysis(investigation_id):
                 smtp_attempted = False
 
                 try:
-                    # Try SMTP verification on a few emails first to see if it works
+                    from app.services.phase2.email_generator import smtp_verify_email, CATCH_ALL_DOMAINS
+
+                    # Domains that block SMTP verification (same as in smtp_verify_email)
+                    BLOCKED_DOMAINS = {'mail.ru', 'bk.ru', 'list.ru', 'inbox.ru', 'yandex.ru', 'ya.ru'}
+
+                    # Find a testable email (not from blocked or catch-all domain)
                     test_result = None
-                    if email_candidates:
-                        from app.services.phase2.email_generator import smtp_verify_email
-                        test_email = email_candidates[0]['email']
-                        test_result = smtp_verify_email(test_email, timeout=5)
+                    test_email = None
+                    for candidate in email_candidates[:10]:
+                        email = candidate['email']
+                        domain = email.split('@')[1] if '@' in email else ''
+                        if domain and domain not in BLOCKED_DOMAINS and domain not in CATCH_ALL_DOMAINS:
+                            test_email = email
+                            test_result = smtp_verify_email(email, timeout=5)
+                            if test_result is not None:
+                                break  # Found a testable domain
 
                     if test_result is not None:
                         # SMTP verification working - use it
@@ -746,7 +768,8 @@ def start_buratino_analysis(investigation_id):
                                 })
                                 task.add_message(f'SMTP verified: {candidate["email"]}', 'success')
 
-                            elif verification == 'catch_all_domain':
+                            elif verification in ('catch_all_domain', 'likely'):
+                                # Both catch-all and blocked domains (mail.ru, yandex.ru) are marked "likely"
                                 discovered_emails.append({
                                     'email': candidate['email'],
                                     'source': candidate.get('source', 'Email pattern'),
@@ -754,6 +777,18 @@ def start_buratino_analysis(investigation_id):
                                     'verified_on': [],
                                     'verification': 'likely'
                                 })
+
+                            elif verification in ('inconclusive', 'unchecked'):
+                                # Emails we couldn't verify - keep but mark appropriately
+                                priority = candidate.get('priority', 99)
+                                if priority <= 3:  # Keep high priority patterns
+                                    discovered_emails.append({
+                                        'email': candidate['email'],
+                                        'source': candidate.get('source', 'Email pattern'),
+                                        'confidence': 'low',
+                                        'verified_on': [],
+                                        'verification': 'pattern'
+                                    })
                     else:
                         # SMTP blocked - use pattern-based confidence
                         task.add_message('SMTP verification unavailable (blocked by mail servers)', 'warning')

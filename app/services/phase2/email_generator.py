@@ -554,6 +554,10 @@ def smtp_verify_email(email: str, timeout: int = 8) -> Optional[bool]:
         return None
 
 
+# Domains that block SMTP verification but are popular in Russia
+BLOCKED_DOMAINS = {'mail.ru', 'bk.ru', 'list.ru', 'inbox.ru', 'yandex.ru', 'ya.ru'}
+
+
 def verify_email_candidates(
     candidates: List[Dict[str, Any]],
     max_to_verify: int = 25,
@@ -579,7 +583,7 @@ def verify_email_candidates(
 
     for candidate in sorted_candidates:
         email = candidate['email']
-        domain = email.split('@')[1]
+        domain = email.split('@')[1] if '@' in email else ''
 
         if checked >= max_to_verify:
             # Keep remaining without checking
@@ -601,10 +605,14 @@ def verify_email_candidates(
             logger.debug(f"SMTP rejected: {email}")
             continue
         else:
-            # Inconclusive
+            # Inconclusive - but differentiate popular domains
             if domain in CATCH_ALL_DOMAINS:
                 candidate['confidence'] = 'medium'
                 candidate['verification'] = 'catch_all_domain'
+            elif domain in BLOCKED_DOMAINS:
+                # Popular Russian domains that block SMTP - treat as likely
+                candidate['confidence'] = 'medium'
+                candidate['verification'] = 'likely'
             else:
                 candidate['confidence'] = 'low'
                 candidate['verification'] = 'inconclusive'
@@ -614,10 +622,10 @@ def verify_email_candidates(
         if checked < max_to_verify:
             time.sleep(delay)
 
-    # Sort: verified first, then catch-all, then by priority
+    # Sort: verified first, then likely/catch-all, then by priority
     verified.sort(key=lambda c: (
         0 if c.get('verification') == 'smtp_verified' else
-        1 if c.get('verification') == 'catch_all_domain' else 2,
+        1 if c.get('verification') in ('catch_all_domain', 'likely') else 2,
         c.get('priority', 99)
     ))
 
