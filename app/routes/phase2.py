@@ -881,7 +881,129 @@ def start_buratino_analysis(investigation_id):
                 except Exception as e:
                     logger.warning(f"Gravatar verification error: {e}")
 
-                # ===== STEP 5: Extract Friends =====
+                # ===== STEP 5.5: Run SourceManager (Breach DB + Holehe) =====
+                task.add_message('Running breach database & verification sources...', 'info')
+                task.update_progress('Breach Database Search', 60)
+
+                try:
+                    from app.services.phase2.source_manager import SourceManager
+
+                    sm = SourceManager(max_workers=4, timeout=120.0)
+
+                    # Collect emails found so far for breach checking
+                    known_emails = [e['email'] for e in discovered_emails]
+                    # Also add top email candidates that weren't yet verified
+                    email_cands_for_sm = []
+                    for c in email_candidates[:10]:
+                        addr = c['email'] if isinstance(c, dict) else str(c)
+                        if addr not in known_emails:
+                            email_cands_for_sm.append(c)
+
+                    # Collect passwords found by breach sources for HIBP validation
+                    # (will be populated by HudsonRock results through cross-source flow)
+
+                    sm_results = sm.run_all(
+                        name=input_name,
+                        email=known_emails[0] if known_emails else None,
+                        username=username,
+                        vk_id=str(vk_id),
+                        email_candidates=email_cands_for_sm,
+                    )
+
+                    sm_email_count = 0
+                    sm_phone_count = 0
+                    sm_profile_count = 0
+                    sm_credential_count = 0
+
+                    # Merge email results from SourceManager
+                    for sr in sm_results.get('email', []):
+                        # Check if this email is already discovered
+                        if sr.value.lower() not in {e['email'].lower() for e in discovered_emails}:
+                            discovered_emails.append({
+                                'email': sr.value,
+                                'source': sr.source_name,
+                                'confidence': sr.confidence_label,
+                                'verified_on': ['breach'] if sr.verified else [],
+                                'verification': sr.metadata.get('verification', 'breach_found'),
+                                'metadata': {
+                                    k: v for k, v in sr.metadata.items()
+                                    if k not in ('sources', 'source_count')
+                                },
+                            })
+                            sm_email_count += 1
+                        else:
+                            # Email already known — boost its confidence if breach-confirmed
+                            if sr.verified:
+                                for disc in discovered_emails:
+                                    if disc['email'].lower() == sr.value.lower():
+                                        if 'breach' not in disc.get('verified_on', []):
+                                            disc['verified_on'] = disc.get('verified_on', []) + ['breach']
+                                        disc['confidence'] = 'high'
+                                        disc['verification'] = sr.metadata.get('verification', disc.get('verification', ''))
+                                        break
+
+                    # Merge phone results
+                    for sr in sm_results.get('phone', []):
+                        if sr.value not in {p['number'] for p in discovered_phones}:
+                            discovered_phones.append({
+                                'number': sr.value,
+                                'source': sr.source_name,
+                                'confidence': sr.confidence_label,
+                                'verified_on': ['breach'] if sr.verified else [],
+                            })
+                            sm_phone_count += 1
+
+                    # Merge username/profile results
+                    for sr in sm_results.get('username', []):
+                        alternate_accounts.append({
+                            'platform': 'unknown',
+                            'username': sr.value,
+                            'url': '',
+                            'source': sr.source_name,
+                        })
+                        sm_profile_count += 1
+
+                    for sr in sm_results.get('profile', []):
+                        if sr.value not in {a.get('url', '') for a in alternate_accounts}:
+                            alternate_accounts.append({
+                                'platform': sr.metadata.get('platform', 'unknown'),
+                                'username': sr.metadata.get('email_used', ''),
+                                'url': sr.value,
+                                'source': sr.source_name,
+                            })
+                            sm_profile_count += 1
+
+                    # Count credentials found
+                    for sr in sm_results.get('credential', []):
+                        sm_credential_count += 1
+
+                    # Store credential data in investigation metadata
+                    credential_results = sm_results.get('credential', [])
+                    if credential_results:
+                        breach_credentials = []
+                        for sr in credential_results:
+                            breach_credentials.append({
+                                'username': sr.value,
+                                'url': sr.raw_data.get('url', ''),
+                                'source': sr.source_name,
+                                'date': sr.metadata.get('date_compromised', ''),
+                            })
+
+                    if sm_email_count or sm_phone_count or sm_profile_count or sm_credential_count:
+                        task.add_message(
+                            f'SourceManager found: {sm_email_count} emails, '
+                            f'{sm_phone_count} phones, {sm_profile_count} profiles, '
+                            f'{sm_credential_count} credentials',
+                            'success'
+                        )
+                    else:
+                        task.add_message('No new data from breach sources', 'info')
+
+                except Exception as e:
+                    logger.warning(f"SourceManager error: {e}", exc_info=True)
+                    task.add_message(f'Breach source error: {str(e)[:80]}', 'warning')
+
+                # ===== STEP 6: Extract Friends =====
                 task.add_message('Extracting friends network...', 'info')
                 task.update_progress('Friends Extraction', 70)
 
@@ -903,7 +1025,7 @@ def start_buratino_analysis(investigation_id):
 
                 task.update_progress('Saving results', 90)
 
-                # ===== STEP 6: Save Discovered Contacts =====
+                # ===== STEP 7: Save Discovered Contacts =====
                 # Deduplicate phones
                 seen_phones = set()
                 unique_phones = []
