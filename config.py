@@ -48,6 +48,22 @@ class Config:
     # Demo mode: runs without API keys using simulated data
     DEMO_MODE = not os.environ.get('VK_SERVICE_TOKEN')
 
+    # Telegram Bot Automation (get from https://my.telegram.org/apps)
+    TELEGRAM_API_ID = os.environ.get('TELEGRAM_API_ID')
+    TELEGRAM_API_HASH = os.environ.get('TELEGRAM_API_HASH')
+    TELEGRAM_PHONE = os.environ.get('TELEGRAM_PHONE')
+
+    # Breach Database APIs
+    LEAKCHECK_API_KEY = os.environ.get('LEAKCHECK_API_KEY')
+    SNUSBASE_API_KEY = os.environ.get('SNUSBASE_API_KEY')
+    DEHASHED_EMAIL = os.environ.get('DEHASHED_EMAIL')
+    DEHASHED_API_KEY = os.environ.get('DEHASHED_API_KEY')
+
+    # GetContact (requires rooted Android credentials)
+    GETCONTACT_TOKEN = os.environ.get('GETCONTACT_TOKEN')
+    GETCONTACT_AES_KEY = os.environ.get('GETCONTACT_AES_KEY')
+    GETCONTACT_DEVICE_ID = os.environ.get('GETCONTACT_DEVICE_ID')
+
 
 class DevelopmentConfig(Config):
     """Development configuration."""

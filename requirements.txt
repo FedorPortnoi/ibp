@@ -59,3 +59,6 @@ PyPDF2>=3.0.1
 
 # Word Clouds (for text analysis visualization)
 wordcloud>=1.9.3
+
+# Telegram Bot Automation
+telethon>=1.36.0

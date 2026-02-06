@@ -981,3 +981,57 @@ def results_by_investigation(investigation_id):
     Redirects to buratino_results for consistency.
     """
     return buratino_results(investigation_id)
+
+
+# ============================================
+# SOURCE PLUGIN SYSTEM API ROUTES
+# ============================================
+
+@phase2_bp.route('/api/sources/status')
+def get_sources_status():
+    """
+    Get status of all Phase 2 data source plugins.
+    Shows which sources are configured, available, and their tiers.
+    """
+    try:
+        from app.services.phase2.source_manager import SourceManager
+        manager = SourceManager()
+        return jsonify({
+            'status': 'ok',
+            'sources': manager.get_source_status(),
+            'total': len(manager.sources),
+            'available': len([s for s in manager.sources if s.is_available()]),
+        })
+    except Exception as e:
+        logger.error(f"Source status error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@phase2_bp.route('/api/telegram/status')
+def get_telegram_status():
+    """
+    Get Telegram session manager status.
+    Returns whether Telegram is configured and connected.
+    """
+    try:
+        from app.services.telegram.session_manager import TelegramSessionManager
+        status = TelegramSessionManager.get_status()
+        return jsonify({
+            'status': 'ok',
+            'telegram': status,
+        })
+    except ImportError:
+        return jsonify({
+            'status': 'ok',
+            'telegram': {
+                'configured': False,
+                'client_exists': False,
+                'connected': False,
+                'error': 'telethon not installed',
+            },
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+        }), 500
