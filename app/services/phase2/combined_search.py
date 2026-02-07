@@ -778,6 +778,92 @@ class Phase2CombinedSearch:
 
         self.logger.info(f"Checked {breach_checked} emails for breaches")
 
+        # ===== STEP 5.7: Phone Discovery =====
+        self._update_progress("Discovering phone numbers...", 82)
+        self.logger.info("Step 5.7: Phone number discovery")
+
+        try:
+            phone_service = PhoneDiscoveryService(max_candidates=50, verify_timeout=10.0)
+            email_strings = [e.email for e in emails if '@' in e.email]
+            profile_url_dicts = [
+                {'url': p.get('url', ''), 'platform': p.get('platform', '')}
+                for p in selected_profiles
+            ]
+
+            phone_results = phone_service.discover_sync(
+                first_name=first_name,
+                last_name=last_name,
+                usernames=username_hints,
+                profile_urls=profile_url_dicts,
+                emails=email_strings
+            )
+
+            for dp in phone_results.phones:
+                # Deduplicate against existing phones
+                if not any(p.number == dp.number for p in phones):
+                    phones.append(DiscoveredPhone(
+                        number=dp.number,
+                        source=dp.source,
+                        confidence=dp.confidence,
+                    ))
+
+            self.logger.info(
+                f"Phone discovery: found {len(phone_results.phones)} phones "
+                f"({phone_results.candidates_generated} candidates, "
+                f"{phone_results.candidates_verified} verified) in {phone_results.discovery_time:.1f}s"
+            )
+            phone_service.close()
+
+        except Exception as e:
+            error_msg = f"Phone discovery error: {str(e)}"
+            errors.append(error_msg)
+            self.logger.warning(error_msg)
+
+        self.logger.info(f"CHECKPOINT after Step 5.7: phones={len(phones)}")
+
+        # ===== STEP 5.8: VK API Phone Extraction =====
+        # If we have a confirmed VK profile, try VK API fields for phone
+        if self.vk_extractor and self.vk_extractor.access_token:
+            self._update_progress("Extracting VK contacts via API...", 83)
+            self.logger.info("Step 5.8: VK API phone extraction")
+
+            for profile in selected_profiles:
+                if profile.get('platform', '').lower() == 'vk':
+                    vk_id = profile.get('platform_id') or profile.get('username', '')
+                    if vk_id:
+                        try:
+                            # Try users.get with contacts fields
+                            import requests as _requests
+                            resp = _requests.post(
+                                'https://api.vk.com/method/users.get',
+                                data={
+                                    'user_ids': vk_id,
+                                    'fields': 'contacts,mobile_phone,home_phone,connections',
+                                    'access_token': self.vk_extractor.access_token,
+                                    'v': '5.199',
+                                },
+                                timeout=10,
+                            )
+                            data = resp.json()
+                            users = data.get('response', [])
+                            for user in users:
+                                mobile = user.get('mobile_phone', '').strip()
+                                home = user.get('home_phone', '').strip()
+                                for phone_val, label in [(mobile, 'VK mobile_phone'), (home, 'VK home_phone')]:
+                                    if phone_val and len(phone_val) >= 7:
+                                        phone_info = self.phone_validator.validate(phone_val)
+                                        if phone_info.is_valid:
+                                            number = phone_info.display_format
+                                            if not any(p.number == number for p in phones):
+                                                phones.append(DiscoveredPhone(
+                                                    number=number,
+                                                    source=label,
+                                                    confidence='high',
+                                                ))
+                                                self.logger.info(f"VK API phone: {number} from {label}")
+                        except Exception as e:
+                            self.logger.debug(f"VK API phone extraction error: {e}")
+
         # ===== STEP 6: Check Gravatar for Found Emails =====
         self._update_progress("Checking Gravatar profiles...", 85)
         self.logger.info("Step 6: Checking Gravatar profiles")

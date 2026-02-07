@@ -1003,6 +1003,49 @@ def start_buratino_analysis(investigation_id):
                     logger.warning(f"SourceManager error: {e}", exc_info=True)
                     task.add_message(f'Breach source error: {str(e)[:80]}', 'warning')
 
+                # ===== STEP 5.5: Phone Discovery Service =====
+                task.add_message('Running phone discovery service...', 'info')
+                task.update_progress('Phone Discovery', 65)
+
+                try:
+                    from app.services.phase2.phone_discovery import PhoneDiscoveryService
+
+                    phone_service = PhoneDiscoveryService(max_candidates=50, verify_timeout=10.0)
+
+                    phone_results = phone_service.discover_sync(
+                        first_name=first_name if first_name else input_name.split()[0],
+                        last_name=last_name if last_name else (input_name.split()[-1] if len(input_name.split()) > 1 else ''),
+                        usernames=all_usernames,
+                        profile_urls=[{'url': profile_url, 'platform': 'vk'}],
+                        emails=[e['email'] for e in discovered_emails if 'email' in e]
+                    )
+
+                    new_phone_count = 0
+                    for dp in phone_results.phones:
+                        # Deduplicate against already-found phones
+                        normalized = dp.number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+                        if normalized not in {p['number'].replace(' ', '').replace('-', '').replace('(', '').replace(')', '') for p in discovered_phones}:
+                            discovered_phones.append({
+                                'number': dp.number,
+                                'source': dp.source,
+                                'confidence': dp.confidence,
+                                'verified_on': [],
+                                'carrier': dp.carrier or '',
+                                'region': dp.region or '',
+                            })
+                            new_phone_count += 1
+
+                    if new_phone_count:
+                        task.add_message(f'Phone discovery found {new_phone_count} new phone numbers', 'success')
+                    else:
+                        task.add_message(f'Phone discovery: {phone_results.candidates_generated} candidates checked, no new phones', 'info')
+
+                    phone_service.close()
+
+                except Exception as e:
+                    logger.warning(f"Phone discovery error: {e}")
+                    task.add_message(f'Phone discovery error: {str(e)[:80]}', 'warning')
+
                 # ===== STEP 6: Extract Friends =====
                 task.add_message('Extracting friends network...', 'info')
                 task.update_progress('Friends Extraction', 70)
