@@ -56,11 +56,12 @@
         </div>
     </div>
 
-    <!-- Profiles Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="profilesGrid">
-        {% for profile in profiles %}
+    <!-- Tiered Profiles Display -->
+    <div id="profilesContainer">
+        {# Macro for a single profile card #}
+        {% macro profile_card(profile, tier_class='') %}
         {% if not profile.is_rejected %}
-        <div class="profile-card bg-bg-panel rounded-xl border border-violet-200 overflow-hidden hover:border-violet transition-all cursor-pointer group"
+        <div class="profile-card {{ tier_class }} bg-bg-panel rounded-xl border border-violet-200 overflow-hidden hover:border-violet transition-all cursor-pointer group"
              data-profile-id="{{ profile.id }}"
              data-similarity="{{ profile.name_similarity or 0 }}"
              data-confidence="{{ profile.confidence_score or 0 }}"
@@ -81,27 +82,34 @@
                     </div>
                     {% endif %}
                 </div>
-                <!-- Confidence badge -->
-                {% if profile.confidence_score and profile.confidence_score >= 70 %}
+                <!-- Similarity tier badge -->
+                {% set sim = profile.name_similarity or 0 %}
+                {% if sim >= 90 %}
                 <div class="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                    High Match
+                    Exact Match {{ "%.0f"|format(sim) }}%
                 </div>
-                {% elif profile.name_match %}
+                {% elif sim >= 70 %}
                 <div class="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">
-                    Name Match
+                    Likely {{ "%.0f"|format(sim) }}%
+                </div>
+                {% elif sim >= 50 %}
+                <div class="absolute top-2 right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                    Possible {{ "%.0f"|format(sim) }}%
+                </div>
+                {% elif sim > 0 %}
+                <div class="absolute top-2 right-2 bg-gray-500 text-white text-xs px-2 py-1 rounded-full">
+                    Weak {{ "%.0f"|format(sim) }}%
                 </div>
                 {% endif %}
             </div>
 
             <!-- Content -->
             <div class="pt-12 p-4">
-                <!-- Name -->
                 <h3 class="font-semibold text-white group-hover:text-violet transition-colors">
                     {{ profile.full_name or profile.display_name or profile.username }}
                 </h3>
                 <p class="text-sm text-violet">@{{ profile.username or profile.platform_id }}</p>
 
-                <!-- Info -->
                 <div class="mt-3 space-y-1 text-sm text-gray-400">
                     {% if profile.city %}
                     <div class="flex items-center">
@@ -131,7 +139,7 @@
                     {% endif %}
                 </div>
 
-                <!-- Match Score -->
+                <!-- Match Score Bar -->
                 {% if profile.name_similarity %}
                 <div class="mt-3 pt-3 border-t border-violet-100">
                     <div class="flex items-center justify-between text-xs">
@@ -139,12 +147,20 @@
                         <span class="text-violet font-medium">{{ "%.0f"|format(profile.name_similarity) }}%</span>
                     </div>
                     <div class="mt-1 h-1 bg-bg-dark rounded-full overflow-hidden">
-                        <div class="h-full bg-violet rounded-full" style="width: {{ profile.name_similarity }}%"></div>
+                        {% if profile.name_similarity >= 90 %}
+                        <div class="h-full bg-green-500 rounded-full" style="width: {{ profile.name_similarity }}%"></div>
+                        {% elif profile.name_similarity >= 70 %}
+                        <div class="h-full bg-yellow-500 rounded-full" style="width: {{ profile.name_similarity }}%"></div>
+                        {% elif profile.name_similarity >= 50 %}
+                        <div class="h-full bg-orange-500 rounded-full" style="width: {{ profile.name_similarity }}%"></div>
+                        {% else %}
+                        <div class="h-full bg-gray-500 rounded-full" style="width: {{ [profile.name_similarity, 5]|max }}%"></div>
+                        {% endif %}
                     </div>
                 </div>
                 {% endif %}
 
-                <!-- Action buttons (shown on hover) -->
+                <!-- Action buttons -->
                 <div class="mt-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onclick="event.stopPropagation(); confirmProfile({{ profile.id }})"
                             class="flex-1 bg-violet hover:bg-violet-dim text-white text-sm py-2 px-3 rounded-lg transition-colors">
@@ -158,7 +174,89 @@
             </div>
         </div>
         {% endif %}
+        {% endmacro %}
+
+        {# Categorize profiles into tiers #}
+        {% set ns = namespace(exact=[], likely=[], possible=[], weak=[]) %}
+        {% for profile in profiles %}
+            {% if not profile.is_rejected %}
+                {% set sim = profile.name_similarity or 0 %}
+                {% if sim >= 90 %}
+                    {% set ns.exact = ns.exact + [profile] %}
+                {% elif sim >= 70 %}
+                    {% set ns.likely = ns.likely + [profile] %}
+                {% elif sim >= 50 %}
+                    {% set ns.possible = ns.possible + [profile] %}
+                {% else %}
+                    {% set ns.weak = ns.weak + [profile] %}
+                {% endif %}
+            {% endif %}
         {% endfor %}
+
+        <!-- Exact Matches (90-100%) — always visible -->
+        {% if ns.exact %}
+        <div class="mb-6">
+            <div class="flex items-center gap-2 mb-3">
+                <span class="w-3 h-3 rounded-full bg-green-500"></span>
+                <h2 class="text-lg font-semibold text-white">Exact Match</h2>
+                <span class="text-sm text-gray-500">({{ ns.exact|length }})</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="profilesGrid">
+                {% for profile in ns.exact %}
+                    {{ profile_card(profile) }}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Likely Matches (70-89%) — always visible -->
+        {% if ns.likely %}
+        <div class="mb-6">
+            <div class="flex items-center gap-2 mb-3">
+                <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+                <h2 class="text-lg font-semibold text-white">Likely Match</h2>
+                <span class="text-sm text-gray-500">({{ ns.likely|length }})</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for profile in ns.likely %}
+                    {{ profile_card(profile) }}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Possible Matches (50-69%) — always visible -->
+        {% if ns.possible %}
+        <div class="mb-6">
+            <div class="flex items-center gap-2 mb-3">
+                <span class="w-3 h-3 rounded-full bg-orange-500"></span>
+                <h2 class="text-lg font-semibold text-white">Possible Match</h2>
+                <span class="text-sm text-gray-500">({{ ns.possible|length }})</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for profile in ns.possible %}
+                    {{ profile_card(profile) }}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Weak Matches (below 50%) — collapsed by default -->
+        {% if ns.weak %}
+        <div class="mb-6">
+            <button onclick="toggleWeakMatches()" class="flex items-center gap-2 mb-3 w-full text-left hover:opacity-80 transition-opacity">
+                <span class="w-3 h-3 rounded-full bg-gray-500"></span>
+                <h2 class="text-lg font-semibold text-gray-400">Weak Match</h2>
+                <span class="text-sm text-gray-500">({{ ns.weak|length }})</span>
+                <span id="weakToggleIcon" class="text-gray-500 ml-1">&#9654;</span>
+            </button>
+            <div id="weakMatchesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 hidden">
+                {% for profile in ns.weak %}
+                    {{ profile_card(profile, 'opacity-75') }}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Empty State -->
@@ -313,19 +411,33 @@
         }
     }
 
-    // Sorting
+    function toggleWeakMatches() {
+        const grid = document.getElementById('weakMatchesGrid');
+        const icon = document.getElementById('weakToggleIcon');
+        if (grid.classList.contains('hidden')) {
+            grid.classList.remove('hidden');
+            icon.innerHTML = '&#9660;';
+        } else {
+            grid.classList.add('hidden');
+            icon.innerHTML = '&#9654;';
+        }
+    }
+
+    // Sorting — works across all tier grids
     document.getElementById('sortBy').addEventListener('change', function() {
         const sortBy = this.value;
-        const grid = document.getElementById('profilesGrid');
-        const cards = Array.from(grid.children);
+        document.querySelectorAll('.grid').forEach(grid => {
+            const cards = Array.from(grid.querySelectorAll('.profile-card'));
+            if (cards.length === 0) return;
 
-        cards.sort((a, b) => {
-            const aVal = parseFloat(a.dataset[sortBy]) || 0;
-            const bVal = parseFloat(b.dataset[sortBy]) || 0;
-            return bVal - aVal;
+            cards.sort((a, b) => {
+                const aVal = parseFloat(a.dataset[sortBy]) || 0;
+                const bVal = parseFloat(b.dataset[sortBy]) || 0;
+                return bVal - aVal;
+            });
+
+            cards.forEach(card => grid.appendChild(card));
         });
-
-        cards.forEach(card => grid.appendChild(card));
     });
 
     // Close modal on outside click
