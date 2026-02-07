@@ -556,7 +556,7 @@ class VKPhoneSearcher:
     VK_API_VERSION = "5.131"
 
     def __init__(self, access_token: Optional[str] = None):
-        self.access_token = access_token or os.environ.get('VK_ACCESS_TOKEN')
+        self.access_token = access_token or os.environ.get('VK_SERVICE_TOKEN')
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
