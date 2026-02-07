@@ -49,15 +49,12 @@ def create_app(config_name='development'):
     from app.routes.phase3 import phase3_bp
     from app.routes.report import report_bp
     from app.routes.phase4 import phase4_bp
-    from app.routes.auth import auth_bp
-
     app.register_blueprint(main_bp)
     app.register_blueprint(phase1_bp)
     app.register_blueprint(phase2_bp)
     app.register_blueprint(phase3_bp)
     app.register_blueprint(report_bp)
     app.register_blueprint(phase4_bp)
-    app.register_blueprint(auth_bp)
     
     # Create database tables
     with app.app_context():

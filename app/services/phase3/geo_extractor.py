@@ -5,6 +5,7 @@ Extract location data from social media posts and build location timeline.
 """
 
 import logging
+import os
 import re
 import json
 from typing import List, Dict, Optional, Tuple
@@ -119,8 +120,8 @@ class GeoExtractor:
         'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
     }
 
-    def __init__(self, vk_access_token: Optional[str] = None):
-        self.vk_token = vk_access_token
+    def __init__(self, vk_service_token: Optional[str] = None):
+        self.vk_token = vk_service_token or os.environ.get('VK_SERVICE_TOKEN')
         self.session = requests.Session()
         self.session.headers.update(self.HEADERS)
 

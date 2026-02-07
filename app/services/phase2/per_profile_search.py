@@ -773,13 +773,13 @@ class PerProfileSearchService:
     - Early termination when enough results found
     """
 
-    def __init__(self, fast_mode: bool = True, vk_token: str = None):
+    def __init__(self, fast_mode: bool = True, vk_service_token: str = None):
         self.validator = RussianPhoneValidator()
         self._executor = ThreadPoolExecutor(max_workers=8)  # Increased for more parallelism
         self.holehe_timeout = 5 if fast_mode else 8  # Reduced timeout in fast mode
         self.phone_service = PhoneDiscoveryService()
         self.breach_checker = BreachChecker(use_h8mail=False)  # Use API-only for speed
-        self.vk_extractor = VKAPIExtractor(access_token=vk_token)  # VK API for better extraction
+        self.vk_extractor = VKAPIExtractor(access_token=vk_service_token)  # VK API for better extraction
         self.fast_mode = fast_mode
         self.min_verified_emails = 3  # Stop after finding this many verified emails
         self.max_email_candidates = 15 if fast_mode else 30  # Fewer candidates in fast mode

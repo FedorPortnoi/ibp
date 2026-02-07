@@ -99,7 +99,7 @@ class Phase2CombinedSearch:
     Orchestrates all Phase 2 discovery services.
     """
 
-    def __init__(self, vk_access_token: Optional[str] = None):
+    def __init__(self, vk_service_token: Optional[str] = None):
         self.logger = logging.getLogger(__name__)
         self.progress_callback: Optional[Callable] = None
 
@@ -110,13 +110,13 @@ class Phase2CombinedSearch:
         # ===== NEW: Initialize enhanced services =====
         self.phone_validator = RussianPhoneValidator()
         self.mailcat_discovery = MailcatEmailDiscovery()
-        self.vk_extractor = VKAPIExtractor(access_token=vk_access_token)
+        self.vk_extractor = VKAPIExtractor(access_token=vk_service_token)
 
         # ===== NEW: Deep dive services (Part 2) =====
         self.ok_checker = OKChecker()
         self.username_intel = UsernameIntelligence()
         self.breach_checker = BreachChecker()
-        self.vk_wall_extractor = VKWallExtractor(access_token=vk_access_token)
+        self.vk_wall_extractor = VKWallExtractor(access_token=vk_service_token)
 
         # ===== NEW: Fast async email discovery =====
         self.email_discovery = EmailDiscoveryService(
