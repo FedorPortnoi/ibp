@@ -624,55 +624,66 @@ class BuratinoVKSearch:
             logger.warning("russian_diminutives module not available")
 
         # ── Step 3: Transliteration variants (screen name guessing) ──
-        try:
-            from app.services.phase1.transliteration import transliterate_name_part, generate_username_patterns
-            first_variants = transliterate_name_part(first_name, max_variants=3)
-            last_variants = transliterate_name_part(last_name, max_variants=3) if last_name else ['']
+        # Only run if we have few results from accurate strategies (steps 1-2)
+        if len(all_profiles) < 5:
+            logger.info(
+                f"Expanded search: only {len(all_profiles)} results from people search, "
+                f"trying screen name guessing..."
+            )
+            try:
+                from app.services.phase1.transliteration import transliterate_name_part, generate_username_patterns
+                first_variants = transliterate_name_part(first_name, max_variants=3)
+                last_variants = transliterate_name_part(last_name, max_variants=3) if last_name else ['']
 
-            screen_name_candidates = []
-            for f_lat in first_variants:
-                for l_lat in last_variants:
-                    if l_lat:
-                        screen_name_candidates.extend(generate_username_patterns(f_lat, l_lat))
+                screen_name_candidates = []
+                for f_lat in first_variants:
+                    for l_lat in last_variants:
+                        if l_lat:
+                            screen_name_candidates.extend(generate_username_patterns(f_lat, l_lat))
 
-            # Deduplicate
-            screen_name_candidates = list(dict.fromkeys(screen_name_candidates))[:20]
+                # Deduplicate
+                screen_name_candidates = list(dict.fromkeys(screen_name_candidates))[:20]
 
-            if screen_name_candidates and self.token and self.session:
-                logger.info(f"Expanded search: resolving {len(screen_name_candidates)} transliterated screen names")
-                resolved_ids = []
-                for name in screen_name_candidates:
-                    try:
-                        resp = self.session.post(
-                            f"{self.API_BASE_URL}/utils.resolveScreenName",
-                            data={
-                                'screen_name': name,
-                                'access_token': self.token,
-                                'v': self.API_VERSION,
-                            },
-                            timeout=5,
-                        )
-                        data = resp.json()
-                        result = data.get('response', {})
-                        if result and result.get('type') == 'user':
-                            uid = result['object_id']
-                            if uid not in all_profiles:
-                                resolved_ids.append(uid)
-                        time.sleep(0.35)
-                    except Exception:
-                        pass
+                if screen_name_candidates and self.token and self.session:
+                    logger.info(f"Expanded search: resolving {len(screen_name_candidates)} transliterated screen names")
+                    resolved_ids = []
+                    for name in screen_name_candidates:
+                        try:
+                            resp = self.session.post(
+                                f"{self.API_BASE_URL}/utils.resolveScreenName",
+                                data={
+                                    'screen_name': name,
+                                    'access_token': self.token,
+                                    'v': self.API_VERSION,
+                                },
+                                timeout=5,
+                            )
+                            data = resp.json()
+                            result = data.get('response', {})
+                            if result and result.get('type') == 'user':
+                                uid = result['object_id']
+                                if uid not in all_profiles:
+                                    resolved_ids.append(uid)
+                            time.sleep(0.35)
+                        except Exception:
+                            pass
 
-                # Enrich resolved IDs
-                if resolved_ids:
-                    from app.services.phase1.vk_web_search import VKWebSearch
-                    web = VKWebSearch(service_token=self.token)
-                    enriched = web._enrich_profiles(resolved_ids, query)
-                    for p_data in enriched:
-                        p = self._parse_profile(p_data, query)
-                        if p.vk_id not in all_profiles:
-                            all_profiles[p.vk_id] = p
-        except ImportError:
-            logger.warning("transliteration module not available")
+                    # Enrich resolved IDs (name verification applied inside _enrich_profiles)
+                    if resolved_ids:
+                        from app.services.phase1.vk_web_search import VKWebSearch
+                        web = VKWebSearch(service_token=self.token)
+                        enriched = web._enrich_profiles(resolved_ids, query)
+                        for p_data in enriched:
+                            p = self._parse_profile(p_data, query)
+                            if p.vk_id not in all_profiles:
+                                all_profiles[p.vk_id] = p
+            except ImportError:
+                logger.warning("transliteration module not available")
+        else:
+            logger.info(
+                f"Expanded search: got {len(all_profiles)} results from people search, "
+                f"skipping screen name guessing"
+            )
 
         # ── Step 4: First-name-only search with fuzzy surname matching ──
         if last_name and self.token:

@@ -202,34 +202,46 @@ class VKWebSearch:
         """
         Search VK for people by name. Returns (profiles, total_count).
 
-        Strategy (combined, all results merged and deduped):
-        1. Web token users.search — best results (requires saved browser session)
-        2. Screen name guessing (transliterate → resolve via service token)
-        3. newsfeed.search fallback (finds post authors, service token)
+        Strategy (ordered by accuracy, screen name guessing is conditional):
+        1. People search via web token users.search (most accurate)
+        2. newsfeed.search (supplementary — finds post authors)
+        3. Screen name guessing (ONLY if steps 1-2 found < 5 results,
+           with name verification from verify_profile_name_matches_query)
 
         Each profile is a dict with VK API user fields (same format as users.get).
         """
         all_user_ids = []
         seen_ids = set()
+        id_methods = {}  # Track discovery method per user ID
 
-        def _add_ids(ids: List[int]):
+        def _add_ids(ids: List[int], method: str = 'unknown'):
             for uid in ids:
                 if uid not in seen_ids:
                     seen_ids.add(uid)
                     all_user_ids.append(uid)
+                    id_methods[uid] = method
 
-        # Step 1: Web token users.search (best, up to 1000 results)
+        # Step 1: People search (most accurate — searches real name fields)
         web_search_ids = self._playwright_search(query, count)
-        _add_ids(web_search_ids)
+        _add_ids(web_search_ids, 'people_search')
 
-        # Step 2: Screen name guessing (catches profiles with matching usernames)
-        guessed_ids = self._guess_screen_names(query)
-        _add_ids(guessed_ids)
+        # Step 2: Newsfeed search (supplementary — finds post authors)
+        newsfeed_ids = self._newsfeed_search(query)
+        _add_ids(newsfeed_ids, 'newsfeed')
 
-        # Step 3: newsfeed.search fallback (post authors mentioning the name)
-        if not all_user_ids:
-            newsfeed_ids = self._newsfeed_search(query)
-            _add_ids(newsfeed_ids)
+        # Step 3: Screen name guessing (only if few results from accurate strategies)
+        if len(seen_ids) < 5:
+            logger.info(
+                f"VKWebSearch: only {len(seen_ids)} results from people/newsfeed search, "
+                f"trying screen name guessing..."
+            )
+            guessed_ids = self._guess_screen_names(query)
+            _add_ids(guessed_ids, 'screen_name')
+        else:
+            logger.info(
+                f"VKWebSearch: got {len(seen_ids)} results from people/newsfeed search, "
+                f"skipping screen name guessing"
+            )
 
         if not all_user_ids:
             logger.info(f"VKWebSearch: no results for '{query}'")
@@ -237,6 +249,11 @@ class VKWebSearch:
 
         # Step 4: Enrich discovered IDs with users.get (service token)
         profiles = self._enrich_profiles(all_user_ids, query)
+
+        # Tag each profile with its discovery method
+        for p in profiles:
+            p['discovery_method'] = id_methods.get(p.get('id'), 'unknown')
+
         return profiles, len(profiles)
 
     def _guess_screen_names(self, query: str) -> List[int]:
