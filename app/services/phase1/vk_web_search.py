@@ -31,6 +31,7 @@ import logging
 import os
 import re
 import time
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 
@@ -54,6 +55,81 @@ USER_AGENTS = [
 
 STATE_FILE = os.path.join(SESSION_DIR, 'state.json')
 TOKEN_FILE = os.path.join(SESSION_DIR, 'web_token.json')
+
+# Screen name match threshold: 40% average first+last similarity.
+# Generous enough for diminutives (Ольга→Оля), strict enough to reject
+# completely different names (e.g. "Егор Гусев" for search "Ольга Ахтинас").
+SCREEN_NAME_MATCH_THRESHOLD = 0.4
+
+
+def verify_profile_name_matches_query(profile: dict, search_first: str, search_last: str) -> bool:
+    """
+    Check if a VK profile's actual name matches the search query.
+    Returns True if it's a genuine match, False if it's a coincidental screen name.
+
+    Uses fuzzy matching with transliteration and diminutive support.
+    """
+    profile_first = (profile.get('first_name') or '').strip().lower()
+    profile_last = (profile.get('last_name') or '').strip().lower()
+    search_first = (search_first or '').strip().lower()
+    search_last = (search_last or '').strip().lower()
+
+    if not profile_first and not profile_last:
+        return False
+
+    # Direct fuzzy comparison
+    first_sim = SequenceMatcher(None, search_first, profile_first).ratio()
+    last_sim = SequenceMatcher(None, search_last, profile_last).ratio()
+
+    # Cross-script comparison via transliteration
+    try:
+        from transliterate import translit
+
+        def _to_latin(text):
+            try:
+                return translit(text, 'ru', reversed=True).lower()
+            except Exception:
+                return text
+    except ImportError:
+        _table = {
+            'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e',
+            'ё': 'yo', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'j', 'к': 'k',
+            'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r',
+            'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts',
+            'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '',
+            'э': 'e', 'ю': 'yu', 'я': 'ya',
+        }
+
+        def _to_latin(text):
+            return ''.join(_table.get(ch, ch) for ch in text)
+
+    sf_lat = _to_latin(search_first)
+    sl_lat = _to_latin(search_last)
+    pf_lat = _to_latin(profile_first)
+    pl_lat = _to_latin(profile_last)
+
+    first_sim = max(first_sim,
+                    SequenceMatcher(None, sf_lat, pf_lat).ratio(),
+                    SequenceMatcher(None, sf_lat, profile_first).ratio(),
+                    SequenceMatcher(None, search_first, pf_lat).ratio())
+    last_sim = max(last_sim,
+                   SequenceMatcher(None, sl_lat, pl_lat).ratio(),
+                   SequenceMatcher(None, sl_lat, profile_last).ratio(),
+                   SequenceMatcher(None, search_last, pl_lat).ratio())
+
+    # Diminutive matching for first names
+    try:
+        from app.services.phase1.russian_diminutives import get_all_name_variants
+        search_variants = [v.lower() for v in get_all_name_variants(search_first)]
+        profile_variants = [v.lower() for v in get_all_name_variants(profile_first)]
+        for sv in search_variants:
+            for pv in profile_variants:
+                first_sim = max(first_sim, SequenceMatcher(None, sv, pv).ratio())
+    except ImportError:
+        pass
+
+    overall = (first_sim + last_sim) / 2
+    return overall >= SCREEN_NAME_MATCH_THRESHOLD
 
 
 def _has_session() -> bool:
@@ -795,32 +871,25 @@ class VKWebSearch:
             except Exception as e:
                 logger.warning(f"users.get enrichment error: {e}")
 
-        # Filter: only keep profiles where name matches the query
-        # Support both Cyrillic and Latin (VK may return names in either)
+        # Filter: verify each profile's actual name matches the search query
+        # Uses fuzzy matching with transliteration + diminutive support
         query_parts = query.lower().split()
         if len(query_parts) >= 2:
-            # Build search terms in both Cyrillic and Latin
-            search_terms = list(query_parts)
-            try:
-                from transliterate import translit
-                for part in query_parts:
-                    search_terms.append(translit(part, 'ru', reversed=True).lower())
-            except Exception:
-                for part in query_parts:
-                    search_terms.append(self._basic_translit(part))
+            search_first = query_parts[0]
+            search_last = query_parts[1]
 
             filtered = []
             for p in profiles:
-                fn = p.get('first_name', '').lower()
-                ln = p.get('last_name', '').lower()
-                full = f"{fn} {ln}"
-                # Check if any search term matches first or last name
-                matches = sum(
-                    1 for term in search_terms
-                    if term in fn or term in ln or fn.startswith(term) or ln.startswith(term)
-                )
-                if matches >= 1:
+                fn = p.get('first_name', '')
+                ln = p.get('last_name', '')
+                if verify_profile_name_matches_query(p, search_first, search_last):
+                    logger.info(f"  \u2713 Verified: {fn} {ln} (id{p.get('id', '?')})")
                     filtered.append(p)
+                else:
+                    logger.warning(
+                        f"  \u2717 REJECTED fake match: '{fn} {ln}' (id{p.get('id', '?')}) "
+                        f"doesn't match search '{query}'"
+                    )
             profiles = filtered
 
         logger.info(f"VKWebSearch: enriched {len(profiles)} profiles matching '{query}'")
