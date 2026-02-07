@@ -62,6 +62,9 @@ nosetests.xml
 coverage.xml
 *.cover
 
+# VK browser session (contains auth cookies)
+vk_session/
+
 # OS files
 .DS_Store
 Thumbs.db

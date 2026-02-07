@@ -243,19 +243,26 @@ class BuratinoVKSearch:
             return None
 
     def _calculate_name_similarity(self, target: str, found: str) -> float:
-        """Calculate name similarity score (0-100)."""
+        """Calculate name similarity score (0-100). Handles Cyrillic↔Latin."""
         if not target or not found:
             return 0.0
 
         target_lower = target.lower().strip()
         found_lower = found.lower().strip()
 
-        # Direct sequence matching
-        direct = SequenceMatcher(None, target_lower, found_lower).ratio() * 100
+        # Transliterate both to Latin for cross-script comparison
+        target_lat = self._to_latin(target_lower)
+        found_lat = self._to_latin(found_lower)
 
-        # Part-based matching
-        target_parts = target_lower.split()
-        found_parts = found_lower.split()
+        # Direct sequence matching (try both original and transliterated)
+        direct = max(
+            SequenceMatcher(None, target_lower, found_lower).ratio(),
+            SequenceMatcher(None, target_lat, found_lat).ratio(),
+        ) * 100
+
+        # Part-based matching (compare transliterated parts)
+        target_parts = target_lat.split()
+        found_parts = found_lat.split()
 
         matches = 0
         for tp in target_parts:
@@ -271,6 +278,24 @@ class BuratinoVKSearch:
         part_score = (matches / len(target_parts)) * 100 if target_parts else 0
 
         return max(direct, part_score)
+
+    @staticmethod
+    def _to_latin(text: str) -> str:
+        """Transliterate text to Latin for comparison. Pass-through if already Latin."""
+        try:
+            from transliterate import translit
+            return translit(text, 'ru', reversed=True).lower()
+        except Exception:
+            # Basic transliteration fallback
+            table = {
+                'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e',
+                'ё': 'yo', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'j', 'к': 'k',
+                'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r',
+                'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts',
+                'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '',
+                'э': 'e', 'ю': 'yu', 'я': 'ya',
+            }
+            return ''.join(table.get(ch, ch) for ch in text)
 
     def _parse_profile(self, data: Dict[str, Any], target_name: str = None) -> VKProfileResult:
         """Parse VK API user data into VKProfileResult."""
@@ -339,73 +364,47 @@ class BuratinoVKSearch:
         """
         Search VKontakte for people.
 
-        Args:
-            query: Search query (name, e.g., "Иванов Иван")
-            city: City name (will be converted to ID)
-            city_id: VK city ID (if known)
-            age_from: Minimum age
-            age_to: Maximum age
-            sex: Gender (0=any, 1=female, 2=male)
-            count: Results per page (max 1000)
-            offset: Pagination offset
-            target_name: Original target name for similarity scoring
+        Fallback chain:
+        1. VK web scraping (Playwright with persistent session — no token needed)
+        2. VK API newsfeed.search (service token — permanent, never expires)
+        3. Demo mode (sample data)
 
-        Returns:
-            Tuple of (list of profiles, total count)
+        Service token is used only for enrichment (users.get) — always works.
         """
-        # Use target_name for similarity if query is the same
         if not target_name:
             target_name = query
 
-        # Demo mode returns mock data
-        if self._demo_mode:
-            return self._demo_search(query, city, age_from, age_to, count, target_name)
+        # ── Step 1: Try web search (Playwright + newsfeed.search) ──
+        if self.token:
+            try:
+                from app.services.phase1.vk_web_search import VKWebSearch
+                web_searcher = VKWebSearch(service_token=self.token)
+                raw_profiles, total = web_searcher.search(query, count=count)
 
-        # Build params
-        params = {
-            "q": query,
-            "count": min(count, 1000),
-            "offset": offset,
-            "fields": ",".join(self.PROFILE_FIELDS)
-        }
+                if raw_profiles:
+                    # Convert API dicts to VKProfileResult objects
+                    profiles = [self._parse_profile(p, target_name) for p in raw_profiles]
 
-        # Resolve city name to ID if needed
-        if city and not city_id:
-            city_id = self.get_city_id(city, 1)
-            if city_id:
-                logger.info(f"Resolved city '{city}' to ID {city_id}")
+                    # Apply filters
+                    if city:
+                        profiles = [
+                            p for p in profiles
+                            if not p.city or city.lower() in p.city.lower()
+                        ]
+                    if age_from:
+                        profiles = [p for p in profiles if not p.age or p.age >= age_from]
+                    if age_to:
+                        profiles = [p for p in profiles if not p.age or p.age <= age_to]
 
-        # Add optional filters
-        if city_id:
-            params["city"] = city_id
-        if age_from:
-            params["age_from"] = age_from
-        if age_to:
-            params["age_to"] = age_to
-        if sex:
-            params["sex"] = sex
+                    profiles.sort(key=lambda p: p.name_similarity, reverse=True)
+                    logger.info(f"VK web search found {len(profiles)} profiles for '{query}'")
+                    return profiles[:count], len(profiles)
 
-        logger.info(f"VK API search: '{query}' with filters: city={city}, age={age_from}-{age_to}")
+            except Exception as e:
+                logger.warning(f"VK web search failed: {e}")
 
-        try:
-            result = self._api_call("users.search", params)
-
-            total_count = result.get("count", 0)
-            items = result.get("items", [])
-
-            profiles = [self._parse_profile(item, target_name) for item in items]
-
-            # Sort by name similarity
-            profiles.sort(key=lambda p: p.name_similarity, reverse=True)
-
-            logger.info(f"VK API found {total_count} total, returning {len(profiles)}")
-
-            return profiles, total_count
-
-        except VKAPIError as e:
-            logger.error(f"VK API error: {e}")
-            # Fall back to demo mode
-            return self._demo_search(query, city, age_from, age_to, count, target_name)
+        # ── Step 2: Demo mode ──
+        return self._demo_search(query, city, age_from, age_to, count, target_name)
 
     def fetch_friends(
         self,
