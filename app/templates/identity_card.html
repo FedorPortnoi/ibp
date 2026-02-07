@@ -307,10 +307,30 @@ function updateStats(confidence) {
     const emails = investigationData.emails || investigationData.discovered_emails || [];
     const business = investigationData.business_records || [];
 
-    document.getElementById('stat-profiles').textContent = profiles.length;
-    document.getElementById('stat-contacts').textContent = phones.length + emails.length;
-    document.getElementById('stat-business').textContent = business.length;
+    const profileCount = profiles.length;
+    const contactCount = phones.length + emails.length;
+    const businessCount = business.length;
+
+    document.getElementById('stat-profiles').textContent = profileCount;
+    document.getElementById('stat-contacts').textContent = contactCount;
+    document.getElementById('stat-business').textContent = businessCount;
     document.getElementById('stat-confidence').textContent = Math.round(confidence) + '%';
+
+    // Fix pluralization
+    const labels = document.querySelectorAll('.stat-label');
+    labels.forEach(label => {
+        const text = label.textContent.trim().toLowerCase();
+        const statItem = label.closest('.stat-item');
+        const valueEl = statItem ? statItem.querySelector('.stat-value') : null;
+        const count = valueEl ? parseInt(valueEl.textContent) : 0;
+
+        if (text === 'profiles' && count === 1) label.textContent = 'Profile';
+        else if (text === 'profile' && count !== 1) label.textContent = 'Profiles';
+        if (text === 'contacts' && count === 1) label.textContent = 'Contact';
+        else if (text === 'contact' && count !== 1) label.textContent = 'Contacts';
+        if (text === 'companies' && count === 1) label.textContent = 'Company';
+        else if (text === 'company' && count !== 1) label.textContent = 'Companies';
+    });
 }
 
 function showError(message) {

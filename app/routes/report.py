@@ -98,6 +98,27 @@ def get_investigation_data(investigation_id):
             'photo_url': confirmed_profile.photo_url
         })
 
+    # Add Phase 2 discovered profiles (Instagram, Telegram, etc.)
+    alternate_accounts = investigation.alternate_accounts or []
+    if isinstance(alternate_accounts, str):
+        try:
+            alternate_accounts = json.loads(alternate_accounts)
+        except Exception:
+            alternate_accounts = []
+
+    seen_urls = {p['url'].lower() for p in data['profiles']}
+    for acc in alternate_accounts:
+        url = acc.get('url', '')
+        if url and url.lower() not in seen_urls:
+            data['profiles'].append({
+                'platform': acc.get('platform', 'unknown'),
+                'username': acc.get('username', ''),
+                'full_name': '',
+                'url': url,
+                'photo_url': ''
+            })
+            seen_urls.add(url.lower())
+
     return jsonify(data)
 
 
@@ -125,14 +146,52 @@ def generate():
 
         from app.services.report_generator import report_generator, IdentityCardData
 
+        # Normalize phones and emails — extract strings from dicts if needed
+        raw_phones = data.get('phones', []) or data.get('discovered_phones', [])
+        raw_emails = data.get('emails', []) or data.get('discovered_emails', [])
+
+        phones_list = []
+        for p in (raw_phones or []):
+            if isinstance(p, dict):
+                phone_str = p.get('number', p.get('phone', ''))
+                confidence = p.get('confidence', '')
+                source = p.get('source', '')
+                if phone_str:
+                    label = phone_str
+                    if confidence:
+                        label += f" ({confidence}"
+                        if source:
+                            label += f", {source}"
+                        label += ")"
+                    phones_list.append(label)
+            elif isinstance(p, str) and p.strip():
+                phones_list.append(p.strip())
+
+        emails_list = []
+        for e in (raw_emails or []):
+            if isinstance(e, dict):
+                email_str = e.get('email', '')
+                confidence = e.get('confidence', '')
+                source = e.get('source', '')
+                if email_str:
+                    label = email_str
+                    if confidence:
+                        label += f" ({confidence}"
+                        if source:
+                            label += f", {source}"
+                        label += ")"
+                    emails_list.append(label)
+            elif isinstance(e, str) and e.strip():
+                emails_list.append(e.strip())
+
         # Create IdentityCardData from request
         card_data = IdentityCardData(
             full_name=data.get('target_name', '') or data.get('input_name', ''),
             aliases=data.get('aliases', []) or data.get('discovered_usernames', []),
             photo_url=data.get('photo_url', '') or data.get('input_photo_path', ''),
             profiles=data.get('profiles', []) or data.get('discovered_profiles', []),
-            phones=data.get('phones', []) or data.get('discovered_phones', []),
-            emails=data.get('emails', []) or data.get('discovered_emails', []),
+            phones=phones_list[:5],
+            emails=emails_list[:5],
             city=data.get('city', ''),
             companies=data.get('business_records', []),
             court_cases=data.get('court_records', []),
