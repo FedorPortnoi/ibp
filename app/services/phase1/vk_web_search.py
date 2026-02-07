@@ -1,26 +1,30 @@
 """
 VK Web Search — Multi-Strategy People Search
 =============================================
-Discovers VK profiles by name WITHOUT a user token.
+Discovers VK profiles by name using auto-managed browser session.
 
 Strategy (combined, all results merged):
-1. Screen name guessing — transliterate name → generate common VK username
+1. Web token users.search — Playwright auto-login saves browser session,
+   captures web token, calls users.search (up to 1000 results per query)
+2. Screen name guessing — transliterate name → generate common VK username
    patterns → resolve via utils.resolveScreenName (service token)
-2. Playwright with persistent browser session (cookies last 6+ months)
-   - One-time login saves cookies to vk_session/ directory
-   - Subsequent runs reuse saved session automatically
-3. VK API newsfeed.search (service token) — finds names in posts
+3. newsfeed.search fallback — finds posts mentioning the name (service token)
 
-After discovering VK user IDs, enriches them via users.get (service token).
-No tokens expire. No OAuth. No refresh flows.
+Auto-login flow (zero maintenance):
+- First run: Playwright logs in using VK_LOGIN + VK_PASSWORD from .env
+- Saves browser session to vk_session/ (cookies last 6+ months)
+- Captures web token from VK, caches to vk_session/web_token.json
+- Subsequent runs: reuse cached token (no Playwright needed!)
+- Token expired? Auto-refresh from saved session
+- Session expired? Auto re-login
+
+Required .env vars: VK_LOGIN (phone), VK_PASSWORD, VK_SERVICE_TOKEN
+Optional: VK_LOGIN_EMAIL (fallback if phone login fails)
 
 Usage:
-    # One-time login to save session cookies (optional, improves results):
-    python -m app.services.phase1.vk_web_search --login
-
-    # Search works automatically (screen name guessing always available):
     searcher = VKWebSearch(service_token="...")
     results = searcher.search("Даниил Глазков")
+    # Returns (profiles_list, total_count)
 """
 
 import logging
@@ -48,9 +52,42 @@ USER_AGENTS = [
 ]
 
 
+STATE_FILE = os.path.join(SESSION_DIR, 'state.json')
+TOKEN_FILE = os.path.join(SESSION_DIR, 'web_token.json')
+
+
 def _has_session() -> bool:
     """Check if a saved VK browser session exists."""
-    return os.path.isdir(SESSION_DIR) and os.listdir(SESSION_DIR)
+    return os.path.isfile(STATE_FILE)
+
+
+def _get_cached_token() -> Optional[str]:
+    """Load cached web token if still valid (not expired)."""
+    try:
+        if not os.path.isfile(TOKEN_FILE):
+            return None
+        import json as _json
+        with open(TOKEN_FILE, 'r') as f:
+            data = _json.load(f)
+        expires = data.get('expires', 0)
+        token = data.get('access_token', '')
+        if token and time.time() < expires - 60:  # 60s safety margin
+            return token
+    except Exception:
+        pass
+    return None
+
+
+def _save_token(access_token: str, expires: int, user_id: int = 0) -> None:
+    """Cache web token to disk."""
+    import json as _json
+    os.makedirs(SESSION_DIR, exist_ok=True)
+    with open(TOKEN_FILE, 'w') as f:
+        _json.dump({
+            'access_token': access_token,
+            'expires': expires,
+            'user_id': user_id,
+        }, f)
 
 
 class VKWebSearch:
@@ -89,10 +126,10 @@ class VKWebSearch:
         """
         Search VK for people by name. Returns (profiles, total_count).
 
-        Combines results from all strategies (deduped by user ID):
-        1. Screen name guessing (transliterate → resolve)
-        2. Playwright web scraping (if session exists)
-        3. newsfeed.search (finds post authors)
+        Strategy (combined, all results merged and deduped):
+        1. Web token users.search — best results (requires saved browser session)
+        2. Screen name guessing (transliterate → resolve via service token)
+        3. newsfeed.search fallback (finds post authors, service token)
 
         Each profile is a dict with VK API user fields (same format as users.get).
         """
@@ -105,17 +142,18 @@ class VKWebSearch:
                     seen_ids.add(uid)
                     all_user_ids.append(uid)
 
-        # Step 1: Screen name guessing (fastest, most reliable)
+        # Step 1: Web token users.search (best, up to 1000 results)
+        web_search_ids = self._playwright_search(query, count)
+        _add_ids(web_search_ids)
+
+        # Step 2: Screen name guessing (catches profiles with matching usernames)
         guessed_ids = self._guess_screen_names(query)
         _add_ids(guessed_ids)
 
-        # Step 2: Playwright web scraping (if session exists)
-        playwright_ids = self._playwright_search(query, count)
-        _add_ids(playwright_ids)
-
-        # Step 3: newsfeed.search (post authors mentioning the name)
-        newsfeed_ids = self._newsfeed_search(query)
-        _add_ids(newsfeed_ids)
+        # Step 3: newsfeed.search fallback (post authors mentioning the name)
+        if not all_user_ids:
+            newsfeed_ids = self._newsfeed_search(query)
+            _add_ids(newsfeed_ids)
 
         if not all_user_ids:
             logger.info(f"VKWebSearch: no results for '{query}'")
@@ -219,69 +257,418 @@ class VKWebSearch:
             result.append(table.get(ch, ch))
         return ''.join(result)
 
+    # ── Web token search (Playwright session → users.search API) ──
+
     def _playwright_search(self, query: str, count: int = 50) -> List[int]:
         """
-        Scrape VK people search using Playwright with persistent session.
+        Search VK using the web token obtained from the browser session.
+
+        Flow:
+        1. Check cached web token (no Playwright needed if valid)
+        2. If expired/missing: start Playwright, load session, capture web token
+        3. If no session exists: auto-login first
+        4. Call users.search with the web token (full user-level access)
+
         Returns list of VK user IDs.
         """
-        if not _has_session():
-            logger.debug("VKWebSearch: no saved session, skipping Playwright search")
+        # Step 1: Try cached web token
+        web_token = _get_cached_token()
+
+        # Step 2: If no cached token, get a fresh one via Playwright
+        if not web_token:
+            web_token = self._refresh_web_token()
+
+        if not web_token:
             return []
 
+        # Step 3: Call users.search with the web token
+        return self._users_search_with_token(web_token, query, count)
+
+    def _refresh_web_token(self) -> Optional[str]:
+        """
+        Start Playwright with saved session cookies, navigate to VK,
+        capture the web token from login.vk.com/?act=web_token response.
+        Auto-logs in if no session exists or session expired.
+        """
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:
             logger.debug("VKWebSearch: playwright not installed")
-            return []
+            return None
 
-        user_ids = []
+        # Ensure session exists (auto-login if needed)
+        if not _has_session():
+            if not self._auto_login():
+                return None
+
+        token = self._extract_web_token()
+
+        # If token extraction failed, session might be expired → re-login
+        if not token:
+            logger.warning("VKWebSearch: session may be expired, attempting re-login")
+            if self._auto_login():
+                token = self._extract_web_token()
+
+        return token
+
+    def _extract_web_token(self) -> Optional[str]:
+        """Load browser session and capture the web token VK issues on page load."""
+        from playwright.sync_api import sync_playwright
+        import json as _json
+
+        token_result = {}
+
+        def _capture(response):
+            if 'act=web_token' in response.url:
+                try:
+                    body = response.text()
+                    data = _json.loads(body)
+                    inner = data.get('data', data)
+                    if inner.get('access_token'):
+                        token_result['token'] = inner['access_token']
+                        token_result['expires'] = inner.get('expires', 0)
+                        token_result['user_id'] = inner.get('user_id', 0)
+                except Exception:
+                    pass
+
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
                 context = browser.new_context(
-                    storage_state=os.path.join(SESSION_DIR, 'state.json'),
+                    storage_state=STATE_FILE,
                     locale='ru-RU',
                     user_agent=USER_AGENTS[0],
                 )
                 page = context.new_page()
+                page.on('response', _capture)
 
-                # Navigate to VK people search
-                search_url = f"https://vk.com/search?c%5Bq%5D={requests.utils.quote(query)}&c%5Bsection%5D=people&c%5Bper_page%5D={min(count, 40)}"
-                page.goto(search_url, wait_until='domcontentloaded', timeout=20000)
-                page.wait_for_timeout(4000)
-
-                content = page.content()
-
-                # Check if we're still logged in
-                if 'login_form' in content and 'id="quick_login' in content:
-                    logger.warning("VKWebSearch: session expired, need re-login")
-                    browser.close()
-                    return []
-
-                # Extract user IDs from search results
-                # VK search results contain links like /id123456 or /username
-                # Also look for data attributes with user IDs
-                id_matches = re.findall(r'href="/id(\d+)"', content)
-                user_ids = list(dict.fromkeys(int(uid) for uid in id_matches))
-
-                # Also extract screen names and resolve them
-                screen_name_matches = re.findall(
-                    r'href="/([a-z][a-z0-9_.]{2,30})"[^>]*class="[^"]*(?:search|people|user)',
-                    content, re.IGNORECASE
-                )
-                if screen_name_matches and self.service_token:
-                    resolved = self._resolve_screen_names(screen_name_matches)
-                    for uid in resolved:
-                        if uid not in user_ids:
-                            user_ids.append(uid)
-
-                logger.info(f"VKWebSearch Playwright: found {len(user_ids)} user IDs for '{query}'")
+                # Navigate to any VK page — VK issues a web token on load
+                page.goto('https://vk.com/feed', wait_until='domcontentloaded', timeout=20000)
+                page.wait_for_timeout(5000)
                 browser.close()
 
         except Exception as e:
-            logger.warning(f"VKWebSearch Playwright error: {e}")
+            logger.warning(f"VKWebSearch: web token extraction error: {e}")
 
-        return user_ids[:count]
+        if token_result.get('token'):
+            _save_token(
+                token_result['token'],
+                token_result.get('expires', 0),
+                token_result.get('user_id', 0),
+            )
+            logger.info("VKWebSearch: web token captured and cached")
+            return token_result['token']
+
+        return None
+
+    def _users_search_with_token(
+        self, token: str, query: str, count: int
+    ) -> List[int]:
+        """Call VK API users.search with a web token. Returns user IDs."""
+        if not self._session:
+            return []
+
+        try:
+            resp = self._session.post(
+                f"{self.VK_API_BASE}/users.search",
+                data={
+                    'q': query,
+                    'count': min(count, 1000),
+                    'fields': ','.join(self.PROFILE_FIELDS),
+                    'access_token': token,
+                    'v': self.VK_API_VERSION,
+                },
+                timeout=15,
+            )
+            data = resp.json()
+
+            if 'error' in data:
+                err = data['error']
+                code = err.get('error_code', 0)
+                msg = err.get('error_msg', '')
+                if code == 5:
+                    # Token expired — clear cache, next call will refresh
+                    logger.warning(f"VKWebSearch: web token expired, will refresh")
+                    try:
+                        os.remove(TOKEN_FILE)
+                    except OSError:
+                        pass
+                else:
+                    logger.warning(f"VKWebSearch users.search error {code}: {msg}")
+                return []
+
+            response = data.get('response', {})
+            items = response.get('items', [])
+            total = response.get('count', 0)
+
+            user_ids = [item['id'] for item in items if 'id' in item]
+            logger.info(f"VKWebSearch users.search: {total} total, got {len(user_ids)} IDs for '{query}'")
+            return user_ids
+
+        except Exception as e:
+            logger.warning(f"VKWebSearch users.search error: {e}")
+            return []
+
+    # ── Auto-login ────────────────────────────────────────────
+
+    def _auto_login(self) -> bool:
+        """
+        Log in to VK automatically using credentials from .env.
+        Saves browser state to vk_session/state.json for future runs.
+
+        Tries VK_LOGIN (phone) first, then VK_LOGIN_EMAIL as fallback.
+        Returns True on success. Handles captcha gracefully (returns False).
+        """
+        vk_login = os.environ.get('VK_LOGIN', '').strip()
+        vk_email = os.environ.get('VK_LOGIN_EMAIL', '').strip()
+        vk_password = os.environ.get('VK_PASSWORD', '').strip()
+
+        if not vk_password or not (vk_login or vk_email):
+            logger.debug("VKWebSearch: VK_LOGIN/VK_PASSWORD not set, skipping auto-login")
+            return False
+
+        try:
+            from playwright.sync_api import sync_playwright  # noqa: already checked
+        except ImportError:
+            return False
+
+        os.makedirs(SESSION_DIR, exist_ok=True)
+
+        # Try phone first, then email
+        logins_to_try = []
+        if vk_login:
+            logins_to_try.append(vk_login)
+        if vk_email and vk_email != vk_login:
+            logins_to_try.append(vk_email)
+
+        for login_value in logins_to_try:
+            masked = login_value[:4] + '***'
+            logger.info(f"VKWebSearch: attempting auto-login with {masked}")
+            try:
+                if self._try_vk_login(login_value, vk_password):
+                    logger.info("VKWebSearch: auto-login successful, session saved")
+                    return True
+                logger.warning(f"VKWebSearch: login with {masked} did not succeed")
+            except Exception as e:
+                logger.warning(f"VKWebSearch: login with {masked} error: {e}")
+
+        return False
+
+    def _try_vk_login(self, login: str, password: str) -> bool:
+        """
+        Attempt a single VK login via Playwright headless browser.
+        Navigates to vk.com, fills credentials, saves session on success.
+        Returns True if logged in successfully.
+        """
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(
+                locale='ru-RU',
+                user_agent=USER_AGENTS[0],
+                viewport={'width': 1280, 'height': 720},
+            )
+            page = context.new_page()
+
+            try:
+                # ── Step 1: Navigate to VK ──
+                page.goto('https://vk.com', wait_until='domcontentloaded', timeout=25000)
+                page.wait_for_timeout(3000)
+
+                # Already logged in? (unlikely on fresh context but check)
+                if 'feed' in page.url or 'im' in page.url:
+                    context.storage_state(path=STATE_FILE)
+                    browser.close()
+                    return True
+
+                # ── Step 2: Find and click "Sign in" if on landing page ──
+                self._click_sign_in(page)
+                page.wait_for_timeout(2000)
+
+                # ── Step 3: Fill login (phone/email) ──
+                login_filled = self._fill_login_field(page, login)
+                if not login_filled:
+                    logger.warning("VKWebSearch: could not find login input field")
+                    browser.close()
+                    return False
+
+                # Submit the login step
+                self._submit_form(page)
+                page.wait_for_timeout(3000)
+
+                # ── Step 4: Check for captcha / errors ──
+                if self._has_captcha(page):
+                    logger.warning("VKWebSearch: CAPTCHA detected, cannot auto-login")
+                    browser.close()
+                    return False
+
+                # ── Step 5: Fill password ──
+                pw_filled = self._fill_password_field(page, password)
+                if not pw_filled:
+                    logger.warning("VKWebSearch: could not find password field")
+                    browser.close()
+                    return False
+
+                # Submit password
+                self._submit_form(page)
+                page.wait_for_timeout(5000)
+
+                # ── Step 6: Check for captcha after password ──
+                if self._has_captcha(page):
+                    logger.warning("VKWebSearch: CAPTCHA after password, cannot auto-login")
+                    browser.close()
+                    return False
+
+                # ── Step 7: Verify login success ──
+                url = page.url
+                content = page.content()
+                logged_in = (
+                    'feed' in url
+                    or '/im' in url
+                    or 'al_page.php' in content
+                    or 'TopNavBtn' in content
+                    or '"loc":"feed"' in content
+                    or 'data-task-click="ProfileAction"' in content
+                    or not self._page_needs_login(content)
+                )
+
+                if logged_in and self._page_needs_login(content):
+                    logged_in = False
+
+                if logged_in:
+                    context.storage_state(path=STATE_FILE)
+                    browser.close()
+                    return True
+
+                logger.debug(f"VKWebSearch: login check — url={url[:60]}")
+                browser.close()
+                return False
+
+            except Exception as e:
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+                raise
+
+    @staticmethod
+    def _has_captcha(page) -> bool:
+        """Check if page shows an actual CAPTCHA challenge (not just JS strings)."""
+        # Look for visible captcha-related elements, not just text in JS bundles
+        captcha_selectors = [
+            'img[src*="captcha"]',
+            '[class*="captcha" i]',
+            '[id*="captcha" i]',
+            'iframe[src*="recaptcha"]',
+            'iframe[src*="captcha"]',
+            '.g-recaptcha',
+            '#recaptcha',
+        ]
+        for sel in captcha_selectors:
+            try:
+                el = page.locator(sel).first
+                if el.is_visible(timeout=500):
+                    return True
+            except Exception:
+                continue
+        return False
+
+    @staticmethod
+    def _click_sign_in(page) -> None:
+        """Click 'Sign in another way' / 'Войти другим способом' on VK landing."""
+        # VK shows QR code by default — need to click "Sign in another way"
+        selectors = [
+            'button:has-text("Войти другим способом")',
+            'a:has-text("Войти другим способом")',
+            'button:has-text("Sign in by another method")',
+            'button:has-text("Sign in")',
+            'a:has-text("Sign in")',
+            'button:has-text("Войти")',
+            'a:has-text("Войти")',
+            'a[href*="login"]',
+            '.VkIdForm__signInButton',
+        ]
+        for sel in selectors:
+            try:
+                el = page.locator(sel).first
+                if el.is_visible(timeout=1500):
+                    el.click()
+                    return
+            except Exception:
+                continue
+
+    @staticmethod
+    def _fill_login_field(page, login_value: str) -> bool:
+        """Find and fill the phone/email input field."""
+        selectors = [
+            'input[name="login"]',
+            'input[type="tel"]',
+            'input[type="email"]',
+            'input[name="phone"]',
+            'input[name="email"]',
+        ]
+        for sel in selectors:
+            try:
+                el = page.locator(sel).first
+                if el.is_visible(timeout=2000):
+                    el.click()
+                    el.fill(login_value)
+                    return True
+            except Exception:
+                continue
+
+        # Fallback: try any visible text input that isn't password/hidden
+        try:
+            inputs = page.locator('input:visible:not([type="password"]):not([type="hidden"]):not([type="submit"]):not([type="checkbox"])')
+            if inputs.count() > 0:
+                inputs.first.click()
+                inputs.first.fill(login_value)
+                return True
+        except Exception:
+            pass
+
+        return False
+
+    @staticmethod
+    def _fill_password_field(page, password: str) -> bool:
+        """Find and fill the password input field."""
+        try:
+            pw = page.locator('input[type="password"]').first
+            pw.wait_for(state='visible', timeout=5000)
+            pw.click()
+            pw.fill(password)
+            return True
+        except Exception:
+            return False
+
+    @staticmethod
+    def _submit_form(page) -> None:
+        """Submit the current form — try button click, fall back to Enter."""
+        selectors = [
+            'button[type="submit"]',
+            'button:has-text("Continue")',
+            'button:has-text("Продолжить")',
+            'button:has-text("Sign in")',
+            'button:has-text("Войти")',
+            'input[type="submit"]',
+            'button:has-text("Next")',
+            'button:has-text("Далее")',
+        ]
+        for sel in selectors:
+            try:
+                btn = page.locator(sel).first
+                if btn.is_visible(timeout=1000):
+                    btn.click()
+                    return
+            except Exception:
+                continue
+
+        # Fallback: press Enter on the focused element
+        try:
+            page.keyboard.press('Enter')
+        except Exception:
+            pass
 
     def _newsfeed_search(self, query: str) -> List[int]:
         """
@@ -442,8 +829,8 @@ class VKWebSearch:
 
 def save_vk_session():
     """
-    Interactive: open a browser window, let user log in to VK,
-    then save the session cookies for future automated searches.
+    Interactive fallback: open a browser window, let user log in to VK,
+    then save the session cookies. Use this if auto-login fails (e.g., 2FA).
 
     Run: python -m app.services.phase1.vk_web_search --login
     """
@@ -454,17 +841,16 @@ def save_vk_session():
         return
 
     os.makedirs(SESSION_DIR, exist_ok=True)
-    state_path = os.path.join(SESSION_DIR, 'state.json')
 
     print("=" * 60)
-    print("VK SESSION SETUP")
+    print("VK SESSION SETUP (manual)")
     print("=" * 60)
     print()
     print("A browser window will open. Log in to VK normally.")
     print("After logging in and seeing your feed, close the browser.")
     print("Your session will be saved for automated searches.")
     print()
-    print("This session lasts 6+ months. No token refresh needed.")
+    print("This is a fallback for when auto-login can't work (2FA, etc.)")
     print("=" * 60)
 
     with sync_playwright() as p:
@@ -477,14 +863,12 @@ def save_vk_session():
         print("\nWaiting for you to log in... (close browser when done)")
 
         try:
-            # Wait for the user to close the browser (up to 10 minutes)
             page.wait_for_event('close', timeout=600000)
         except Exception:
             pass
 
-        # Save session state
-        context.storage_state(path=state_path)
-        print(f"\nSession saved to: {state_path}")
+        context.storage_state(path=STATE_FILE)
+        print(f"\nSession saved to: {STATE_FILE}")
         print("VK search will now work automatically!")
 
         try:
@@ -495,22 +879,23 @@ def save_vk_session():
 
 if __name__ == '__main__':
     import sys
+    sys.stdout.reconfigure(encoding='utf-8')
+
     if '--login' in sys.argv:
         save_vk_session()
     else:
-        # Quick test
         from dotenv import load_dotenv
         load_dotenv()
 
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.INFO, format='%(name)s: %(message)s')
 
         searcher = VKWebSearch()
         query = ' '.join(sys.argv[1:]) if len(sys.argv) > 1 else 'Даниил Глазков'
         profiles, total = searcher.search(query)
 
         print(f"\nResults for '{query}': {total} profiles")
-        for p in profiles[:10]:
+        for i, p in enumerate(profiles[:20]):
             name = f"{p.get('first_name', '')} {p.get('last_name', '')}"
             city = p.get('city', {}).get('title', '') if p.get('city') else ''
             photo = 'photo' if p.get('photo_200') else 'no_photo'
-            print(f"  id{p['id']} {name} ({city}) [{photo}]")
+            print(f"  {i+1}. id{p['id']} {name} ({city}) [{photo}]")
