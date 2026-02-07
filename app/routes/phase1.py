@@ -56,7 +56,7 @@ def new_investigation():
     if request.method == 'POST':
         # Get form data
         target_name = request.form.get('target_name', '').strip()
-        city = request.form.get('city', '').strip()
+        city = request.form.get('city', '').strip() or None  # None = search all cities
         age_from = request.form.get('age_from', type=int)
         age_to = request.form.get('age_to', type=int)
 
@@ -113,7 +113,7 @@ def buratino_search_results(investigation_id):
 
     # Get search parameters
     stats = investigation.phase1_stats
-    city = stats.get('city', '')
+    city = stats.get('city') or None  # None = search all cities
     age_from = stats.get('age_from')
     age_to = stats.get('age_to')
 
@@ -130,7 +130,7 @@ def buratino_search_results(investigation_id):
         saved_profiles = buratino_vk_search.search_and_save(
             investigation_id=investigation_id,
             query=investigation.input_name,
-            city=city if city else None,
+            city=city,
             age_from=age_from,
             age_to=age_to,
             count=50
@@ -223,9 +223,9 @@ def refresh_search(investigation_id):
     investigation = Investigation.query.get_or_404(investigation_id)
 
     # Get new parameters
-    city = request.json.get('city', '')
-    age_from = request.json.get('age_from', type=int)
-    age_to = request.json.get('age_to', type=int)
+    city = (request.json.get('city') or '').strip() or None  # None = search all cities
+    age_from = request.json.get('age_from')
+    age_to = request.json.get('age_to')
 
     # Delete old search results
     SocialProfile.query.filter_by(
@@ -249,7 +249,7 @@ def refresh_search(investigation_id):
     saved_profiles = buratino_vk_search.search_and_save(
         investigation_id=investigation_id,
         query=investigation.input_name,
-        city=city if city else None,
+        city=city,
         age_from=age_from,
         age_to=age_to,
         count=50
