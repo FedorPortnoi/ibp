@@ -565,6 +565,141 @@ class BuratinoVKSearch:
 
         return profiles[:count], len(profiles)
 
+    def search_expanded(
+        self,
+        query: str,
+        city: Optional[str] = None,
+        age_from: Optional[int] = None,
+        age_to: Optional[int] = None,
+        count: int = 50
+    ) -> List[VKProfileResult]:
+        """
+        Expanded search: original name + diminutives + transliterations + first-name-only.
+        Deduplicates by VK user ID. Returns all results with search_variant tags.
+
+        Args:
+            query: Full name (e.g. "Тихон Портной")
+            city, age_from, age_to: Filters
+            count: Max results per sub-search
+
+        Returns:
+            Combined, deduplicated list of VKProfileResult
+        """
+        all_profiles: Dict[int, VKProfileResult] = {}  # keyed by vk_id
+
+        query_parts = query.strip().split()
+        first_name = query_parts[0] if query_parts else query
+        last_name = query_parts[1] if len(query_parts) > 1 else ""
+
+        # ── Step 1: Original name search ──
+        logger.info(f"Expanded search: original query '{query}'")
+        profiles, _ = self.search(
+            query=query, city=city, age_from=age_from,
+            age_to=age_to, count=count, target_name=query
+        )
+        for p in profiles:
+            if p.vk_id not in all_profiles:
+                all_profiles[p.vk_id] = p
+
+        # ── Step 2: Diminutive variants ──
+        try:
+            from app.services.phase1.russian_diminutives import get_all_name_variants
+            name_variants = get_all_name_variants(first_name)
+            # Skip the first one (it's the original name)
+            for variant in name_variants[1:5]:  # Max 4 diminutive searches
+                variant_query = f"{variant} {last_name}".strip() if last_name else variant
+                logger.info(f"Expanded search: diminutive '{variant_query}'")
+                try:
+                    dim_profiles, _ = self.search(
+                        query=variant_query, city=city, age_from=age_from,
+                        age_to=age_to, count=20, target_name=query
+                    )
+                    for p in dim_profiles:
+                        if p.vk_id not in all_profiles:
+                            all_profiles[p.vk_id] = p
+                except Exception as e:
+                    logger.warning(f"Diminutive search '{variant_query}' failed: {e}")
+                time.sleep(0.5)
+        except ImportError:
+            logger.warning("russian_diminutives module not available")
+
+        # ── Step 3: Transliteration variants (screen name guessing) ──
+        try:
+            from app.services.phase1.transliteration import transliterate_name_part, generate_username_patterns
+            first_variants = transliterate_name_part(first_name, max_variants=3)
+            last_variants = transliterate_name_part(last_name, max_variants=3) if last_name else ['']
+
+            screen_name_candidates = []
+            for f_lat in first_variants:
+                for l_lat in last_variants:
+                    if l_lat:
+                        screen_name_candidates.extend(generate_username_patterns(f_lat, l_lat))
+
+            # Deduplicate
+            screen_name_candidates = list(dict.fromkeys(screen_name_candidates))[:20]
+
+            if screen_name_candidates and self.token and self.session:
+                logger.info(f"Expanded search: resolving {len(screen_name_candidates)} transliterated screen names")
+                resolved_ids = []
+                for name in screen_name_candidates:
+                    try:
+                        resp = self.session.post(
+                            f"{self.API_BASE_URL}/utils.resolveScreenName",
+                            data={
+                                'screen_name': name,
+                                'access_token': self.token,
+                                'v': self.API_VERSION,
+                            },
+                            timeout=5,
+                        )
+                        data = resp.json()
+                        result = data.get('response', {})
+                        if result and result.get('type') == 'user':
+                            uid = result['object_id']
+                            if uid not in all_profiles:
+                                resolved_ids.append(uid)
+                        time.sleep(0.35)
+                    except Exception:
+                        pass
+
+                # Enrich resolved IDs
+                if resolved_ids:
+                    from app.services.phase1.vk_web_search import VKWebSearch
+                    web = VKWebSearch(service_token=self.token)
+                    enriched = web._enrich_profiles(resolved_ids, query)
+                    for p_data in enriched:
+                        p = self._parse_profile(p_data, query)
+                        if p.vk_id not in all_profiles:
+                            all_profiles[p.vk_id] = p
+        except ImportError:
+            logger.warning("transliteration module not available")
+
+        # ── Step 4: First-name-only search with fuzzy surname matching ──
+        if last_name and self.token:
+            try:
+                from app.services.phase1.fuzzy_matching import surname_similarity
+                logger.info(f"Expanded search: first-name-only '{first_name}'")
+                fn_profiles, _ = self.search(
+                    query=first_name, city=city, age_from=age_from,
+                    age_to=age_to, count=30, target_name=query
+                )
+                for p in fn_profiles:
+                    if p.vk_id not in all_profiles:
+                        # Apply fuzzy surname filter
+                        score = surname_similarity(last_name, p.last_name)
+                        if score >= 0.6:
+                            # Recalculate name_similarity with fuzzy bonus
+                            p.name_similarity = max(p.name_similarity, score * 100)
+                            p.name_match = p.name_similarity > 50
+                            all_profiles[p.vk_id] = p
+            except ImportError:
+                logger.warning("fuzzy_matching module not available")
+
+        result = list(all_profiles.values())
+        result.sort(key=lambda p: p.name_similarity, reverse=True)
+        logger.info(f"Expanded search: total {len(result)} unique profiles for '{query}'")
+        return result
+
     def search_and_save(
         self,
         investigation_id: str,
@@ -575,7 +710,10 @@ class BuratinoVKSearch:
         count: int = 50
     ) -> List[Dict]:
         """
-        Search VK and save results to database.
+        Search VK (with expanded name variants) and save results to database.
+
+        Runs diminutive, transliteration, and fuzzy searches in addition to exact name.
+        Deduplicates by VK user ID.
 
         Args:
             investigation_id: ID of the investigation
@@ -591,13 +729,13 @@ class BuratinoVKSearch:
         from app import db
         from app.models import SocialProfile
 
-        profiles, total = self.search(
+        # Use expanded search (diminutives + transliterations + fuzzy)
+        profiles = self.search_expanded(
             query=query,
             city=city,
             age_from=age_from,
             age_to=age_to,
-            count=count,
-            target_name=query
+            count=count
         )
 
         saved_profiles = []
@@ -611,9 +749,10 @@ class BuratinoVKSearch:
             ).first()
 
             if existing:
-                # Update existing
-                existing.name_similarity = vk_profile.name_similarity
-                existing.name_match = vk_profile.name_match
+                # Update existing — keep highest similarity
+                if vk_profile.name_similarity > (existing.name_similarity or 0):
+                    existing.name_similarity = vk_profile.name_similarity
+                    existing.name_match = vk_profile.name_match
                 saved_profiles.append(existing.to_dict())
             else:
                 # Create new
