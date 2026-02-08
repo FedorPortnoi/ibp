@@ -151,7 +151,7 @@ class EmailDiscoveryService:
                 try:
                     task_results = await asyncio.wait_for(
                         asyncio.gather(*tasks, return_exceptions=True),
-                        timeout=50.0  # 50 second overall timeout
+                        timeout=120.0  # 120 second overall timeout
                     )
                 except asyncio.TimeoutError:
                     logger.warning("Overall timeout reached, using partial results")
@@ -297,12 +297,17 @@ class EmailDiscoveryService:
     ) -> List[DiscoveredEmail]:
         """
         Verify emails using holehe library directly (not CLI).
-        Uses trio for async module execution, run in thread pool.
+        Runs checks concurrently (up to 3 at a time) with per-email timeout.
         """
         verified = []
         loop = asyncio.get_event_loop()
 
-        for email in emails[:5]:  # Limit to 5 (holehe is slow, ~15-30s per email)
+        # Tier the emails: Russian domains first, then international
+        tier1_domains = {'mail.ru', 'yandex.ru', 'bk.ru', 'gmail.com'}
+        tier1 = [e for e in emails if e.split('@')[-1] in tier1_domains][:4]
+        tier2 = [e for e in emails if e not in tier1][:4]
+
+        async def check_one(email: str) -> Optional[DiscoveredEmail]:
             try:
                 result = await asyncio.wait_for(
                     loop.run_in_executor(
@@ -310,27 +315,51 @@ class EmailDiscoveryService:
                         self._holehe_check_single,
                         email
                     ),
-                    timeout=45.0  # 45 second timeout per email
+                    timeout=25.0  # 25s per email
                 )
-
                 if result:
                     services = result.get('services', [])
                     if services:
                         confidence = 'high' if len(services) >= 2 else 'medium'
-                        verified.append(DiscoveredEmail(
+                        logger.info(f"Holehe verified: {email} on {len(services)} services: {services[:5]}")
+                        return DiscoveredEmail(
                             email=email,
                             source="Holehe verification",
                             confidence=confidence,
                             verified=True,
                             verified_on=[f'holehe:{s}' for s in services[:5]],
                             verification='holehe_confirmed'
-                        ))
-                        logger.info(f"Holehe verified: {email} on {len(services)} services: {services[:5]}")
-
+                        )
             except asyncio.TimeoutError:
                 logger.debug(f"Holehe timeout for {email}")
             except Exception as e:
                 logger.debug(f"Holehe error for {email}: {e}")
+            return None
+
+        # Check Tier 1 concurrently (up to 3 at once)
+        semaphore = asyncio.Semaphore(3)
+
+        async def check_with_limit(email: str):
+            async with semaphore:
+                return await check_one(email)
+
+        tier1_results = await asyncio.gather(
+            *[check_with_limit(e) for e in tier1],
+            return_exceptions=True
+        )
+        for r in tier1_results:
+            if isinstance(r, DiscoveredEmail):
+                verified.append(r)
+
+        # Only check Tier 2 if Tier 1 found nothing
+        if not verified and tier2:
+            tier2_results = await asyncio.gather(
+                *[check_with_limit(e) for e in tier2],
+                return_exceptions=True
+            )
+            for r in tier2_results:
+                if isinstance(r, DiscoveredEmail):
+                    verified.append(r)
 
         return verified
 
@@ -797,44 +826,75 @@ def verify_emails_with_holehe(emails: List[str], max_emails: int = 5) -> List[Di
     Verify a list of emails with Holehe (synchronous).
     Returns list of dicts with email, services, verification status.
 
-    Use this from the Buratino flow to verify top email candidates.
+    Uses tiered priority: Russian mail domains first, then international.
+    Runs up to 3 checks concurrently via ThreadPoolExecutor.
     """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     service = EmailDiscoveryService()
     results = []
 
-    for email in emails[:max_emails]:
+    # Tier emails: Russian mail providers first (most likely for Russian targets)
+    tier1_domains = {'mail.ru', 'yandex.ru', 'bk.ru', 'gmail.com', 'list.ru', 'inbox.ru'}
+    tier1 = [e for e in emails[:max_emails] if e.split('@')[-1] in tier1_domains]
+    tier2 = [e for e in emails[:max_emails] if e not in tier1]
+    ordered_emails = tier1 + tier2
+
+    def check_single(email):
         try:
             holehe_result = service._holehe_check_single(email)
             if holehe_result and holehe_result.get('services'):
                 services = holehe_result['services']
-                results.append({
+                logger.info(f"Holehe verified: {email} -> {services[:5]}")
+                return {
                     'email': email,
                     'services': services,
                     'verified': True,
                     'confidence': 'high' if len(services) >= 2 else 'medium',
                     'verification': 'holehe_confirmed',
                     'verified_on': [f'holehe:{s}' for s in services[:5]],
-                })
-                logger.info(f"Holehe verified: {email} -> {services[:5]}")
+                }
             else:
-                results.append({
+                return {
                     'email': email,
                     'services': [],
                     'verified': False,
                     'confidence': None,
                     'verification': 'holehe_not_found',
                     'verified_on': [],
-                })
+                }
         except Exception as e:
             logger.debug(f"Holehe check error for {email}: {e}")
-            results.append({
+            return {
                 'email': email,
                 'services': [],
                 'verified': False,
                 'confidence': None,
                 'verification': 'holehe_error',
                 'verified_on': [],
-            })
+            }
+
+    # Run concurrently (3 at a time) with per-email timeout
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        future_to_email = {
+            executor.submit(check_single, email): email
+            for email in ordered_emails
+        }
+        for future in as_completed(future_to_email, timeout=90):
+            try:
+                result = future.result(timeout=30)
+                results.append(result)
+            except Exception as e:
+                email = future_to_email[future]
+                logger.debug(f"Holehe future error for {email}: {e}")
+                results.append({
+                    'email': email,
+                    'services': [],
+                    'verified': False,
+                    'confidence': None,
+                    'verification': 'holehe_error',
+                    'verified_on': [],
+                })
 
     service.close()
     return results

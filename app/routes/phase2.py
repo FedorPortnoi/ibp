@@ -854,7 +854,7 @@ def start_buratino_analysis(investigation_id):
                             if addr not in holehe_candidates:
                                 holehe_candidates.append(addr)
 
-                    holehe_candidates = holehe_candidates[:5]  # Max 5 (slow)
+                    holehe_candidates = holehe_candidates[:6]  # Max 6, runs 3 concurrently
 
                     if holehe_candidates:
                         task.add_message(f'Checking {len(holehe_candidates)} emails with Holehe...', 'info')
