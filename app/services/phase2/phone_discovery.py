@@ -1,22 +1,20 @@
 """
-Phone Discovery Service - Fast Implementation
-==============================================
-Discovers and verifies phone numbers using multiple methods in parallel.
+Phone Discovery Service - VK API Implementation
+================================================
+Discovers phone numbers using VK API methods that actually work.
 
-Methods:
-1. VK API search by name - extracts phones from matching profiles
-2. Username analysis - extracts phone patterns from usernames
-3. Profile page deep scraping - enhanced regex for phone extraction
-4. Phone verification via known services
-5. Pattern generation from email addresses (some use phone as email prefix)
+Methods (ordered by effectiveness):
+1. VK API users.get with contacts field - extract phone from profile
+2. VK API wall.get - scan wall posts for phone patterns
+3. Username analysis - extract phone patterns from usernames
+4. Email-to-phone extraction - some Russians use phone@domain.ru
+5. Telegram public bio scraping - check for phone in bio
 """
 
-import asyncio
-import aiohttp
 import logging
+import os
 import re
 import time
-import json
 from typing import List, Dict, Optional, Set
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
@@ -117,54 +115,52 @@ class PhoneDiscoveryService:
         logger.info(f"Starting phone discovery: {first_name} {last_name}")
 
         try:
-            # Method 1: Extract phones from usernames
+            # Method 1: VK API users.get with contacts field (BEST method)
+            if profile_urls:
+                vk_urls = [p for p in profile_urls if p.get('platform', '').lower() == 'vk']
+                for profile in vk_urls[:3]:
+                    api_phones = self._extract_via_vk_api(profile.get('url', ''))
+                    for phone in api_phones:
+                        key = self._normalize_key(phone.number)
+                        if key not in all_phones:
+                            all_phones[key] = phone
+
+            # Method 2: VK API wall.get - scan posts for phone numbers
+            if profile_urls:
+                vk_urls = [p for p in profile_urls if p.get('platform', '').lower() == 'vk']
+                for profile in vk_urls[:2]:
+                    wall_phones = self._extract_from_vk_wall(profile.get('url', ''))
+                    for phone in wall_phones:
+                        key = self._normalize_key(phone.number)
+                        if key not in all_phones:
+                            all_phones[key] = phone
+
+            # Method 3: Extract phones from usernames
             username_phones = self._extract_from_usernames(usernames)
             for phone in username_phones:
-                key = phone.number
+                key = self._normalize_key(phone.number)
                 if key not in all_phones:
                     all_phones[key] = phone
-
-            # Method 2: Search VK by name
-            vk_phones = self._search_vk_by_name(first_name, last_name)
-            for phone in vk_phones:
-                key = phone.number
-                if key not in all_phones:
-                    all_phones[key] = phone
-
-            # Method 2b: Search OK.ru by name
-            ok_phones = self._search_ok_by_name(first_name, last_name)
-            for phone in ok_phones:
-                key = phone.number
-                if key not in all_phones:
-                    all_phones[key] = phone
-
-            # Method 3: Deep scrape profiles
-            if profile_urls:
-                scrape_phones = self._deep_scrape_profiles(profile_urls[:5])
-                for phone in scrape_phones:
-                    key = phone.number
-                    if key not in all_phones:
-                        all_phones[key] = phone
 
             # Method 4: Extract from emails (some Russian emails use phone as local part)
             if emails:
                 email_phones = self._extract_from_emails(emails)
                 for phone in email_phones:
-                    key = phone.number
+                    key = self._normalize_key(phone.number)
                     if key not in all_phones:
                         all_phones[key] = phone
 
-            # Method 5: Check Telegram for phone (public channels sometimes show)
+            # Method 5: Check Telegram bios for phone numbers
             tg_phones = self._check_telegram_usernames(usernames[:5])
             for phone in tg_phones:
-                key = phone.number
+                key = self._normalize_key(phone.number)
                 if key not in all_phones:
                     all_phones[key] = phone
 
             # Method 6: Generate phone candidates from usernames containing digits
             generated_phones = self._generate_phone_candidates(usernames, first_name, last_name)
             for phone in generated_phones:
-                key = phone.number
+                key = self._normalize_key(phone.number)
                 if key not in all_phones:
                     all_phones[key] = phone
 
@@ -233,326 +229,193 @@ class PhoneDiscoveryService:
 
         return phones
 
-    def _transliterate_to_cyrillic(self, text: str) -> str:
-        """Transliterate Latin text to Cyrillic (Russian)."""
-        # Reverse transliteration map
-        latin_to_cyrillic = {
-            'a': 'a', 'b': 'b', 'v': 'v', 'g': 'g', 'd': 'd', 'e': 'e',
-            'zh': 'zh', 'z': 'z', 'i': 'i', 'y': 'j', 'k': 'k', 'l': 'l',
-            'm': 'm', 'n': 'n', 'o': 'o', 'p': 'p', 'r': 'r', 's': 's',
-            't': 't', 'u': 'u', 'f': 'f', 'kh': 'h', 'ts': 'c', 'ch': 'ch',
-            'sh': 'sh', 'sch': 'sch',
-        }
-        # Common Russian first names in Cyrillic
-        russian_names = {
-            'svetlana': 'Cветлана',
-            'tikhon': 'Тихон',
-            'daniil': 'Даниил',
-            'daniel': 'Даниил',
-            'pavel': 'Павел',
-            'alexander': 'Александр',
-            'sergey': 'Сергей',
-            'dmitry': 'Дмитрий',
-            'ivan': 'Иван',
-            'nikolay': 'Николай',
-            'mikhail': 'Михаил',
-            'andrey': 'Андрей',
-            'alexey': 'Алексей',
-            'vladimir': 'Владимир',
-            'viktor': 'Виктор',
-            'maria': 'Мария',
-            'anna': 'Анна',
-            'elena': 'Елена',
-            'olga': 'Ольга',
-            'natalia': 'Наталья',
-            'tatiana': 'Татьяна',
-            'irina': 'Ирина',
-            'ekaterina': 'Екатерина',
-        }
-        text_lower = text.lower().strip()
-        return russian_names.get(text_lower, text)
+    @staticmethod
+    def _normalize_key(phone: str) -> str:
+        """Normalize phone to digits-only key for deduplication."""
+        return re.sub(r'\D', '', phone)[-10:]
 
-    def _search_vk_by_name(self, first_name: str, last_name: str) -> List[DiscoveredPhone]:
-        """Search VK for users by name and extract phones from profiles."""
+    def _extract_via_vk_api(self, profile_url: str) -> List[DiscoveredPhone]:
+        """
+        Extract phones from VK profile via API (users.get with contacts fields).
+        This is the most reliable method — works with service token.
+        """
         phones = []
+        vk_token = os.environ.get('VK_SERVICE_TOKEN', '')
+        if not vk_token:
+            logger.debug("No VK_SERVICE_TOKEN, skipping VK API phone extraction")
+            return phones
 
-        # Try Cyrillic versions
-        first_cyrillic = self._transliterate_to_cyrillic(first_name)
-        last_cyrillic = self._transliterate_to_cyrillic(last_name)
+        # Extract user ID from URL
+        user_id = None
+        m = re.search(r'vk\.com/id(\d+)', profile_url)
+        if m:
+            user_id = m.group(1)
+        else:
+            m = re.search(r'vk\.com/([a-zA-Z0-9_.]+)', profile_url)
+            if m:
+                user_id = m.group(1)
+
+        if not user_id:
+            return phones
 
         try:
-            # Try multiple VK search approaches - both Latin and Cyrillic
-            search_queries = [
-                f"{first_name} {last_name}",
-                f"{last_name} {first_name}",
-                f"{first_cyrillic} {last_cyrillic}",
-                f"{last_cyrillic} {first_cyrillic}",
-                # Fallback: first name only (common Russian names)
-                first_name,
-                first_cyrillic,
-            ]
-            # Remove duplicates while preserving order
-            search_queries = list(dict.fromkeys(search_queries))[:4]  # Limit to 4 queries
+            resp = self.session.get(
+                'https://api.vk.com/method/users.get',
+                params={
+                    'user_ids': user_id,
+                    'fields': 'contacts,mobile_phone,home_phone,connections,site,status,about',
+                    'access_token': vk_token,
+                    'v': '5.199',
+                },
+                timeout=10,
+            )
+            data = resp.json()
 
-            for query in search_queries:
-                # VK search URL
-                search_url = f"https://vk.com/search?c[name]=1&c[q]={query.replace(' ', '%20')}&c[section]=people"
-
-                logger.debug(f"VK search: {search_url}")
-
-                response = self.session.get(search_url, timeout=15)
-                if response.status_code != 200:
-                    continue
-
-                soup = BeautifulSoup(response.text, 'html.parser')
-
-                # Find profile links in search results - try multiple selectors
-                profile_links = (
-                    soup.select('.people_row a.simple_fit_item') or
-                    soup.select('.search_result a[href^="/"]') or
-                    soup.select('.users_list_row a[href^="/"]') or
-                    soup.select('a[href^="/id"]')
-                )[:5]
-
-                for link in profile_links:
-                    href = link.get('href', '')
-                    if not href:
-                        continue
-
-                    # Skip non-profile links
-                    if any(x in href.lower() for x in ['search', 'settings', 'login', 'away', 'feed']):
-                        continue
-
-                    profile_url = f"https://vk.com{href}" if href.startswith('/') else href
-
-                    logger.debug(f"Scraping VK profile: {profile_url}")
-                    profile_phones = self._scrape_vk_profile(profile_url)
-                    phones.extend(profile_phones)
-
-                    if len(phones) >= 5:
-                        break
-
-                    time.sleep(0.5)  # Rate limiting
-
-                if phones:
-                    break  # Found phones, stop searching
-
-        except Exception as e:
-            logger.debug(f"VK name search error: {e}")
-
-        logger.info(f"VK name search found {len(phones)} phones for '{first_name} {last_name}'")
-        return phones
-
-    def _search_ok_by_name(self, first_name: str, last_name: str) -> List[DiscoveredPhone]:
-        """Search OK.ru (Odnoklassniki) for users by name and extract phones."""
-        phones = []
-
-        try:
-            # Try Cyrillic version
-            first_cyrillic = self._transliterate_to_cyrillic(first_name)
-            last_cyrillic = self._transliterate_to_cyrillic(last_name)
-
-            search_queries = [
-                f"{first_name} {last_name}",
-                f"{first_cyrillic} {last_cyrillic}",
-            ]
-            search_queries = list(dict.fromkeys(search_queries))
-
-            for query in search_queries[:2]:
-                # OK.ru search URL
-                search_url = f"https://ok.ru/search/profiles/{query.replace(' ', '%20')}"
-
-                logger.debug(f"OK search: {search_url}")
-
-                response = self.session.get(search_url, timeout=15)
-                if response.status_code != 200:
-                    continue
-
-                soup = BeautifulSoup(response.text, 'html.parser')
-
-                # Find profile links
-                profile_links = (
-                    soup.select('.ucard-v__link') or
-                    soup.select('.card-v__link') or
-                    soup.select('a[href*="/profile/"]')
-                )[:5]
-
-                for link in profile_links:
-                    href = link.get('href', '')
-                    if not href:
-                        continue
-
-                    profile_url = f"https://ok.ru{href}" if href.startswith('/') else href
-
-                    profile_phones = self._scrape_ok_profile(profile_url)
-                    phones.extend(profile_phones)
-
-                    if len(phones) >= 3:
-                        break
-
-                    time.sleep(0.5)
-
-                if phones:
-                    break
-
-        except Exception as e:
-            logger.debug(f"OK name search error: {e}")
-
-        logger.info(f"OK name search found {len(phones)} phones")
-        return phones
-
-    def _scrape_ok_profile(self, url: str) -> List[DiscoveredPhone]:
-        """Scrape an OK.ru profile for phone numbers and extract profile name."""
-        phones = []
-
-        try:
-            response = self.session.get(url, timeout=10)
-            if response.status_code != 200:
+            if 'error' in data:
+                logger.warning(f"VK API error: {data['error'].get('error_msg', '')}")
                 return phones
 
-            text = response.text
-            soup = BeautifulSoup(text, 'html.parser')
-
-            # Extract profile owner's name for validation
-            profile_name = None
-            # Try various OK.ru name selectors
-            name_selectors = [
-                'h1.profile-user-info_name',  # Modern OK.ru
-                '.user-header__name',
-                '.ucard__name',
-                'h1[data-tsid="user-name"]',
-                '.profile-page_name',
-            ]
-            for selector in name_selectors:
-                name_elem = soup.select_one(selector)
-                if name_elem:
-                    profile_name = name_elem.get_text(strip=True)
-                    break
-
-            # Fallback: try to find name in title
-            if not profile_name:
-                title = soup.find('title')
-                if title:
-                    title_text = title.get_text(strip=True)
-                    # OK.ru titles often include name
-                    if '|' in title_text:
-                        profile_name = title_text.split('|')[0].strip()
-
-            # Build source string including profile name for validation
-            if profile_name:
-                source = f"OK.ru profile ({url}) [name: {profile_name}]"
-            else:
-                source = f"OK.ru profile ({url})"
-
-            # Extract phones from page content
-            for pattern in PHONE_PATTERNS:
-                matches = re.findall(pattern, text, re.IGNORECASE)
-                for match in matches:
-                    if isinstance(match, tuple):
-                        digits = ''.join(match)
-                    else:
-                        digits = re.sub(r'\D', '', str(match))
-
-                    if len(digits) >= 10:
-                        normalized = '+7' + digits[-10:]
-                        info = self.validator.validate(normalized)
-                        if info.is_valid and info.is_mobile:
-                            phones.append(DiscoveredPhone(
-                                number=info.display_format,
-                                source=source,
-                                confidence="high"
-                            ))
-
-        except Exception as e:
-            logger.debug(f"OK profile scrape error: {e}")
-
-        return phones
-
-    def _scrape_vk_profile(self, url: str) -> List[DiscoveredPhone]:
-        """Scrape a VK profile for phone numbers."""
-        phones = []
-
-        try:
-            response = self.session.get(url, timeout=10)
-            if response.status_code != 200:
+            users = data.get('response', [])
+            if not users:
                 return phones
 
-            text = response.text
+            user = users[0]
 
-            # Extract phones from page content
-            for pattern in PHONE_PATTERNS:
-                matches = re.findall(pattern, text, re.IGNORECASE)
-                for match in matches:
-                    if isinstance(match, tuple):
-                        # Pattern with groups
-                        digits = ''.join(match)
-                    else:
-                        digits = re.sub(r'\D', '', str(match))
-
-                    if len(digits) >= 10:
-                        normalized = '+7' + digits[-10:]
-                        phones.append(DiscoveredPhone(
-                            number=normalized,
-                            source=f"VK profile ({url})",
-                            confidence="high"
-                        ))
-
-            # Also check meta tags and JSON data
-            soup = BeautifulSoup(text, 'html.parser')
-
-            # Look in meta description
-            meta_desc = soup.find('meta', attrs={'name': 'description'})
-            if meta_desc:
-                desc_text = meta_desc.get('content', '')
-                desc_phones = self.validator.extract_phones(desc_text)
-                for info in desc_phones:
+            # Extract mobile_phone
+            mobile = user.get('mobile_phone', '')
+            if mobile and len(mobile) > 5:
+                info = self.validator.validate(mobile)
+                if info.is_valid:
                     phones.append(DiscoveredPhone(
                         number=info.display_format,
-                        source=f"VK profile meta ({url})",
-                        confidence="high"
+                        source='VK profile (mobile_phone)',
+                        confidence='high',
+                        carrier=info.carrier_hint,
+                        region=info.region,
+                    ))
+                    logger.info(f"VK API: found mobile_phone: {info.display_format}")
+
+            # Extract home_phone
+            home = user.get('home_phone', '')
+            if home and len(home) > 5:
+                info = self.validator.validate(home)
+                if info.is_valid:
+                    phones.append(DiscoveredPhone(
+                        number=info.display_format,
+                        source='VK profile (home_phone)',
+                        confidence='high',
+                        carrier=info.carrier_hint,
+                        region=info.region,
                     ))
 
-            # Look in script tags for phone data
-            for script in soup.find_all('script'):
-                script_text = script.string or ''
-                if 'mobile_phone' in script_text or 'phone' in script_text.lower():
-                    # Try to extract phone from JSON-like data
-                    phone_match = re.search(r'"(?:mobile_phone|phone|tel)":\s*"([^"]+)"', script_text)
-                    if phone_match:
-                        phone_val = phone_match.group(1)
-                        if phone_val:
-                            info = self.validator.validate(phone_val)
-                            if info.is_valid:
-                                phones.append(DiscoveredPhone(
-                                    number=info.display_format,
-                                    source=f"VK profile data ({url})",
-                                    confidence="high"
-                                ))
+            # Extract from contacts field (nested structure)
+            contacts = user.get('contacts', {})
+            if isinstance(contacts, dict):
+                for field_name in ('mobile_phone', 'home_phone'):
+                    val = contacts.get(field_name, '')
+                    if val and len(val) > 5:
+                        info = self.validator.validate(val)
+                        if info.is_valid:
+                            phones.append(DiscoveredPhone(
+                                number=info.display_format,
+                                source=f'VK contacts ({field_name})',
+                                confidence='high',
+                                carrier=info.carrier_hint,
+                                region=info.region,
+                            ))
+
+            # Extract phones from about/status text
+            for text_field in ('about', 'status', 'activities', 'interests'):
+                text = user.get(text_field, '')
+                if text:
+                    found = self.validator.extract_phones(text)
+                    for info in found:
+                        phones.append(DiscoveredPhone(
+                            number=info.display_format,
+                            source=f'VK profile {text_field}',
+                            confidence='medium',
+                            carrier=info.carrier_hint,
+                            region=info.region,
+                        ))
+
+            # Extract from site field (sometimes contains phone)
+            site = user.get('site', '')
+            if site:
+                found = self.validator.extract_phones(site)
+                for info in found:
+                    phones.append(DiscoveredPhone(
+                        number=info.display_format,
+                        source='VK profile site field',
+                        confidence='medium',
+                        carrier=info.carrier_hint,
+                        region=info.region,
+                    ))
 
         except Exception as e:
-            logger.debug(f"VK profile scrape error for {url}: {e}")
+            logger.warning(f"VK API phone extraction error: {e}")
 
+        logger.info(f"VK API users.get found {len(phones)} phones for {profile_url}")
         return phones
 
-    def _deep_scrape_profiles(self, profiles: List[Dict]) -> List[DiscoveredPhone]:
-        """Deep scrape profile pages for phone numbers."""
+    def _extract_from_vk_wall(self, profile_url: str) -> List[DiscoveredPhone]:
+        """
+        Scan VK wall posts for phone numbers via VK API wall.get.
+        Works with service token for public profiles.
+        """
         phones = []
+        vk_token = os.environ.get('VK_SERVICE_TOKEN', '')
+        if not vk_token:
+            return phones
 
-        for profile in profiles:
-            url = profile.get('url', '')
-            platform = profile.get('platform', '')
+        # Extract user ID
+        user_id = None
+        m = re.search(r'vk\.com/id(\d+)', profile_url)
+        if m:
+            user_id = m.group(1)
+        else:
+            m = re.search(r'vk\.com/([a-zA-Z0-9_.]+)', profile_url)
+            if m:
+                user_id = m.group(1)
 
-            if not url:
-                continue
+        if not user_id:
+            return phones
 
-            try:
-                response = self.session.get(url, timeout=10)
-                if response.status_code != 200:
+        try:
+            params = {
+                'count': 100,
+                'access_token': vk_token,
+                'v': '5.199',
+            }
+            if user_id.isdigit():
+                params['owner_id'] = user_id
+            else:
+                params['domain'] = user_id
+
+            resp = self.session.get(
+                'https://api.vk.com/method/wall.get',
+                params=params,
+                timeout=15,
+            )
+            data = resp.json()
+
+            if 'error' in data:
+                err = data['error']
+                code = err.get('error_code', 0)
+                if code == 15:
+                    logger.debug(f"VK wall access denied for {user_id} (private profile)")
+                else:
+                    logger.debug(f"VK wall.get error {code}: {err.get('error_msg', '')}")
+                return phones
+
+            posts = data.get('response', {}).get('items', [])
+            logger.info(f"VK wall.get: scanning {len(posts)} posts for {user_id}")
+
+            for post in posts:
+                text = post.get('text', '')
+                if not text:
                     continue
 
-                text = response.text
-
-                # Extract all phone patterns
+                # Extract phones from post text
                 for pattern in PHONE_PATTERNS:
                     matches = re.findall(pattern, text, re.IGNORECASE)
                     for match in matches:
@@ -563,21 +426,26 @@ class PhoneDiscoveryService:
 
                         if len(digits) >= 10:
                             normalized = '+7' + digits[-10:]
-
-                            # Verify it looks valid
                             info = self.validator.validate(normalized)
-                            if info.is_valid:
+                            if info.is_valid and info.is_mobile:
+                                post_id = post.get('id', '')
+                                owner_id = post.get('owner_id', user_id)
+                                # Get context around the phone number
+                                context = text[:100] if len(text) > 100 else text
                                 phones.append(DiscoveredPhone(
                                     number=info.display_format,
-                                    source=f"{platform.upper()} profile deep scan",
-                                    confidence="high" if 'contact' in text.lower() else "medium"
+                                    source=f'VK wall post (wall{owner_id}_{post_id})',
+                                    confidence='high' if any(kw in text.lower() for kw in
+                                        ['тел', 'phone', 'звон', 'call', 'whatsapp', 'viber'])
+                                        else 'medium',
+                                    carrier=info.carrier_hint,
+                                    region=info.region,
                                 ))
 
-                time.sleep(0.3)
+        except Exception as e:
+            logger.warning(f"VK wall extraction error: {e}")
 
-            except Exception as e:
-                logger.debug(f"Deep scrape error for {url}: {e}")
-
+        logger.info(f"VK wall.get found {len(phones)} phones in posts for {user_id}")
         return phones
 
     def _extract_from_emails(self, emails: List[str]) -> List[DiscoveredPhone]:
