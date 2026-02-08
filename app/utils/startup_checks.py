@@ -1,0 +1,137 @@
+"""
+IBP Startup Checks
+==================
+Validates dependencies and configuration on server boot.
+Prints a clear status table. Does NOT block startup on non-critical failures.
+"""
+
+import os
+import logging
+from datetime import datetime
+
+logger = logging.getLogger('ibp.startup')
+
+
+def run_startup_checks():
+    """Run all startup checks and print status table."""
+    print("\n" + "=" * 58)
+    print(f"  IBP STARTUP CHECKS — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("=" * 58)
+
+    checks = [
+        check_database,
+        check_vk_token,
+        check_playwright,
+        check_holehe,
+        check_telethon,
+        check_snoop,
+        check_python,
+    ]
+
+    for check_fn in checks:
+        try:
+            status, msg = check_fn()
+            icon = {'ok': '\u2705', 'warn': '\u26a0\ufe0f', 'fail': '\u274c'}.get(status, '?')
+            print(f"  {icon} {msg}")
+        except Exception as e:
+            print(f"  \u274c {check_fn.__name__}: Error — {e}")
+
+    print("=" * 58 + "\n")
+
+
+def check_database():
+    """Check if database exists and is readable."""
+    db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..', 'instance', 'ibp.db')
+    if os.path.exists(db_path):
+        size_kb = os.path.getsize(db_path) / 1024
+        try:
+            import sqlite3
+            conn = sqlite3.connect(db_path)
+            cursor = conn.execute("SELECT COUNT(*) FROM investigations")
+            count = cursor.fetchone()[0]
+            conn.close()
+            return 'ok', f'Database: ibp.db ({size_kb:.0f} KB, {count} investigations)'
+        except Exception as e:
+            return 'warn', f'Database: ibp.db exists ({size_kb:.0f} KB) but query failed — {e}'
+    return 'warn', 'Database: ibp.db not found (will be created on first run)'
+
+
+def check_vk_token():
+    """Check VK token validity."""
+    from app.utils.logger import mask_token
+    token = os.environ.get('VK_SERVICE_TOKEN') or os.environ.get('VK_TOKEN')
+    if not token:
+        return 'warn', 'VK Token: Not set — set VK_SERVICE_TOKEN or VK_TOKEN in .env'
+
+    try:
+        import requests
+        resp = requests.get(
+            'https://api.vk.com/method/users.get',
+            params={'user_ids': '1', 'access_token': token, 'v': '5.199'},
+            timeout=5
+        )
+        data = resp.json()
+        if 'error' in data:
+            error_msg = data['error'].get('error_msg', 'Unknown error')
+            return 'fail', f'VK Token: Invalid ({mask_token(token)}) — {error_msg}'
+        return 'ok', f'VK Token: Valid ({mask_token(token)})'
+    except requests.Timeout:
+        return 'warn', f'VK Token: Set ({mask_token(token)}) — API timeout (VK may be blocked)'
+    except Exception as e:
+        return 'warn', f'VK Token: Set ({mask_token(token)}) — Check failed: {e}'
+
+
+def check_playwright():
+    """Check if Playwright is installed."""
+    try:
+        from playwright.sync_api import sync_playwright
+        return 'ok', 'Playwright: Installed'
+    except ImportError:
+        return 'warn', 'Playwright: Not installed — run `pip install playwright && playwright install chromium`'
+
+
+def check_holehe():
+    """Check if Holehe is available."""
+    try:
+        import holehe
+        version = getattr(holehe, '__version__', 'unknown')
+        return 'ok', f'Holehe: v{version}'
+    except ImportError:
+        return 'warn', 'Holehe: Not installed — run `pip install holehe`'
+
+
+def check_telethon():
+    """Check Telegram session status."""
+    try:
+        import telethon
+        api_id = os.environ.get('TELEGRAM_API_ID')
+        if not api_id:
+            return 'warn', 'Telethon: Installed but TELEGRAM_API_ID not set'
+        # Check for session files
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        session_files = [f for f in os.listdir(os.path.join(base_dir, '..')) if f.endswith('.session')]
+        if session_files:
+            return 'ok', f'Telethon: Session found ({session_files[0]})'
+        return 'warn', 'Telethon: Configured but no session file'
+    except ImportError:
+        return 'warn', 'Telethon: Not installed — Telegram features disabled'
+    except Exception:
+        return 'warn', 'Telethon: Installed, session check skipped'
+
+
+def check_snoop():
+    """Check if Snoop is available."""
+    paths = [
+        os.path.join(os.path.expanduser('~'), 'osint_tools', 'snoop'),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..', 'snoop'),
+    ]
+    for p in paths:
+        if os.path.isdir(p):
+            return 'ok', f'Snoop: Found at {p}'
+    return 'warn', 'Snoop: Not found — username enumeration disabled'
+
+
+def check_python():
+    """Report Python version."""
+    import sys
+    return 'ok', f'Python: {sys.version.split()[0]}'

@@ -24,7 +24,14 @@ if __name__ == '__main__':
     Press CTRL+C to stop
     ===========================================================
     """)
-    
+
+    # Run startup validation checks
+    try:
+        from app.utils.startup_checks import run_startup_checks
+        run_startup_checks()
+    except Exception as e:
+        print(f"  Startup checks failed: {e}")
+
     # Run the development server
     app.run(
         host='127.0.0.1',

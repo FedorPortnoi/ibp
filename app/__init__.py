@@ -5,7 +5,8 @@ Flask application factory with Buratino-style workflow.
 """
 
 import os
-from flask import Flask
+import logging
+from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 
@@ -15,9 +16,15 @@ load_dotenv()
 # Initialize extensions
 db = SQLAlchemy()
 
+logger = logging.getLogger('ibp')
+
 
 def create_app(config_name='development'):
     """Application factory for IBP."""
+
+    # Setup structured logging
+    from app.utils.logger import setup_logging
+    setup_logging(log_level='INFO')
 
     app = Flask(__name__)
 
@@ -35,13 +42,13 @@ def create_app(config_name='development'):
 
         # Search4Faces API (optional)
         app.config['SEARCH4FACES_API_KEY'] = os.environ.get('SEARCH4FACES_API_KEY')
-    
+
     # Initialize extensions with app
     db.init_app(app)
-    
+
     # Create upload folder
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    
+
     # Import and register blueprints directly from each file
     from app.routes.main import main_bp
     from app.routes.phase1 import phase1_bp
@@ -55,10 +62,20 @@ def create_app(config_name='development'):
     app.register_blueprint(phase3_bp)
     app.register_blueprint(report_bp)
     app.register_blueprint(phase4_bp)
-    
+
+    # Register error handlers
+    @app.errorhandler(404)
+    def not_found(e):
+        return render_template('errors/404.html'), 404
+
+    @app.errorhandler(500)
+    def server_error(e):
+        logger.error(f"500 error: {e}", exc_info=True)
+        return render_template('errors/500.html', error=str(e)), 500
+
     # Create database tables
     with app.app_context():
         db.create_all()
-        print("Database tables created successfully")
-    
+        logger.info("Database tables created successfully")
+
     return app
