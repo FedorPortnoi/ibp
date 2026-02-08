@@ -1,29 +1,77 @@
 {% extends "base.html" %}
 
-{% block title %}Past Investigations - IBP{% endblock %}
+{% block title %}Investigations - IBP{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 py-8">
+<div class="max-w-5xl mx-auto px-4 py-8">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-8">
+    <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="text-2xl font-bold text-violet font-display">Past Investigations</h1>
-            <p class="text-gray-400">{{ investigations|length }} investigation(s)</p>
+            <h1 class="text-2xl font-bold text-violet font-display">Investigations</h1>
         </div>
         <a href="/phase1/new" class="btn btn-primary">
             + New Investigation
         </a>
     </div>
 
+    <!-- Stats Summary -->
+    {% set total = investigations|length %}
+    {% set complete = investigations|selectattr('status', 'equalto', 'complete')|list|length %}
+    {% set phase1_done = investigations|selectattr('status', 'equalto', 'phase_1_complete')|list|length %}
+    {% set phase2_done = investigations|selectattr('status', 'equalto', 'phase_2_complete')|list|length %}
+    {% set in_progress = total - complete %}
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div class="bg-bg-panel rounded-lg border border-violet-200 p-3 text-center">
+            <div class="text-2xl font-bold text-white">{{ total }}</div>
+            <div class="text-xs text-gray-400">Total</div>
+        </div>
+        <div class="bg-bg-panel rounded-lg border border-green-500/20 p-3 text-center">
+            <div class="text-2xl font-bold text-green-400">{{ complete }}</div>
+            <div class="text-xs text-gray-400">Complete</div>
+        </div>
+        <div class="bg-bg-panel rounded-lg border border-blue-500/20 p-3 text-center">
+            <div class="text-2xl font-bold text-blue-400">{{ phase1_done + phase2_done }}</div>
+            <div class="text-xs text-gray-400">Analyzed</div>
+        </div>
+        <div class="bg-bg-panel rounded-lg border border-yellow-500/20 p-3 text-center">
+            <div class="text-2xl font-bold text-yellow-400">{{ in_progress }}</div>
+            <div class="text-xs text-gray-400">In Progress</div>
+        </div>
+    </div>
+
+    <!-- Search + Filter Bar -->
+    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+        <div class="flex-1">
+            <input type="text" id="search-input" placeholder="Search by name..."
+                class="w-full bg-bg-panel border border-violet-200 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:border-violet focus:outline-none text-sm">
+        </div>
+        <select id="status-filter" class="bg-bg-panel border border-violet-200 rounded-lg px-4 py-2 text-gray-300 text-sm focus:border-violet focus:outline-none">
+            <option value="all">All Statuses</option>
+            <option value="phase_1">Phase 1</option>
+            <option value="phase_1_complete">Phase 1 Done</option>
+            <option value="phase_2_complete">Phase 2 Done</option>
+            <option value="complete">Complete</option>
+        </select>
+        <select id="sort-order" class="bg-bg-panel border border-violet-200 rounded-lg px-4 py-2 text-gray-300 text-sm focus:border-violet focus:outline-none">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="name">Name A-Z</option>
+        </select>
+    </div>
+
     <!-- Investigations List -->
-    <div class="space-y-4">
+    <div id="investigations-list" class="space-y-4">
         {% for inv in investigations %}
-        <div class="bg-bg-panel rounded-xl border border-violet-200 p-4 hover:border-violet transition-colors">
+        <div class="investigation-card bg-bg-panel rounded-xl border border-violet-200 p-4 hover:border-violet transition-colors"
+             data-name="{{ inv.input_name|lower }}"
+             data-status="{{ inv.status }}"
+             data-created="{{ inv.created_at.isoformat() if inv.created_at else '' }}"
+             data-id="{{ inv.id }}">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
                     <!-- Photo or initials -->
-                    {% if inv.confirmed_profile and inv.confirmed_profile.photo_url %}
-                    <img src="{{ inv.confirmed_profile.photo_url }}" alt="" class="w-12 h-12 rounded-full object-cover">
+                    {% if inv.confirmed_profile_obj and inv.confirmed_profile_obj.photo_url %}
+                    <img src="{{ inv.confirmed_profile_obj.photo_url }}" alt="" class="w-12 h-12 rounded-full object-cover">
                     {% else %}
                     <div class="w-12 h-12 rounded-full bg-violet flex items-center justify-center text-white font-bold">
                         {{ inv.input_name[0] if inv.input_name else '?' }}
@@ -33,13 +81,14 @@
                     <!-- Info -->
                     <div>
                         <h3 class="font-semibold text-white">{{ inv.input_name }}</h3>
-                        <p class="text-sm text-gray-500">
-                            Created {{ inv.created_at.strftime('%d.%m.%Y %H:%M') if inv.created_at else 'N/A' }}
+                        <p class="text-sm text-gray-500 time-ago" data-time="{{ inv.created_at.isoformat() if inv.created_at else '' }}"
+                           title="{{ inv.created_at.strftime('%d.%m.%Y %H:%M') if inv.created_at else 'N/A' }}">
+                            {{ inv.created_at.strftime('%d.%m.%Y %H:%M') if inv.created_at else 'N/A' }}
                         </p>
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-3">
                     <!-- Status Badge -->
                     <span class="px-3 py-1 rounded-full text-xs font-medium
                         {% if inv.status == 'complete' %}bg-green-500/20 text-green-400
@@ -57,48 +106,44 @@
                     <!-- Actions -->
                     {% if inv.status == 'phase_1' %}
                     <a href="/phase1/search/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
-                        Continue →
+                        Continue
                     </a>
                     {% elif inv.status == 'phase_1_complete' %}
                     <a href="/phase2/analyze/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
-                        Analyze →
+                        Analyze
                     </a>
                     {% elif inv.status in ['phase_2', 'phase_2_complete'] %}
-                    <a href="/phase2/results/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
-                        View Results →
+                    <a href="/phase2/buratino/results/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
+                        Results
                     </a>
                     {% elif inv.status == 'complete' %}
                     <a href="/report/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
-                        View Report →
+                        Report
                     </a>
                     {% endif %}
+
+                    <!-- Delete Button -->
+                    <button onclick="deleteInvestigation('{{ inv.id }}', '{{ inv.input_name }}')"
+                            class="text-red-400/50 hover:text-red-400 transition-colors" title="Delete">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
 
             <!-- Quick Stats -->
-            {% if inv.confirmed_profile %}
-            <div class="mt-4 pt-4 border-t border-violet-100 flex items-center space-x-6 text-sm text-gray-400">
-                <span>
-                    <span class="text-violet">Platform:</span>
-                    {{ inv.confirmed_platform or 'VK' }}
-                </span>
+            {% if inv.confirmed_profile_obj %}
+            <div class="mt-3 pt-3 border-t border-violet-100 flex items-center space-x-6 text-sm text-gray-400">
+                <span><span class="text-violet">Platform:</span> {{ inv.confirmed_platform or 'VK' }}</span>
                 {% if inv.confirmed_username %}
-                <span>
-                    <span class="text-violet">Username:</span>
-                    @{{ inv.confirmed_username }}
-                </span>
+                <span><span class="text-violet">Username:</span> @{{ inv.confirmed_username }}</span>
                 {% endif %}
                 {% if inv.discovered_phones %}
-                <span>
-                    <span class="text-violet">Phones:</span>
-                    {{ inv.discovered_phones|length }}
-                </span>
+                <span><span class="text-violet">Phones:</span> {{ inv.discovered_phones|length }}</span>
                 {% endif %}
                 {% if inv.discovered_emails %}
-                <span>
-                    <span class="text-violet">Emails:</span>
-                    {{ inv.discovered_emails|length }}
-                </span>
+                <span><span class="text-violet">Emails:</span> {{ inv.discovered_emails|length }}</span>
                 {% endif %}
             </div>
             {% endif %}
@@ -108,12 +153,129 @@
         <!-- Empty State -->
         {% if not investigations %}
         <div class="text-center py-12">
-            <span class="text-5xl mb-4 block">📋</span>
+            <span class="text-5xl mb-4 block">&#128203;</span>
             <h3 class="text-xl font-semibold text-gray-300 mb-2">No investigations yet</h3>
             <p class="text-gray-500 mb-4">Start your first investigation to see it here</p>
             <a href="/phase1/new" class="btn btn-primary">Start Investigation</a>
         </div>
         {% endif %}
+
+        <!-- No results message (hidden by default) -->
+        <div id="no-results" class="hidden text-center py-12">
+            <h3 class="text-lg text-gray-400">No investigations match your search</h3>
+        </div>
     </div>
 </div>
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center">
+    <div class="bg-bg-panel rounded-xl border border-red-400/30 p-6 max-w-md mx-4">
+        <h3 class="text-lg font-bold text-white mb-2">Delete Investigation</h3>
+        <p class="text-gray-400 mb-6">Delete investigation for "<span id="delete-name" class="text-white"></span>"? This cannot be undone.</p>
+        <div class="flex justify-end space-x-3">
+            <button onclick="closeDeleteModal()" class="btn btn-secondary">Cancel</button>
+            <button id="confirm-delete-btn" class="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors text-sm font-medium">Delete</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// --- Time Ago ---
+document.querySelectorAll('.time-ago').forEach(el => {
+    const iso = el.dataset.time;
+    if (!iso) return;
+    const date = new Date(iso);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHr = Math.floor(diffMs / 3600000);
+    const diffDay = Math.floor(diffMs / 86400000);
+    let text;
+    if (diffMin < 1) text = 'Just now';
+    else if (diffMin < 60) text = diffMin + ' min ago';
+    else if (diffHr < 24) text = diffHr + 'h ago';
+    else if (diffDay < 7) text = diffDay + 'd ago';
+    else text = el.textContent;
+    el.textContent = text;
+});
+
+// --- Search + Filter ---
+const searchInput = document.getElementById('search-input');
+const statusFilter = document.getElementById('status-filter');
+const sortOrder = document.getElementById('sort-order');
+const list = document.getElementById('investigations-list');
+const cards = Array.from(document.querySelectorAll('.investigation-card'));
+const noResults = document.getElementById('no-results');
+
+function applyFilters() {
+    const query = searchInput.value.toLowerCase().trim();
+    const statusVal = statusFilter.value;
+    let visible = cards.filter(card => {
+        const name = card.dataset.name;
+        const status = card.dataset.status;
+        const matchesName = !query || name.includes(query);
+        const matchesStatus = statusVal === 'all' || status === statusVal;
+        return matchesName && matchesStatus;
+    });
+
+    // Sort
+    const order = sortOrder.value;
+    if (order === 'oldest') {
+        visible.sort((a, b) => (a.dataset.created || '').localeCompare(b.dataset.created || ''));
+    } else if (order === 'name') {
+        visible.sort((a, b) => (a.dataset.name || '').localeCompare(b.dataset.name || ''));
+    } else {
+        visible.sort((a, b) => (b.dataset.created || '').localeCompare(a.dataset.created || ''));
+    }
+
+    // Show/hide
+    cards.forEach(c => c.style.display = 'none');
+    visible.forEach(c => { c.style.display = ''; list.appendChild(c); });
+    noResults.classList.toggle('hidden', visible.length > 0 || cards.length === 0);
+}
+
+searchInput.addEventListener('input', applyFilters);
+statusFilter.addEventListener('change', applyFilters);
+sortOrder.addEventListener('change', applyFilters);
+
+// --- Delete ---
+let deleteId = null;
+
+function deleteInvestigation(id, name) {
+    deleteId = id;
+    document.getElementById('delete-name').textContent = name;
+    document.getElementById('delete-modal').classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+    document.getElementById('delete-modal').classList.add('hidden');
+    deleteId = null;
+}
+
+document.getElementById('confirm-delete-btn').addEventListener('click', () => {
+    if (!deleteId) return;
+    fetch('/api/investigations/' + deleteId, {method: 'DELETE'})
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const card = document.querySelector(`[data-id="${deleteId}"]`);
+                if (card) card.remove();
+                closeDeleteModal();
+                // Update card count
+                const remaining = document.querySelectorAll('.investigation-card');
+                if (remaining.length === 0) location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Delete failed'));
+            }
+        })
+        .catch(err => alert('Error: ' + err.message));
+});
+
+// Close modal on backdrop click
+document.getElementById('delete-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeDeleteModal();
+});
+</script>
 {% endblock %}
