@@ -86,12 +86,16 @@
                     <a href="/" class="text-text-secondary hover:text-violet-bright transition-colors text-sm">
                         Dashboard
                     </a>
-                    <a href="/search/people" class="text-text-secondary hover:text-violet-bright transition-colors text-sm">
-                        People Search
+                    <a href="/investigations" class="text-text-secondary hover:text-violet-bright transition-colors text-sm">
+                        Investigations
                     </a>
                     <a href="/phase1" class="btn btn-primary btn-sm">
                         New Search
                     </a>
+                    <!-- VK Token Status -->
+                    <span id="vk-status" class="text-xs cursor-pointer" title="VK API status">
+                        <span class="inline-block w-2 h-2 rounded-full bg-gray-500 mr-1"></span>VK
+                    </span>
                 </div>
             </div>
         </div>
@@ -108,6 +112,38 @@
             IBP - OSINT Investigation Platform | For authorized use only
         </div>
     </footer>
+
+    <!-- VK Token Status Polling -->
+    <script>
+    (function() {
+        function updateVkStatus() {
+            fetch('/api/vk/token-status')
+                .then(r => r.json())
+                .then(data => {
+                    const el = document.getElementById('vk-status');
+                    if (!el) return;
+                    const dot = el.querySelector('span');
+                    if (data.valid === true) {
+                        dot.className = 'inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1';
+                        el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1"></span>VK';
+                        el.title = 'VK token valid';
+                    } else if (data.valid === false && data.token_set) {
+                        el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-red-400 mr-1"></span><a href="/vk/auth" class="text-red-400 hover:text-red-300">VK</a>';
+                        el.title = 'VK token expired — click to refresh';
+                    } else if (!data.token_set) {
+                        el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 mr-1"></span>VK';
+                        el.title = 'VK token not set';
+                    } else {
+                        el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 mr-1"></span>VK';
+                        el.title = 'VK status unknown';
+                    }
+                })
+                .catch(() => {});
+        }
+        updateVkStatus();
+        setInterval(updateVkStatus, 300000); // Poll every 5 minutes
+    })();
+    </script>
 
     {% block scripts %}{% endblock %}
 </body>
