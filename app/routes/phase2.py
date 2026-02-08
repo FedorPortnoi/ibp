@@ -834,6 +834,73 @@ def start_buratino_analysis(investigation_id):
                             'verification': 'pattern'
                         })
 
+                # ===== STEP 4.5: Holehe Email Verification =====
+                task.add_message('Verifying emails with Holehe (120+ services)...', 'info')
+                task.update_progress('Holehe Verification', 42)
+
+                holehe_verified_count = 0
+                try:
+                    from app.services.phase2.email_discovery import verify_emails_with_holehe
+
+                    # Pick top emails to verify: prefer high/medium confidence
+                    holehe_candidates = []
+                    for e in discovered_emails:
+                        if e.get('confidence') in ('high', 'medium'):
+                            holehe_candidates.append(e['email'])
+                    # Also add top pattern candidates if we don't have enough
+                    if len(holehe_candidates) < 3:
+                        for c in email_candidates[:5]:
+                            addr = c['email'] if isinstance(c, dict) else str(c)
+                            if addr not in holehe_candidates:
+                                holehe_candidates.append(addr)
+
+                    holehe_candidates = holehe_candidates[:5]  # Max 5 (slow)
+
+                    if holehe_candidates:
+                        task.add_message(f'Checking {len(holehe_candidates)} emails with Holehe...', 'info')
+                        holehe_results = verify_emails_with_holehe(holehe_candidates, max_emails=5)
+
+                        for hr in holehe_results:
+                            if hr.get('verified') and hr.get('services'):
+                                holehe_verified_count += 1
+                                email_addr = hr['email']
+                                services = hr['services']
+
+                                # Update existing discovered email or add new one
+                                found_existing = False
+                                for disc in discovered_emails:
+                                    if disc['email'].lower() == email_addr.lower():
+                                        disc['confidence'] = 'high'
+                                        disc['verification'] = 'holehe_confirmed'
+                                        existing_verified = disc.get('verified_on', [])
+                                        holehe_tags = [f'holehe:{s}' for s in services[:3]]
+                                        disc['verified_on'] = list(set(existing_verified + holehe_tags))
+                                        found_existing = True
+                                        break
+
+                                if not found_existing:
+                                    discovered_emails.append({
+                                        'email': email_addr,
+                                        'source': 'Holehe verification',
+                                        'confidence': hr.get('confidence', 'high'),
+                                        'verified_on': hr.get('verified_on', []),
+                                        'verification': 'holehe_confirmed',
+                                    })
+
+                                task.add_message(
+                                    f'Holehe confirmed: {email_addr} on {services[:3]}',
+                                    'success'
+                                )
+
+                        if holehe_verified_count:
+                            task.add_message(f'Holehe verified {holehe_verified_count} emails', 'success')
+                        else:
+                            task.add_message('Holehe: no registrations found for checked emails', 'info')
+
+                except Exception as e:
+                    logger.warning(f"Holehe verification error: {e}")
+                    task.add_message(f'Holehe error: {str(e)[:60]}', 'warning')
+
                 # ===== STEP 5: Gravatar Check on Verified Emails =====
                 task.add_message('Checking Gravatar profiles...', 'info')
                 task.update_progress('Gravatar Check', 50)

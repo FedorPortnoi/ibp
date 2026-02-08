@@ -199,22 +199,28 @@
             <div class="space-y-2">
                 {% if investigation.discovered_emails %}
                     {% for email in investigation.discovered_emails %}
-                    <div class="flex items-center justify-between p-3 bg-bg-dark rounded-lg border border-violet-200/20 {% if email.verification == 'smtp_verified' %}border-green-500/40{% endif %}">
+                    <div class="flex items-center justify-between p-3 bg-bg-dark rounded-lg border border-violet-200/20 {% if email.verification == 'holehe_confirmed' %}border-emerald-500/40{% elif email.verification == 'smtp_verified' %}border-green-500/40{% elif email.verification == 'gravatar' %}border-blue-500/40{% endif %}">
                         <div class="flex-1 min-w-0">
                             <span class="text-white font-mono text-sm">{{ email.email }}</span>
                             <span class="text-xs text-gray-500 ml-2">{{ email.source }}</span>
                         </div>
                         <div class="flex items-center space-x-2 flex-shrink-0">
-                            {# Verification badge #}
-                            {% if email.verification == 'smtp_verified' %}
-                            <span class="px-2 py-0.5 bg-green-500/30 text-green-300 text-xs rounded font-medium">&#10003; Verified</span>
+                            {# Verification badge - priority order #}
+                            {% if email.verification == 'holehe_confirmed' %}
+                            <span class="px-2 py-0.5 bg-emerald-500/30 text-emerald-300 text-xs rounded font-medium">&#10003; Holehe</span>
+                            {% elif email.verification == 'smtp_verified' %}
+                            <span class="px-2 py-0.5 bg-green-500/30 text-green-300 text-xs rounded font-medium">&#10003; SMTP</span>
+                            {% elif email.verification == 'gravatar' %}
+                            <span class="px-2 py-0.5 bg-blue-500/30 text-blue-300 text-xs rounded font-medium">&#10003; Gravatar</span>
                             {% elif email.verification in ['catch_all_domain', 'likely'] %}
                             <span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">Likely</span>
-                            {% elif email.verification == 'pattern' and email.confidence == 'medium' %}
-                            <span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded">Pattern</span>
+                            {% elif email.verification == 'breach_found' %}
+                            <span class="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded">Breach</span>
+                            {% elif email.verification == 'pattern' %}
+                            <span class="px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs rounded">Pattern</span>
                             {% endif %}
-                            {# Confidence badge (only show if no verification badge) #}
-                            {% if email.verification not in ['smtp_verified', 'catch_all_domain', 'likely'] %}
+                            {# Confidence badge (only if no strong verification badge) #}
+                            {% if email.verification not in ['holehe_confirmed', 'smtp_verified', 'gravatar', 'catch_all_domain', 'likely', 'breach_found'] %}
                                 {% if email.confidence == 'high' %}
                                 <span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">High</span>
                                 {% elif email.confidence == 'medium' and email.verification != 'pattern' %}
@@ -223,9 +229,9 @@
                                 <span class="px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs rounded">Low</span>
                                 {% endif %}
                             {% endif %}
-                            {# Verified on services #}
+                            {# Verified on services (truncated for readability) #}
                             {% if email.verified_on %}
-                            <span class="text-xs text-violet">{{ email.verified_on|join(', ') }}</span>
+                            <span class="text-xs text-violet truncate max-w-[120px]" title="{{ email.verified_on|join(', ') }}">{{ email.verified_on[:3]|join(', ') }}</span>
                             {% endif %}
                         </div>
                     </div>

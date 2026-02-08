@@ -1,15 +1,15 @@
 """
-Email Discovery Service - Fast Async Implementation
-====================================================
+Email Discovery Service - Holehe + SMTP + Gravatar Verification
+================================================================
 Discovers and verifies emails using multiple methods in parallel.
 Target: Complete in under 60 seconds.
 
-Methods:
-1. Pattern generation from name + usernames
-2. Direct email validation (MX record + SMTP)
-3. Holehe verification (async, with short timeout)
-4. Username-to-email mapping for Russian services
-5. Profile scraping for visible emails
+Verification methods (ordered by reliability):
+1. Holehe library - checks registration on 120+ services (BEST)
+2. SMTP RCPT TO - verifies mailbox exists at mail server
+3. Gravatar JSON profile - checks if avatar/profile exists
+4. MX record validation - confirms domain accepts email
+5. Profile scraping - extracts visible emails from pages
 """
 
 import asyncio
@@ -21,7 +21,6 @@ import time
 from typing import List, Dict, Optional, Set, Tuple
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
-import subprocess
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +33,7 @@ class DiscoveredEmail:
     confidence: str  # "high", "medium", "low"
     verified: bool = False
     verified_on: List[str] = field(default_factory=list)
+    verification: str = 'unverified'  # holehe_confirmed, smtp_verified, gravatar, likely, pattern
 
 
 @dataclass
@@ -64,10 +64,17 @@ KNOWN_MX_SERVERS = {
     'gmail.com': 'gmail-smtp-in.l.google.com',
 }
 
+# Domains that block SMTP verification
+SMTP_BLOCKED_DOMAINS = {'mail.ru', 'bk.ru', 'list.ru', 'inbox.ru', 'yandex.ru', 'ya.ru'}
+
+# Catch-all domains (always accept, can't verify individual addresses)
+CATCH_ALL_DOMAINS = {'gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com'}
+
 
 class EmailDiscoveryService:
     """
-    Fast async email discovery service.
+    Email discovery + verification service.
+    Uses Holehe (library), SMTP, and Gravatar for verification.
     Designed to complete in under 60 seconds.
     """
 
@@ -77,14 +84,6 @@ class EmailDiscoveryService:
         verify_timeout: float = 5.0,
         max_concurrent: int = 10
     ):
-        """
-        Initialize email discovery service.
-
-        Args:
-            max_candidates: Maximum email candidates to generate
-            verify_timeout: Timeout for each verification request
-            max_concurrent: Maximum concurrent verification tasks
-        """
         self.max_candidates = max_candidates
         self.verify_timeout = verify_timeout
         self.max_concurrent = max_concurrent
@@ -129,27 +128,30 @@ class EmailDiscoveryService:
                 # Create all verification tasks
                 tasks = []
 
-                # Task 1: Verify candidates with Holehe (fast mode)
-                tasks.append(self._verify_with_holehe_batch(candidates[:15]))
+                # Task 1: Verify candidates with Holehe library (highest priority)
+                tasks.append(self._verify_with_holehe_batch(candidates[:10]))
 
-                # Task 2: Check Gravatar for candidates
+                # Task 2: SMTP verification for top candidates
+                tasks.append(self._verify_smtp_batch(candidates[:15]))
+
+                # Task 3: Check Gravatar JSON profiles
                 tasks.append(self._check_gravatar_batch(session, candidates[:20]))
 
-                # Task 3: Check if emails have MX records (quick validation)
+                # Task 4: Check if emails have MX records (quick validation)
                 tasks.append(self._validate_mx_batch(candidates))
 
-                # Task 4: Scrape profile URLs for visible emails
+                # Task 5: Scrape profile URLs for visible emails
                 if profile_urls:
                     tasks.append(self._scrape_profiles_async(session, profile_urls))
 
-                # Task 5: Check username-based emails on Russian services
+                # Task 6: Check username-based emails on Russian services
                 tasks.append(self._check_russian_services(session, usernames[:5]))
 
                 # Run all tasks with overall timeout
                 try:
                     task_results = await asyncio.wait_for(
                         asyncio.gather(*tasks, return_exceptions=True),
-                        timeout=35.0  # 35 second overall timeout
+                        timeout=50.0  # 50 second overall timeout
                     )
                 except asyncio.TimeoutError:
                     logger.warning("Overall timeout reached, using partial results")
@@ -173,22 +175,49 @@ class EmailDiscoveryService:
                                     existing.verified_on = list(set(existing.verified_on))
                                     if email_info.verified:
                                         existing.verified = True
-                                    if email_info.confidence == 'high':
+                                    # Promote confidence based on multiple verifications
+                                    if len(existing.verified_on) >= 2:
                                         existing.confidence = 'high'
+                                        existing.verification = 'multi_verified'
+                                    elif email_info.confidence == 'high':
+                                        existing.confidence = 'high'
+                                    # Prefer stronger verification type
+                                    verification_priority = {
+                                        'holehe_confirmed': 0,
+                                        'smtp_verified': 1,
+                                        'gravatar': 2,
+                                        'multi_verified': 0,
+                                        'likely': 3,
+                                        'pattern': 4,
+                                        'unverified': 5,
+                                    }
+                                    if verification_priority.get(email_info.verification, 5) < \
+                                       verification_priority.get(existing.verification, 5):
+                                        existing.verification = email_info.verification
 
         except Exception as e:
             results.errors.append(f"Discovery error: {str(e)}")
             logger.error(f"Email discovery error: {e}")
 
-        # Finalize results
+        # Finalize results - sort by verification strength then confidence
+        verification_order = {
+            'holehe_confirmed': 0, 'multi_verified': 0, 'smtp_verified': 1,
+            'gravatar': 2, 'likely': 3, 'pattern': 4, 'unverified': 5,
+        }
         results.emails = sorted(
             all_emails.values(),
-            key=lambda e: (0 if e.verified else 1, 0 if e.confidence == 'high' else 1)
+            key=lambda e: (
+                verification_order.get(e.verification, 5),
+                0 if e.confidence == 'high' else 1 if e.confidence == 'medium' else 2,
+            )
         )
         results.candidates_verified = len([e for e in results.emails if e.verified])
         results.discovery_time = time.time() - start_time
 
-        logger.info(f"Email discovery complete: {len(results.emails)} emails found in {results.discovery_time:.1f}s")
+        logger.info(
+            f"Email discovery complete: {len(results.emails)} emails found, "
+            f"{results.candidates_verified} verified in {results.discovery_time:.1f}s"
+        )
 
         return results
 
@@ -251,9 +280,7 @@ class EmailDiscoveryService:
 
     def _clean_username(self, username: str) -> str:
         """Clean username for email generation."""
-        # Remove common prefixes
         username = re.sub(r'^(id|user|profile|@)', '', username.lower())
-        # Keep only alphanumeric and underscore/dot
         username = re.sub(r'[^a-z0-9_.]', '', username)
         return username
 
@@ -262,20 +289,20 @@ class EmailDiscoveryService:
         pattern = r'^[a-z0-9][a-z0-9._-]*@[a-z0-9.-]+\.[a-z]{2,}$'
         return bool(re.match(pattern, email.lower())) and len(email) <= 254
 
+    # ── Holehe Verification (Library API) ────────────────────────────
+
     async def _verify_with_holehe_batch(
         self,
         emails: List[str]
     ) -> List[DiscoveredEmail]:
         """
-        Verify emails with Holehe CLI (fast mode).
-        Uses subprocess with short timeout.
+        Verify emails using holehe library directly (not CLI).
+        Uses trio for async module execution, run in thread pool.
         """
         verified = []
-
-        # Run Holehe in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
 
-        for email in emails[:5]:  # Limit to 5 for speed
+        for email in emails[:5]:  # Limit to 5 (holehe is slow, ~15-30s per email)
             try:
                 result = await asyncio.wait_for(
                     loop.run_in_executor(
@@ -283,20 +310,22 @@ class EmailDiscoveryService:
                         self._holehe_check_single,
                         email
                     ),
-                    timeout=6.0  # 6 second timeout per email
+                    timeout=45.0  # 45 second timeout per email
                 )
 
                 if result:
                     services = result.get('services', [])
                     if services:
+                        confidence = 'high' if len(services) >= 2 else 'medium'
                         verified.append(DiscoveredEmail(
                             email=email,
                             source="Holehe verification",
-                            confidence="high" if len(services) >= 2 else "medium",
+                            confidence=confidence,
                             verified=True,
-                            verified_on=services[:5]
+                            verified_on=[f'holehe:{s}' for s in services[:5]],
+                            verification='holehe_confirmed'
                         ))
-                        logger.info(f"Holehe verified: {email} on {services}")
+                        logger.info(f"Holehe verified: {email} on {len(services)} services: {services[:5]}")
 
             except asyncio.TimeoutError:
                 logger.debug(f"Holehe timeout for {email}")
@@ -306,13 +335,60 @@ class EmailDiscoveryService:
         return verified
 
     def _holehe_check_single(self, email: str) -> Optional[Dict]:
-        """Run Holehe for a single email (blocking)."""
+        """
+        Run Holehe check for a single email using library API.
+        Falls back to CLI if library import fails.
+        """
+        # Method 1: Use holehe library directly via trio
+        try:
+            import trio
+            import httpx
+
+            services = []
+
+            async def _check(email_addr):
+                from holehe.core import get_functions, import_submodules
+                import holehe.modules
+
+                modules = import_submodules(holehe.modules)
+                websites = get_functions(modules)
+
+                out = []
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    for website_func in websites:
+                        try:
+                            await website_func(email_addr, client, out)
+                        except Exception:
+                            pass
+                return out
+
+            results = trio.run(_check, email)
+
+            for r in results:
+                if isinstance(r, dict) and r.get('exists') is True:
+                    name = r.get('name', 'unknown')
+                    if name and name != 'unknown':
+                        services.append(name)
+
+            return {'services': services} if services else None
+
+        except ImportError:
+            logger.debug("trio/holehe not available, trying CLI fallback")
+        except Exception as e:
+            logger.debug(f"Holehe library error for {email}: {e}")
+
+        # Method 2: CLI fallback
+        return self._holehe_check_cli(email)
+
+    def _holehe_check_cli(self, email: str) -> Optional[Dict]:
+        """Run holehe via CLI as fallback."""
+        import subprocess
         try:
             result = subprocess.run(
-                ['holehe', email, '--only-used', '--no-color', '--no-clear', '-T', '3'],
+                ['holehe', email, '--only-used', '--no-color', '--no-clear', '-T', '5'],
                 capture_output=True,
                 text=True,
-                timeout=7,
+                timeout=30,
                 encoding='utf-8',
                 errors='replace'
             )
@@ -333,28 +409,154 @@ class EmailDiscoveryService:
         except Exception:
             return None
 
+    # ── SMTP Verification ────────────────────────────────────────────
+
+    async def _verify_smtp_batch(
+        self,
+        emails: List[str]
+    ) -> List[DiscoveredEmail]:
+        """
+        Verify emails via SMTP RCPT TO command.
+        Runs blocking SMTP checks in thread pool.
+        """
+        verified = []
+        loop = asyncio.get_event_loop()
+        checked_count = 0
+
+        for email in emails:
+            domain = email.split('@')[-1] if '@' in email else ''
+
+            # Skip domains that block SMTP verification
+            if domain in SMTP_BLOCKED_DOMAINS or domain in CATCH_ALL_DOMAINS:
+                # Mark as 'likely' for popular Russian domains
+                if domain in SMTP_BLOCKED_DOMAINS:
+                    verified.append(DiscoveredEmail(
+                        email=email,
+                        source="Pattern generation",
+                        confidence="low",
+                        verified=False,
+                        verified_on=[],
+                        verification='likely'
+                    ))
+                continue
+
+            if checked_count >= 10:  # Limit SMTP checks
+                break
+
+            try:
+                result = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        self._executor,
+                        self._smtp_verify_single,
+                        email
+                    ),
+                    timeout=10.0
+                )
+
+                checked_count += 1
+
+                if result is True:
+                    verified.append(DiscoveredEmail(
+                        email=email,
+                        source="SMTP verification",
+                        confidence="high",
+                        verified=True,
+                        verified_on=['smtp'],
+                        verification='smtp_verified'
+                    ))
+                    logger.info(f"SMTP verified: {email}")
+                elif result is False:
+                    # Email rejected by server - doesn't exist, skip it
+                    logger.debug(f"SMTP rejected: {email}")
+                # None = inconclusive, don't add
+
+            except asyncio.TimeoutError:
+                logger.debug(f"SMTP timeout for {email}")
+            except Exception as e:
+                logger.debug(f"SMTP error for {email}: {e}")
+
+        return verified
+
+    def _smtp_verify_single(self, email: str) -> Optional[bool]:
+        """
+        Verify a single email via SMTP RCPT TO.
+        Returns True (exists), False (rejected), None (inconclusive).
+        """
+        import smtplib
+        try:
+            import dns.resolver
+        except ImportError:
+            return None
+
+        domain = email.split('@')[1]
+
+        try:
+            mx_records = dns.resolver.resolve(domain, 'MX')
+            mx_host = str(mx_records[0].exchange).rstrip('.')
+
+            server = smtplib.SMTP(timeout=8)
+            server.connect(mx_host)
+            server.helo('verify.example.com')
+            server.mail('verify@example.com')
+            code, message = server.rcpt(email)
+            server.quit()
+
+            if code == 250:
+                return True
+            elif code in (550, 551, 552, 553, 554):
+                return False
+            else:
+                return None
+
+        except dns.resolver.NXDOMAIN:
+            return False
+        except (dns.resolver.NoAnswer, dns.resolver.NoNameservers):
+            return None
+        except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected,
+                ConnectionRefusedError, TimeoutError, OSError):
+            return None
+        except Exception as e:
+            logger.debug(f"SMTP error for {email}: {e}")
+            return None
+
+    # ── Gravatar Verification ────────────────────────────────────────
+
     async def _check_gravatar_batch(
         self,
         session: aiohttp.ClientSession,
         emails: List[str]
     ) -> List[DiscoveredEmail]:
-        """Check Gravatar for email existence."""
+        """Check Gravatar JSON profile for email existence (more reliable than HEAD)."""
         import hashlib
         verified = []
 
         async def check_one(email: str) -> Optional[DiscoveredEmail]:
             try:
                 email_hash = hashlib.md5(email.lower().encode()).hexdigest()
-                url = f"https://www.gravatar.com/avatar/{email_hash}?d=404"
+                # Use JSON profile endpoint (more data than just avatar HEAD)
+                url = f"https://gravatar.com/{email_hash}.json"
 
-                async with session.head(url) as response:
+                async with session.get(url) as response:
                     if response.status == 200:
+                        data = await response.json()
+                        entry = data.get('entry', [{}])[0]
+                        display_name = entry.get('displayName', '')
+                        profile_url = entry.get('profileUrl', '')
+
+                        verified_on_list = ['gravatar']
+                        # Extract linked accounts as extra verification
+                        for account in entry.get('accounts', []):
+                            domain = account.get('domain', '')
+                            if domain:
+                                verified_on_list.append(f'gravatar:{domain}')
+
                         return DiscoveredEmail(
                             email=email,
-                            source="Gravatar",
-                            confidence="medium",
+                            source=f"Gravatar ({display_name})" if display_name else "Gravatar",
+                            confidence="high" if len(verified_on_list) > 1 else "medium",
                             verified=True,
-                            verified_on=['gravatar']
+                            verified_on=verified_on_list[:5],
+                            verification='gravatar'
                         )
             except Exception:
                 pass
@@ -378,6 +580,8 @@ class EmailDiscoveryService:
 
         return verified
 
+    # ── MX Validation ────────────────────────────────────────────────
+
     async def _validate_mx_batch(
         self,
         emails: List[str]
@@ -391,20 +595,17 @@ class EmailDiscoveryService:
         for email in emails:
             domain = email.split('@')[-1]
 
-            # Skip if already checked this domain
             if domain in checked_domains:
                 continue
             checked_domains.add(domain)
 
             try:
-                # Quick MX lookup
                 has_mx = await asyncio.wait_for(
                     loop.run_in_executor(self._executor, self._check_mx, domain),
                     timeout=2.0
                 )
 
                 if has_mx:
-                    # Add all emails with this domain as low-confidence candidates
                     for e in emails:
                         if e.split('@')[-1] == domain:
                             validated.append(DiscoveredEmail(
@@ -412,7 +613,8 @@ class EmailDiscoveryService:
                                 source="Pattern generation",
                                 confidence="low",
                                 verified=False,
-                                verified_on=[]
+                                verified_on=[],
+                                verification='pattern'
                             ))
 
             except Exception:
@@ -423,24 +625,23 @@ class EmailDiscoveryService:
     def _check_mx(self, domain: str) -> bool:
         """Check if domain has MX records."""
         try:
-            # Use known MX for common domains
             if domain in KNOWN_MX_SERVERS:
                 return True
 
-            # Try DNS lookup
             import dns.resolver
             try:
                 dns.resolver.resolve(domain, 'MX')
                 return True
-            except:
+            except Exception:
                 pass
 
-            # Fallback: try socket lookup
             socket.getaddrinfo(f'mail.{domain}', 25)
             return True
 
         except Exception:
             return False
+
+    # ── Profile Scraping ─────────────────────────────────────────────
 
     async def _scrape_profiles_async(
         self,
@@ -467,11 +668,9 @@ class EmailDiscoveryService:
                     if response.status == 200:
                         text = await response.text()
 
-                        # Find emails in page
                         matches = email_pattern.findall(text)
                         for email in set(matches):
                             email_lower = email.lower()
-                            # Filter out obvious garbage
                             if any(x in email_lower for x in ['example', 'test', 'noreply', 'support']):
                                 continue
                             if email_lower.endswith(('.png', '.jpg', '.gif', '.svg')):
@@ -482,7 +681,8 @@ class EmailDiscoveryService:
                                 source=f"{platform.upper()} profile",
                                 confidence="high",
                                 verified=True,
-                                verified_on=[platform]
+                                verified_on=[platform],
+                                verification='profile_scraped'
                             ))
 
             except Exception as e:
@@ -490,7 +690,6 @@ class EmailDiscoveryService:
 
             return emails
 
-        # Scrape all profiles in parallel
         semaphore = asyncio.Semaphore(5)
 
         async def scrape_with_semaphore(profile: Dict):
@@ -508,6 +707,8 @@ class EmailDiscoveryService:
 
         return found
 
+    # ── Russian Service Checks ───────────────────────────────────────
+
     async def _check_russian_services(
         self,
         session: aiohttp.ClientSession,
@@ -516,7 +717,6 @@ class EmailDiscoveryService:
         """Check username-based emails on Russian services."""
         found = []
 
-        # Yandex Collections check
         async def check_yandex(username: str) -> Optional[DiscoveredEmail]:
             url = f"https://yandex.ru/collections/user/{username}/"
             try:
@@ -529,13 +729,13 @@ class EmailDiscoveryService:
                                 source="Yandex Collections profile",
                                 confidence="medium",
                                 verified=True,
-                                verified_on=['yandex_collections']
+                                verified_on=['yandex_collections'],
+                                verification='likely'
                             )
             except Exception:
                 pass
             return None
 
-        # Check all usernames
         for username in usernames:
             clean_user = self._clean_username(username)
             if len(clean_user) < 3:
@@ -553,6 +753,8 @@ class EmailDiscoveryService:
 
         return found
 
+    # ── Synchronous Wrappers ─────────────────────────────────────────
+
     def discover_sync(
         self,
         first_name: str,
@@ -567,7 +769,6 @@ class EmailDiscoveryService:
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                # Already in async context, create new loop in thread
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(
@@ -580,7 +781,6 @@ class EmailDiscoveryService:
                     self.discover(first_name, last_name, usernames, profile_urls)
                 )
         except RuntimeError:
-            # No event loop, create one
             return asyncio.run(
                 self.discover(first_name, last_name, usernames, profile_urls)
             )
@@ -590,7 +790,58 @@ class EmailDiscoveryService:
         self._executor.shutdown(wait=False)
 
 
-# Convenience functions
+# ── Standalone Verification Functions ────────────────────────────────
+
+def verify_emails_with_holehe(emails: List[str], max_emails: int = 5) -> List[Dict]:
+    """
+    Verify a list of emails with Holehe (synchronous).
+    Returns list of dicts with email, services, verification status.
+
+    Use this from the Buratino flow to verify top email candidates.
+    """
+    service = EmailDiscoveryService()
+    results = []
+
+    for email in emails[:max_emails]:
+        try:
+            holehe_result = service._holehe_check_single(email)
+            if holehe_result and holehe_result.get('services'):
+                services = holehe_result['services']
+                results.append({
+                    'email': email,
+                    'services': services,
+                    'verified': True,
+                    'confidence': 'high' if len(services) >= 2 else 'medium',
+                    'verification': 'holehe_confirmed',
+                    'verified_on': [f'holehe:{s}' for s in services[:5]],
+                })
+                logger.info(f"Holehe verified: {email} -> {services[:5]}")
+            else:
+                results.append({
+                    'email': email,
+                    'services': [],
+                    'verified': False,
+                    'confidence': None,
+                    'verification': 'holehe_not_found',
+                    'verified_on': [],
+                })
+        except Exception as e:
+            logger.debug(f"Holehe check error for {email}: {e}")
+            results.append({
+                'email': email,
+                'services': [],
+                'verified': False,
+                'confidence': None,
+                'verification': 'holehe_error',
+                'verified_on': [],
+            })
+
+    service.close()
+    return results
+
+
+# ── Convenience Functions ────────────────────────────────────────────
+
 def discover_emails(
     first_name: str,
     last_name: str,
