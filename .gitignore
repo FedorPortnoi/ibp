@@ -1,4 +1,51 @@
-# Python
+# ========================================
+# IBP .gitignore
+# ========================================
+
+# === External OSINT tools (cloned separately) ===
+awesome-intelligence/
+awesome-osint/
+blackbird/
+breach-parse/
+cytoscape.js/
+dash-cytoscape/
+facenet-pytorch/
+h8mail/
+ignorant/
+iKy/
+insightface/
+Leaflet/
+mtcnn/
+nexfil/
+OSINT/
+OSINT_Collection/
+osint_stuff_tool_collection/
+Osintgram/
+phoneinfoga/
+Photon/
+playwright-python/
+razdel/
+sigma.js/
+slovnet/
+snoop/
+spiderfoot/
+telegram-export/
+telegram-nearby-map/
+telegram-tracker/
+Telepathy/
+Telethon/
+theHarvester/
+WhatsMyName/
+
+# === Windows artifacts ===
+nul
+desktop.ini
+Thumbs.db
+
+# === Path artifacts ===
+C:Usersfedoribp*
+
+# === Python ===
 __pycache__/
 *.py[cod]
 *$py.class
@@ -20,51 +67,78 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual environments
+# === Virtual environments ===
 venv/
 ENV/
 env/
 .venv/
 
-# IDE
+# === IDE ===
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# Flask instance folder
+# === Flask instance folder + Database ===
 instance/
 *.db
 *.sqlite
 
-# Environment variables
+# === Environment variables ===
 .env
 .env.local
 .env.*.local
 
-# Uploads and generated files
+# === Uploads and generated files ===
 uploads/
 app/static/uploads/
 app/static/reports/
 
-# Logs
+# === Logs ===
 *.log
 logs/
+server.log
+server_output.log
 
-# Test coverage
+# === Test coverage ===
 htmlcov/
 .tox/
 .coverage
 .coverage.*
 .cache
+.pytest_cache/
 nosetests.xml
 coverage.xml
 *.cover
 
-# VK browser session (contains auth cookies)
+# === VK browser session (contains auth cookies) ===
 vk_session/
 
-# OS files
+# === OS files ===
 .DS_Store
-Thumbs.db
+
+# === Large media files ===
+*.mp4
+*.avi
+*.zip
+*.tar.gz
+
+# === Node modules ===
+node_modules/
+
+# === Playwright browsers ===
+playwright/
+
+# === Loose images (not part of app) ===
+alenka.jpg
+gel.jpg
+glaz.jpg
+mesch.jpg
+my_pic.jpg
+svetlana axtinas.jpg
+tikhon portnoi.jpg
+
+# === Misc ===
+tokens_api_ect/
+*.session
