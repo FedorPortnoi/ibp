@@ -1,64 +1,57 @@
+# ========================================
 # IBP - Identity-Based Profiler
-# OSINT Investigation Platform Dependencies
+# OSINT Investigation Platform
+# ========================================
 
-# Core Framework
-Flask>=3.0.0
-Flask-SQLAlchemy>=3.1.1
-Flask-Migrate>=4.0.5
+# === Core Framework ===
+Flask==3.1.2
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.1.0
+SQLAlchemy==2.0.45
+Werkzeug==3.1.4
+Jinja2==3.1.6
 
-# Database
-SQLAlchemy>=2.0.23
+# === HTTP Requests & Scraping ===
+requests==2.32.5
+beautifulsoup4==4.12.3
+lxml==5.4.0
+httpx==0.28.1
+aiohttp==3.13.2
 
-# OSINT Tools
-maigret>=0.4.4
-sherlock-project>=0.14.3
-holehe>=1.61
+# === Web Automation ===
+playwright==1.57.0
 
-# HTTP Requests & Scraping
-requests>=2.31.0
-beautifulsoup4>=4.12.2
-lxml>=4.9.3
-httpx>=0.25.2
-aiohttp>=3.9.1
+# === OSINT Tools ===
+maigret==0.5.0
+holehe==1.61
 
-# Image Processing
-Pillow>=10.1.0
+# === Email / Phone Verification ===
+dnspython==2.8.0
+trio==0.32.0
+phonenumbers==9.0.21
 
-# Environment & Config
-python-dotenv>=1.0.0
+# === Telegram Integration ===
+Telethon==1.42.0
 
-# PDF/Image Export
-weasyprint>=60.1
-html2image>=2.0.4.3
+# === NLP / Text Processing ===
+nltk==3.9.2
+pymorphy2==0.9.1
+pymorphy2-dicts-ru==2.4.417127.4579844
 
-# Utilities
-transliterate>=1.10.2
-phonenumbers>=8.13.26
+# === Image Processing / Face Recognition ===
+Pillow==11.3.0
+face-recognition==1.3.0
 
-# Development
-python-dateutil>=2.8.2
+# === Network Analysis / Social Graph ===
+networkx==2.8.8
+python-louvain==0.16
 
-# NLP & Text Analysis
-nltk>=3.8.1
-pymorphy2>=0.9.1
-pymorphy2-dicts-ru>=2.4.417127.4580142
+# === PDF / HTML Export ===
+weasyprint==67.0
+html2image==2.0.7
 
-# Map Visualization
-folium>=0.15.1
+# === Environment & Config ===
+python-dotenv==1.2.1
 
-# Network Analysis
-networkx>=3.2.1
-python-louvain>=0.16  # Community detection for social graphs
-
-# Video Processing
-opencv-python-headless>=4.9.0.80
-
-# PDF Generation
-reportlab>=4.1.0
-PyPDF2>=3.0.1
-
-# Word Clouds (for text analysis visualization)
-wordcloud>=1.9.3
-
-# Telegram Bot Automation
-telethon>=1.36.0
+# === Testing ===
+pytest==8.3.5
