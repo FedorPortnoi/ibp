@@ -4,85 +4,98 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-IBP (Identity-Based Profiler) is a multi-phase OSINT investigation platform built with Flask. It discovers social media profiles from a person's name and optional photo, with optimization for Russian social networks.
+IBP (Identity-Based Profiler) is a multi-phase OSINT investigation platform built with Flask, optimized for Russian social networks. It follows a "Buratino-style" person-first workflow:
 
-**Current state:** Phase 1 (social media discovery) is complete. Phases 2-3 and report generation are skeleton implementations.
+1. **Phase 1** (complete): User enters name → VK People Search finds real profiles → User selects correct one. Includes fake-filtering via set intersection of formal name roots, diminutive support (60+ Russian name mappings), multi-system Cyrillic/Latin transliteration, and fuzzy matching.
+2. **Phase 2** (complete): Extract contacts from confirmed VK profile — email discovery (Holehe 120+ services, SMTP RCPT TO, Gravatar JSON, breach DB), phone discovery (VK API `users.get` + `wall.get` regex), social graph (friends extraction + vis.js visualization with NetworkX/Louvain community detection), per-profile search pipeline with plugin source architecture.
+3. **Phase 3** (basic structure): Business registry (Rusprofile.ru scraping), court records search (sudact.ru, arbitr.ru), text analysis. Services exist but need VPN for Russian sources.
+4. **Report** (working): HTML identity card generation with confidence scoring, PDF/JSON export routes.
 
 ## Commands
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
 # Run development server (http://127.0.0.1:5000)
 python run.py
 
-# Set environment (default: development)
-set FLASK_ENV=production  # Windows
-export FLASK_ENV=production  # Linux/Mac
-```
+# Install dependencies
+pip install -r requirements.txt
 
-No test framework is currently configured.
+# Run tests
+python -m pytest tests/ -v
+```
 
 ## Architecture
 
 ### Entry Points
-- `run.py` - Flask development server entry point
+- `run.py` - Flask server with startup validation checks
 - `config.py` - Environment configs (DevelopmentConfig, ProductionConfig, TestingConfig)
-- `app/__init__.py` - Application factory (`create_app()`)
+- `app/__init__.py` - Application factory (`create_app()`) with error handlers and logging
 
-### Core Data Flow (Phase 1)
-1. User submits name + optional photo at `/phase1`
-2. `CombinedSearchService` orchestrates 7-phase pipeline:
-   - Username generation (15 realistic Russian name variations)
-   - Maigret batch search (2,500+ sites, Russia-optimized)
-   - Sherlock parallel search
-   - Platform filtering (VK, OK prioritized)
-   - URL validation
-   - Face matching (if photo provided)
-   - Deduplication
-3. Results stored in `Investigation` model
-4. User confirms profile at `/phase1/results`
+### Blueprints
+- `main_bp` (`app/routes/main.py`) - Root routing, investigations list, VK token management, investigation CRUD API
+- `phase1_bp` (`app/routes/phase1.py`) - VK People Search, profile confirm/reject, search refresh
+- `phase2_bp` (`app/routes/phase2.py`) - Contact discovery, social graph, progress polling, cancel support
+- `phase3_bp` (`app/routes/phase3.py`) - Business/court records, deep investigation
+- `report_bp` (`app/routes/report.py`) - Identity card generation, HTML/PDF/JSON export
+- `phase4_bp` (`app/routes/phase4.py`) - Research orchestrator
 
 ### Key Services (`app/services/`)
-- `combined_search.py` - Main orchestrator, 7-phase pipeline
-- `ultimate_face_matcher.py` - Face recognition and photo comparison
-- `photo_harvester.py` - Multi-platform photo scraping with streaming
-- `username_generator_v2.py` - Russian diminutives and transliteration
-- `strict_platform_filter.py` - Russia-focused social network filtering
-- `maigret_search.py` / `sherlock_search.py` - OSINT tool integration
+- `phase1/buratino_vk_search.py` - VK People Search (API or demo mode)
+- `phase1/fuzzy_matching.py` - `verify_profile_name_matches_query()` using set intersection
+- `phase1/russian_diminutives.py` - 60+ Russian name diminutive mappings
+- `phase1/transliteration.py` - Multi-system Cyrillic/Latin transliteration
+- `phase2/email_discovery.py` - Holehe + SMTP + Gravatar verification (tiered, concurrent)
+- `phase2/phone_discovery.py` - VK API + wall post regex phone extraction
+- `phase2/source_manager.py` - Plugin source auto-discovery + deduplication
+- `phase2/social_graph.py` - NetworkX + Louvain community detection
+- `phase2/vk_api_extractor.py` - VK API contact extraction
+- `phase3/business_registry.py` - Rusprofile.ru scraping
+- `phase3/court_search.py` - Court record search
+- `report_generator.py` - Identity card HTML/PDF generation
 
-### Routes (`app/routes/`)
-Each phase is a separate Flask blueprint:
-- `main.py` - Root routing
-- `phase1.py` - Social media discovery (fully implemented)
-- `phase2.py` - Contact info discovery (skeleton)
-- `phase3.py` - Deep investigation (skeleton)
-- `report.py` - Identity card generation (skeleton)
+### Utilities (`app/utils/`)
+- `logger.py` - Structured logging (console INFO + daily file DEBUG), masking helpers
+- `startup_checks.py` - Validates database, VK token, Playwright, Holehe, Telethon, Snoop
+- `vk_token_manager.py` - Token validation, save to .env, OAuth URL generation
 
 ### Database
-Single SQLAlchemy model `Investigation` in `app/models/investigation.py`:
-- Stores JSON-serialized data for discovered profiles, usernames, contacts
-- Properties provide transparent JSON ↔ Python object conversion
+SQLAlchemy with SQLite (`instance/ibp.db`). Models in `app/models/`:
+- `Investigation` - Main record with JSON-serialized fields (profiles, contacts, etc.)
+- `SocialProfile` - VK/OK profiles found (can be confirmed/rejected)
+- `Friend` - Social graph connections
+- `BusinessRecord` - EGRUL/EGRIP company records
+- `CourtRecord` - Court cases
 
 ### Async Task Pattern
-Phase 1 searches run in background threads:
-- `TaskStatus` class tracks progress in `phase1.py`
-- Frontend polls `/phase1/status/<task_id>` for live updates
-- Terminal-like UI displays progress
+Phase 1 and 2 searches run in background threads:
+- `Phase2TaskStatus` tracks progress with partial results
+- Frontend polls `/phase2/progress/<task_id>` for live updates
+- Cancel support via `/phase2/cancel/<task_id>`
 
-## Key Patterns
+## Key Technical Details
 
-**JSON Serialization:** Complex data stored as JSON strings with property getters/setters (e.g., `_discovered_usernames` string, `discovered_usernames` list property)
+- **VK Token**: Expires every 24h. Refresh via `/vk/auth` OAuth flow or manual URL. Status indicator in navbar polls `/api/vk/token-status`.
+- **Holehe Verification**: CPU/time-intensive (~25s per email). Uses tiered priority (Russian mail domains first) with 3 concurrent checks.
+- **Demo Mode**: All services work without API keys by generating realistic mock data. Set `VK_SERVICE_TOKEN` env var for real VK API.
+- **Phase 2 Source Architecture**: `base_source.py` → `source_manager.py` → `sources/` plugins
+- **Logging**: Structured logging to `logs/ibp_YYYYMMDD.log`. Sensitive data masked (tokens, phones, emails).
 
-**Memory Efficiency:** `TempPhotoManager` and `StreamingDownloader` process photos in streams to avoid disk bloat
+## Environment Variables (`.env`)
 
-**Russian OSINT Focus:** Cyrillic/Latin transliteration, diminutive name generation (Fedor → Fedya, Fedka), VK/OK platform prioritization
+```
+VK_TOKEN=...           # VK API user token (expires 24h)
+VK_SERVICE_TOKEN=...   # VK API service token (alternative)
+VK_APP_ID=...          # VK app ID for OAuth refresh flow
+TELEGRAM_API_ID=...    # Telegram API credentials
+TELEGRAM_API_HASH=...
+TELEGRAM_PHONE=...
+SECRET_KEY=...         # Flask secret key
+```
 
-## External Dependencies
+## Test Targets
 
-Integrated OSINT tools (run via subprocess):
-- Maigret - Username search across 2,500+ sites
-- Sherlock - Complementary username search
+Known test subjects: Тихон Портной, Ольга Ахтинас, Влада Кладко, Даниил Глазков (@etoglaz)
 
-Face recognition requires `face_recognition` library (optional - app works without it).
+## External Tools
+
+OSINT tools moved to `C:\Users\fedor\osint_tools\` (snoop, maigret, sherlock, etc.). Not part of the IBP repo.
