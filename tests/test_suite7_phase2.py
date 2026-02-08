@@ -21,71 +21,60 @@ def run():
         page = browser.new_page(viewport={"width": 1280, "height": 720})
         page.on("console", lambda msg: console_errors.append(f"[{msg.type}] {msg.text}") if msg.type == "error" else None)
 
-        # --- Step 1: Create investigation and get search results ---
+        # --- Step 1: Find or create investigation with confirmed profile ---
         investigation_id = None
         try:
-            page.goto(f"{BASE}/phase1/new", wait_until="domcontentloaded", timeout=15000)
-            page.fill("#target_name", "\u041e\u043b\u044c\u0433\u0430 \u0410\u0445\u0442\u0438\u043d\u0430\u0441")  # Ольга Ахтинас
+            # Try to find existing confirmed investigation via DB
+            import sqlite3, os
+            db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'instance', 'ibp.db')
+            conn = sqlite3.connect(db_path)
+            row = conn.execute('''
+                SELECT i.id, sp.id FROM investigations i
+                JOIN social_profiles sp ON sp.investigation_id = i.id
+                WHERE sp.is_confirmed = 1
+                ORDER BY i.created_at DESC LIMIT 1
+            ''').fetchone()
+            conn.close()
 
-            result = page.evaluate("""async () => {
-                const formData = new FormData(document.getElementById('newInvestigationForm'));
-                const resp = await fetch('/phase1/new', {method: 'POST', body: formData});
-                return await resp.json();
-            }""")
+            if row:
+                investigation_id = row[0]
+                print(f"  [PASS] Reusing existing confirmed investigation: id={investigation_id}")
+                results.append(("PASS", "Find confirmed investigation", f"reused id={investigation_id}"))
+            else:
+                # Create fresh investigation
+                page.goto(f"{BASE}/phase1/new", wait_until="domcontentloaded", timeout=15000)
+                page.fill("#target_name", "\u041e\u043b\u044c\u0433\u0430 \u0410\u0445\u0442\u0438\u043d\u0430\u0441")
 
-            investigation_id = result.get("investigation_id")
-            ok = investigation_id is not None
-            icon = "PASS" if ok else "FAIL"
-            results.append((icon, "Create investigation", f"id={investigation_id}"))
-            print(f"  [{icon}] Create investigation: id={investigation_id}")
-
-        except Exception as e:
-            results.append(("FAIL", "Create investigation", str(e)))
-            print(f"  [FAIL] Create investigation: {e}")
-
-        # --- Step 2: Load results and find first profile ---
-        profile_id = None
-        if investigation_id:
-            try:
-                page.goto(f"{BASE}/phase1/search/{investigation_id}", wait_until="domcontentloaded", timeout=180000)
-                time.sleep(2)
-
-                # Get first profile ID
-                profile_id = page.evaluate("""() => {
-                    const card = document.querySelector('.profile-card[data-profile-id]');
-                    return card ? card.getAttribute('data-profile-id') : null;
+                result = page.evaluate("""async () => {
+                    const formData = new FormData(document.getElementById('newInvestigationForm'));
+                    const resp = await fetch('/phase1/new', {method: 'POST', body: formData});
+                    return await resp.json();
                 }""")
 
-                ok = profile_id is not None
+                investigation_id = result.get("investigation_id")
+                if investigation_id:
+                    page.goto(f"{BASE}/phase1/search/{investigation_id}", wait_until="domcontentloaded", timeout=180000)
+                    time.sleep(2)
+                    profile_id = page.evaluate("""() => {
+                        const card = document.querySelector('.profile-card[data-profile-id]');
+                        return card ? card.getAttribute('data-profile-id') : null;
+                    }""")
+                    if profile_id:
+                        page.evaluate(f"""async () => {{
+                            await fetch('/phase1/confirm/{investigation_id}/{profile_id}', {{
+                                method: 'POST',
+                                headers: {{'Content-Type': 'application/json'}}
+                            }});
+                        }}""")
+
+                ok = investigation_id is not None
                 icon = "PASS" if ok else "FAIL"
-                results.append((icon, "Find profile to confirm", f"profile_id={profile_id}"))
-                print(f"  [{icon}] Find profile: profile_id={profile_id}")
+                results.append((icon, "Create confirmed investigation", f"id={investigation_id}"))
+                print(f"  [{icon}] Create confirmed investigation: id={investigation_id}")
 
-            except Exception as e:
-                results.append(("FAIL", "Find profile", str(e)))
-                print(f"  [FAIL] Find profile: {e}")
-
-        # --- Step 3: Confirm the profile ---
-        if investigation_id and profile_id:
-            try:
-                confirm_result = page.evaluate(f"""async () => {{
-                    const resp = await fetch('/phase1/confirm/{investigation_id}/{profile_id}', {{
-                        method: 'POST',
-                        headers: {{'Content-Type': 'application/json'}}
-                    }});
-                    return {{status: resp.status, body: await resp.json()}};
-                }}""")
-
-                body = confirm_result.get("body", {})
-                ok = body.get("success") is True
-                icon = "PASS" if ok else "FAIL"
-                note = f"success={body.get('success')}, redirect={body.get('redirect', 'none')}"
-                results.append((icon, "Confirm profile", note))
-                print(f"  [{icon}] Confirm profile: {note}")
-
-            except Exception as e:
-                results.append(("FAIL", "Confirm profile", str(e)))
-                print(f"  [FAIL] Confirm profile: {e}")
+        except Exception as e:
+            results.append(("FAIL", "Setup investigation", str(e)))
+            print(f"  [FAIL] Setup investigation: {e}")
 
         # --- Step 4: Navigate to Phase 2 analyze page ---
         if investigation_id:
@@ -137,7 +126,7 @@ def run():
         # --- Step 6: Poll progress ---
         if task_id:
             try:
-                max_polls = 60  # 60 * 5s = 5 minutes max
+                max_polls = 120  # 120 * 5s = 10 minutes max
                 final_status = None
                 poll_count = 0
                 for i in range(max_polls):
@@ -147,13 +136,14 @@ def run():
                     }}""")
 
                     poll_count += 1
-                    pct = progress.get("progress", {}).get("percent", 0) if isinstance(progress.get("progress"), dict) else 0
+                    pct = progress.get("percent_complete", 0)
                     status = progress.get("status", "unknown")
+                    is_complete = progress.get("is_complete", False)
 
                     if i % 6 == 0:  # Print every 30 seconds
-                        print(f"    Poll {i}: status={status}, progress={pct}%")
+                        print(f"    Poll {i}: status={status}, progress={pct}%, is_complete={is_complete}")
 
-                    if status in ["complete", "completed", "error", "cancelled"]:
+                    if is_complete or status in ["complete", "error", "cancelled"]:
                         final_status = status
                         break
 

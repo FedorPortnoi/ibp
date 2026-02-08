@@ -351,6 +351,14 @@
     function renderGraph(nodes, edges) {
         const container = document.getElementById('social-graph');
 
+        // Sanitize nodes: fall back to 'dot' if circularImage has no valid image
+        nodes = nodes.map(n => {
+            if (n.shape === 'circularImage' && !n.image) {
+                n.shape = 'dot';
+            }
+            return n;
+        });
+
         const data = {
             nodes: new vis.DataSet(nodes),
             edges: new vis.DataSet(edges)
@@ -366,6 +374,17 @@
                 font: {
                     size: 12,
                     face: 'Inter, sans-serif'
+                },
+                brokenImage: undefined,
+                shapeProperties: {
+                    useBorderWithImage: true,
+                    interpolation: false
+                },
+                color: {
+                    background: '#4dabf7',
+                    border: '#339af0',
+                    highlight: { background: '#4dabf7', border: '#fff' },
+                    hover: { background: '#4dabf7', border: '#fff' }
                 }
             },
             edges: {
@@ -400,7 +419,15 @@
             }
         };
 
-        network = new vis.Network(container, data, options);
+        try {
+            network = new vis.Network(container, data, options);
+        } catch (e) {
+            console.warn('Graph render failed with images, retrying without:', e.message);
+            // Fall back: convert all circularImage to dot
+            nodes.forEach(n => { if (n.shape === 'circularImage') n.shape = 'dot'; });
+            data.nodes = new vis.DataSet(nodes);
+            network = new vis.Network(container, data, options);
+        }
 
         // Handle node click
         network.on('click', function(params) {
