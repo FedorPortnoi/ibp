@@ -117,14 +117,17 @@ def verify_profile_name_matches_query(profile: dict, search_first: str, search_l
                    SequenceMatcher(None, sl_lat, profile_last).ratio(),
                    SequenceMatcher(None, search_last, pl_lat).ratio())
 
-    # Diminutive matching for first names
+    # Diminutive matching for first names — check if both names share
+    # a common formal root (e.g., Ольга↔Оля, Тихон↔Тиша).
+    # We do NOT use fuzzy string matching on diminutives because it creates
+    # false positives (e.g., "Тиханя" contains "аня" → false match with "Анна").
     try:
         from app.services.phase1.russian_diminutives import get_all_name_variants
-        search_variants = [v.lower() for v in get_all_name_variants(search_first)]
-        profile_variants = [v.lower() for v in get_all_name_variants(profile_first)]
-        for sv in search_variants:
-            for pv in profile_variants:
-                first_sim = max(first_sim, SequenceMatcher(None, sv, pv).ratio())
+        search_variants = set(v.lower() for v in get_all_name_variants(search_first))
+        profile_variants = set(v.lower() for v in get_all_name_variants(profile_first))
+        # If variants overlap, they share a formal root → same name
+        if search_variants & profile_variants:
+            first_sim = max(first_sim, 0.95)
     except ImportError:
         pass
 
