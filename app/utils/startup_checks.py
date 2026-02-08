@@ -12,11 +12,20 @@ from datetime import datetime
 logger = logging.getLogger('ibp.startup')
 
 
+def _safe_print(text):
+    """Print with fallback for Windows consoles that can't handle Unicode."""
+    import sys
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        print(text.encode('ascii', 'replace').decode('ascii'))
+
+
 def run_startup_checks():
     """Run all startup checks and print status table."""
-    print("\n" + "=" * 58)
-    print(f"  IBP STARTUP CHECKS — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("=" * 58)
+    _safe_print("\n" + "=" * 58)
+    _safe_print(f"  IBP STARTUP CHECKS -- {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    _safe_print("=" * 58)
 
     checks = [
         check_database,
@@ -28,15 +37,18 @@ def run_startup_checks():
         check_python,
     ]
 
+    # Use ASCII-safe icons for Windows console compatibility
+    icon_map = {'ok': '[OK]', 'warn': '[!!]', 'fail': '[FAIL]'}
+
     for check_fn in checks:
         try:
             status, msg = check_fn()
-            icon = {'ok': '\u2705', 'warn': '\u26a0\ufe0f', 'fail': '\u274c'}.get(status, '?')
-            print(f"  {icon} {msg}")
+            icon = icon_map.get(status, '[??]')
+            _safe_print(f"  {icon} {msg}")
         except Exception as e:
-            print(f"  \u274c {check_fn.__name__}: Error — {e}")
+            _safe_print(f"  [FAIL] {check_fn.__name__}: Error -- {e}")
 
-    print("=" * 58 + "\n")
+    _safe_print("=" * 58 + "\n")
 
 
 def check_database():
@@ -52,7 +64,7 @@ def check_database():
             conn.close()
             return 'ok', f'Database: ibp.db ({size_kb:.0f} KB, {count} investigations)'
         except Exception as e:
-            return 'warn', f'Database: ibp.db exists ({size_kb:.0f} KB) but query failed — {e}'
+            return 'warn', f'Database: ibp.db exists ({size_kb:.0f} KB) but query failed -- {e}'
     return 'warn', 'Database: ibp.db not found (will be created on first run)'
 
 
@@ -61,7 +73,7 @@ def check_vk_token():
     from app.utils.logger import mask_token
     token = os.environ.get('VK_SERVICE_TOKEN') or os.environ.get('VK_TOKEN')
     if not token:
-        return 'warn', 'VK Token: Not set — set VK_SERVICE_TOKEN or VK_TOKEN in .env'
+        return 'warn', 'VK Token: Not set -- set VK_SERVICE_TOKEN or VK_TOKEN in .env'
 
     try:
         import requests
@@ -73,12 +85,12 @@ def check_vk_token():
         data = resp.json()
         if 'error' in data:
             error_msg = data['error'].get('error_msg', 'Unknown error')
-            return 'fail', f'VK Token: Invalid ({mask_token(token)}) — {error_msg}'
+            return 'fail', f'VK Token: Invalid ({mask_token(token)}) -- {error_msg}'
         return 'ok', f'VK Token: Valid ({mask_token(token)})'
     except requests.Timeout:
-        return 'warn', f'VK Token: Set ({mask_token(token)}) — API timeout (VK may be blocked)'
+        return 'warn', f'VK Token: Set ({mask_token(token)}) -- API timeout (VK may be blocked)'
     except Exception as e:
-        return 'warn', f'VK Token: Set ({mask_token(token)}) — Check failed: {e}'
+        return 'warn', f'VK Token: Set ({mask_token(token)}) -- Check failed: {e}'
 
 
 def check_playwright():
@@ -87,7 +99,7 @@ def check_playwright():
         from playwright.sync_api import sync_playwright
         return 'ok', 'Playwright: Installed'
     except ImportError:
-        return 'warn', 'Playwright: Not installed — run `pip install playwright && playwright install chromium`'
+        return 'warn', 'Playwright: Not installed -- run `pip install playwright && playwright install chromium`'
 
 
 def check_holehe():
@@ -97,7 +109,7 @@ def check_holehe():
         version = getattr(holehe, '__version__', 'unknown')
         return 'ok', f'Holehe: v{version}'
     except ImportError:
-        return 'warn', 'Holehe: Not installed — run `pip install holehe`'
+        return 'warn', 'Holehe: Not installed -- run `pip install holehe`'
 
 
 def check_telethon():
@@ -114,7 +126,7 @@ def check_telethon():
             return 'ok', f'Telethon: Session found ({session_files[0]})'
         return 'warn', 'Telethon: Configured but no session file'
     except ImportError:
-        return 'warn', 'Telethon: Not installed — Telegram features disabled'
+        return 'warn', 'Telethon: Not installed -- Telegram features disabled'
     except Exception:
         return 'warn', 'Telethon: Installed, session check skipped'
 
@@ -128,7 +140,7 @@ def check_snoop():
     for p in paths:
         if os.path.isdir(p):
             return 'ok', f'Snoop: Found at {p}'
-    return 'warn', 'Snoop: Not found — username enumeration disabled'
+    return 'warn', 'Snoop: Not found -- username enumeration disabled'
 
 
 def check_python():

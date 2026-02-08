@@ -37,6 +37,12 @@ class Phase2TaskStatus:
         # Messages for UI
         self.messages = []
 
+        # Partial results for live display
+        self.partial_phones = []
+        self.partial_emails = []
+        self.partial_profiles = []
+        self.cancelled = False
+
         # Results
         self.results = None
         self.error = None
@@ -56,12 +62,6 @@ class Phase2TaskStatus:
         self.current_step = step
         self.percent_complete = percent
         self.add_message(step, 'info')
-
-    # Partial results for live display
-    partial_phones = []
-    partial_emails = []
-    partial_profiles = []
-    cancelled = False
 
     def to_dict(self):
         """Convert to dict for JSON response."""

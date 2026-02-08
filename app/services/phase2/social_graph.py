@@ -400,7 +400,8 @@ class SocialGraphBuilder:
                 vis_node["color"] = {
                     "background": "#8b5cf6",
                     "border": "#7c3aed",
-                    "highlight": {"background": "#a78bfa", "border": "#8b5cf6"}
+                    "highlight": {"background": "#a78bfa", "border": "#8b5cf6"},
+                    "hover": {"background": "#a78bfa", "border": "#8b5cf6"}
                 }
                 vis_node["borderWidth"] = 3
             elif node.cluster_id is not None:
@@ -408,12 +409,15 @@ class SocialGraphBuilder:
                 vis_node["color"] = {
                     "background": color,
                     "border": color,
-                    "highlight": {"background": color, "border": "#fff"}
+                    "highlight": {"background": color, "border": "#fff"},
+                    "hover": {"background": color, "border": "#fff"}
                 }
             else:
                 vis_node["color"] = {
                     "background": "#4dabf7",
-                    "border": "#339af0"
+                    "border": "#339af0",
+                    "highlight": {"background": "#4dabf7", "border": "#fff"},
+                    "hover": {"background": "#4dabf7", "border": "#fff"}
                 }
 
             nodes.append(vis_node)
