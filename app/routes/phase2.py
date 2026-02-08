@@ -65,14 +65,24 @@ class Phase2TaskStatus:
 
     def to_dict(self):
         """Convert to dict for JSON response."""
+        if self.error:
+            status = 'error'
+        elif self.cancelled:
+            status = 'cancelled'
+        elif self.results is not None:
+            status = 'complete'
+        else:
+            status = 'running'
+
         return {
             'task_id': self.task_id,
+            'status': status,
             'target_name': self.target_name,
             'current_step': self.current_step,
             'percent_complete': self.percent_complete,
             'messages': self.messages[-30:],  # Last 30 messages
             'error': self.error,
-            'is_complete': self.results is not None or self.error is not None,
+            'is_complete': status in ('complete', 'error', 'cancelled'),
             'cancelled': self.cancelled,
             'partial_results': {
                 'phones': self.partial_phones[-10:],

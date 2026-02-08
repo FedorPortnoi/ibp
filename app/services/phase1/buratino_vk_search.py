@@ -243,7 +243,12 @@ class BuratinoVKSearch:
             return None
 
     def _calculate_name_similarity(self, target: str, found: str) -> float:
-        """Calculate name similarity score (0-100). Handles Cyrillic↔Latin."""
+        """Calculate name similarity score (0-100). Handles Cyrillic/Latin.
+
+        Uses part-based matching as primary signal: each name part (first, last)
+        must independently match a part in the found name. Direct sequence matching
+        is used as a secondary signal but penalized when no name parts match.
+        """
         if not target or not found:
             return 0.0
 
@@ -254,28 +259,43 @@ class BuratinoVKSearch:
         target_lat = self._to_latin(target_lower)
         found_lat = self._to_latin(found_lower)
 
-        # Direct sequence matching (try both original and transliterated)
-        direct = max(
-            SequenceMatcher(None, target_lower, found_lower).ratio(),
-            SequenceMatcher(None, target_lat, found_lat).ratio(),
-        ) * 100
-
         # Part-based matching (compare transliterated parts)
         target_parts = target_lat.split()
         found_parts = found_lat.split()
 
         matches = 0
+        best_part_ratios = []
         for tp in target_parts:
+            best_ratio = 0.0
+            matched = False
             for fp in found_parts:
-                if tp in fp or fp in tp:
+                # Substring match (require at least 3 chars to avoid false positives)
+                if len(tp) >= 3 and len(fp) >= 3 and (tp in fp or fp in tp):
                     matches += 1
+                    matched = True
+                    best_ratio = 1.0
                     break
                 if len(tp) > 3 and len(fp) > 3:
-                    if SequenceMatcher(None, tp, fp).ratio() > 0.8:
+                    ratio = SequenceMatcher(None, tp, fp).ratio()
+                    best_ratio = max(best_ratio, ratio)
+                    if ratio > 0.75:
                         matches += 1
+                        matched = True
                         break
+            best_part_ratios.append(best_ratio)
 
         part_score = (matches / len(target_parts)) * 100 if target_parts else 0
+
+        # Direct sequence matching (full-string comparison)
+        direct = max(
+            SequenceMatcher(None, target_lower, found_lower).ratio(),
+            SequenceMatcher(None, target_lat, found_lat).ratio(),
+        ) * 100
+
+        # If no name parts matched at all, cap the direct score to prevent
+        # false positives from coincidental letter overlap
+        if matches == 0:
+            direct = min(direct, 25)
 
         return max(direct, part_score)
 
@@ -675,8 +695,13 @@ class BuratinoVKSearch:
                         enriched = web._enrich_profiles(resolved_ids, query)
                         for p_data in enriched:
                             p = self._parse_profile(p_data, query)
-                            if p.vk_id not in all_profiles:
+                            if p.vk_id not in all_profiles and p.name_similarity >= 30:
                                 all_profiles[p.vk_id] = p
+                            elif p.vk_id not in all_profiles:
+                                logger.info(
+                                    f"Filtered out screen_name match '{p.full_name}' "
+                                    f"(similarity={p.name_similarity:.0f}%, too low)"
+                                )
             except ImportError:
                 logger.warning("transliteration module not available")
         else:
@@ -752,6 +777,13 @@ class BuratinoVKSearch:
         saved_profiles = []
 
         for vk_profile in profiles:
+            # Skip profiles with very low name similarity (likely false matches)
+            if vk_profile.name_similarity < 30:
+                logger.info(
+                    f"Skipping '{vk_profile.full_name}' — name_similarity={vk_profile.name_similarity:.0f}%"
+                )
+                continue
+
             # Check if profile already exists
             existing = SocialProfile.query.filter_by(
                 investigation_id=investigation_id,
