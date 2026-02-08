@@ -54,11 +54,18 @@ def new_investigation():
     POST: Create investigation and run VK search
     """
     if request.method == 'POST':
-        # Get form data
-        target_name = request.form.get('target_name', '').strip()
-        city = request.form.get('city', '').strip() or None  # None = search all cities
+        # Get form data with sanitization
+        import re as _re
+        target_name = request.form.get('target_name', '').strip()[:100]
+        city = request.form.get('city', '').strip()[:100] or None
         age_from = request.form.get('age_from', type=int)
         age_to = request.form.get('age_to', type=int)
+
+        # Reject HTML/script tags
+        if _re.search(r'<[^>]+>', target_name):
+            target_name = _re.sub(r'<[^>]+>', '', target_name).strip()
+        if city and _re.search(r'<[^>]+>', city):
+            city = _re.sub(r'<[^>]+>', '', city).strip() or None
 
         if not target_name:
             return jsonify({'error': 'Имя обязательно'}), 400

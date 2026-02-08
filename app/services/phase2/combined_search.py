@@ -401,8 +401,8 @@ class Phase2CombinedSearch:
 
         # DIAGNOSTIC: Step 1 complete
         self.logger.info(f"STEP 1 COMPLETE: Scraped {len(selected_profiles)} profiles")
-        self.logger.info(f"  Phones so far: {len(phones)} - {[p.number for p in phones]}")
-        self.logger.info(f"  Emails so far: {len(emails)} - {[e.email for e in emails]}")
+        self.logger.info(f"  Phones so far: {len(phones)}")
+        self.logger.info(f"  Emails so far: {len(emails)}")
         self.logger.info(f"  Additional profiles so far: {len(additional_profiles)}")
         self.logger.info(f"  Errors: {len(errors)}")
 
@@ -860,7 +860,8 @@ class Phase2CombinedSearch:
                                                     source=label,
                                                     confidence='high',
                                                 ))
-                                                self.logger.info(f"VK API phone: {number} from {label}")
+                                                masked = number[-4:] if len(number) >= 4 else '****'
+                                                self.logger.info(f"VK API phone: ***{masked} from {label}")
                         except Exception as e:
                             self.logger.debug(f"VK API phone extraction error: {e}")
 
