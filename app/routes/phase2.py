@@ -57,6 +57,12 @@ class Phase2TaskStatus:
         self.percent_complete = percent
         self.add_message(step, 'info')
 
+    # Partial results for live display
+    partial_phones = []
+    partial_emails = []
+    partial_profiles = []
+    cancelled = False
+
     def to_dict(self):
         """Convert to dict for JSON response."""
         return {
@@ -64,9 +70,15 @@ class Phase2TaskStatus:
             'target_name': self.target_name,
             'current_step': self.current_step,
             'percent_complete': self.percent_complete,
-            'messages': self.messages[-20:],  # Last 20 messages
+            'messages': self.messages[-30:],  # Last 30 messages
             'error': self.error,
-            'is_complete': self.results is not None or self.error is not None
+            'is_complete': self.results is not None or self.error is not None,
+            'cancelled': self.cancelled,
+            'partial_results': {
+                'phones': self.partial_phones[-10:],
+                'emails': self.partial_emails[-15:],
+                'profiles': self.partial_profiles[-10:],
+            }
         }
 
 
@@ -203,6 +215,31 @@ def get_progress(task_id):
         return jsonify({'error': 'Task not found'}), 404
 
     return jsonify(task.to_dict())
+
+
+@phase2_bp.route('/cancel/<task_id>', methods=['POST'])
+def cancel_task(task_id):
+    """Cancel a running Phase 2 task. Partial results are kept."""
+    task = phase2_tasks.get(task_id)
+    if not task:
+        return jsonify({'error': 'Task not found'}), 404
+
+    task.cancelled = True
+    task.add_message('Task cancelled by user. Partial results saved.', 'warning')
+    task.current_step = 'Cancelled'
+
+    # If no results yet, set partial data as results
+    if not task.results and not task.error:
+        task.results = {
+            'friends_count': 0,
+            'phones_found': len(task.partial_phones),
+            'emails_found': len(task.partial_emails),
+            'profiles_found': len(task.partial_profiles),
+            'cancelled': True,
+        }
+        task.completed_at = datetime.now()
+
+    return jsonify({'success': True, 'message': 'Task cancelled'})
 
 
 @phase2_bp.route('/results/<task_id>')
@@ -590,22 +627,26 @@ def start_buratino_analysis(investigation_id):
                     if not vk_contact.error:
                         # Add phones from VK profile
                         for phone in vk_contact.phones:
-                            discovered_phones.append({
+                            phone_entry = {
                                 'number': phone,
                                 'source': 'VK Profile',
                                 'confidence': 'high',
                                 'verified_on': ['vk']
-                            })
+                            }
+                            discovered_phones.append(phone_entry)
+                            task.partial_phones.append(phone_entry)
                             task.add_message(f'Found phone: {phone}', 'success')
 
                         # Add emails from VK profile
                         for email in vk_contact.emails:
-                            discovered_emails.append({
+                            email_entry = {
                                 'email': email,
                                 'source': 'VK Profile',
                                 'confidence': 'high',
                                 'verified_on': ['vk']
-                            })
+                            }
+                            discovered_emails.append(email_entry)
+                            task.partial_emails.append(email_entry)
                             task.add_message(f'Found email: {email}', 'success')
 
                         # Add linked social accounts
@@ -686,6 +727,8 @@ def start_buratino_analysis(investigation_id):
                 task.add_message(f'Found {len(all_usernames)} usernames: {all_usernames[:5]}', 'info')
 
                 # ===== STEP 3: Generate Smart Email Candidates =====
+                if task.cancelled:
+                    raise Exception('Cancelled by user')
                 task.add_message('Generating email candidates with name patterns + diminutives...', 'info')
                 task.update_progress('Email Generation', 25)
 
@@ -719,6 +762,8 @@ def start_buratino_analysis(investigation_id):
                     email_candidates = []
 
                 # ===== STEP 4: SMTP Verification (with fallback) =====
+                if task.cancelled:
+                    raise Exception('Cancelled by user')
                 task.add_message('Verifying emails...', 'info')
                 task.update_progress('Email Verification', 35)
 
@@ -759,13 +804,15 @@ def start_buratino_analysis(investigation_id):
 
                             if verification == 'smtp_verified':
                                 smtp_verified_count += 1
-                                discovered_emails.append({
+                                entry = {
                                     'email': candidate['email'],
                                     'source': candidate.get('source', 'Email pattern'),
                                     'confidence': 'high',
                                     'verified_on': ['smtp'],
                                     'verification': 'smtp_verified'
-                                })
+                                }
+                                discovered_emails.append(entry)
+                                task.partial_emails.append(entry)
                                 task.add_message(f'SMTP verified: {candidate["email"]}', 'success')
 
                             elif verification in ('catch_all_domain', 'likely'):
@@ -835,6 +882,8 @@ def start_buratino_analysis(investigation_id):
                         })
 
                 # ===== STEP 4.5: Holehe Email Verification =====
+                if task.cancelled:
+                    raise Exception('Cancelled by user')
                 task.add_message('Verifying emails with Holehe (120+ services)...', 'info')
                 task.update_progress('Holehe Verification', 42)
 
@@ -1114,6 +1163,8 @@ def start_buratino_analysis(investigation_id):
                     task.add_message(f'Phone discovery error: {str(e)[:80]}', 'warning')
 
                 # ===== STEP 6: Extract Friends =====
+                if task.cancelled:
+                    raise Exception('Cancelled by user')
                 task.add_message('Extracting friends network...', 'info')
                 task.update_progress('Friends Extraction', 70)
 
