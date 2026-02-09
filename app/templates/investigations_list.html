@@ -125,8 +125,8 @@
                         Results
                     </a>
                     {% elif inv.status == 'phase_3_complete' %}
-                    <a href="/phase3/buratino/results/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
-                        P3 Results
+                    <a href="/report/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm font-semibold">
+                        Report
                     </a>
                     {% elif inv.status == 'complete' %}
                     <a href="/report/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
