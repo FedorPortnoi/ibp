@@ -42,6 +42,13 @@
     {% endif %}
 
     <!-- Stats Overview -->
+    {% set ns_stats = namespace(director_count=0, defendant_stats=0) %}
+    {% for r in business_records %}
+        {% if r.role and r.role in ['director', 'Директор'] %}{% set ns_stats.director_count = ns_stats.director_count + 1 %}{% endif %}
+    {% endfor %}
+    {% for c in court_records %}
+        {% if c.person_role and c.person_role in ['defendant', 'ответчик'] %}{% set ns_stats.defendant_stats = ns_stats.defendant_stats + 1 %}{% endif %}
+    {% endfor %}
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
             <div class="text-3xl font-bold text-violet">{{ business_records|length }}</div>
@@ -52,14 +59,12 @@
             <div class="text-gray-500 text-sm">Court Cases</div>
         </div>
         <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
-            {% set director_count = business_records|selectattr('role', 'equalto', 'director')|list|length %}
-            <div class="text-3xl font-bold text-green-400">{{ director_count }}</div>
+            <div class="text-3xl font-bold text-green-400">{{ ns_stats.director_count }}</div>
             <div class="text-gray-500 text-sm">Director Roles</div>
         </div>
         <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
-            {% set defendant_count = court_records|selectattr('person_role', 'equalto', 'defendant')|list|length %}
-            <div class="text-3xl font-bold {% if defendant_count > 0 %}text-yellow-400{% else %}text-green-400{% endif %}">
-                {{ defendant_count }}
+            <div class="text-3xl font-bold {% if ns_stats.defendant_stats > 0 %}text-yellow-400{% else %}text-green-400{% endif %}">
+                {{ ns_stats.defendant_stats }}
             </div>
             <div class="text-gray-500 text-sm">Defendant Cases</div>
         </div>
@@ -86,8 +91,8 @@
                             {% endif %}
                         </div>
                         <span class="px-2 py-1 rounded text-xs font-medium
-                            {% if record.role == 'director' %}bg-green-500/20 text-green-400
-                            {% elif record.role == 'founder' %}bg-purple-500/20 text-purple-400
+                            {% if record.role in ['director', 'Директор'] %}bg-green-500/20 text-green-400
+                            {% elif record.role in ['founder', 'Учредитель'] %}bg-purple-500/20 text-purple-400
                             {% else %}bg-gray-500/20 text-gray-400{% endif %}">
                             {{ record.role_display }}
                         </span>
@@ -131,17 +136,17 @@
                             <p class="text-gray-500 text-sm">{{ case.court_name }}</p>
                         </div>
                         <span class="px-2 py-1 rounded text-xs font-medium
-                            {% if case.person_role == 'plaintiff' %}bg-blue-500/20 text-blue-400
-                            {% elif case.person_role == 'defendant' %}bg-red-500/20 text-red-400
+                            {% if case.person_role in ['plaintiff', 'истец'] %}bg-blue-500/20 text-blue-400
+                            {% elif case.person_role in ['defendant', 'ответчик'] %}bg-red-500/20 text-red-400
                             {% else %}bg-gray-500/20 text-gray-400{% endif %}">
                             {{ case.role_display }}
                         </span>
                     </div>
-                    {% if case.case_type %}
-                    <p class="text-sm text-violet mt-2">{{ case.type_display }}</p>
-                    {% endif %}
                     {% if case.category %}
-                    <p class="text-gray-500 text-xs mt-1">{{ case.category }}</p>
+                    <p class="text-sm text-violet mt-2">{{ case.category_display }}</p>
+                    {% endif %}
+                    {% if case.subcategory %}
+                    <p class="text-gray-500 text-xs mt-1">{{ case.subcategory }}</p>
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -162,9 +167,17 @@
             Risk Assessment
         </h3>
 
-        {% set liquidated_count = business_records|selectattr('status', 'search', 'ликвид')|list|length %}
-        {% set defendant_count = court_records|selectattr('person_role', 'equalto', 'defendant')|list|length %}
-        {% set criminal_count = court_records|selectattr('case_type', 'equalto', 'criminal')|list|length %}
+        {% set ns = namespace(liquidated_count=0, defendant_count=0, criminal_count=0) %}
+        {% for r in business_records %}
+            {% if r.status and 'ликвид' in r.status|lower %}{% set ns.liquidated_count = ns.liquidated_count + 1 %}{% endif %}
+        {% endfor %}
+        {% for c in court_records %}
+            {% if c.person_role and c.person_role in ['defendant', 'ответчик'] %}{% set ns.defendant_count = ns.defendant_count + 1 %}{% endif %}
+            {% if c.category and c.category in ['criminal', 'уголовное'] %}{% set ns.criminal_count = ns.criminal_count + 1 %}{% endif %}
+        {% endfor %}
+        {% set liquidated_count = ns.liquidated_count %}
+        {% set defendant_count = ns.defendant_count %}
+        {% set criminal_count = ns.criminal_count %}
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <!-- Business Risk -->

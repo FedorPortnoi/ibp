@@ -173,9 +173,9 @@ def get_progress(task_id):
     return jsonify(task.to_dict())
 
 
-@phase3_bp.route('/results/<task_id>')
+@phase3_bp.route('/api/results/<task_id>')
 def get_results(task_id):
-    """Get full results for a completed task."""
+    """Get full results for a completed task (API)."""
     task = phase3_tasks.get(task_id)
     if not task:
         return jsonify({'error': 'Task not found'}), 404
@@ -192,12 +192,6 @@ def get_results(task_id):
         'target_name': task.target_name,
         'results': task.results
     })
-
-
-@phase3_bp.route('/results/<investigation_id>')
-def results_page(investigation_id):
-    """Display Phase 3 results page."""
-    return render_template('phase3_results.html', investigation_id=investigation_id)
 
 
 # Direct API endpoints for individual services

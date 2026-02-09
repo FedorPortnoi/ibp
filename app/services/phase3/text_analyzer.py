@@ -221,6 +221,10 @@ class TextAnalyzer:
             posting_times=posting_times
         )
 
+    def analyze(self, text: str) -> TextAnalysisResult:
+        """Analyze a single text string. Alias for analyze_single_text."""
+        return self.analyze_posts([{'text': text}])
+
     def analyze_single_text(self, text: str) -> TextAnalysisResult:
         """Analyze a single piece of text."""
         return self.analyze_posts([{'text': text}])

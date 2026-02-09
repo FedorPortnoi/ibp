@@ -354,6 +354,25 @@ class GeoExtractor:
 
         return locations
 
+    def extract_from_text(self, text: str) -> List[LocationPoint]:
+        """Extract location points from arbitrary text (address, bio, etc.)."""
+        locations = []
+        if not text:
+            return locations
+        text_lower = text.lower()
+        for city_name, coords in RUSSIAN_CITIES.items():
+            if city_name in text_lower:
+                locations.append(LocationPoint(
+                    latitude=coords[0],
+                    longitude=coords[1],
+                    name=city_name.title(),
+                    city=city_name.title(),
+                    address=text.strip()[:200],
+                    source="text_extraction",
+                    confidence="medium"
+                ))
+        return locations
+
     def _city_to_location(self, city_text: str, source: str) -> Optional[LocationPoint]:
         """Convert city name to location point."""
         if not city_text:
