@@ -246,8 +246,11 @@ class Phase3CombinedSearch:
             self.logger.warning(error_msg)
 
         # Add FSSP manual link
+        fssp_link = FSSPSearch.get_manual_search_url(target_name)
         manual_links.append(ManualSearchLink(
-            **FSSPSearch.get_manual_search_url(target_name)
+            name=fssp_link['name'],
+            url=fssp_link['url'],
+            description=fssp_link.get('description', '')
         ))
 
         # ===== STEP 3 (40-60%): Court Records Search =====
