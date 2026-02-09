@@ -913,11 +913,11 @@ def start_buratino_analysis(investigation_id):
                             if addr not in holehe_candidates:
                                 holehe_candidates.append(addr)
 
-                    holehe_candidates = holehe_candidates[:6]  # Max 6, runs 3 concurrently
+                    holehe_candidates = holehe_candidates[:3]  # Max 3, runs 3 concurrently
 
                     if holehe_candidates:
                         task.add_message(f'Checking {len(holehe_candidates)} emails with Holehe...', 'info')
-                        holehe_results = verify_emails_with_holehe(holehe_candidates, max_emails=5)
+                        holehe_results = verify_emails_with_holehe(holehe_candidates, max_emails=3)
 
                         for hr in holehe_results:
                             if hr.get('verified') and hr.get('services'):
@@ -1014,7 +1014,7 @@ def start_buratino_analysis(investigation_id):
                 try:
                     from app.services.phase2.source_manager import SourceManager
 
-                    sm = SourceManager(max_workers=4, timeout=120.0)
+                    sm = SourceManager(max_workers=4, timeout=45.0)
 
                     # Collect emails found so far for breach checking
                     known_emails = [e['email'] for e in discovered_emails]
@@ -1034,6 +1034,7 @@ def start_buratino_analysis(investigation_id):
                         username=username,
                         vk_id=str(vk_id),
                         email_candidates=email_cands_for_sm,
+                        exclude_sources=['Holehe Email Check'],  # Already run at step 4.5
                     )
 
                     sm_email_count = 0

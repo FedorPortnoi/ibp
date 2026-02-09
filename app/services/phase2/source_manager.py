@@ -98,11 +98,12 @@ class SourceManager:
             f"{[s.name for s in self.sources]}"
         )
 
-    def run_all(self, **kwargs) -> Dict[str, List[SourceResult]]:
+    def run_all(self, exclude_sources=None, **kwargs) -> Dict[str, List[SourceResult]]:
         """
         Run ALL available and enabled sources in parallel.
 
         Args:
+            exclude_sources: Optional list of source names to skip
             **kwargs: Query parameters passed to each source:
                 name: str — target's full name
                 phone: str — known phone number
@@ -121,11 +122,12 @@ class SourceManager:
             }
         """
         start_time = time.time()
+        exclude_set = set(exclude_sources or [])
 
         # Filter to enabled + available sources
         active_sources = [
             s for s in self.sources
-            if s.enabled and s.is_available()
+            if s.enabled and s.is_available() and s.name not in exclude_set
         ]
 
         if not active_sources:

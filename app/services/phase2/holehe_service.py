@@ -156,7 +156,7 @@ def check_email_cli(email: str) -> HoleheResults:
             ['holehe', email, '--only-used', '--no-color', '--no-clear', '-T', '5'],
             capture_output=True,
             text=True,
-            timeout=30,  # 30 second timeout (reduced from 180)
+            timeout=15,  # 15 second timeout
             encoding='utf-8',
             errors='replace'
         )

@@ -151,7 +151,7 @@ class EmailDiscoveryService:
                 try:
                     task_results = await asyncio.wait_for(
                         asyncio.gather(*tasks, return_exceptions=True),
-                        timeout=120.0  # 120 second overall timeout
+                        timeout=45.0  # 45 second overall timeout
                     )
                 except asyncio.TimeoutError:
                     logger.warning("Overall timeout reached, using partial results")
@@ -315,7 +315,7 @@ class EmailDiscoveryService:
                         self._holehe_check_single,
                         email
                     ),
-                    timeout=25.0  # 25s per email
+                    timeout=12.0  # 12s per email
                 )
                 if result:
                     services = result.get('services', [])
@@ -383,7 +383,7 @@ class EmailDiscoveryService:
                 websites = get_functions(modules)
 
                 out = []
-                async with httpx.AsyncClient(timeout=30.0) as client:
+                async with httpx.AsyncClient(timeout=10.0) as client:
                     for website_func in websites:
                         try:
                             await website_func(email_addr, client, out)
@@ -417,7 +417,7 @@ class EmailDiscoveryService:
                 ['holehe', email, '--only-used', '--no-color', '--no-clear', '-T', '5'],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=15,
                 encoding='utf-8',
                 errors='replace'
             )
@@ -875,14 +875,15 @@ def verify_emails_with_holehe(emails: List[str], max_emails: int = 5) -> List[Di
             }
 
     # Run concurrently (3 at a time) with per-email timeout
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    executor = ThreadPoolExecutor(max_workers=3)
+    try:
         future_to_email = {
             executor.submit(check_single, email): email
             for email in ordered_emails
         }
-        for future in as_completed(future_to_email, timeout=90):
+        for future in as_completed(future_to_email, timeout=30):
             try:
-                result = future.result(timeout=30)
+                result = future.result(timeout=12)
                 results.append(result)
             except Exception as e:
                 email = future_to_email[future]
@@ -895,6 +896,10 @@ def verify_emails_with_holehe(emails: List[str], max_emails: int = 5) -> List[Di
                     'verification': 'holehe_error',
                     'verified_on': [],
                 })
+    except (TimeoutError, Exception) as e:
+        logger.debug(f"Holehe batch timeout: {e}")
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
 
     service.close()
     return results
