@@ -19,6 +19,7 @@
     {% set complete = investigations|selectattr('status', 'equalto', 'complete')|list|length %}
     {% set phase1_done = investigations|selectattr('status', 'equalto', 'phase_1_complete')|list|length %}
     {% set phase2_done = investigations|selectattr('status', 'equalto', 'phase_2_complete')|list|length %}
+    {% set phase3_done = investigations|selectattr('status', 'equalto', 'phase_3_complete')|list|length %}
     {% set in_progress = total - complete %}
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <div class="bg-bg-panel rounded-lg border border-violet-200 p-3 text-center">
@@ -30,7 +31,7 @@
             <div class="text-xs text-gray-400">Complete</div>
         </div>
         <div class="bg-bg-panel rounded-lg border border-blue-500/20 p-3 text-center">
-            <div class="text-2xl font-bold text-blue-400">{{ phase1_done + phase2_done }}</div>
+            <div class="text-2xl font-bold text-blue-400">{{ phase1_done + phase2_done + phase3_done }}</div>
             <div class="text-xs text-gray-400">Analyzed</div>
         </div>
         <div class="bg-bg-panel rounded-lg border border-yellow-500/20 p-3 text-center">
@@ -50,6 +51,7 @@
             <option value="phase_1">Phase 1</option>
             <option value="phase_1_complete">Phase 1 Done</option>
             <option value="phase_2_complete">Phase 2 Done</option>
+            <option value="phase_3_complete">Phase 3 Done</option>
             <option value="complete">Complete</option>
         </select>
         <select id="sort-order" class="bg-bg-panel border border-violet-200 rounded-lg px-4 py-2 text-gray-300 text-sm focus:border-violet focus:outline-none">
@@ -92,14 +94,16 @@
                     <!-- Status Badge -->
                     <span class="px-3 py-1 rounded-full text-xs font-medium
                         {% if inv.status == 'complete' %}bg-green-500/20 text-green-400
-                        {% elif inv.status == 'phase_1_complete' %}bg-blue-500/20 text-blue-400
+                        {% elif inv.status == 'phase_3_complete' %}bg-emerald-500/20 text-emerald-400
                         {% elif inv.status == 'phase_2_complete' %}bg-purple-500/20 text-purple-400
+                        {% elif inv.status == 'phase_1_complete' %}bg-blue-500/20 text-blue-400
                         {% else %}bg-yellow-500/20 text-yellow-400{% endif %}">
                         {% if inv.status == 'complete' %}Complete
-                        {% elif inv.status == 'phase_1_complete' %}Phase 1 Done
-                        {% elif inv.status == 'phase_2' %}Phase 2
+                        {% elif inv.status == 'phase_3_complete' %}Phase 3 Done
+                        {% elif inv.status == 'phase_3' %}Phase 3...
                         {% elif inv.status == 'phase_2_complete' %}Phase 2 Done
-                        {% elif inv.status == 'phase_3' %}Phase 3
+                        {% elif inv.status == 'phase_2' %}Phase 2
+                        {% elif inv.status == 'phase_1_complete' %}Phase 1 Done
                         {% else %}{{ inv.status or 'In Progress' }}{% endif %}
                     </span>
 
@@ -112,9 +116,17 @@
                     <a href="/phase2/analyze/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
                         Analyze
                     </a>
-                    {% elif inv.status in ['phase_2', 'phase_2_complete'] %}
+                    {% elif inv.status == 'phase_2_complete' %}
+                    <a href="/phase3/buratino/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm font-semibold">
+                        Deep Dive
+                    </a>
+                    {% elif inv.status == 'phase_2' %}
                     <a href="/phase2/buratino/results/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
                         Results
+                    </a>
+                    {% elif inv.status == 'phase_3_complete' %}
+                    <a href="/phase3/buratino/results/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
+                        P3 Results
                     </a>
                     {% elif inv.status == 'complete' %}
                     <a href="/report/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
@@ -144,6 +156,15 @@
                 {% endif %}
                 {% if inv.discovered_emails %}
                 <span><span class="text-violet">Emails:</span> {{ inv.discovered_emails|length }}</span>
+                {% endif %}
+                {% if inv.status in ['phase_3_complete', 'complete'] and inv.risk_indicators %}
+                <span><span class="text-violet">Risk:</span>
+                    {% set ns_risk = namespace(level='low') %}
+                    {% for ri in inv.risk_indicators %}
+                        {% if ri.severity == 'high' %}{% set ns_risk.level = 'high' %}{% endif %}
+                    {% endfor %}
+                    <span class="{% if ns_risk.level == 'high' %}text-red-400{% elif ns_risk.level == 'medium' %}text-yellow-400{% else %}text-green-400{% endif %}">{{ ns_risk.level }}</span>
+                </span>
                 {% endif %}
             </div>
             {% endif %}
