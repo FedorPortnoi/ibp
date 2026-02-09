@@ -223,54 +223,56 @@ class BusinessRegistrySearch:
         return results
 
     def _parse_nalog_row(self, row: dict, search_name: str) -> Optional[BusinessRecord]:
-        """Parse a nalog.ru EGRUL search result row."""
+        """Parse a nalog.ru EGRUL search result row.
+
+        Actual API response fields:
+        - k: type ("fl" = ИП/individual, "ul" = company)
+        - n: name (person name for FL, company name for UL)
+        - i: INN
+        - o: OGRN / OGRNIP
+        - r: registration date (DD.MM.YYYY)
+        - c: company short name (UL only)
+        - a: address (UL only)
+        - g: end/liquidation date (if liquidated)
+        - p: director name (UL only)
+        - t: detail token
+        - cnt/tot/pg: pagination
+        """
         try:
-            # Row fields: n=name, i=INN, o=OGRN, a=address, c=company_name,
-            # r=region, e=end_date, p=IP_name, k=KPP, g=registration_date
-            company_name = row.get('c', '') or row.get('n', '')
+            record_type = row.get('k', '')  # "fl" or "ul"
+            name = row.get('n', '')
             inn = row.get('i', '')
             ogrn = row.get('o', '')
-            address = row.get('a', '')
-            reg_date = row.get('g', '')
-            end_date = row.get('e', '')
-            kpp = row.get('k', '')
-            ip_name = row.get('p', '')  # For individual entrepreneurs
+            reg_date = row.get('r', '')
+            end_date = row.get('g', '')
 
-            if not company_name and not ip_name:
+            if not name and not inn:
                 return None
 
-            # Determine if this is an IP (individual entrepreneur) or company
-            if ip_name and not company_name:
-                company_name = f"ИП {ip_name}"
+            if record_type == 'fl':
+                # Individual entrepreneur (ИП)
+                company_name = f"ИП {name}"
                 company_type = "ИП"
-            elif company_name:
-                company_type = self._detect_company_type(company_name)
-            else:
-                company_type = ""
-
-            # Determine status
-            if end_date:
-                status = "Ликвидировано"
-            else:
-                status = "Действующее"
-
-            # Determine role
-            # nalog.ru doesn't tell us the role directly,
-            # but if it's an IP with the same name, they're the entrepreneur
-            name_parts = search_name.lower().split()
-            full_text = (company_name + ' ' + (ip_name or '')).lower()
-
-            if ip_name and any(p in ip_name.lower() for p in name_parts if len(p) > 2):
                 role = "ИП"
-            elif any(p in full_text for p in name_parts if len(p) > 2):
-                role = "Связан"
+                address = ''
+                status = "Ликвидировано" if end_date else "Действующее"
             else:
-                role = "Связан"
+                # Company (UL)
+                company_name = row.get('c', '') or name
+                company_type = self._detect_company_type(company_name)
+                address = row.get('a', '')
+                director = row.get('p', '')
+                status = "Ликвидировано" if end_date else "Действующее"
+
+                # Determine role based on whether director matches search name
+                name_parts = search_name.lower().split()
+                if director and any(p in director.lower() for p in name_parts if len(p) > 2):
+                    role = "Директор"
+                else:
+                    role = "Связан"
 
             # Build URL to nalog.ru EGRUL page
-            url = ""
-            if ogrn:
-                url = f"https://egrul.nalog.ru/index.html"
+            url = "https://egrul.nalog.ru/index.html"
 
             return BusinessRecord(
                 company_name=company_name,
