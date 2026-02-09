@@ -28,6 +28,7 @@ def run_startup_checks():
     _safe_print("=" * 58)
 
     checks = [
+        check_auth,
         check_database,
         check_vk_token,
         check_playwright,
@@ -49,6 +50,19 @@ def run_startup_checks():
             _safe_print(f"  [FAIL] {check_fn.__name__}: Error -- {e}")
 
     _safe_print("=" * 58 + "\n")
+
+
+def check_auth():
+    """Check if authentication is configured."""
+    pw_hash = os.environ.get('IBP_PASSWORD_HASH', '').strip()
+    pw_plain = os.environ.get('IBP_PASSWORD', '').strip()
+    secret = os.environ.get('FLASK_SECRET_KEY', '').strip()
+
+    if pw_hash or pw_plain:
+        mode = 'hashed' if pw_hash else 'plain text'
+        warning = '' if secret else ' -- FLASK_SECRET_KEY not set, sessions reset on restart'
+        return 'ok', f'Authentication: ENABLED ({mode}){warning}'
+    return 'warn', 'Authentication: DISABLED -- set IBP_PASSWORD or IBP_PASSWORD_HASH in .env'
 
 
 def check_database():

@@ -6,7 +6,7 @@ Flask application factory with Buratino-style workflow.
 
 import os
 import logging
-from flask import Flask, render_template
+from flask import Flask, render_template, session, redirect, url_for, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 
@@ -31,7 +31,7 @@ def create_app(config_name='development'):
     # Load configuration
     if config_name == 'development':
         app.config['DEBUG'] = True
-        app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+        app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production'))
         app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///ibp.db')
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
@@ -50,18 +50,39 @@ def create_app(config_name='development'):
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
     # Import and register blueprints directly from each file
+    from app.routes.auth import auth_bp, is_auth_enabled
     from app.routes.main import main_bp
     from app.routes.phase1 import phase1_bp
     from app.routes.phase2 import phase2_bp
     from app.routes.phase3 import phase3_bp
     from app.routes.report import report_bp
     from app.routes.phase4 import phase4_bp
+    app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(phase1_bp)
     app.register_blueprint(phase2_bp)
     app.register_blueprint(phase3_bp)
     app.register_blueprint(report_bp)
     app.register_blueprint(phase4_bp)
+
+    # Global auth check — protect ALL routes except login and static files
+    @app.before_request
+    def check_auth():
+        if not is_auth_enabled():
+            return
+
+        allowed_endpoints = {'auth.login', 'auth.logout', 'static'}
+        if request.endpoint and (
+            request.endpoint in allowed_endpoints or
+            request.endpoint.startswith('static')
+        ):
+            return
+
+        if not session.get('authenticated'):
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'error': 'Authentication required', 'redirect': '/login'}), 401
+            session['next_url'] = request.url
+            return redirect(url_for('auth.login'))
 
     # Register error handlers
     @app.errorhandler(404)

@@ -96,6 +96,11 @@
                     <span id="vk-status" class="text-xs cursor-pointer" title="VK API status">
                         <span class="inline-block w-2 h-2 rounded-full bg-gray-500 mr-1"></span>VK
                     </span>
+                    {% if session.get('authenticated') %}
+                    <a href="/logout" title="Logout" class="text-gray-500 hover:text-red-400 transition-colors text-sm ml-2">
+                        &#x1f513; Logout
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>

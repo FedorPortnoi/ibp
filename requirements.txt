@@ -50,6 +50,9 @@ python-louvain==0.16
 weasyprint==67.0
 html2image==2.0.7
 
+# === Authentication ===
+bcrypt==4.3.0
+
 # === Environment & Config ===
 python-dotenv==1.2.1
 
