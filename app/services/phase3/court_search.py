@@ -146,13 +146,13 @@ class CourtRecordSearch:
                 url = f"{self.SUDACT_BASE}/regular/doc/?regular-txt={quote(name)}"
                 page.goto(url)
 
-                # Wait for results to render
+                # Wait for results to render - sudact uses ul.results > li structure
                 try:
-                    page.wait_for_selector('#resultTable tr, .resultTable tr, .result-item', timeout=15000)
+                    page.wait_for_selector('ul.results li a[href*="/doc/"]', timeout=15000)
                 except Exception:
-                    # No results or timeout
-                    browser.close()
-                    return results
+                    # No results or timeout - try waiting a bit more
+                    import time
+                    time.sleep(3)
 
                 # Get rendered HTML
                 html = page.content()
@@ -160,18 +160,18 @@ class CourtRecordSearch:
 
             soup = BeautifulSoup(html, 'lxml')
 
-            # Parse result rows
-            rows = soup.select('#resultTable tr, .resultTable tr')
-            for row in rows[:limit]:
-                case = self._parse_sudact_row_pw(row, name)
+            # Parse result list items (ul.results > li)
+            items = soup.select('ul.results > li')
+            for item in items[:limit]:
+                case = self._parse_sudact_list_item(item, name)
                 if case:
                     results.append(case)
 
-            # Also try result items
+            # Fallback: try document links directly
             if not results:
-                items = soup.select('.result-item, .bsr-item')
-                for item in items[:limit]:
-                    case = self._parse_sudact_item(item, name)
+                doc_links = soup.select('a[href*="/doc/"]')
+                for link in doc_links[:limit]:
+                    case = self._parse_sudact_doc_link(link, name)
                     if case:
                         results.append(case)
 
@@ -180,55 +180,99 @@ class CourtRecordSearch:
 
         return results
 
-    def _parse_sudact_row_pw(self, row, search_name: str) -> Optional[CourtCase]:
-        """Parse a Playwright-rendered sudact row."""
+    def _parse_sudact_list_item(self, item, search_name: str) -> Optional[CourtCase]:
+        """Parse a sudact.ru result list item (ul.results > li)."""
         try:
-            cells = row.select('td')
-            if len(cells) < 2:
+            link = item.select_one('a[href*="/doc/"]')
+            if not link:
                 return None
 
-            text = row.get_text()
+            title = link.get_text(strip=True)
+            text = item.get_text()
 
-            # Case number
-            case_match = re.search(r'(\d{1,2}-\d+/\d{4})', text)
+            # Extract case number from title (e.g. "Решение № 2-6851/2025 от ... по делу № 2-985/2025")
+            # Try "по делу №" first (most specific)
+            case_match = re.search(r'по делу\s*№?\s*(\d{1,2}-\d+/\d{4})', title)
             if not case_match:
-                case_match = re.search(r'(?:Дело|№)[:\s]*([^\s,]+)', text)
+                case_match = re.search(r'№\s*(\d{1,2}-\d+/\d{4})', title)
+            if not case_match:
+                case_match = re.search(r'(\d{1,2}-\d+/\d{4})', title)
             case_number = case_match.group(1) if case_match else ""
 
-            if not case_number or case_number == "Не указан":
+            if not case_number:
                 return None
 
-            # Court name
-            court_name = cells[0].get_text(strip=True) if cells else ""
-            if not court_name or len(court_name) < 3:
-                court_name = cells[1].get_text(strip=True) if len(cells) > 1 else "Не указан"
+            # Extract court name (appears after the link text in the li)
+            court_match = re.search(r'([А-Яа-яёЁ][\w\s\-\.]+(?:суд|СОЮ)[а-яА-Я\w\s\-\.]*?)(?:\s*[-–]\s*|\s*\()', text)
+            if court_match:
+                court_name = court_match.group(1).strip()
+            else:
+                # Try to find court name as text after title
+                remaining = text.replace(title, '').strip()
+                # Remove leading number + dot
+                remaining = re.sub(r'^\d+\.', '', remaining).strip()
+                # Court name is usually the first significant text
+                court_parts = remaining.split(' - ')
+                court_name = court_parts[0].strip() if court_parts else "Не указан"
+                # Clean up: remove region in parentheses for display
+                court_name = re.sub(r'\s*\(.*?\)\s*$', '', court_name).strip()
 
-            # Date
-            date_match = re.search(r'(\d{2}[./]\d{2}[./]\d{4})', text)
+            if len(court_name) < 5:
+                court_name = "Не указан"
+
+            # Extract date from title
+            date_match = re.search(r'от\s+(\d{1,2}\s+\w+\s+\d{4})\s+г\.', title)
             date = date_match.group(1) if date_match else ""
 
             # Case type
             case_type = self._detect_case_type(text)
 
             # URL
-            link = row.select_one('a[href]')
+            href = link.get('href', '')
             url = ""
-            if link and link.get('href'):
-                href = link['href']
-                if href.startswith('/'):
-                    url = f"{self.SUDACT_BASE}{href}"
-                elif href.startswith('http'):
-                    url = href
+            if href.startswith('/'):
+                # Strip query params for cleaner URL
+                url = f"{self.SUDACT_BASE}{href.split('?')[0]}"
+            elif href.startswith('http'):
+                url = href.split('?')[0]
 
             return CourtCase(
                 case_number=case_number,
                 court_name=court_name,
                 case_type=case_type,
                 date=date,
-                role="участник",
+                role=self._detect_role(text, search_name),
                 source="sudact.ru",
                 url=url,
                 confidence="high"
+            )
+        except Exception as e:
+            logger.debug(f"Parse sudact list item error: {e}")
+            return None
+
+    def _parse_sudact_doc_link(self, link, search_name: str) -> Optional[CourtCase]:
+        """Parse a sudact.ru document link as fallback."""
+        try:
+            title = link.get_text(strip=True)
+            case_match = re.search(r'(\d{1,2}-\d+/\d{4})', title)
+            if not case_match:
+                return None
+
+            href = link.get('href', '')
+            url = f"{self.SUDACT_BASE}{href.split('?')[0]}" if href.startswith('/') else href
+
+            date_match = re.search(r'от\s+(\d{1,2}\s+\w+\s+\d{4})', title)
+            date = date_match.group(1) if date_match else ""
+
+            return CourtCase(
+                case_number=case_match.group(1),
+                court_name="Не указан",
+                case_type=self._detect_case_type(title),
+                date=date,
+                role="участник",
+                source="sudact.ru",
+                url=url,
+                confidence="medium"
             )
         except Exception:
             return None
