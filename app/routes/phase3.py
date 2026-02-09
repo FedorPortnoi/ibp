@@ -436,6 +436,10 @@ def start_buratino_investigation(investigation_id):
                     )
                     db.session.add(db_court)
 
+                # Save risk indicators and manual links to investigation JSON
+                investigation.risk_indicators = [r.to_dict() for r in results.risk_indicators]
+                investigation.additional_findings = [l.to_dict() for l in results.manual_search_links]
+
                 # Update investigation status
                 investigation.status = 'phase_3_complete'
                 db.session.commit()
@@ -472,6 +476,7 @@ def start_buratino_investigation(investigation_id):
 def buratino_results(investigation_id):
     """Display Phase 3 results for Buratino flow."""
     from app.models import Investigation, SocialProfile, BusinessRecord as DBBusinessRecord, CourtRecord as DBCourtRecord
+    from urllib.parse import quote
 
     investigation = Investigation.query.get(investigation_id)
     if not investigation:
@@ -485,8 +490,27 @@ def buratino_results(investigation_id):
     business_records = DBBusinessRecord.query.filter_by(investigation_id=investigation_id).all()
     court_records = DBCourtRecord.query.filter_by(investigation_id=investigation_id).all()
 
+    # Get risk indicators and manual links from investigation JSON
+    risk_indicators = investigation.risk_indicators or []
+    manual_search_links = investigation.additional_findings or []
+
+    # Generate manual links if not stored yet
+    if not manual_search_links:
+        name = investigation.input_name or ''
+        encoded = quote(name)
+        manual_search_links = [
+            {'name': 'ЕГРЮЛ (ФНС)', 'url': 'https://egrul.nalog.ru/', 'description': 'Реестр юрлиц и ИП'},
+            {'name': 'Rusprofile.ru', 'url': f'https://www.rusprofile.ru/search?query={encoded}&type=person', 'description': 'Поиск компаний'},
+            {'name': 'ФССП', 'url': 'https://fssp.gov.ru/iss/ip', 'description': 'Исполнительные производства'},
+            {'name': 'Sudact.ru', 'url': f'https://sudact.ru/regular/doc/?regular-txt={encoded}', 'description': 'Судебные акты'},
+            {'name': 'Арбитраж', 'url': 'https://kad.arbitr.ru/', 'description': 'Арбитражные дела'},
+            {'name': 'ЕГРЮЛ (ФНС)', 'url': 'https://egrul.nalog.ru/', 'description': 'Официальный реестр'},
+        ]
+
     return render_template('phase3_buratino_results.html',
                          investigation=investigation,
                          profile=confirmed_profile,
                          business_records=business_records,
-                         court_records=court_records)
+                         court_records=court_records,
+                         risk_indicators=risk_indicators,
+                         manual_search_links=manual_search_links)

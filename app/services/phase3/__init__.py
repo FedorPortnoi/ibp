@@ -47,7 +47,8 @@ from .combined_search import (
     phase3_combined_search,
     Phase3Results,
     SocialConnection,
-    RiskIndicator
+    RiskIndicator,
+    ManualSearchLink
 )
 
 __all__ = [
