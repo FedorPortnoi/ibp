@@ -78,10 +78,14 @@ def create_app(config_name='development'):
         ):
             return
 
+        if request.path.endswith('favicon.ico'):
+            return
+
         if not session.get('authenticated'):
             if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'error': 'Authentication required', 'redirect': '/login'}), 401
-            session['next_url'] = request.url
+            if 'favicon' not in request.path and not request.path.startswith('/static'):
+                session['next_url'] = request.url
             return redirect(url_for('auth.login'))
 
     # Register error handlers
