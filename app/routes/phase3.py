@@ -508,7 +508,7 @@ def buratino_results(investigation_id):
             {'name': 'ФССП', 'url': 'https://fssp.gov.ru/iss/ip', 'description': 'Исполнительные производства'},
             {'name': 'Sudact.ru', 'url': f'https://sudact.ru/regular/doc/?regular-txt={encoded}', 'description': 'Судебные акты'},
             {'name': 'Арбитраж', 'url': 'https://kad.arbitr.ru/', 'description': 'Арбитражные дела'},
-            {'name': 'ЕГРЮЛ (ФНС)', 'url': 'https://egrul.nalog.ru/', 'description': 'Официальный реестр'},
+            {'name': 'ГАС Правосудие', 'url': 'https://bsr.sudrf.ru/bigs/portal.html', 'description': 'Портал судебного делопроизводства'},
         ]
 
     return render_template('phase3_buratino_results.html',

@@ -131,10 +131,14 @@ class TextAnalyzer:
         """Lazy load pymorphy2 analyzer."""
         if self._pymorphy is None:
             try:
+                # pymorphy2 uses deprecated inspect.getargspec on Python 3.11+
+                import inspect
+                if not hasattr(inspect, 'getargspec'):
+                    inspect.getargspec = inspect.getfullargspec
                 import pymorphy2
                 self._pymorphy = pymorphy2.MorphAnalyzer()
-            except ImportError:
-                logger.warning("pymorphy2 not available, using basic analysis")
+            except (ImportError, Exception) as e:
+                logger.warning(f"pymorphy2 not available ({e}), using basic analysis")
                 self._pymorphy = False
         return self._pymorphy if self._pymorphy else None
 

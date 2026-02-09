@@ -108,6 +108,7 @@ class BusinessRecord(db.Model):
             'Директор': 'Директор',
             'Учредитель': 'Учредитель',
             'Связан': 'Связан',
+            'ИП': 'ИП (Предприниматель)',
         }
         return roles.get(self.role, self.role or 'Не указано')
 
