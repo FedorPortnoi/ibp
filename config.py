@@ -77,6 +77,7 @@ class ProductionConfig(Config):
     TESTING = False
     # In production, always use environment variable for secret key
     SECRET_KEY = os.environ.get('SECRET_KEY')
+    SESSION_COOKIE_SECURE = False  # Render handles HTTPS at edge
 
 
 class TestingConfig(Config):

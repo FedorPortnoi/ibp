@@ -10,6 +10,7 @@ Flask-Migrate==4.1.0
 SQLAlchemy==2.0.45
 Werkzeug==3.1.4
 Jinja2==3.1.6
+gunicorn==25.0.3
 
 # === HTTP Requests & Scraping ===
 requests==2.32.5
@@ -18,11 +19,7 @@ lxml==5.4.0
 httpx==0.28.1
 aiohttp==3.13.2
 
-# === Web Automation ===
-playwright==1.57.0
-
-# === OSINT Tools ===
-maigret==0.5.0
+# === OSINT Tools (optional, app degrades gracefully without these) ===
 holehe==1.61
 
 # === Email / Phone Verification ===
@@ -30,25 +27,19 @@ dnspython==2.8.0
 trio==0.32.0
 phonenumbers==9.0.21
 
-# === Telegram Integration ===
+# === Telegram Integration (optional) ===
 Telethon==1.42.0
 
 # === NLP / Text Processing ===
-nltk==3.9.2
 pymorphy2==0.9.1
 pymorphy2-dicts-ru==2.4.417127.4579844
 
-# === Image Processing / Face Recognition ===
+# === Image Processing ===
 Pillow==11.3.0
-face-recognition==1.3.0
 
 # === Network Analysis / Social Graph ===
 networkx==2.8.8
 python-louvain==0.16
-
-# === PDF / HTML Export ===
-weasyprint==67.0
-html2image==2.0.7
 
 # === Authentication ===
 bcrypt==4.3.0

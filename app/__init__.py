@@ -19,8 +19,11 @@ db = SQLAlchemy()
 logger = logging.getLogger('ibp')
 
 
-def create_app(config_name='development'):
+def create_app(config_name=None):
     """Application factory for IBP."""
+
+    if config_name is None:
+        config_name = os.environ.get('FLASK_ENV', 'development')
 
     # Setup structured logging
     from app.utils.logger import setup_logging
@@ -29,25 +32,31 @@ def create_app(config_name='development'):
     app = Flask(__name__)
 
     # Load configuration
-    if config_name == 'development':
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production'))
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///ibp.db')
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
+
+    # VK API configuration
+    app.config['VK_SERVICE_TOKEN'] = os.environ.get('VK_SERVICE_TOKEN')
+    app.config['VK_API_VERSION'] = os.environ.get('VK_API_VERSION', '5.199')
+
+    # Search4Faces API (optional)
+    app.config['SEARCH4FACES_API_KEY'] = os.environ.get('SEARCH4FACES_API_KEY')
+
+    if config_name == 'production':
+        app.config['DEBUG'] = False
+        app.config['TESTING'] = False
+        app.config['SESSION_COOKIE_SECURE'] = False  # Render handles HTTPS at edge
+    else:
         app.config['DEBUG'] = True
-        app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production'))
-        app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///ibp.db')
-        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-        app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
-
-        # VK API configuration
-        app.config['VK_SERVICE_TOKEN'] = os.environ.get('VK_SERVICE_TOKEN')
-        app.config['VK_API_VERSION'] = os.environ.get('VK_API_VERSION', '5.199')
-
-        # Search4Faces API (optional)
-        app.config['SEARCH4FACES_API_KEY'] = os.environ.get('SEARCH4FACES_API_KEY')
 
     # Initialize extensions with app
     db.init_app(app)
 
-    # Create upload folder
+    # Create required directories
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'reports'), exist_ok=True)
 
     # Import and register blueprints directly from each file
     from app.routes.auth import auth_bp, is_auth_enabled
@@ -71,7 +80,7 @@ def create_app(config_name='development'):
         if not is_auth_enabled():
             return
 
-        allowed_endpoints = {'auth.login', 'auth.logout', 'static'}
+        allowed_endpoints = {'auth.login', 'auth.logout', 'static', 'main.health_check'}
         if request.endpoint and (
             request.endpoint in allowed_endpoints or
             request.endpoint.startswith('static')

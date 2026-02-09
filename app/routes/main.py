@@ -11,6 +11,12 @@ main_bp = Blueprint('main', __name__)
 logger = logging.getLogger('ibp.routes.main')
 
 
+@main_bp.route('/health')
+def health_check():
+    """Health check for Render.com / uptime monitors."""
+    return jsonify({'status': 'ok'}), 200
+
+
 @main_bp.route('/')
 def index():
     """Redirect root to Buratino-style new investigation page."""
