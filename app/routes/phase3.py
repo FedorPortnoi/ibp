@@ -436,6 +436,9 @@ def start_buratino_investigation(investigation_id):
                     )
                     db.session.add(db_court)
 
+                # Save FSSP enforcement proceedings to investigation JSON
+                investigation.property_records = [e.to_dict() for e in results.enforcement_proceedings]
+
                 # Save risk indicators and manual links to investigation JSON
                 investigation.risk_indicators = [r.to_dict() for r in results.risk_indicators]
                 investigation.additional_findings = [l.to_dict() for l in results.manual_search_links]
@@ -490,7 +493,8 @@ def buratino_results(investigation_id):
     business_records = DBBusinessRecord.query.filter_by(investigation_id=investigation_id).all()
     court_records = DBCourtRecord.query.filter_by(investigation_id=investigation_id).all()
 
-    # Get risk indicators and manual links from investigation JSON
+    # Get FSSP, risk indicators, and manual links from investigation JSON
+    enforcement_proceedings = investigation.property_records or []
     risk_indicators = investigation.risk_indicators or []
     manual_search_links = investigation.additional_findings or []
 
@@ -512,5 +516,6 @@ def buratino_results(investigation_id):
                          profile=confirmed_profile,
                          business_records=business_records,
                          court_records=court_records,
+                         enforcement_proceedings=enforcement_proceedings,
                          risk_indicators=risk_indicators,
                          manual_search_links=manual_search_links)
