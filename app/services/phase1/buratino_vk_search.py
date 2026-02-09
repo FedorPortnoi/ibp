@@ -245,9 +245,10 @@ class BuratinoVKSearch:
     def _calculate_name_similarity(self, target: str, found: str) -> float:
         """Calculate name similarity score (0-100). Handles Cyrillic/Latin.
 
-        Uses part-based matching as primary signal: each name part (first, last)
-        must independently match a part in the found name. Direct sequence matching
-        is used as a secondary signal but penalized when no name parts match.
+        Uses part-based matching: first name and last name are scored independently.
+        CRITICAL: first name must match for a high overall score — last-name-only
+        matches are capped at 45% to prevent false positives like
+        "Maxim Kozlov" matching search "Артём Козлов".
         """
         if not target or not found:
             return 0.0
@@ -259,45 +260,66 @@ class BuratinoVKSearch:
         target_lat = self._to_latin(target_lower)
         found_lat = self._to_latin(found_lower)
 
-        # Part-based matching (compare transliterated parts)
+        target_parts_cyr = target_lower.split()
+        found_parts_cyr = found_lower.split()
         target_parts = target_lat.split()
         found_parts = found_lat.split()
 
-        matches = 0
-        best_part_ratios = []
-        for tp in target_parts:
-            best_ratio = 0.0
-            matched = False
-            for fp in found_parts:
-                # Substring match (require at least 3 chars to avoid false positives)
-                if len(tp) >= 3 and len(fp) >= 3 and (tp in fp or fp in tp):
-                    matches += 1
-                    matched = True
-                    best_ratio = 1.0
-                    break
-                if len(tp) > 3 and len(fp) > 3:
-                    ratio = SequenceMatcher(None, tp, fp).ratio()
-                    best_ratio = max(best_ratio, ratio)
-                    if ratio > 0.75:
-                        matches += 1
-                        matched = True
-                        break
-            best_part_ratios.append(best_ratio)
+        # Single-word queries: use simple sequence matching
+        if len(target_parts) < 2 or len(found_parts) < 2:
+            return max(
+                SequenceMatcher(None, target_lower, found_lower).ratio(),
+                SequenceMatcher(None, target_lat, found_lat).ratio(),
+            ) * 100
 
-        part_score = (matches / len(target_parts)) * 100 if target_parts else 0
+        # Two-part name: score first name and last name independently
+        target_first_lat = target_parts[0]
+        target_last_lat = target_parts[-1]
+        found_first_lat = found_parts[0]
+        found_last_lat = found_parts[-1]
 
-        # Direct sequence matching (full-string comparison)
-        direct = max(
-            SequenceMatcher(None, target_lower, found_lower).ratio(),
-            SequenceMatcher(None, target_lat, found_lat).ratio(),
-        ) * 100
+        # -- Last name score (0.0 - 1.0) --
+        last_score = max(
+            SequenceMatcher(None, target_last_lat, found_last_lat).ratio(),
+            SequenceMatcher(None, target_parts_cyr[-1], found_parts_cyr[-1]).ratio(),
+        )
+        # Substring match bonus
+        if (len(target_last_lat) >= 3 and len(found_last_lat) >= 3
+                and (target_last_lat in found_last_lat or found_last_lat in target_last_lat)):
+            last_score = max(last_score, 1.0)
 
-        # If no name parts matched at all, cap the direct score to prevent
-        # false positives from coincidental letter overlap
-        if matches == 0:
-            direct = min(direct, 25)
+        # -- First name score (0.0 - 1.0) --
+        first_score = max(
+            SequenceMatcher(None, target_first_lat, found_first_lat).ratio(),
+            SequenceMatcher(None, target_parts_cyr[0], found_parts_cyr[0]).ratio(),
+        )
+        # Substring match bonus
+        if (len(target_first_lat) >= 3 and len(found_first_lat) >= 3
+                and (target_first_lat in found_first_lat or found_first_lat in target_first_lat)):
+            first_score = max(first_score, 1.0)
 
-        return max(direct, part_score)
+        # Diminutive matching: check if first names share a common formal root
+        try:
+            from app.services.phase1.russian_diminutives import get_all_name_variants
+            search_variants = set(v.lower() for v in get_all_name_variants(target_parts_cyr[0]))
+            profile_variants = set(v.lower() for v in get_all_name_variants(found_parts_cyr[0]))
+            if search_variants & profile_variants:
+                first_score = max(first_score, 0.90)
+        except ImportError:
+            pass
+
+        # CRITICAL: If first name doesn't match at all, cap the total score.
+        # This prevents "Maxim Kozlov" from matching "Артём Козлов" at 75%.
+        # Threshold 0.45 blocks coincidental overlap (Максим/Артём ≈ 0.36-0.40)
+        # while allowing legitimate variants caught by diminutive check above.
+        if first_score < 0.45:
+            return min(last_score * 50, 45)  # Last-name-only → max 45%
+
+        if last_score < 0.45:
+            return min(first_score * 50, 40)  # First-name-only → max 40%
+
+        # Both names match: weighted combination (50/50)
+        return (first_score * 50) + (last_score * 50)
 
     @staticmethod
     def _to_latin(text: str) -> str:
@@ -382,49 +404,56 @@ class BuratinoVKSearch:
         target_name: Optional[str] = None
     ) -> Tuple[List[VKProfileResult], int]:
         """
-        Search VKontakte for people.
+        Search VKontakte for people by name.
 
-        Fallback chain:
-        1. VK web scraping (Playwright with persistent session — no token needed)
-        2. VK API newsfeed.search (service token — permanent, never expires)
-        3. Demo mode (sample data)
+        Strategy:
+        1. VKWebSearch with web token (PRIMARY — calls users.search via cached
+           web token obtained from Playwright auto-login; fast after first run)
+        2. Demo mode (if no token at all)
 
-        Service token is used only for enrichment (users.get) — always works.
+        Note: users.search requires a user/web token; service tokens get Error 28.
+        VKWebSearch handles web token lifecycle (auto-login, caching, refresh).
         """
         if not target_name:
             target_name = query
 
-        # ── Step 1: Try web search (Playwright + newsfeed.search) ──
-        if self.token:
-            try:
-                from app.services.phase1.vk_web_search import VKWebSearch
-                web_searcher = VKWebSearch(service_token=self.token)
-                raw_profiles, total = web_searcher.search(query, count=count)
+        # ── Demo mode ──
+        if self._demo_mode:
+            return self._demo_search(query, city, age_from, age_to, count, target_name)
 
-                if raw_profiles:
-                    # Convert API dicts to VKProfileResult objects
-                    profiles = [self._parse_profile(p, target_name) for p in raw_profiles]
+        all_profiles_by_id: Dict[int, VKProfileResult] = {}
 
-                    # Apply filters
-                    if city:
-                        profiles = [
-                            p for p in profiles
-                            if not p.city or city.lower() in p.city.lower()
-                        ]
-                    if age_from:
-                        profiles = [p for p in profiles if not p.age or p.age >= age_from]
-                    if age_to:
-                        profiles = [p for p in profiles if not p.age or p.age <= age_to]
+        # ── PRIMARY: VKWebSearch (web token users.search + newsfeed + screen name) ──
+        try:
+            from app.services.phase1.vk_web_search import VKWebSearch
+            web_searcher = VKWebSearch(service_token=self.token)
+            raw_profiles, _ = web_searcher.search(query, count=count)
+            for item in raw_profiles:
+                vk_id = item.get('id')
+                if vk_id and vk_id not in all_profiles_by_id:
+                    profile = self._parse_profile(item, target_name)
+                    if profile.name_match:
+                        all_profiles_by_id[vk_id] = profile
+            logger.info(f"VK search: {len(all_profiles_by_id)} matching profiles for '{query}'")
+        except Exception as e:
+            logger.warning(f"VK web search failed: {e}")
 
-                    profiles.sort(key=lambda p: p.name_similarity, reverse=True)
-                    logger.info(f"VK web search found {len(profiles)} profiles for '{query}'")
-                    return profiles[:count], len(profiles)
+        # ── Apply filters ──
+        if city or age_from or age_to:
+            filtered = {}
+            for vk_id, profile in all_profiles_by_id.items():
+                if city and profile.city and city.lower() not in profile.city.lower():
+                    continue
+                if age_from and profile.age and profile.age < age_from:
+                    continue
+                if age_to and profile.age and profile.age > age_to:
+                    continue
+                filtered[vk_id] = profile
+            all_profiles_by_id = filtered
 
-            except Exception as e:
-                logger.warning(f"VK web search failed: {e}")
-
-        # ── Step 2: Demo mode ──
-        return self._demo_search(query, city, age_from, age_to, count, target_name)
+        profiles = list(all_profiles_by_id.values())
+        profiles.sort(key=lambda p: p.name_similarity, reverse=True)
+        return profiles[:count], len(all_profiles_by_id)
 
     def fetch_friends(
         self,

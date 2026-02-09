@@ -355,6 +355,9 @@ class VKWebSearch:
 
     # ── Web token search (Playwright session → users.search API) ──
 
+    # Class-level flag: skip Playwright if login has already failed this session
+    _login_failed = False
+
     def _playwright_search(self, query: str, count: int = 50) -> List[int]:
         """
         Search VK using the web token obtained from the browser session.
@@ -367,6 +370,11 @@ class VKWebSearch:
 
         Returns list of VK user IDs.
         """
+        # Quick check: if login has failed before, don't waste ~25s retrying
+        if VKWebSearch._login_failed and not _has_session():
+            logger.debug("VKWebSearch: skipping Playwright (previous login failed)")
+            return []
+
         # Step 1: Try cached web token
         web_token = _get_cached_token()
 
@@ -548,6 +556,9 @@ class VKWebSearch:
             except Exception as e:
                 logger.warning(f"VKWebSearch: login with {masked} error: {e}")
 
+        # Mark failure so subsequent searches skip Playwright entirely
+        VKWebSearch._login_failed = True
+        logger.warning("VKWebSearch: all login attempts failed, marking for skip")
         return False
 
     def _try_vk_login(self, login: str, password: str) -> bool:
@@ -669,6 +680,15 @@ class VKWebSearch:
             except Exception:
                 continue
         return False
+
+    @staticmethod
+    def _page_needs_login(content: str) -> bool:
+        """Check if page content indicates we're on a login screen."""
+        login_indicators = [
+            'VkIdForm', 'login_form', 'act=login', 'LoginPage',
+            'op.login', 'login_submit', 'Войдите на сайт',
+        ]
+        return any(ind in content for ind in login_indicators)
 
     @staticmethod
     def _click_sign_in(page) -> None:
