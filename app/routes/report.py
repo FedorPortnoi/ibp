@@ -39,13 +39,19 @@ def view(investigation_id):
     # Get court records
     court_records = CourtRecord.query.filter_by(investigation_id=investigation_id).all()
 
+    # Get risk indicators and FSSP data from investigation JSON
+    risk_indicators = investigation.risk_indicators or []
+    enforcement_proceedings = investigation.property_records or []
+
     return render_template('identity_card.html',
                          investigation_id=investigation_id,
                          investigation=investigation,
                          profile=confirmed_profile,
                          friends=friends,
                          business_records=business_records,
-                         court_records=court_records)
+                         court_records=court_records,
+                         risk_indicators=risk_indicators,
+                         enforcement_proceedings=enforcement_proceedings)
 
 
 @report_bp.route('/api/investigation-data/<investigation_id>')
@@ -86,6 +92,8 @@ def get_investigation_data(investigation_id):
         'business_records': [r.to_dict() for r in business_records],
         'court_records': [r.to_dict() for r in court_records],
         'friends_count': len(friends),
+        'risk_indicators': investigation.risk_indicators or [],
+        'enforcement_proceedings': investigation.property_records or [],
     }
 
     # Add confirmed profile
@@ -249,6 +257,7 @@ def generate_from_investigation(investigation_id):
 
         # Update investigation
         investigation.identity_card_generated = True
+        investigation.status = 'complete'
         db.session.commit()
 
         return jsonify({
