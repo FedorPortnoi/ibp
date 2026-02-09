@@ -38,7 +38,7 @@ def view(investigation_id):
 
     investigation = Investigation.query.get(investigation_id)
     if not investigation:
-        return render_template('error.html', error='Investigation not found'), 404
+        return render_template('error.html', error='Расследование не найдено'), 404
 
     return render_template('identity_card.html',
                          investigation_id=investigation_id,
@@ -52,7 +52,7 @@ def get_investigation_data(investigation_id):
 
     investigation = Investigation.query.get(investigation_id)
     if not investigation:
-        return jsonify({'error': 'Investigation not found'}), 404
+        return jsonify({'error': 'Расследование не найдено'}), 404
 
     # Get all profiles and confirmed profile
     all_profiles = SocialProfile.query.filter_by(
@@ -219,7 +219,7 @@ def generate():
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'error': 'No data provided'}), 400
+            return jsonify({'error': 'Данные не предоставлены'}), 400
 
         from app.services.report_generator import report_generator, IdentityCardData
 
@@ -263,7 +263,7 @@ def download_html():
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'error': 'No data provided'}), 400
+            return jsonify({'error': 'Данные не предоставлены'}), 400
 
         from app.services.report_generator import report_generator
 
@@ -289,7 +289,7 @@ def download_pdf():
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'error': 'No data provided'}), 400
+            return jsonify({'error': 'Данные не предоставлены'}), 400
 
         from app.services.report_generator import report_generator
 
@@ -297,7 +297,7 @@ def download_pdf():
         pdf_bytes = report_generator.generate_pdf_report(card_data, data)
 
         if not pdf_bytes:
-            return jsonify({'error': 'PDF generation not available. Install reportlab: pip install reportlab'}), 500
+            return jsonify({'error': 'Генерация PDF недоступна. Установите reportlab: pip install reportlab'}), 500
 
         return Response(
             pdf_bytes,
@@ -318,7 +318,7 @@ def download_json():
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'error': 'No data provided'}), 400
+            return jsonify({'error': 'Данные не предоставлены'}), 400
 
         # Build clean export (strip internal IDs, keep useful data)
         export_data = {

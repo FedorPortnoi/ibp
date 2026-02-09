@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}VK Токен — IBP{% endblock %}
+{% block title %}VK Token — IBP{% endblock %}
 
 {% block content %}
 <div class="max-w-xl mx-auto px-4 py-16">
@@ -10,7 +10,7 @@
             <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
             </svg>
-            <h2 class="text-xl font-bold mb-2">Требуется настройка</h2>
+            <h2 class="text-xl font-bold mb-2">Configuration Required</h2>
             <p class="text-text-secondary">{{ error }}</p>
         </div>
         {% else %}
@@ -18,24 +18,24 @@
             <svg class="w-12 h-12 mx-auto mb-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
-            <h2 class="text-xl font-bold mb-2">Обработка VK токена...</h2>
-            <p class="text-text-secondary">Извлечение токена из URL обратного вызова</p>
+            <h2 class="text-xl font-bold mb-2">Processing VK Token...</h2>
+            <p class="text-text-secondary">Extracting token from callback URL</p>
         </div>
         <div id="success" class="hidden text-emerald-400">
             <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            <h2 class="text-xl font-bold mb-2">Токен сохранён!</h2>
-            <p class="text-text-secondary mb-4">VK токен успешно обновлён.</p>
-            <a href="/" class="btn btn-primary">На панель управления</a>
+            <h2 class="text-xl font-bold mb-2">Token Saved!</h2>
+            <p class="text-text-secondary mb-4">VK token has been updated successfully.</p>
+            <a href="/" class="btn btn-primary">Back to Dashboard</a>
         </div>
         <div id="error" class="hidden text-red-400">
             <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            <h2 class="text-xl font-bold mb-2">Ошибка токена</h2>
+            <h2 class="text-xl font-bold mb-2">Token Error</h2>
             <p id="error-msg" class="text-text-secondary mb-4"></p>
-            <a href="/vk/auth" class="btn btn-primary">Попробовать снова</a>
+            <a href="/vk/auth" class="btn btn-primary">Try Again</a>
         </div>
         {% endif %}
     </div>
@@ -51,7 +51,7 @@
     if (!hash) {
         document.getElementById('processing').classList.add('hidden');
         document.getElementById('error').classList.remove('hidden');
-        document.getElementById('error-msg').textContent = 'Токен не найден в URL обратного вызова.';
+        document.getElementById('error-msg').textContent = 'No token found in callback URL. Please try again.';
         return;
     }
 
@@ -62,7 +62,7 @@
     if (!token) {
         document.getElementById('processing').classList.add('hidden');
         document.getElementById('error').classList.remove('hidden');
-        document.getElementById('error-msg').textContent = params.get('error_description') || 'Отсутствует access_token в ответе.';
+        document.getElementById('error-msg').textContent = params.get('error_description') || 'No access_token in response.';
         return;
     }
 
@@ -79,13 +79,13 @@
             document.getElementById('success').classList.remove('hidden');
         } else {
             document.getElementById('error').classList.remove('hidden');
-            document.getElementById('error-msg').textContent = data.error || 'Не удалось сохранить токен.';
+            document.getElementById('error-msg').textContent = data.error || 'Failed to save token.';
         }
     })
     .catch(err => {
         document.getElementById('processing').classList.add('hidden');
         document.getElementById('error').classList.remove('hidden');
-        document.getElementById('error-msg').textContent = 'Ошибка сети: ' + err.message;
+        document.getElementById('error-msg').textContent = 'Network error: ' + err.message;
     });
 
     // Clear the hash from URL for security

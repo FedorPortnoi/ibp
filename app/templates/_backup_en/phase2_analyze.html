@@ -1,35 +1,35 @@
 {% extends "base.html" %}
 
-{% block title %}Анализ профиля - {{ investigation.input_name }} - IBP{% endblock %}
+{% block title %}Analyzing Profile - {{ investigation.input_name }} - IBP{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-8">
     <!-- Header -->
     <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-violet mb-2 font-display">Фаза 2: Поиск контактов</h1>
-        <p class="text-gray-400">Извлечение контактов и построение социального графа</p>
+        <h1 class="text-3xl font-bold text-violet mb-2 font-display">Phase 2: Contact Discovery</h1>
+        <p class="text-gray-400">Extracting contacts and building social graph</p>
     </div>
 
     <!-- Progress Steps -->
     <div class="flex items-center justify-center mb-8 space-x-2">
         <div class="flex items-center opacity-50">
             <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">1</div>
-            <span class="ml-2 text-green-400 font-medium">Имя</span>
+            <span class="ml-2 text-green-400 font-medium">Name</span>
         </div>
         <div class="w-8 h-px bg-green-500"></div>
         <div class="flex items-center opacity-50">
             <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">2</div>
-            <span class="ml-2 text-green-400 font-medium">Профиль</span>
+            <span class="ml-2 text-green-400 font-medium">Profile</span>
         </div>
         <div class="w-8 h-px bg-violet"></div>
         <div class="flex items-center">
             <div class="w-8 h-8 rounded-full bg-violet flex items-center justify-center text-white font-bold text-sm">3</div>
-            <span class="ml-2 text-violet font-medium">Анализ</span>
+            <span class="ml-2 text-violet font-medium">Analyze</span>
         </div>
         <div class="w-8 h-px bg-gray-600"></div>
         <div class="flex items-center opacity-50">
             <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-gray-400 font-bold text-sm">4</div>
-            <span class="ml-2 text-gray-500">Отчёт</span>
+            <span class="ml-2 text-gray-500">Report</span>
         </div>
     </div>
 
@@ -51,7 +51,7 @@
                 {% endif %}
                 <a href="https://vk.com/id{{ profile.platform_id }}" target="_blank"
                    class="inline-block mt-2 text-sm text-violet hover:text-violet-bright">
-                    Открыть профиль ВК
+                    View VK Profile
                 </a>
             </div>
         </div>
@@ -66,8 +66,8 @@
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
             </div>
-            <p class="text-violet font-semibold text-lg" id="statusText">Запуск анализа...</p>
-            <p class="text-gray-500 text-sm mt-2" id="progressText">Инициализация</p>
+            <p class="text-violet font-semibold text-lg" id="statusText">Starting analysis...</p>
+            <p class="text-gray-500 text-sm mt-2" id="progressText">Initializing</p>
 
             <!-- Progress Bar -->
             <div class="w-full max-w-md mx-auto mt-4 bg-bg-dark rounded-full h-2 overflow-hidden">
@@ -80,11 +80,11 @@
             <div class="text-5xl mb-4">
                 <span class="text-green-500">&#10003;</span>
             </div>
-            <p class="text-green-400 font-semibold text-lg">Анализ завершён!</p>
-            <p class="text-gray-400 mt-2" id="resultsText">Найдено 0 друзей</p>
+            <p class="text-green-400 font-semibold text-lg">Analysis Complete!</p>
+            <p class="text-gray-400 mt-2" id="resultsText">Found 0 friends</p>
             <a href="/phase2/buratino/results/{{ investigation.id }}"
                class="inline-block mt-6 bg-violet hover:bg-violet-dim text-white font-semibold py-3 px-8 rounded-lg transition-colors">
-                Просмотр результатов и социального графа
+                View Results & Social Graph
             </a>
         </div>
 
@@ -93,11 +93,11 @@
             <div class="text-5xl mb-4">
                 <span class="text-red-500">!</span>
             </div>
-            <p class="text-red-400 font-semibold text-lg">Ошибка анализа</p>
-            <p class="text-gray-400 mt-2" id="errorText">Неизвестная ошибка</p>
+            <p class="text-red-400 font-semibold text-lg">Analysis Failed</p>
+            <p class="text-gray-400 mt-2" id="errorText">Unknown error</p>
             <button onclick="startAnalysis()"
                     class="inline-block mt-6 bg-violet hover:bg-violet-dim text-white font-semibold py-3 px-8 rounded-lg transition-colors">
-                Повторить
+                Retry
             </button>
         </div>
     </div>
@@ -106,18 +106,18 @@
     <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
             <div class="text-violet text-2xl mb-2">&#128101;</div>
-            <h3 class="text-white font-semibold">Сеть друзей</h3>
-            <p class="text-gray-500 text-sm">Извлечение связей друзей для анализа социального графа</p>
+            <h3 class="text-white font-semibold">Friends Network</h3>
+            <p class="text-gray-500 text-sm">Extracting friend connections for social graph analysis</p>
         </div>
         <div class="bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
             <div class="text-violet text-2xl mb-2">&#128222;</div>
-            <h3 class="text-white font-semibold">Телефоны</h3>
-            <p class="text-gray-500 text-sm">Поиск контактной информации в профиле и публикациях</p>
+            <h3 class="text-white font-semibold">Phone Numbers</h3>
+            <p class="text-gray-500 text-sm">Searching for contact information in profile and posts</p>
         </div>
         <div class="bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
             <div class="text-violet text-2xl mb-2">&#128231;</div>
-            <h3 class="text-white font-semibold">Электронная почта</h3>
-            <p class="text-gray-500 text-sm">Обнаружение адресов электронной почты из различных источников</p>
+            <h3 class="text-white font-semibold">Email Addresses</h3>
+            <p class="text-gray-500 text-sm">Discovering email addresses from various sources</p>
         </div>
     </div>
 </div>
@@ -151,10 +151,10 @@
                 taskId = data.task_id;
                 startPolling();
             } else {
-                showError(data.error || 'Не удалось начать анализ');
+                showError(data.error || 'Failed to start analysis');
             }
         } catch (error) {
-            showError('Ошибка сети: ' + error.message);
+            showError('Network error: ' + error.message);
         }
     }
 
@@ -168,7 +168,7 @@
             const data = await response.json();
 
             // Update progress
-            document.getElementById('progressText').textContent = data.current_step || 'Обработка...';
+            document.getElementById('progressText').textContent = data.current_step || 'Processing...';
             document.getElementById('progressBar').style.width = (data.percent_complete || 0) + '%';
 
             if (data.is_complete) {
@@ -195,7 +195,7 @@
             .then(results => {
                 if (results.results) {
                     const friendsCount = results.results.friends_count || 0;
-                    document.getElementById('resultsText').textContent = `Найдено ${friendsCount} друзей`;
+                    document.getElementById('resultsText').textContent = `Found ${friendsCount} friends`;
                 }
             })
             .catch(() => {});

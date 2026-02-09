@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}IBP - Identity-Based Profiler{% endblock %}</title>
+    <title>{% block title %}IBP - Профайлер личности{% endblock %}</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -78,27 +78,27 @@
                 <a href="/" class="flex items-center space-x-2 group">
                     <span class="text-2xl">🔍</span>
                     <span class="text-xl font-bold text-violet font-display group-hover:text-violet-bright transition-colors">IBP</span>
-                    <span class="text-text-dim text-sm hidden sm:inline">Identity-Based Profiler</span>
+                    <span class="text-text-dim text-sm hidden sm:inline">Профайлер личности</span>
                 </a>
 
                 <!-- Nav Links -->
                 <div class="flex items-center space-x-4">
                     <a href="/" class="text-text-secondary hover:text-violet-bright transition-colors text-sm">
-                        Dashboard
+                        Панель управления
                     </a>
                     <a href="/investigations" class="text-text-secondary hover:text-violet-bright transition-colors text-sm">
-                        Investigations
+                        Расследования
                     </a>
                     <a href="/phase1" class="btn btn-primary btn-sm">
-                        New Search
+                        Новый поиск
                     </a>
                     <!-- VK Token Status -->
                     <span id="vk-status" class="text-xs cursor-pointer" title="VK API status">
                         <span class="inline-block w-2 h-2 rounded-full bg-gray-500 mr-1"></span>VK
                     </span>
                     {% if session.get('authenticated') %}
-                    <a href="/logout" title="Logout" class="text-gray-500 hover:text-red-400 transition-colors text-sm ml-2">
-                        &#x1f513; Logout
+                    <a href="/logout" title="Выход" class="text-gray-500 hover:text-red-400 transition-colors text-sm ml-2">
+                        &#x1f513; Выход
                     </a>
                     {% endif %}
                 </div>
@@ -114,7 +114,7 @@
     <!-- Footer -->
     <footer class="bg-bg-panel/50 border-t border-violet-100 py-4 mt-auto">
         <div class="max-w-6xl mx-auto px-4 text-center text-text-muted text-sm">
-            IBP - OSINT Investigation Platform | For authorized use only
+            IBP - Платформа OSINT-расследований | Только для авторизованного использования
         </div>
     </footer>
 
@@ -131,16 +131,16 @@
                     if (data.valid === true) {
                         dot.className = 'inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1';
                         el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1"></span>VK';
-                        el.title = 'VK token valid';
+                        el.title = 'VK токен действителен';
                     } else if (data.valid === false && data.token_set) {
                         el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-red-400 mr-1"></span><a href="/vk/auth" class="text-red-400 hover:text-red-300">VK</a>';
-                        el.title = 'VK token expired — click to refresh';
+                        el.title = 'VK токен истёк — нажмите для обновления';
                     } else if (!data.token_set) {
                         el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 mr-1"></span>VK';
-                        el.title = 'VK token not set';
+                        el.title = 'VK токен не установлен';
                     } else {
                         el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 mr-1"></span>VK';
-                        el.title = 'VK status unknown';
+                        el.title = 'Статус VK неизвестен';
                     }
                 })
                 .catch(() => {});

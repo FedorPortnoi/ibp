@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IBP - Access Required</title>
+    <title>IBP - Требуется авторизация</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -191,7 +191,7 @@
             <div class="logo">
                 <span class="logo-icon">&#x1f512;</span>
                 <h1>IBP</h1>
-                <p>Access Required</p>
+                <p>Требуется авторизация</p>
             </div>
 
             {% if error %}
@@ -200,22 +200,22 @@
 
             <form method="POST" action="/login">
                 <div class="form-group">
-                    <label>Password</label>
+                    <label>Пароль</label>
                     <input type="password" name="password" class="password-input"
-                           placeholder="Enter master password" autofocus required>
+                           placeholder="Введите мастер-пароль" autofocus required>
                 </div>
 
                 <div class="remember-row">
                     <input type="checkbox" name="remember" id="remember" value="1">
-                    <label for="remember">Remember for 30 days</label>
+                    <label for="remember">Запомнить на 30 дней</label>
                 </div>
 
-                <button type="submit" class="login-btn">Authenticate</button>
+                <button type="submit" class="login-btn">Войти</button>
             </form>
         </div>
 
         <div class="footer">
-            IBP - OSINT Investigation Platform | Authorized access only
+            IBP - Платформа OSINT-расследований | Только авторизованный доступ
         </div>
     </div>
 </body>

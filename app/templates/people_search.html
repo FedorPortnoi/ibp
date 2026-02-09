@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}People Search - IBP{% endblock %}
+{% block title %}Поиск людей - IBP{% endblock %}
 
 {% block head %}
 <style>
@@ -72,9 +72,9 @@
     <!-- Header -->
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-white mb-2 font-display">
-            <span class="text-violet">People</span> Search
+            <span class="text-violet">Поиск</span> людей
         </h1>
-        <p class="text-gray-400">Search across VK, Odnoklassniki, and Telegram by name</p>
+        <p class="text-gray-400">Поиск по ВК, Одноклассникам и Telegram по имени</p>
     </div>
 
     <!-- Search Form -->
@@ -83,7 +83,7 @@
             <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                 <!-- Name Input -->
                 <div class="md:col-span-4">
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Full Name</label>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Полное имя</label>
                     <input type="text" id="name"
                            class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition"
                            placeholder="Павел Васильев" required>
@@ -91,7 +91,7 @@
 
                 <!-- City Input -->
                 <div class="md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-300 mb-2">City (optional)</label>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Город (необязательно)</label>
                     <input type="text" id="city"
                            class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition"
                            placeholder="Москва">
@@ -99,14 +99,14 @@
 
                 <!-- Age Range -->
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Age From</label>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Возраст от</label>
                     <input type="number" id="age_from" min="1" max="120"
                            class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition"
                            placeholder="18">
                 </div>
 
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Age To</label>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Возраст до</label>
                     <input type="number" id="age_to" min="1" max="120"
                            class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition"
                            placeholder="65">
@@ -125,7 +125,7 @@
 
             <!-- Platform Selection -->
             <div class="flex flex-wrap gap-4 items-center">
-                <span class="text-sm text-gray-400">Platforms:</span>
+                <span class="text-sm text-gray-400">Платформы:</span>
                 <label class="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" id="platform_vk" value="vk" checked class="checkbox-custom w-4 h-4 rounded">
                     <span class="text-sm text-gray-300">VK</span>
@@ -144,7 +144,7 @@
 
     <!-- Stats (hidden by default) -->
     <div id="stats" class="mb-6 flex gap-3" style="display: none;">
-        <span class="stats-badge text-violet" id="stats-count">0 results</span>
+        <span class="stats-badge text-violet" id="stats-count">0 результатов</span>
         <span class="stats-badge text-gray-400" id="stats-time">0s</span>
     </div>
 
@@ -169,7 +169,7 @@ document.getElementById('search-form').addEventListener('submit', async function
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                 </svg>
             </div>
-            <p class="text-gray-400">Searching across platforms...</p>
+            <p class="text-gray-400">Поиск по платформам...</p>
         </div>
     `;
     statsDiv.style.display = 'none';
@@ -214,7 +214,7 @@ document.getElementById('search-form').addEventListener('submit', async function
         // Show stats
         const stats = data.stats || {};
         statsDiv.style.display = 'flex';
-        document.getElementById('stats-count').textContent = `${stats.total_found || 0} results`;
+        document.getElementById('stats-count').textContent = `${stats.total_found || 0} результатов`;
         document.getElementById('stats-time').textContent = `${stats.search_time || elapsed}s`;
 
         // Render results
@@ -225,9 +225,9 @@ document.getElementById('search-form').addEventListener('submit', async function
                     <svg class="w-12 h-12 mx-auto text-gray-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
-                    <p class="text-gray-400 mb-2">No profiles found</p>
-                    <p class="text-sm text-gray-500">Try different name spelling or fewer filters</p>
-                    ${data.status === 'pending' ? '<p class="text-sm text-violet mt-4">Search service initializing...</p>' : ''}
+                    <p class="text-gray-400 mb-2">Профили не найдены</p>
+                    <p class="text-sm text-gray-500">Попробуйте другое написание имени или уменьшите число фильтров</p>
+                    ${data.status === 'pending' ? '<p class="text-sm text-violet mt-4">Сервис поиска инициализируется...</p>' : ''}
                 </div>
             `;
             return;
@@ -264,14 +264,14 @@ document.getElementById('search-form').addEventListener('submit', async function
                             <div class="flex flex-wrap gap-2 mt-2">
                                 <span class="platform-badge ${platformClass}">${platformName}</span>
                                 ${profile.city ? `<span class="text-xs text-gray-500">${profile.city}</span>` : ''}
-                                ${profile.age ? `<span class="text-xs text-gray-500">${profile.age} y.o.</span>` : ''}
+                                ${profile.age ? `<span class="text-xs text-gray-500">${profile.age} лет</span>` : ''}
                             </div>
                         </div>
                     </div>
                     <div class="mt-4 flex gap-2">
                         <a href="${profile.url}" target="_blank" rel="noopener noreferrer"
                            class="flex-1 px-3 py-2 bg-violet-200 hover:bg-violet-400 text-violet text-sm font-medium rounded-lg text-center transition">
-                            View Profile
+                            Открыть профиль
                         </a>
                     </div>
                 </div>
@@ -286,7 +286,7 @@ document.getElementById('search-form').addEventListener('submit', async function
                 <svg class="w-12 h-12 mx-auto text-red-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                <p class="text-red-400">Search failed: ${error.message}</p>
+                <p class="text-red-400">Поиск не удался: ${error.message}</p>
             </div>
         `;
     }

@@ -48,7 +48,7 @@ def login_required(f):
 
         if not session.get('authenticated'):
             if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'error': 'Authentication required', 'redirect': '/login'}), 401
+                return jsonify({'error': 'Требуется авторизация', 'redirect': '/login'}), 401
             session['next_url'] = request.url
             return redirect(url_for('auth.login'))
 
@@ -87,7 +87,7 @@ def login():
             next_url = session.pop('next_url', None)
             return redirect(next_url or url_for('main.dashboard'))
         else:
-            error = 'Incorrect password'
+            error = 'Неверный пароль'
             logger.warning(f"Failed login attempt from {request.remote_addr}")
 
     return render_template('login.html', error=error)

@@ -1,35 +1,35 @@
 {% extends "base.html" %}
 
-{% block title %}Фаза 3: Глубокое расследование - {{ investigation.input_name }} - IBP{% endblock %}
+{% block title %}Phase 3: Deep Investigation - {{ investigation.input_name }} - IBP{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-8">
     <!-- Header -->
     <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-violet mb-2 font-display">Фаза 3: Глубокое расследование</h1>
-        <p class="text-gray-400">Поиск в бизнес-реестрах, судебных базах и анализ рисков</p>
+        <h1 class="text-3xl font-bold text-violet mb-2 font-display">Phase 3: Deep Investigation</h1>
+        <p class="text-gray-400">Searching business registries, court records, and risk analysis</p>
     </div>
 
     <!-- Progress Steps -->
     <div class="flex items-center justify-center mb-8 space-x-2">
         <div class="flex items-center opacity-50">
             <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">1</div>
-            <span class="ml-2 text-green-400 font-medium">Имя</span>
+            <span class="ml-2 text-green-400 font-medium">Name</span>
         </div>
         <div class="w-8 h-px bg-green-500"></div>
         <div class="flex items-center opacity-50">
             <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">2</div>
-            <span class="ml-2 text-green-400 font-medium">Профиль</span>
+            <span class="ml-2 text-green-400 font-medium">Profile</span>
         </div>
         <div class="w-8 h-px bg-green-500"></div>
         <div class="flex items-center opacity-50">
             <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">3</div>
-            <span class="ml-2 text-green-400 font-medium">Контакты</span>
+            <span class="ml-2 text-green-400 font-medium">Contacts</span>
         </div>
         <div class="w-8 h-px bg-violet"></div>
         <div class="flex items-center">
             <div class="w-8 h-8 rounded-full bg-violet flex items-center justify-center text-white font-bold text-sm">4</div>
-            <span class="ml-2 text-violet font-medium">Глубокий анализ</span>
+            <span class="ml-2 text-violet font-medium">Deep Dive</span>
         </div>
     </div>
 
@@ -65,8 +65,8 @@
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
             </div>
-            <p class="text-violet font-semibold text-lg" id="statusText">Инициализация глубокого расследования...</p>
-            <p class="text-gray-500 text-sm mt-2" id="progressText">Подготовка поиска</p>
+            <p class="text-violet font-semibold text-lg" id="statusText">Initializing deep investigation...</p>
+            <p class="text-gray-500 text-sm mt-2" id="progressText">Preparing search</p>
 
             <!-- Progress Bar -->
             <div class="w-full max-w-md mx-auto mt-4 bg-bg-dark rounded-full h-2 overflow-hidden">
@@ -75,29 +75,29 @@
 
             <!-- Log Container -->
             <div class="mt-6 max-w-md mx-auto text-left bg-bg-dark rounded-lg p-4 max-h-48 overflow-y-auto" id="logContainer">
-                <p class="text-gray-500 text-xs font-mono">Ожидание запуска...</p>
+                <p class="text-gray-500 text-xs font-mono">Waiting to start...</p>
             </div>
         </div>
 
         <!-- Success State -->
         <div class="text-center py-8 hidden" id="successState">
             <div class="text-5xl mb-4 text-green-500">&#10003;</div>
-            <p class="text-green-400 font-semibold text-lg">Расследование завершено!</p>
-            <p class="text-gray-400 mt-2" id="resultsText">Анализ завершён</p>
+            <p class="text-green-400 font-semibold text-lg">Investigation Complete!</p>
+            <p class="text-gray-400 mt-2" id="resultsText">Analysis finished</p>
             <a href="/phase3/buratino/results/{{ investigation.id }}"
                class="inline-block mt-6 bg-violet hover:bg-violet-dim text-white font-semibold py-3 px-8 rounded-lg transition-colors">
-                Просмотр результатов
+                View Results
             </a>
         </div>
 
         <!-- Error State -->
         <div class="text-center py-8 hidden" id="errorState">
             <div class="text-5xl mb-4 text-red-500">!</div>
-            <p class="text-red-400 font-semibold text-lg">Расследование не удалось</p>
-            <p class="text-gray-400 mt-2" id="errorText">Неизвестная ошибка</p>
+            <p class="text-red-400 font-semibold text-lg">Investigation Failed</p>
+            <p class="text-gray-400 mt-2" id="errorText">Unknown error</p>
             <button onclick="startInvestigation()"
                     class="inline-block mt-6 bg-violet hover:bg-violet-dim text-white font-semibold py-3 px-8 rounded-lg transition-colors">
-                Повторить
+                Retry
             </button>
         </div>
     </div>
@@ -106,18 +106,18 @@
     <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
             <div class="text-violet text-2xl mb-2">&#127970;</div>
-            <h3 class="text-white font-semibold">Бизнес-реестры</h3>
-            <p class="text-gray-500 text-sm">Поиск в реестрах ФНС (ЕГРЮЛ/ЕГРИП)</p>
+            <h3 class="text-white font-semibold">Business Records</h3>
+            <p class="text-gray-500 text-sm">Searching Russian business registries (EGRUL/EGRIP)</p>
         </div>
         <div class="bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
             <div class="text-violet text-2xl mb-2">&#9878;</div>
-            <h3 class="text-white font-semibold">Судебные дела</h3>
-            <p class="text-gray-500 text-sm">Поиск судебных актов (sudact.ru, arbitr.ru)</p>
+            <h3 class="text-white font-semibold">Court Cases</h3>
+            <p class="text-gray-500 text-sm">Searching court records (sudact.ru, arbitr.ru)</p>
         </div>
         <div class="bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
             <div class="text-violet text-2xl mb-2">&#9888;</div>
-            <h3 class="text-white font-semibold">Оценка рисков</h3>
-            <p class="text-gray-500 text-sm">Оценка потенциальных рисков и тревожных сигналов</p>
+            <h3 class="text-white font-semibold">Risk Analysis</h3>
+            <p class="text-gray-500 text-sm">Assessing potential risks and red flags</p>
         </div>
     </div>
 </div>
@@ -136,7 +136,7 @@
         document.getElementById('successState').classList.add('hidden');
         document.getElementById('errorState').classList.add('hidden');
         document.getElementById('progressBar').style.width = '0%';
-        document.getElementById('logContainer').innerHTML = '<p class="text-gray-500 text-xs font-mono">Запуск...</p>';
+        document.getElementById('logContainer').innerHTML = '<p class="text-gray-500 text-xs font-mono">Starting...</p>';
 
         try {
             const response = await fetch(`/phase3/api/buratino/start/${investigationId}`, {
@@ -150,10 +150,10 @@
                 taskId = data.task_id;
                 startPolling();
             } else {
-                showError(data.error || 'Не удалось начать расследование');
+                showError(data.error || 'Failed to start investigation');
             }
         } catch (error) {
-            showError('Ошибка сети: ' + error.message);
+            showError('Network error: ' + error.message);
         }
     }
 
@@ -166,7 +166,7 @@
             const response = await fetch(`/phase3/progress/${taskId}`);
             const data = await response.json();
 
-            document.getElementById('progressText').textContent = data.current_step || 'Обработка...';
+            document.getElementById('progressText').textContent = data.current_step || 'Processing...';
             document.getElementById('progressBar').style.width = (data.percent_complete || 0) + '%';
 
             // Update log
@@ -197,7 +197,7 @@
 
         const stats = data.results?.stats || {};
         document.getElementById('resultsText').textContent =
-            `Найдено ${stats.business_records_found || 0} бизнес-записей, ${stats.court_cases_found || 0} судебных дел`;
+            `Found ${stats.business_records_found || 0} business records, ${stats.court_cases_found || 0} court cases`;
     }
 
     function showError(message) {

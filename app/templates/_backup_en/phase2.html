@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IBP // ФАЗА 2 - Поиск контактов</title>
+    <title>IBP // PHASE 2 - Contact Discovery</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -431,20 +431,20 @@
         <div class="header">
             <div class="header-left">
                 <div class="logo">IBP</div>
-                <div class="phase-badge">ФАЗА 2</div>
+                <div class="phase-badge">PHASE 2</div>
                 <div class="target-info" id="targetInfo" style="display: none;">
-                    <div class="target-label">ОБЪЕКТ</div>
+                    <div class="target-label">TARGET</div>
                     <div class="target-name" id="targetName"></div>
                 </div>
             </div>
-            <a href="/phase1/" class="header-btn">◀ НАЗАД К ФАЗЕ 1</a>
+            <a href="/phase1/" class="header-btn">◀ BACK TO PHASE 1</a>
         </div>
 
         <!-- Loading State -->
         <div class="loading-container" id="loadingContainer">
             <div class="loading-spinner"></div>
-            <div class="loading-text">ФАЗА 2: ПОИСК КОНТАКТОВ</div>
-            <div class="loading-step" id="loadingStep">Инициализация...</div>
+            <div class="loading-text">PHASE 2: CONTACT DISCOVERY</div>
+            <div class="loading-step" id="loadingStep">Initializing...</div>
             <div class="progress-bar">
                 <div class="progress-fill" id="progressFill" style="width: 0%"></div>
             </div>
@@ -453,8 +453,8 @@
         <!-- No Data State -->
         <div class="no-data" id="noDataContainer" style="display: none;">
             <div class="no-data-icon">⚠</div>
-            <div class="no-data-text">Данные Фазы 2 не найдены. Сначала выберите профили из результатов Фазы 1.</div>
-            <a href="/phase1/" class="header-btn">◀ ПЕРЕЙТИ К ФАЗЕ 1</a>
+            <div class="no-data-text">No Phase 2 data found. Please select profiles from Phase 1 results first.</div>
+            <a href="/phase1/" class="header-btn">◀ GO TO PHASE 1</a>
         </div>
 
         <!-- Results Container -->
@@ -463,23 +463,23 @@
             <div class="stats-bar" id="statsBar">
                 <div class="stat-card">
                     <div class="stat-value" id="statProfiles">0</div>
-                    <div class="stat-label">ПРОФИЛЕЙ ПРОАНАЛИЗИРОВАНО</div>
+                    <div class="stat-label">PROFILES ANALYZED</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value green" id="statPhones">0</div>
-                    <div class="stat-label">ТЕЛЕФОНОВ НАЙДЕНО</div>
+                    <div class="stat-label">PHONES FOUND</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value green" id="statEmails">0</div>
-                    <div class="stat-label">EMAIL НАЙДЕНО</div>
+                    <div class="stat-label">EMAILS FOUND</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" id="statNewProfiles">0</div>
-                    <div class="stat-label">НОВЫХ ПРОФИЛЕЙ</div>
+                    <div class="stat-label">NEW PROFILES</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" id="statTime">0s</div>
-                    <div class="stat-label">ВРЕМЯ ПОИСКА</div>
+                    <div class="stat-label">SEARCH TIME</div>
                 </div>
             </div>
 
@@ -489,7 +489,7 @@
                 <div class="result-section" id="phonesSection">
                     <div class="section-header">
                         <div class="section-title">
-                            ТЕЛЕФОНЫ
+                            PHONE NUMBERS
                             <span class="section-count green" id="phonesCount">0</span>
                         </div>
                     </div>
@@ -500,7 +500,7 @@
                 <div class="result-section" id="emailsSection">
                     <div class="section-header">
                         <div class="section-title">
-                            ЭЛЕКТРОННАЯ ПОЧТА
+                            EMAIL ADDRESSES
                             <span class="section-count green" id="emailsCount">0</span>
                         </div>
                     </div>
@@ -511,7 +511,7 @@
                 <div class="result-section full-width" id="profilesSection">
                     <div class="section-header">
                         <div class="section-title">
-                            ОБНАРУЖЕННЫЕ ПРОФИЛИ
+                            ADDITIONAL PROFILES DISCOVERED
                             <span class="section-count purple" id="profilesCount">0</span>
                         </div>
                     </div>
@@ -522,7 +522,7 @@
                 <div class="result-section full-width" id="faceMatchesSection" style="display: none;">
                     <div class="section-header">
                         <div class="section-title">
-                            СОВПАДЕНИЯ ЛИЦ
+                            FACE MATCHES
                             <span class="section-count orange" id="faceMatchesCount">0</span>
                         </div>
                     </div>
@@ -532,17 +532,17 @@
 
             <!-- Errors Section -->
             <div class="errors-section" id="errorsSection" style="display: none;">
-                <div class="section-title" style="color: var(--error); margin-bottom: 10px;">ОШИБКИ</div>
+                <div class="section-title" style="color: var(--error); margin-bottom: 10px;">ERRORS</div>
                 <div id="errorsList"></div>
             </div>
 
             <!-- Phase 3 Navigation -->
             <div style="margin-top: 30px; text-align: center; padding: 20px; background: var(--bg-panel); border: 1px solid var(--border-default); border-radius: var(--radius-lg);">
                 <div style="font-family: var(--font-display); font-size: 14px; color: var(--text-dim); margin-bottom: 15px;">
-                    Продолжите расследование: бизнес-реестры, судебные дела и анализ рисков
+                    Continue investigation with business records, court cases, and risk analysis
                 </div>
                 <button onclick="continueToPhase3()" style="padding: 15px 40px; background: var(--gradient-primary); border: none; border-radius: var(--radius-md); color: white; font-family: var(--font-display); font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: var(--glow-violet);">
-                    ФАЗА 3: ГЛУБОКОЕ РАССЛЕДОВАНИЕ ▶
+                    PHASE 3: DEEP INVESTIGATION ▶
                 </button>
             </div>
         </div>
@@ -615,7 +615,7 @@
                 }
             } catch (e) {
                 console.error('Error starting investigation:', e);
-                showError('Не удалось начать расследование: ' + e.message);
+                showError('Failed to start investigation: ' + e.message);
             }
         }
 
@@ -670,7 +670,7 @@
 
             } catch (e) {
                 console.error('Error fetching results:', e);
-                showError('Не удалось получить результаты: ' + e.message);
+                showError('Failed to fetch results: ' + e.message);
             }
         }
 
@@ -678,7 +678,7 @@
         // UI UPDATES
         // ============================================
         function updateProgress(data) {
-            document.getElementById('loadingStep').textContent = data.current_step || 'Обработка...';
+            document.getElementById('loadingStep').textContent = data.current_step || 'Processing...';
             document.getElementById('progressFill').style.width = (data.percent_complete || 0) + '%';
         }
 
@@ -690,7 +690,7 @@
         function showError(message) {
             document.getElementById('loadingContainer').style.display = 'none';
             document.getElementById('noDataContainer').style.display = 'block';
-            document.querySelector('.no-data-text').textContent = 'Ошибка: ' + message;
+            document.querySelector('.no-data-text').textContent = 'Error: ' + message;
         }
 
         function displayResults(data) {
@@ -728,7 +728,7 @@
             document.getElementById('phonesCount').textContent = phones.length;
 
             if (phones.length === 0) {
-                container.innerHTML = '<div class="empty-state">Телефоны не обнаружены</div>';
+                container.innerHTML = '<div class="empty-state">No phone numbers discovered</div>';
                 return;
             }
 
@@ -738,7 +738,7 @@
                     <div class="contact-meta">
                         <div class="contact-source">${escapeHtml(phone.source)}</div>
                         ${phone.verified_on && phone.verified_on.length > 0 ?
-                            `<div class="contact-verified">Подтверждён на: ${phone.verified_on.join(', ')}</div>` : ''}
+                            `<div class="contact-verified">Verified on: ${phone.verified_on.join(', ')}</div>` : ''}
                     </div>
                 </div>
             `).join('');
@@ -749,7 +749,7 @@
             document.getElementById('emailsCount').textContent = emails.length;
 
             if (emails.length === 0) {
-                container.innerHTML = '<div class="empty-state">Адреса электронной почты не обнаружены</div>';
+                container.innerHTML = '<div class="empty-state">No email addresses discovered</div>';
                 return;
             }
 
@@ -770,7 +770,7 @@
             document.getElementById('profilesCount').textContent = profiles.length;
 
             if (profiles.length === 0) {
-                container.innerHTML = '<div class="empty-state">Дополнительные профили не обнаружены</div>';
+                container.innerHTML = '<div class="empty-state">No additional profiles discovered</div>';
                 return;
             }
 
@@ -782,7 +782,7 @@
                     </div>
                     <div class="profile-username">${escapeHtml(profile.username || 'Unknown')}</div>
                     <div class="profile-source">${escapeHtml(profile.source)}</div>
-                    <a href="${escapeHtml(profile.url)}" target="_blank" class="profile-link">ОТКРЫТЬ</a>
+                    <a href="${escapeHtml(profile.url)}" target="_blank" class="profile-link">OPEN</a>
                 </div>
             `).join('');
         }
@@ -805,8 +805,8 @@
                         <span class="platform-name">${escapeHtml(match.platform)}</span>
                     </div>
                     <div class="profile-username">${escapeHtml(match.username || 'Unknown')}</div>
-                    ${match.similarity ? `<div class="profile-source">Сходство: ${match.similarity.toFixed(1)}%</div>` : ''}
-                    <a href="${escapeHtml(match.profile_url)}" target="_blank" class="profile-link">ОТКРЫТЬ</a>
+                    ${match.similarity ? `<div class="profile-source">Similarity: ${match.similarity.toFixed(1)}%</div>` : ''}
+                    <a href="${escapeHtml(match.profile_url)}" target="_blank" class="profile-link">OPEN</a>
                 </div>
             `).join('');
         }

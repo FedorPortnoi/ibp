@@ -24,7 +24,7 @@ def api_people_search():
     name = data.get('name', '').strip()
 
     if not name:
-        return jsonify({'error': 'Name is required'}), 400
+        return jsonify({'error': 'Имя обязательно'}), 400
 
     # Get optional filters
     city = data.get('city')
@@ -85,11 +85,11 @@ def show_graph(investigation_id):
             # Return a simple page if investigation not found
             return '''
             <html>
-            <head><title>Investigation Not Found</title></head>
+            <head><title>Расследование не найдено</title></head>
             <body style="background:#1a1a2e;color:#eee;font-family:sans-serif;padding:40px;">
-                <h1>Investigation Not Found</h1>
-                <p>Investigation ID {} does not exist.</p>
-                <a href="/search/people" style="color:#e94560;">Back to Search</a>
+                <h1>Расследование не найдено</h1>
+                <p>Расследование с ID {} не существует.</p>
+                <a href="/search/people" style="color:#e94560;">Назад к поиску</a>
             </body>
             </html>
             '''.format(investigation_id), 404
@@ -97,11 +97,11 @@ def show_graph(investigation_id):
     except Exception as e:
         return f'''
         <html>
-        <head><title>Error</title></head>
+        <head><title>Ошибка</title></head>
         <body style="background:#1a1a2e;color:#eee;font-family:sans-serif;padding:40px;">
-            <h1>Error Loading Graph</h1>
+            <h1>Ошибка загрузки графа</h1>
             <p>{e}</p>
-            <a href="/search/people" style="color:#e94560;">Back to Search</a>
+            <a href="/search/people" style="color:#e94560;">Назад к поиску</a>
         </body>
         </html>
         ''', 500
@@ -121,7 +121,7 @@ def get_graph_data(investigation_id):
         # Verify investigation exists
         investigation = Investigation.query.get(investigation_id)
         if not investigation:
-            return jsonify({'error': 'Investigation not found', 'nodes': [], 'edges': []}), 404
+            return jsonify({'error': 'Расследование не найдено', 'nodes': [], 'edges': []}), 404
 
         # Get all connections for this investigation
         connections = Connection.query.filter_by(investigation_id=investigation_id).all()
@@ -204,11 +204,11 @@ def add_connection(investigation_id):
 
         data = request.json
         if not data:
-            return jsonify({'error': 'No data provided'}), 400
+            return jsonify({'error': 'Данные не предоставлены'}), 400
 
         # Validate required fields
         if not data.get('source_id') or not data.get('target_id'):
-            return jsonify({'error': 'source_id and target_id are required'}), 400
+            return jsonify({'error': 'source_id и target_id обязательны'}), 400
 
         # Create connection using contract format
         conn = Connection.create_from_dict(data, investigation_id=investigation_id)

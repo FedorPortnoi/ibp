@@ -1,30 +1,30 @@
 {% extends "base.html" %}
 
-{% block title %}Новое расследование - IBP{% endblock %}
+{% block title %}New Investigation - IBP{% endblock %}
 
 {% block content %}
 <div class="max-w-2xl mx-auto px-4 py-8">
     <!-- Header -->
     <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-violet mb-2 font-display">Новое расследование</h1>
-        <p class="text-gray-400">Введите имя объекта для поиска его профилей в соцсетях</p>
+        <h1 class="text-3xl font-bold text-violet mb-2 font-display">New Investigation</h1>
+        <p class="text-gray-400">Enter the target's name to find their social media profiles</p>
     </div>
 
     <!-- Progress Steps -->
     <div class="flex items-center justify-center mb-8 space-x-2">
         <div class="flex items-center">
             <div class="w-8 h-8 rounded-full bg-violet flex items-center justify-center text-white font-bold text-sm">1</div>
-            <span class="ml-2 text-violet font-medium">Ввод имени</span>
+            <span class="ml-2 text-violet font-medium">Enter Name</span>
         </div>
         <div class="w-8 h-px bg-gray-600"></div>
         <div class="flex items-center opacity-50">
             <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-gray-400 font-bold text-sm">2</div>
-            <span class="ml-2 text-gray-500">Выбор профиля</span>
+            <span class="ml-2 text-gray-500">Select Profile</span>
         </div>
         <div class="w-8 h-px bg-gray-600"></div>
         <div class="flex items-center opacity-50">
             <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-gray-400 font-bold text-sm">3</div>
-            <span class="ml-2 text-gray-500">Анализ</span>
+            <span class="ml-2 text-gray-500">Analyze</span>
         </div>
     </div>
 
@@ -34,7 +34,7 @@
             <!-- Target Name -->
             <div>
                 <label for="target_name" class="block text-sm font-medium text-gray-300 mb-2">
-                    Полное имя (обязательно)
+                    Full Name (required)
                 </label>
                 <input
                     type="text"
@@ -44,13 +44,13 @@
                     placeholder="Иванов Иван Иванович"
                     class="w-full bg-bg-dark border border-violet-200 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition-colors"
                 >
-                <p class="text-xs text-gray-500 mt-1">Введите полное имя на русском или латинице</p>
+                <p class="text-xs text-gray-500 mt-1">Enter the full name in Russian or Latin</p>
             </div>
 
             <!-- City (optional) -->
             <div>
                 <label for="city" class="block text-sm font-medium text-gray-300 mb-2">
-                    Город (необязательно)
+                    City (optional)
                 </label>
                 <input
                     type="text"
@@ -65,7 +65,7 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label for="age_from" class="block text-sm font-medium text-gray-300 mb-2">
-                        Возраст от
+                        Age From
                     </label>
                     <input
                         type="number"
@@ -79,7 +79,7 @@
                 </div>
                 <div>
                     <label for="age_to" class="block text-sm font-medium text-gray-300 mb-2">
-                        Возраст до
+                        Age To
                     </label>
                     <input
                         type="number"
@@ -96,25 +96,25 @@
             <!-- Photo Upload (optional) -->
             <div>
                 <label for="photo" class="block text-sm font-medium text-gray-300 mb-2">
-                    Фото для сравнения (необязательно)
+                    Reference Photo (optional)
                 </label>
                 <div class="border-2 border-dashed border-violet-200 rounded-lg p-6 text-center hover:border-violet transition-colors cursor-pointer" id="dropzone">
                     <input type="file" id="photo" name="photo" accept="image/*" class="hidden">
                     <div id="dropzoneContent">
                         <span class="text-3xl mb-2 block">📷</span>
-                        <p class="text-gray-400 text-sm">Перетащите фото или нажмите для загрузки</p>
-                        <p class="text-xs text-gray-500 mt-1">Для сопоставления лиц в результатах поиска</p>
+                        <p class="text-gray-400 text-sm">Drop photo here or click to upload</p>
+                        <p class="text-xs text-gray-500 mt-1">For face matching in search results</p>
                     </div>
                     <div id="photoPreview" class="hidden">
                         <img id="previewImage" src="" alt="Preview" class="max-h-32 mx-auto rounded-lg">
-                        <button type="button" id="removePhoto" class="text-red-400 text-sm mt-2 hover:text-red-300">Удалить фото</button>
+                        <button type="button" id="removePhoto" class="text-red-400 text-sm mt-2 hover:text-red-300">Remove photo</button>
                     </div>
                 </div>
             </div>
 
             <!-- Submit Button -->
             <button type="submit" id="submitBtn" class="w-full bg-violet hover:bg-violet-dim text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2">
-                <span>Поиск профилей ВК</span>
+                <span>Search VK Profiles</span>
                 <span>→</span>
             </button>
         </form>
@@ -122,28 +122,28 @@
         <!-- Loading State -->
         <div id="loadingState" class="hidden text-center py-8">
             <div class="animate-spin text-4xl mb-4">🔍</div>
-            <p class="text-violet font-medium">Поиск во ВКонтакте...</p>
-            <p class="text-gray-500 text-sm mt-2">Это может занять несколько секунд</p>
+            <p class="text-violet font-medium">Searching VKontakte...</p>
+            <p class="text-gray-500 text-sm mt-2">This may take a few seconds</p>
         </div>
     </div>
 
     <!-- Info Panel -->
     <div class="mt-6 bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
         <h3 class="text-violet font-semibold mb-2 flex items-center">
-            <span class="mr-2">💡</span> Как это работает
+            <span class="mr-2">💡</span> How it works
         </h3>
         <ul class="text-sm text-gray-400 space-y-1">
-            <li>• Мы ищем людей во ВКонтакте по указанному имени</li>
-            <li>• Результаты ранжируются по сходству имён</li>
-            <li>• Вы выбираете правильный профиль из списка</li>
-            <li>• Затем мы извлекаем всю доступную информацию</li>
+            <li>• We search VKontakte for people matching the name</li>
+            <li>• Results are ranked by name similarity</li>
+            <li>• You select the correct profile from the list</li>
+            <li>• We then extract all available information</li>
         </ul>
     </div>
 
     <!-- Link to legacy search -->
     <div class="mt-4 text-center">
         <a href="/phase1" class="text-sm text-gray-500 hover:text-violet-bright">
-            Или используйте классический поиск (по имени пользователя) →
+            Or use classic search (username guessing) →
         </a>
     </div>
 </div>
@@ -212,7 +212,7 @@
 
         const targetName = document.getElementById('target_name').value.trim();
         if (!targetName) {
-            alert('Пожалуйста, введите имя');
+            alert('Please enter a name');
             return;
         }
 
@@ -233,10 +233,10 @@
             if (data.success && data.redirect) {
                 window.location.href = data.redirect;
             } else {
-                throw new Error(data.error || 'Поиск не удался');
+                throw new Error(data.error || 'Search failed');
             }
         } catch (error) {
-            alert('Ошибка: ' + error.message);
+            alert('Error: ' + error.message);
             form.classList.remove('hidden');
             loadingState.classList.add('hidden');
         }

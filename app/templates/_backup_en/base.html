@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}IBP - Identity-Based Profiler{% endblock %}</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+
+    <!-- IBP Design System CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // Backgrounds
+                        'bg-deep': '#030014',
+                        'bg-dark': '#0a0618',
+                        'bg-panel': '#110a1f',
+                        'bg-panel-hover': '#1a0f2e',
+                        // Primary (Violet)
+                        violet: {
+                            DEFAULT: '#8b5cf6',
+                            dim: '#7c3aed',
+                            bright: '#a78bfa',
+                            50: 'rgba(139, 92, 246, 0.05)',
+                            100: 'rgba(139, 92, 246, 0.1)',
+                            200: 'rgba(139, 92, 246, 0.2)',
+                            400: 'rgba(139, 92, 246, 0.4)',
+                        },
+                        // Secondary
+                        purple: '#a855f7',
+                        pink: '#ec4899',
+                        indigo: '#6366f1',
+                        // Grays (keeping for compatibility)
+                        gray: {
+                            900: '#030014',
+                            800: '#0a0618',
+                            700: '#110a1f',
+                            600: '#1a0f2e',
+                            500: '#64748b',
+                            400: '#94a3b8',
+                            300: '#cbd5e1',
+                            200: '#e2e8f0',
+                            100: '#f1f5f9',
+                        },
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                        display: ['Orbitron', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    {% block head %}{% endblock %}
+</head>
+<body class="min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-bg-panel/80 backdrop-blur border-b border-violet-200 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <a href="/" class="flex items-center space-x-2 group">
+                    <span class="text-2xl">🔍</span>
+                    <span class="text-xl font-bold text-violet font-display group-hover:text-violet-bright transition-colors">IBP</span>
+                    <span class="text-text-dim text-sm hidden sm:inline">Identity-Based Profiler</span>
+                </a>
+
+                <!-- Nav Links -->
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-text-secondary hover:text-violet-bright transition-colors text-sm">
+                        Dashboard
+                    </a>
+                    <a href="/investigations" class="text-text-secondary hover:text-violet-bright transition-colors text-sm">
+                        Investigations
+                    </a>
+                    <a href="/phase1" class="btn btn-primary btn-sm">
+                        New Search
+                    </a>
+                    <!-- VK Token Status -->
+                    <span id="vk-status" class="text-xs cursor-pointer" title="VK API status">
+                        <span class="inline-block w-2 h-2 rounded-full bg-gray-500 mr-1"></span>VK
+                    </span>
+                    {% if session.get('authenticated') %}
+                    <a href="/logout" title="Logout" class="text-gray-500 hover:text-red-400 transition-colors text-sm ml-2">
+                        &#x1f513; Logout
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="pb-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-bg-panel/50 border-t border-violet-100 py-4 mt-auto">
+        <div class="max-w-6xl mx-auto px-4 text-center text-text-muted text-sm">
+            IBP - OSINT Investigation Platform | For authorized use only
+        </div>
+    </footer>
+
+    <!-- VK Token Status Polling -->
+    <script>
+    (function() {
+        function updateVkStatus() {
+            fetch('/api/vk/token-status')
+                .then(r => r.json())
+                .then(data => {
+                    const el = document.getElementById('vk-status');
+                    if (!el) return;
+                    const dot = el.querySelector('span');
+                    if (data.valid === true) {
+                        dot.className = 'inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1';
+                        el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1"></span>VK';
+                        el.title = 'VK token valid';
+                    } else if (data.valid === false && data.token_set) {
+                        el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-red-400 mr-1"></span><a href="/vk/auth" class="text-red-400 hover:text-red-300">VK</a>';
+                        el.title = 'VK token expired — click to refresh';
+                    } else if (!data.token_set) {
+                        el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 mr-1"></span>VK';
+                        el.title = 'VK token not set';
+                    } else {
+                        el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 mr-1"></span>VK';
+                        el.title = 'VK status unknown';
+                    }
+                })
+                .catch(() => {});
+        }
+        updateVkStatus();
+        setInterval(updateVkStatus, 300000); // Poll every 5 minutes
+    })();
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

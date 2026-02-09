@@ -163,7 +163,7 @@ def start_investigation():
         data = request.get_json()
 
         if not data:
-            return jsonify({'error': 'No data provided'}), 400
+            return jsonify({'error': 'Данные не предоставлены'}), 400
 
         selected_profiles = data.get('selected_profiles', [])
         target_name = data.get('target_name', '')
@@ -172,13 +172,13 @@ def start_investigation():
 
         # Validate
         if not selected_profiles:
-            return jsonify({'error': 'No profiles selected'}), 400
+            return jsonify({'error': 'Профили не выбраны'}), 400
 
         if len(selected_profiles) > 5:
-            return jsonify({'error': 'Maximum 5 profiles allowed'}), 400
+            return jsonify({'error': 'Максимум 5 профилей'}), 400
 
         if not target_name:
-            return jsonify({'error': 'Target name required'}), 400
+            return jsonify({'error': 'Имя объекта обязательно'}), 400
 
         # Resolve photo path if provided
         actual_photo_path = None
@@ -222,7 +222,7 @@ def get_progress(task_id):
     task = phase2_tasks.get(task_id)
 
     if not task:
-        return jsonify({'error': 'Task not found'}), 404
+        return jsonify({'error': 'Задача не найдена'}), 404
 
     return jsonify(task.to_dict())
 
@@ -232,7 +232,7 @@ def cancel_task(task_id):
     """Cancel a running Phase 2 task. Partial results are kept."""
     task = phase2_tasks.get(task_id)
     if not task:
-        return jsonify({'error': 'Task not found'}), 404
+        return jsonify({'error': 'Задача не найдена'}), 404
 
     task.cancelled = True
     task.add_message('Task cancelled by user. Partial results saved.', 'warning')
@@ -258,13 +258,13 @@ def get_results(task_id):
     task = phase2_tasks.get(task_id)
 
     if not task:
-        return jsonify({'error': 'Task not found'}), 404
+        return jsonify({'error': 'Задача не найдена'}), 404
 
     if task.error:
         return jsonify({'error': task.error}), 500
 
     if not task.results:
-        return jsonify({'error': 'Task not complete'}), 400
+        return jsonify({'error': 'Задача не завершена'}), 400
 
     results = task.results
 
@@ -348,7 +348,7 @@ def investigate_sync():
         data = request.get_json()
 
         if not data:
-            return jsonify({'error': 'No data provided'}), 400
+            return jsonify({'error': 'Данные не предоставлены'}), 400
 
         selected_profiles = data.get('selected_profiles', [])
         target_name = data.get('target_name', '')
@@ -357,13 +357,13 @@ def investigate_sync():
 
         # Validate
         if not selected_profiles:
-            return jsonify({'error': 'No profiles selected'}), 400
+            return jsonify({'error': 'Профили не выбраны'}), 400
 
         if len(selected_profiles) > 5:
-            return jsonify({'error': 'Maximum 5 profiles allowed'}), 400
+            return jsonify({'error': 'Максимум 5 профилей'}), 400
 
         if not target_name:
-            return jsonify({'error': 'Target name required'}), 400
+            return jsonify({'error': 'Имя объекта обязательно'}), 400
 
         # Resolve photo path
         actual_photo_path = None
@@ -467,7 +467,7 @@ def analyze_investigation(investigation_id):
 
     investigation = Investigation.query.get(investigation_id)
     if not investigation:
-        return render_template('error.html', error='Investigation not found'), 404
+        return render_template('error.html', error='Расследование не найдено'), 404
 
     # Get confirmed profile
     confirmed_profile = SocialProfile.query.filter_by(
@@ -476,7 +476,7 @@ def analyze_investigation(investigation_id):
     ).first()
 
     if not confirmed_profile:
-        return render_template('error.html', error='No confirmed profile found'), 400
+        return render_template('error.html', error='Подтверждённый профиль не найден'), 400
 
     return render_template('phase2_analyze.html',
                          investigation=investigation,
@@ -492,7 +492,7 @@ def buratino_results(investigation_id):
 
     investigation = Investigation.query.get(investigation_id)
     if not investigation:
-        return render_template('error.html', error='Investigation not found'), 404
+        return render_template('error.html', error='Расследование не найдено'), 404
 
     # Get confirmed profile
     confirmed_profile = SocialProfile.query.filter_by(
@@ -519,7 +519,7 @@ def get_graph_data(investigation_id):
 
     investigation = Investigation.query.get(investigation_id)
     if not investigation:
-        return jsonify({'error': 'Investigation not found'}), 404
+        return jsonify({'error': 'Расследование не найдено'}), 404
 
     # Get confirmed profile
     confirmed_profile = SocialProfile.query.filter_by(
@@ -528,7 +528,7 @@ def get_graph_data(investigation_id):
     ).first()
 
     if not confirmed_profile:
-        return jsonify({'error': 'No confirmed profile'}), 400
+        return jsonify({'error': 'Подтверждённый профиль не найден'}), 400
 
     # Get friends
     friends = Friend.query.filter_by(investigation_id=investigation_id).all()
@@ -576,7 +576,7 @@ def start_buratino_analysis(investigation_id):
 
     investigation = Investigation.query.get(investigation_id)
     if not investigation:
-        return jsonify({'error': 'Investigation not found'}), 404
+        return jsonify({'error': 'Расследование не найдено'}), 404
 
     confirmed_profile = SocialProfile.query.filter_by(
         investigation_id=investigation_id,
@@ -584,7 +584,7 @@ def start_buratino_analysis(investigation_id):
     ).first()
 
     if not confirmed_profile:
-        return jsonify({'error': 'No confirmed profile'}), 400
+        return jsonify({'error': 'Подтверждённый профиль не найден'}), 400
 
     # Create a task for background processing
     task_id = uuid.uuid4().hex

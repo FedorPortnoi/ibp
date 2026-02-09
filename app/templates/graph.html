@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Connection Graph - IBP{% endblock %}
+{% block title %}Граф связей - IBP{% endblock %}
 
 {% block head %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/vis-network.min.css" rel="stylesheet">
@@ -52,7 +52,7 @@
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-2xl font-bold text-white font-display">
-                <span class="text-violet">Connection</span> Graph
+                <span class="text-violet">Граф</span> связей
             </h1>
             {% if investigation %}
             <p class="text-gray-400 mt-1">{{ investigation.input_name }}</p>
@@ -60,10 +60,10 @@
         </div>
         <div class="flex gap-3">
             <button onclick="resetView()" class="px-4 py-2 bg-bg-panel border border-violet-200 text-gray-300 rounded-lg hover:border-violet transition text-sm">
-                Reset View
+                Сбросить вид
             </button>
             <a href="javascript:history.back()" class="px-4 py-2 bg-violet-200 text-violet rounded-lg hover:bg-violet-400 transition text-sm">
-                Back
+                Назад
             </a>
         </div>
     </div>
@@ -77,14 +77,14 @@
             <div class="controls-panel mt-4 flex flex-wrap gap-4 items-center">
                 <label class="flex items-center gap-2 text-sm text-gray-300">
                     <input type="checkbox" id="physics-toggle" checked class="accent-violet">
-                    Physics
+                    Физика
                 </label>
                 <label class="flex items-center gap-2 text-sm text-gray-300">
                     <input type="checkbox" id="labels-toggle" checked class="accent-violet">
-                    Labels
+                    Подписи
                 </label>
                 <div class="flex-1"></div>
-                <span class="text-xs text-gray-500" id="graph-stats">Loading...</span>
+                <span class="text-xs text-gray-500" id="graph-stats">Загрузка...</span>
             </div>
         </div>
 
@@ -92,51 +92,51 @@
         <div class="space-y-4">
             <!-- Legend -->
             <div class="info-panel">
-                <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wider">Legend</h3>
+                <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wider">Легенда</h3>
                 <div class="legend-item">
                     <div class="legend-dot" style="background: #e94560;"></div>
-                    <span class="text-sm text-gray-400">Target</span>
+                    <span class="text-sm text-gray-400">Объект</span>
                 </div>
                 <div class="legend-item">
                     <div class="legend-dot" style="background: #3498db;"></div>
-                    <span class="text-sm text-gray-400">Person</span>
+                    <span class="text-sm text-gray-400">Человек</span>
                 </div>
                 <div class="legend-item">
                     <div class="legend-dot" style="background: #2ecc71;"></div>
-                    <span class="text-sm text-gray-400">Company</span>
+                    <span class="text-sm text-gray-400">Компания</span>
                 </div>
                 <div class="legend-item">
                     <div class="legend-dot" style="background: #9b59b6;"></div>
-                    <span class="text-sm text-gray-400">Group</span>
+                    <span class="text-sm text-gray-400">Группа</span>
                 </div>
             </div>
 
             <!-- Connection Types -->
             <div class="info-panel">
-                <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wider">Connection Types</h3>
+                <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wider">Типы связей</h3>
                 <div class="legend-item">
                     <div class="w-8 h-0.5" style="background: #3498db;"></div>
-                    <span class="text-sm text-gray-400">Friend</span>
+                    <span class="text-sm text-gray-400">Друг</span>
                 </div>
                 <div class="legend-item">
                     <div class="w-8 h-0.5" style="background: #e74c3c;"></div>
-                    <span class="text-sm text-gray-400">Family</span>
+                    <span class="text-sm text-gray-400">Семья</span>
                 </div>
                 <div class="legend-item">
                     <div class="w-8 h-0.5" style="background: #2ecc71;"></div>
-                    <span class="text-sm text-gray-400">Colleague</span>
+                    <span class="text-sm text-gray-400">Коллега</span>
                 </div>
                 <div class="legend-item">
                     <div class="w-8 h-0.5" style="background: #9b59b6;"></div>
-                    <span class="text-sm text-gray-400">Group Member</span>
+                    <span class="text-sm text-gray-400">Участник группы</span>
                 </div>
             </div>
 
             <!-- Selected Node -->
             <div class="info-panel">
-                <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wider">Selected Node</h3>
+                <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wider">Выбранный узел</h3>
                 <div id="node-info">
-                    <p class="text-sm text-gray-500">Click a node to view details</p>
+                    <p class="text-sm text-gray-500">Нажмите на узел для просмотра деталей</p>
                 </div>
             </div>
         </div>
@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!investigationId) {
         container.innerHTML = `
             <div class="flex items-center justify-center h-full">
-                <p class="text-gray-500">No investigation selected</p>
+                <p class="text-gray-500">Расследование не выбрано</p>
             </div>
         `;
         return;
@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <p class="text-gray-400">Loading graph data...</p>
+                <p class="text-gray-400">Загрузка данных графа...</p>
             </div>
         </div>
     `;
@@ -203,8 +203,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             <svg class="w-16 h-16 mx-auto text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                             </svg>
-                            <p class="text-gray-400 mb-2">No connections discovered yet</p>
-                            <p class="text-sm text-gray-500">Run investigation to discover relationships</p>
+                            <p class="text-gray-400 mb-2">Связи пока не обнаружены</p>
+                            <p class="text-sm text-gray-500">Запустите расследование для обнаружения связей</p>
                         </div>
                     </div>
                 `;
@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 } else {
                     document.getElementById('node-info').innerHTML =
-                        '<p class="text-sm text-gray-500">Click a node to view details</p>';
+                        '<p class="text-sm text-gray-500">Нажмите на узел для просмотра деталей</p>';
                 }
             });
 
@@ -322,7 +322,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             container.innerHTML = `
                 <div class="flex items-center justify-center h-full">
-                    <p class="text-red-400">Failed to load: ${error.message}</p>
+                    <p class="text-red-400">Ошибка загрузки: ${error.message}</p>
                 </div>
             `;
         });
@@ -332,7 +332,7 @@ function showNodeDetails(node) {
     const html = `
         <div class="space-y-2">
             <p class="text-white font-medium">${node.label || 'Unknown'}</p>
-            <p class="text-sm text-gray-400">Type: <span class="text-violet">${node.group || 'Unknown'}</span></p>
+            <p class="text-sm text-gray-400">Тип: <span class="text-violet">${node.group || 'Unknown'}</span></p>
             ${node.image ? `
                 <img src="${node.image}" alt="" class="w-16 h-16 rounded-full mt-2 border-2 border-violet-200" onerror="this.style.display='none'">
             ` : ''}

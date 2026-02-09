@@ -65,11 +65,11 @@ def vk_save_token():
     """Save VK token received from OAuth callback."""
     data = request.get_json()
     if not data or not data.get('token'):
-        return jsonify({'error': 'No token provided'}), 400
+        return jsonify({'error': 'Токен не предоставлен'}), 400
 
     token = data['token'].strip()
     if len(token) < 10:
-        return jsonify({'error': 'Invalid token'}), 400
+        return jsonify({'error': 'Недействительный токен'}), 400
 
     from app.utils.vk_token_manager import save_token, get_token_status
     save_token(token)
@@ -96,7 +96,7 @@ def delete_investigation(investigation_id):
 
     investigation = Investigation.query.get(investigation_id)
     if not investigation:
-        return jsonify({'error': 'Investigation not found'}), 404
+        return jsonify({'error': 'Расследование не найдено'}), 404
 
     # Delete related records
     SocialProfile.query.filter_by(investigation_id=investigation_id).delete()

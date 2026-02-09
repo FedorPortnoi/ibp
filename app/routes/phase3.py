@@ -138,11 +138,11 @@ def start_investigation():
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'error': 'No data provided'}), 400
+            return jsonify({'error': 'Данные не предоставлены'}), 400
 
         target_name = data.get('target_name', '')
         if not target_name:
-            return jsonify({'error': 'Target name required'}), 400
+            return jsonify({'error': 'Имя объекта обязательно'}), 400
 
         # Create task
         task_id = uuid.uuid4().hex
@@ -169,7 +169,7 @@ def get_progress(task_id):
     """Get task progress for polling."""
     task = phase3_tasks.get(task_id)
     if not task:
-        return jsonify({'error': 'Task not found'}), 404
+        return jsonify({'error': 'Задача не найдена'}), 404
     return jsonify(task.to_dict())
 
 
@@ -178,13 +178,13 @@ def get_results(task_id):
     """Get full results for a completed task (API)."""
     task = phase3_tasks.get(task_id)
     if not task:
-        return jsonify({'error': 'Task not found'}), 404
+        return jsonify({'error': 'Задача не найдена'}), 404
 
     if task.error:
         return jsonify({'error': task.error}), 500
 
     if not task.results:
-        return jsonify({'error': 'Task not complete'}), 400
+        return jsonify({'error': 'Задача не завершена'}), 400
 
     return jsonify({
         'status': 'success',
@@ -204,7 +204,7 @@ def api_business_search():
         name = data.get('name', '')
 
         if not name:
-            return jsonify({'error': 'Name required'}), 400
+            return jsonify({'error': 'Имя обязательно'}), 400
 
         from app.services.phase3.business_registry import business_registry_search
         results = business_registry_search.search_by_name(name)
@@ -228,7 +228,7 @@ def api_court_search():
         name = data.get('name', '')
 
         if not name:
-            return jsonify({'error': 'Name required'}), 400
+            return jsonify({'error': 'Имя обязательно'}), 400
 
         from app.services.phase3.court_search import court_search
         results = court_search.search_by_name(name)
@@ -252,7 +252,7 @@ def api_geo_extract():
         profiles = data.get('profiles', [])
 
         if not profiles:
-            return jsonify({'error': 'Profiles required'}), 400
+            return jsonify({'error': 'Профили обязательны'}), 400
 
         from app.services.phase3.geo_extractor import geo_extractor
         analysis = geo_extractor.extract_from_profiles(profiles)
@@ -284,7 +284,7 @@ def api_text_analyze():
         elif posts:
             result = text_analyzer.analyze_posts(posts)
         else:
-            return jsonify({'error': 'Text or posts required'}), 400
+            return jsonify({'error': 'Текст или посты обязательны'}), 400
 
         return jsonify({
             'success': True,
@@ -307,7 +307,7 @@ def buratino_page(investigation_id):
 
     investigation = Investigation.query.get(investigation_id)
     if not investigation:
-        return render_template('error.html', error='Investigation not found'), 404
+        return render_template('error.html', error='Расследование не найдено'), 404
 
     confirmed_profile = SocialProfile.query.filter_by(
         investigation_id=investigation_id,
@@ -327,7 +327,7 @@ def start_buratino_investigation(investigation_id):
 
     investigation = Investigation.query.get(investigation_id)
     if not investigation:
-        return jsonify({'error': 'Investigation not found'}), 404
+        return jsonify({'error': 'Расследование не найдено'}), 404
 
     confirmed_profile = SocialProfile.query.filter_by(
         investigation_id=investigation_id,
@@ -483,7 +483,7 @@ def buratino_results(investigation_id):
 
     investigation = Investigation.query.get(investigation_id)
     if not investigation:
-        return render_template('error.html', error='Investigation not found'), 404
+        return render_template('error.html', error='Расследование не найдено'), 404
 
     confirmed_profile = SocialProfile.query.filter_by(
         investigation_id=investigation_id,

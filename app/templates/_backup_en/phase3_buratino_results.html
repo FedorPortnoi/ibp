@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Фаза 3: Результаты - {{ investigation.input_name }} - IBP{% endblock %}
+{% block title %}Phase 3 Results - {{ investigation.input_name }} - IBP{% endblock %}
 
 {% block content %}
 <div class="max-w-6xl mx-auto px-4 py-8">
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
         <div>
-            <h1 class="text-2xl font-bold text-violet font-display">Фаза 3: Результаты расследования</h1>
-            <p class="text-gray-400">Бизнес-реестры, судебные дела, исполнительные производства и оценка рисков</p>
+            <h1 class="text-2xl font-bold text-violet font-display">Phase 3: Deep Investigation Results</h1>
+            <p class="text-gray-400">Business records, court cases, enforcement proceedings, and risk assessment</p>
         </div>
         <div class="flex space-x-3">
             <a href="/report/{{ investigation.id }}" class="btn btn-primary">
-                Создать карточку личности
+                Generate Identity Card
             </a>
         </div>
     </div>
@@ -35,7 +35,7 @@
                 {% endif %}
             </div>
             <span class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-sm">
-                Фаза 3 завершена
+                Phase 3 Complete
             </span>
         </div>
     </div>
@@ -54,25 +54,25 @@
     <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
             <div class="text-3xl font-bold text-violet">{{ business_records|length }}</div>
-            <div class="text-gray-500 text-sm">Бизнес-реестры</div>
+            <div class="text-gray-500 text-sm">Business Records</div>
         </div>
         <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
             <div class="text-3xl font-bold text-violet">{{ court_records|length }}</div>
-            <div class="text-gray-500 text-sm">Судебные дела</div>
+            <div class="text-gray-500 text-sm">Court Cases</div>
         </div>
         <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
             <div class="text-3xl font-bold text-violet">{{ enforcement_proceedings|length }}</div>
-            <div class="text-gray-500 text-sm">Записи ФССП</div>
+            <div class="text-gray-500 text-sm">FSSP Records</div>
         </div>
         <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
             <div class="text-3xl font-bold text-green-400">{{ ns_stats.director_count }}</div>
-            <div class="text-gray-500 text-sm">Руководящие роли</div>
+            <div class="text-gray-500 text-sm">Director Roles</div>
         </div>
         <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
             <div class="text-3xl font-bold {% if risk_indicators|length > 3 %}text-red-400{% elif risk_indicators|length > 0 %}text-yellow-400{% else %}text-green-400{% endif %}">
                 {{ risk_indicators|length }}
             </div>
-            <div class="text-gray-500 text-sm">Флаги риска</div>
+            <div class="text-gray-500 text-sm">Risk Flags</div>
         </div>
     </div>
 
@@ -81,7 +81,7 @@
     <div class="bg-bg-panel rounded-xl border border-red-500/30 p-6 mb-8">
         <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
             <span class="mr-2">&#9888;</span>
-            Индикаторы риска
+            Risk Indicators
             <span class="ml-auto text-sm">
                 {% set ns_risk = namespace(high=0, medium=0) %}
                 {% for ri in risk_indicators %}
@@ -89,11 +89,11 @@
                     {% if ri.severity == 'medium' %}{% set ns_risk.medium = ns_risk.medium + 1 %}{% endif %}
                 {% endfor %}
                 {% if ns_risk.high > 0 %}
-                <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs font-bold">ВЫСОКИЙ РИСК</span>
+                <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs font-bold">HIGH RISK</span>
                 {% elif ns_risk.medium > 0 %}
-                <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs font-bold">СРЕДНИЙ РИСК</span>
+                <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs font-bold">MEDIUM RISK</span>
                 {% else %}
-                <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs font-bold">НИЗКИЙ РИСК</span>
+                <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs font-bold">LOW RISK</span>
                 {% endif %}
             </span>
         </h3>
@@ -120,7 +120,7 @@
                     {% if ri.details %}
                     <p class="text-gray-500 text-xs mt-1">{{ ri.details }}</p>
                     {% endif %}
-                    <p class="text-gray-600 text-xs mt-1">Источник: {{ ri.source }}</p>
+                    <p class="text-gray-600 text-xs mt-1">Source: {{ ri.source }}</p>
                 </div>
             </div>
             {% endfor %}
@@ -132,8 +132,8 @@
         <div class="flex items-center">
             <span class="mr-3 text-2xl text-green-400">&#10003;</span>
             <div>
-                <h3 class="text-lg font-semibold text-green-400">Индикаторы риска не обнаружены</h3>
-                <p class="text-gray-500 text-sm">В доступных записях не обнаружено тревожных закономерностей</p>
+                <h3 class="text-lg font-semibold text-green-400">No Risk Indicators Found</h3>
+                <p class="text-gray-500 text-sm">No concerning patterns detected in available records</p>
             </div>
         </div>
     </div>
@@ -144,8 +144,8 @@
         <div class="bg-bg-panel rounded-xl border border-violet-200 p-6">
             <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
                 <span class="mr-2">&#127970;</span>
-                Бизнес-реестры (ЕГРЮЛ)
-                <span class="ml-auto text-sm text-gray-500">{{ business_records|length }} найдено</span>
+                Business Records (EGRUL)
+                <span class="ml-auto text-sm text-gray-500">{{ business_records|length }} found</span>
             </h3>
 
             {% if business_records %}
@@ -184,7 +184,7 @@
                     <p class="text-gray-500 text-xs mt-1 truncate" title="{{ record.address }}">{{ record.address }}</p>
                     {% endif %}
                     {% if record.registration_date %}
-                    <p class="text-gray-600 text-xs mt-1">Рег: {{ record.registration_date }}</p>
+                    <p class="text-gray-600 text-xs mt-1">Reg: {{ record.registration_date }}</p>
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -192,8 +192,8 @@
             {% else %}
             <div class="text-center py-8 text-gray-500">
                 <div class="text-4xl mb-2">&#127970;</div>
-                <p>Бизнес-записи не найдены</p>
-                <p class="text-xs mt-1">Проверьте ссылки для ручного поиска ниже</p>
+                <p>No business records found</p>
+                <p class="text-xs mt-1">Check manual search links below</p>
             </div>
             {% endif %}
         </div>
@@ -202,8 +202,8 @@
         <div class="bg-bg-panel rounded-xl border border-violet-200 p-6">
             <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
                 <span class="mr-2">&#9878;</span>
-                Судебные дела
-                <span class="ml-auto text-sm text-gray-500">{{ court_records|length }} найдено</span>
+                Court Cases
+                <span class="ml-auto text-sm text-gray-500">{{ court_records|length }} found</span>
             </h3>
 
             {% if court_records %}
@@ -230,7 +230,7 @@
                     <p class="text-gray-500 text-xs mt-1">{{ case.subcategory }}</p>
                     {% endif %}
                     {% if case.source_url %}
-                    <a href="{{ case.source_url }}" target="_blank" rel="noopener" class="text-xs text-violet hover:underline mt-1 inline-block">Источник</a>
+                    <a href="{{ case.source_url }}" target="_blank" rel="noopener" class="text-xs text-violet hover:underline mt-1 inline-block">View source</a>
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -238,8 +238,8 @@
             {% else %}
             <div class="text-center py-8 text-gray-500">
                 <div class="text-4xl mb-2">&#9878;</div>
-                <p>Судебные дела не найдены</p>
-                <p class="text-xs mt-1">sudact.ru требует JS-рендеринг (Playwright)</p>
+                <p>No court cases found</p>
+                <p class="text-xs mt-1">sudact.ru requires JS rendering (Playwright)</p>
             </div>
             {% endif %}
         </div>
@@ -250,8 +250,8 @@
     <div class="bg-bg-panel rounded-xl border border-violet-200 p-6 mt-6">
         <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
             <span class="mr-2">&#128176;</span>
-            Исполнительные производства (ФССП)
-            <span class="ml-auto text-sm text-gray-500">{{ enforcement_proceedings|length }} найдено</span>
+            Enforcement Proceedings (FSSP)
+            <span class="ml-auto text-sm text-gray-500">{{ enforcement_proceedings|length }} found</span>
         </h3>
 
         <div class="space-y-3 max-h-96 overflow-y-auto">
@@ -267,22 +267,22 @@
                     <span class="flex-shrink-0 ml-2 px-2 py-1 rounded text-xs font-medium
                         {% if proc.status == 'На исполнении' %}bg-yellow-500/20 text-yellow-400
                         {% else %}bg-gray-500/20 text-gray-400{% endif %}">
-                        {{ proc.status or 'Неизвестно' }}
+                        {{ proc.status or 'Unknown' }}
                     </span>
                 </div>
                 <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2">
                     {% if proc.debt_type %}
-                    <span class="text-sm text-gray-400">Тип: {{ proc.debt_type }}</span>
+                    <span class="text-sm text-gray-400">Type: {{ proc.debt_type }}</span>
                     {% endif %}
                     {% if proc.amount %}
-                    <span class="text-sm text-yellow-400 font-medium">Сумма: {{ proc.amount }} RUB</span>
+                    <span class="text-sm text-yellow-400 font-medium">Amount: {{ proc.amount }} RUB</span>
                     {% endif %}
                 </div>
                 {% if proc.department %}
-                <p class="text-gray-500 text-xs mt-1">Отдел: {{ proc.department }}</p>
+                <p class="text-gray-500 text-xs mt-1">Dept: {{ proc.department }}</p>
                 {% endif %}
                 {% if proc.bailiff %}
-                <p class="text-gray-500 text-xs mt-1">Пристав: {{ proc.bailiff }}</p>
+                <p class="text-gray-500 text-xs mt-1">Bailiff: {{ proc.bailiff }}</p>
                 {% endif %}
             </div>
             {% endfor %}
@@ -295,8 +295,8 @@
     <div class="bg-bg-panel rounded-xl border border-violet-200 p-6 mt-6">
         <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
             <span class="mr-2">&#128279;</span>
-            Ссылки для ручного поиска
-            <span class="ml-auto text-sm text-gray-500">Проверьте результаты или используйте дополнительные источники</span>
+            Manual Search Links
+            <span class="ml-auto text-sm text-gray-500">Verify results or search additional sources</span>
         </h3>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -320,53 +320,53 @@
     <div class="bg-bg-panel rounded-xl border border-violet-200 p-6 mt-6">
         <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
             <span class="mr-2">&#128202;</span>
-            Итоговая оценка
+            Assessment Summary
         </h3>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <!-- Business Risk -->
             <div class="bg-bg-dark rounded-lg p-4">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-gray-400">Бизнес-риск</span>
+                    <span class="text-gray-400">Business Risk</span>
                     {% if ns_stats.liquidated_count > 2 %}
-                    <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs">ВЫСОКИЙ</span>
+                    <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs">HIGH</span>
                     {% elif ns_stats.liquidated_count > 0 %}
-                    <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">СРЕДНИЙ</span>
+                    <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">MEDIUM</span>
                     {% else %}
-                    <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">НИЗКИЙ</span>
+                    <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">LOW</span>
                     {% endif %}
                 </div>
-                <p class="text-sm text-gray-500">{{ business_records|length }} компаний, {{ ns_stats.liquidated_count }} ликвидировано</p>
+                <p class="text-sm text-gray-500">{{ business_records|length }} companies, {{ ns_stats.liquidated_count }} liquidated</p>
             </div>
 
             <!-- Legal Risk -->
             <div class="bg-bg-dark rounded-lg p-4">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-gray-400">Правовой риск</span>
+                    <span class="text-gray-400">Legal Risk</span>
                     {% if ns_stats.defendant_count > 3 %}
-                    <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs">ВЫСОКИЙ</span>
+                    <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs">HIGH</span>
                     {% elif ns_stats.defendant_count > 0 %}
-                    <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">СРЕДНИЙ</span>
+                    <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">MEDIUM</span>
                     {% else %}
-                    <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">НИЗКИЙ</span>
+                    <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">LOW</span>
                     {% endif %}
                 </div>
-                <p class="text-sm text-gray-500">{{ court_records|length }} дел, {{ ns_stats.defendant_count }} в качестве ответчика</p>
+                <p class="text-sm text-gray-500">{{ court_records|length }} cases, {{ ns_stats.defendant_count }} as defendant</p>
             </div>
 
             <!-- Financial Risk -->
             <div class="bg-bg-dark rounded-lg p-4">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-gray-400">Финансовый риск</span>
+                    <span class="text-gray-400">Financial Risk</span>
                     {% if enforcement_proceedings|length > 2 %}
-                    <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs">ВЫСОКИЙ</span>
+                    <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs">HIGH</span>
                     {% elif enforcement_proceedings|length > 0 %}
-                    <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">СРЕДНИЙ</span>
+                    <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">MEDIUM</span>
                     {% else %}
-                    <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">НИЗКИЙ</span>
+                    <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">LOW</span>
                     {% endif %}
                 </div>
-                <p class="text-sm text-gray-500">{{ enforcement_proceedings|length }} исполнительных производств</p>
+                <p class="text-sm text-gray-500">{{ enforcement_proceedings|length }} enforcement proceedings</p>
             </div>
         </div>
     </div>
@@ -374,10 +374,10 @@
     <!-- Navigation -->
     <div class="flex items-center justify-between mt-8">
         <a href="/phase2/buratino/results/{{ investigation.id }}" class="text-violet hover:text-violet-bright">
-            &#8592; Назад к Фазе 2
+            &#8592; Back to Phase 2
         </a>
         <a href="/report/{{ investigation.id }}" class="btn btn-primary">
-            Создать карточку личности &#8594;
+            Generate Identity Card &#8594;
         </a>
     </div>
 </div>

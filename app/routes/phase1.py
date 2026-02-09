@@ -176,7 +176,7 @@ def confirm_profile(investigation_id, profile_id):
 
     # Verify profile belongs to this investigation
     if profile.investigation_id != investigation_id:
-        return jsonify({'error': 'Profile does not belong to this investigation'}), 400
+        return jsonify({'error': 'Профиль не принадлежит этому расследованию'}), 400
 
     # Mark profile as confirmed
     profile.confirm()
@@ -211,7 +211,7 @@ def reject_profile(investigation_id, profile_id):
     profile = SocialProfile.query.get_or_404(profile_id)
 
     if profile.investigation_id != investigation_id:
-        return jsonify({'error': 'Profile does not belong to this investigation'}), 400
+        return jsonify({'error': 'Профиль не принадлежит этому расследованию'}), 400
 
     profile.reject()
     db.session.commit()

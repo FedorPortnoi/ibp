@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}IBP - Фаза 3: Глубокое расследование{% endblock %}
+{% block title %}IBP - Phase 3: Deep Investigation{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -196,26 +196,26 @@
     <div class="flex items-center justify-between mb-8">
         <div>
             <h1 class="text-3xl font-bold text-text-primary font-display">
-                Фаза 3: <span class="text-violet">Глубокое расследование</span>
+                Phase 3: <span class="text-violet">Deep Investigation</span>
             </h1>
-            <p class="text-text-dim mt-2">Бизнес-реестры, судебные дела, анализ местоположений</p>
+            <p class="text-text-dim mt-2">Business records, court cases, location analysis</p>
         </div>
         <a href="/phase2/{{ investigation_id }}" class="btn btn-secondary">
-            Назад к Фазе 2
+            Back to Phase 2
         </a>
     </div>
 
     <!-- Progress Section (shown during investigation) -->
     <div id="progress-section" class="progress-container mb-8">
         <div class="text-4xl mb-4">🔍</div>
-        <h2 class="text-xl font-semibold text-text-primary mb-2">Глубокое расследование выполняется</h2>
-        <p class="progress-text" id="current-step">Инициализация...</p>
+        <h2 class="text-xl font-semibold text-text-primary mb-2">Deep Investigation in Progress</h2>
+        <p class="progress-text" id="current-step">Initializing...</p>
 
         <div class="progress-bar">
             <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
         </div>
 
-        <p class="text-sm text-text-muted"><span id="percent-complete">0</span>% завершено</p>
+        <p class="text-sm text-text-muted"><span id="percent-complete">0</span>% complete</p>
 
         <div class="log-container" id="log-container"></div>
     </div>
@@ -227,7 +227,7 @@
             <div class="result-section">
                 <div class="section-header">
                     <div class="section-title">
-                        <span>🏢</span> Бизнес-реестры
+                        <span>🏢</span> Business Records
                     </div>
                     <span class="section-count" id="business-count">0</span>
                 </div>
@@ -238,7 +238,7 @@
             <div class="result-section">
                 <div class="section-header">
                     <div class="section-title">
-                        <span>⚖️</span> Судебные дела
+                        <span>⚖️</span> Court Cases
                     </div>
                     <span class="section-count" id="court-count">0</span>
                 </div>
@@ -249,7 +249,7 @@
             <div class="result-section full-width">
                 <div class="section-header">
                     <div class="section-title">
-                        <span>📍</span> История местоположений
+                        <span>📍</span> Location History
                     </div>
                     <span class="section-count" id="location-count">0</span>
                 </div>
@@ -261,7 +261,7 @@
             <div class="result-section full-width">
                 <div class="section-header">
                     <div class="section-title">
-                        <span>📊</span> Анализ текста
+                        <span>📊</span> Text Analysis
                     </div>
                 </div>
                 <div id="text-analysis"></div>
@@ -271,7 +271,7 @@
         <!-- Continue Button -->
         <div class="text-center mt-8">
             <a href="/report/{{ investigation_id }}" class="btn btn-primary btn-lg">
-                Создать карточку личности
+                Generate Identity Card
             </a>
         </div>
     </div>
@@ -297,21 +297,21 @@ document.addEventListener('DOMContentLoaded', function() {
             startInvestigation(data);
         } catch (e) {
             console.error('Failed to parse Phase 3 input:', e);
-            showError('Не удалось загрузить данные расследования');
+            showError('Failed to load investigation data');
         }
     } else {
         // No data - show instructions
         document.getElementById('progress-section').innerHTML = `
             <div class="text-4xl mb-4">📋</div>
-            <h2 class="text-xl font-semibold text-text-primary mb-2">Нет данных расследования</h2>
-            <p class="text-text-dim">Начните с Фазы 1</p>
-            <a href="/phase1" class="btn btn-primary mt-4">Начать новое расследование</a>
+            <h2 class="text-xl font-semibold text-text-primary mb-2">No Investigation Data</h2>
+            <p class="text-text-dim">Please start from Phase 1 to begin a new investigation.</p>
+            <a href="/phase1" class="btn btn-primary mt-4">Start New Investigation</a>
         `;
     }
 });
 
 function startInvestigation(data) {
-    addLog('Запуск глубокого расследования Фазы 3...', 'info');
+    addLog('Starting Phase 3 deep investigation...', 'info');
 
     fetch('/phase3/start', {
         method: 'POST',
@@ -329,7 +329,7 @@ function startInvestigation(data) {
         pollProgress();
     })
     .catch(error => {
-        showError('Не удалось начать расследование: ' + error.message);
+        showError('Failed to start investigation: ' + error.message);
     });
 }
 
@@ -396,7 +396,7 @@ function loadResults() {
             displayResults(data.results);
         })
         .catch(error => {
-            showError('Не удалось загрузить результаты: ' + error.message);
+            showError('Failed to load results: ' + error.message);
         });
 }
 
@@ -412,9 +412,9 @@ function displayResults(results) {
     if (businessRecords.length > 0) {
         businessContainer.innerHTML = businessRecords.map(r => `
             <div class="record-item">
-                <div class="record-title">${r.company_name || 'Неизвестная компания'}</div>
+                <div class="record-title">${r.company_name || 'Unknown Company'}</div>
                 <div class="record-meta">
-                    <span class="record-badge badge-${r.role?.toLowerCase() || 'founder'}">${r.role || 'Неизвестно'}</span>
+                    <span class="record-badge badge-${r.role?.toLowerCase() || 'founder'}">${r.role || 'Unknown'}</span>
                     ${r.inn ? `<span>INN: ${r.inn}</span>` : ''}
                     ${r.status ? `<span class="record-badge badge-${r.status === 'Действующее' ? 'active' : 'liquidated'}">${r.status}</span>` : ''}
                 </div>
@@ -424,7 +424,7 @@ function displayResults(results) {
         businessContainer.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">🏢</div>
-                <p>Бизнес-записи не найдены</p>
+                <p>No business records found</p>
             </div>
         `;
     }
@@ -437,9 +437,9 @@ function displayResults(results) {
     if (courtCases.length > 0) {
         courtContainer.innerHTML = courtCases.map(c => `
             <div class="record-item">
-                <div class="record-title">${c.case_number || 'Неизвестное дело'}</div>
+                <div class="record-title">${c.case_number || 'Unknown Case'}</div>
                 <div class="record-meta">
-                    <span class="record-badge badge-${c.role === 'истец' ? 'plaintiff' : 'defendant'}">${c.role || 'Участник'}</span>
+                    <span class="record-badge badge-${c.role === 'истец' ? 'plaintiff' : 'defendant'}">${c.role || 'Participant'}</span>
                     ${c.court_name ? `<span>${c.court_name}</span>` : ''}
                     ${c.case_type ? `<span> | ${c.case_type}</span>` : ''}
                 </div>
@@ -449,7 +449,7 @@ function displayResults(results) {
         courtContainer.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">⚖️</div>
-                <p>Судебные дела не найдены</p>
+                <p>No court cases found</p>
             </div>
         `;
     }
@@ -465,7 +465,7 @@ function displayResults(results) {
         document.getElementById('map-container').innerHTML = `
             <div class="empty-state" style="height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
                 <div class="empty-state-icon">📍</div>
-                <p>Данные о местоположении недоступны</p>
+                <p>No location data available</p>
             </div>
         `;
     }
@@ -481,19 +481,19 @@ function displayResults(results) {
         textContainer.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <h4 class="text-sm font-semibold text-text-secondary mb-3">Анализ тональности</h4>
+                    <h4 class="text-sm font-semibold text-text-secondary mb-3">Sentiment Analysis</h4>
                     <div class="sentiment-bar">
                         <div class="sentiment-negative" style="width: ${Math.max(0, -sentiment.score * 50 + 50)}%"></div>
                         <div class="sentiment-neutral" style="width: 0%"></div>
                         <div class="sentiment-positive" style="width: ${Math.max(0, sentiment.score * 50 + 50)}%"></div>
                     </div>
                     <p class="text-sm text-text-dim">
-                        Общий: <strong class="text-text-primary">${sentiment.label || 'neutral'}</strong>
-                        (Оценка: ${(sentiment.score || 0).toFixed(2)})
+                        Overall: <strong class="text-text-primary">${sentiment.label || 'neutral'}</strong>
+                        (Score: ${(sentiment.score || 0).toFixed(2)})
                     </p>
                 </div>
                 <div>
-                    <h4 class="text-sm font-semibold text-text-secondary mb-3">Ключевые слова</h4>
+                    <h4 class="text-sm font-semibold text-text-secondary mb-3">Top Keywords</h4>
                     <div class="keyword-cloud">
                         ${keywords.slice(0, 15).map(([word, count]) =>
                             `<span class="keyword">${word} (${count})</span>`
@@ -506,7 +506,7 @@ function displayResults(results) {
         textContainer.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">📊</div>
-                <p>Анализ текста недоступен</p>
+                <p>No text analysis available</p>
             </div>
         `;
     }
@@ -543,9 +543,9 @@ function initMap(mapData) {
 function showError(message) {
     document.getElementById('progress-section').innerHTML = `
         <div class="text-4xl mb-4">❌</div>
-        <h2 class="text-xl font-semibold text-error mb-2">Расследование не удалось</h2>
+        <h2 class="text-xl font-semibold text-error mb-2">Investigation Failed</h2>
         <p class="text-text-dim">${message}</p>
-        <a href="/phase1" class="btn btn-primary mt-4">Начать сначала</a>
+        <a href="/phase1" class="btn btn-primary mt-4">Start Over</a>
     `;
 }
 </script>
