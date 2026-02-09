@@ -37,6 +37,11 @@ from .video_analyzer import (
     VideoMetadata,
     VideoAnalysisResult
 )
+from .fssp_search import (
+    FSSPSearch,
+    fssp_search,
+    EnforcementProceeding
+)
 from .combined_search import (
     Phase3CombinedSearch,
     phase3_combined_search,
@@ -68,6 +73,10 @@ __all__ = [
     'VideoFrame',
     'VideoMetadata',
     'VideoAnalysisResult',
+    # FSSP
+    'FSSPSearch',
+    'fssp_search',
+    'EnforcementProceeding',
     # Combined Search (Orchestrator)
     'Phase3CombinedSearch',
     'phase3_combined_search',
