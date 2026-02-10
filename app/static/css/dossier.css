@@ -1,0 +1,996 @@
+/* =============================================================================
+   IBP Dossier - Professional Investigation Report Styles
+   =============================================================================
+   Screen: Dark violet theme matching IBP design system
+   Print:  Clean light corporate theme for PDF/paper output
+   ============================================================================= */
+
+/* ---- Layout ---- */
+.dossier-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* ---- Cover Page ---- */
+.dossier-cover {
+    background: linear-gradient(180deg, rgba(139, 92, 246, 0.12) 0%, rgba(17, 10, 31, 0.95) 40%);
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: 16px;
+    padding: 48px 40px;
+    margin-bottom: 32px;
+    position: relative;
+    overflow: hidden;
+}
+
+.dossier-cover::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
+}
+
+.cover-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 32px;
+}
+
+.cover-branding {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.cover-logo {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 28px;
+    color: #8b5cf6;
+    letter-spacing: 3px;
+}
+
+.cover-subtitle {
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.classification-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 24px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.classification-badge.confidential {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+}
+
+.cover-profile {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    margin-bottom: 28px;
+}
+
+.cover-photo {
+    width: 130px;
+    height: 130px;
+    border-radius: 14px;
+    object-fit: cover;
+    border: 2px solid rgba(139, 92, 246, 0.4);
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.2);
+    flex-shrink: 0;
+}
+
+.cover-photo-placeholder {
+    width: 130px;
+    height: 130px;
+    border-radius: 14px;
+    background: rgba(139, 92, 246, 0.08);
+    border: 2px dashed rgba(139, 92, 246, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: rgba(139, 92, 246, 0.4);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cover-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.cover-name {
+    font-size: 30px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 8px;
+    line-height: 1.2;
+}
+
+.cover-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.cover-meta-item {
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+}
+
+.cover-meta-item span {
+    color: rgba(255,255,255,0.8);
+    font-weight: 500;
+}
+
+.cover-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+}
+
+.cover-stat {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+}
+
+.cover-stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #a78bfa;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.cover-stat-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+}
+
+/* ---- Section ---- */
+.dossier-section {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-default);
+    border-radius: 14px;
+    margin-bottom: 24px;
+    overflow: hidden;
+}
+
+.dossier-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: rgba(139, 92, 246, 0.04);
+}
+
+.dossier-section-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(139, 92, 246, 0.15);
+    color: #a78bfa;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.dossier-section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+}
+
+.dossier-section-count {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-left: 8px;
+}
+
+.dossier-section-body {
+    padding: 20px 24px;
+}
+
+.dossier-empty {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-style: italic;
+}
+
+/* ---- Executive Summary ---- */
+.executive-summary-text {
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--text-secondary);
+}
+
+/* ---- Personal Data ---- */
+.personal-data-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+}
+
+.personal-data-item {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+
+.personal-data-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.personal-data-value {
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.personal-data-value.empty {
+    color: var(--text-muted);
+    font-style: italic;
+    font-weight: 400;
+}
+
+/* ---- Profiles ---- */
+.profile-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
+}
+
+.profile-card:hover {
+    border-color: var(--border-bright);
+}
+
+.profile-card.confirmed {
+    border-left: 3px solid #22c55e;
+}
+
+.profile-platform-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.profile-platform-icon.vk { background: rgba(74, 118, 168, 0.2); color: #4A76A8; }
+.profile-platform-icon.ok { background: rgba(238, 130, 8, 0.2); color: #EE8208; }
+.profile-platform-icon.telegram { background: rgba(0, 136, 204, 0.2); color: #0088cc; }
+.profile-platform-icon.instagram { background: rgba(225, 48, 108, 0.2); color: #E1306C; }
+.profile-platform-icon.facebook { background: rgba(24, 119, 242, 0.2); color: #1877F2; }
+.profile-platform-icon.other { background: rgba(100, 116, 139, 0.2); color: #64748b; }
+
+.profile-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.profile-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.profile-username {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.profile-link {
+    font-size: 11px;
+    color: rgba(139, 92, 246, 0.7);
+    text-decoration: none;
+}
+
+.profile-link:hover {
+    color: #a78bfa;
+    text-decoration: underline;
+}
+
+.confirmed-badge {
+    font-size: 10px;
+    font-weight: 600;
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.1);
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+}
+
+/* ---- Contacts ---- */
+.contact-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.contact-value {
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+}
+
+.contact-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.contact-source {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.confidence-pill {
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.confidence-pill.high { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.confidence-pill.medium { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.confidence-pill.low { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+/* ---- Social Network ---- */
+.friend-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.friend-row:last-child {
+    border-bottom: none;
+}
+
+.friend-name {
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.friend-meta {
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+.friend-flagged {
+    color: #ef4444;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+/* ---- Risk Assessment ---- */
+.risk-overview {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 10px;
+    margin-bottom: 16px;
+}
+
+.risk-level-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+}
+
+.risk-level-badge.high {
+    background: rgba(239, 68, 68, 0.15);
+    border: 2px solid rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+}
+
+.risk-level-badge.medium {
+    background: rgba(245, 158, 11, 0.15);
+    border: 2px solid rgba(245, 158, 11, 0.4);
+    color: #f59e0b;
+}
+
+.risk-level-badge.low {
+    background: rgba(34, 197, 94, 0.15);
+    border: 2px solid rgba(34, 197, 94, 0.4);
+    color: #22c55e;
+}
+
+.risk-level-badge.none {
+    background: rgba(34, 197, 94, 0.1);
+    border: 2px solid rgba(34, 197, 94, 0.3);
+    color: #22c55e;
+}
+
+.risk-summary-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.risk-indicator-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border-left: 3px solid transparent;
+}
+
+.risk-indicator-row.critical { border-left-color: #dc2626; }
+.risk-indicator-row.high { border-left-color: #ef4444; }
+.risk-indicator-row.medium { border-left-color: #f59e0b; }
+.risk-indicator-row.low { border-left-color: #22c55e; }
+
+.risk-severity {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.risk-severity.critical { background: rgba(220, 38, 38, 0.2); color: #dc2626; }
+.risk-severity.high { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.risk-severity.medium { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.risk-severity.low { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+
+.risk-description {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.risk-category {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ---- Business Records ---- */
+.business-card {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 10px;
+}
+
+.business-card.active {
+    border-left: 3px solid #22c55e;
+}
+
+.business-card.liquidated {
+    border-left: 3px solid #ef4444;
+    opacity: 0.7;
+}
+
+.business-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.business-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 8px;
+}
+
+.business-detail {
+    font-size: 11px;
+}
+
+.business-detail-label {
+    color: var(--text-muted);
+}
+
+.business-detail-value {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.business-status {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.business-status.active {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.business-status.liquidated {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+/* ---- Court Records ---- */
+.court-card {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 10px;
+}
+
+.court-card.negative {
+    border-left: 3px solid #ef4444;
+}
+
+.court-case-number {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.court-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 8px;
+}
+
+.court-detail {
+    font-size: 11px;
+}
+
+.court-detail-label {
+    color: var(--text-muted);
+}
+
+.court-detail-value {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* ---- Timeline ---- */
+.timeline {
+    position: relative;
+    padding-left: 28px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    background: rgba(139, 92, 246, 0.2);
+}
+
+.timeline-event {
+    position: relative;
+    padding-bottom: 20px;
+}
+
+.timeline-event:last-child {
+    padding-bottom: 0;
+}
+
+.timeline-dot {
+    position: absolute;
+    left: -23px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid;
+}
+
+.timeline-dot.phase-1 {
+    background: rgba(139, 92, 246, 0.3);
+    border-color: #8b5cf6;
+}
+
+.timeline-dot.phase-2 {
+    background: rgba(59, 130, 246, 0.3);
+    border-color: #3b82f6;
+}
+
+.timeline-dot.phase-3 {
+    background: rgba(236, 72, 153, 0.3);
+    border-color: #ec4899;
+}
+
+.timeline-date {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 2px;
+}
+
+.timeline-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.timeline-detail {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+/* ---- Methodology ---- */
+.method-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.method-row:last-child {
+    border-bottom: none;
+}
+
+.method-tool {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+    min-width: 180px;
+}
+
+.method-description {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+/* ---- Footer ---- */
+.dossier-footer {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    border-top: 1px solid var(--border-subtle);
+    margin-top: 16px;
+}
+
+/* ---- Export Actions ---- */
+.dossier-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* =============================================================================
+   PRINT STYLES - Clean light theme for PDF/paper
+   ============================================================================= */
+
+@media print {
+    /* Reset dark theme */
+    body {
+        background: white !important;
+        color: #1a1a1a !important;
+        font-size: 11pt !important;
+    }
+
+    /* Hide screen-only elements */
+    nav, footer, .dossier-actions, .btn,
+    #vk-status, .no-print {
+        display: none !important;
+    }
+
+    /* Container */
+    .dossier-container {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Cover */
+    .dossier-cover {
+        background: white !important;
+        border: 2px solid #333 !important;
+        border-radius: 0 !important;
+        padding: 24px !important;
+        page-break-after: always;
+    }
+
+    .dossier-cover::before {
+        background: #333 !important;
+    }
+
+    .cover-logo {
+        color: #333 !important;
+    }
+
+    .cover-subtitle {
+        color: #666 !important;
+    }
+
+    .classification-badge.confidential {
+        background: white !important;
+        border: 2px solid #c00 !important;
+        color: #c00 !important;
+    }
+
+    .cover-name {
+        color: #1a1a1a !important;
+    }
+
+    .cover-meta-item {
+        color: #555 !important;
+    }
+
+    .cover-meta-item span {
+        color: #1a1a1a !important;
+    }
+
+    .cover-photo {
+        border-color: #ccc !important;
+        box-shadow: none !important;
+    }
+
+    .cover-stat {
+        background: #f5f5f5 !important;
+        border: 1px solid #ddd !important;
+    }
+
+    .cover-stat-value {
+        color: #333 !important;
+    }
+
+    .cover-stat-label {
+        color: #666 !important;
+    }
+
+    /* Sections */
+    .dossier-section {
+        background: white !important;
+        border: 1px solid #ddd !important;
+        border-radius: 0 !important;
+        page-break-inside: avoid;
+        margin-bottom: 16px !important;
+    }
+
+    .dossier-section-header {
+        background: #f5f5f5 !important;
+        border-bottom: 1px solid #ddd !important;
+        padding: 12px 16px !important;
+    }
+
+    .dossier-section-number {
+        background: #e5e5e5 !important;
+        color: #333 !important;
+    }
+
+    .dossier-section-title {
+        color: #1a1a1a !important;
+    }
+
+    .dossier-section-body {
+        padding: 14px 16px !important;
+    }
+
+    /* Text colors for print */
+    .executive-summary-text,
+    .risk-summary-text,
+    .risk-description,
+    .method-description {
+        color: #333 !important;
+    }
+
+    .personal-data-item,
+    .profile-card,
+    .contact-row,
+    .business-card,
+    .court-card,
+    .risk-indicator-row,
+    .risk-overview {
+        background: #fafafa !important;
+        border-color: #ddd !important;
+    }
+
+    .personal-data-label,
+    .contact-source,
+    .business-detail-label,
+    .court-detail-label,
+    .risk-category,
+    .timeline-date,
+    .friend-meta {
+        color: #666 !important;
+    }
+
+    .personal-data-value,
+    .contact-value,
+    .profile-name,
+    .business-name,
+    .court-case-number,
+    .friend-name,
+    .timeline-label,
+    .method-tool {
+        color: #1a1a1a !important;
+    }
+
+    .business-detail-value,
+    .court-detail-value,
+    .profile-username,
+    .timeline-detail {
+        color: #444 !important;
+    }
+
+    /* Confidence pills for print */
+    .confidence-pill.high { background: #e8f5e9 !important; color: #2e7d32 !important; }
+    .confidence-pill.medium { background: #fff8e1 !important; color: #f57f17 !important; }
+    .confidence-pill.low { background: #fbe9e7 !important; color: #c62828 !important; }
+
+    /* Risk badges for print */
+    .risk-level-badge {
+        border-width: 2px !important;
+    }
+
+    .risk-level-badge.high { background: #fbe9e7 !important; color: #c62828 !important; border-color: #c62828 !important; }
+    .risk-level-badge.medium { background: #fff8e1 !important; color: #f57f17 !important; border-color: #f57f17 !important; }
+    .risk-level-badge.low, .risk-level-badge.none { background: #e8f5e9 !important; color: #2e7d32 !important; border-color: #2e7d32 !important; }
+
+    .risk-severity.critical, .risk-severity.high { background: #fbe9e7 !important; color: #c62828 !important; }
+    .risk-severity.medium { background: #fff8e1 !important; color: #f57f17 !important; }
+    .risk-severity.low { background: #e8f5e9 !important; color: #2e7d32 !important; }
+
+    /* Business status for print */
+    .business-status.active { background: #e8f5e9 !important; color: #2e7d32 !important; }
+    .business-status.liquidated { background: #fbe9e7 !important; color: #c62828 !important; }
+
+    /* Confirmed badge */
+    .confirmed-badge { background: #e8f5e9 !important; color: #2e7d32 !important; }
+
+    /* Timeline for print */
+    .timeline::before {
+        background: #ccc !important;
+    }
+
+    .timeline-dot.phase-1 { background: #e0d5f5 !important; border-color: #7c3aed !important; }
+    .timeline-dot.phase-2 { background: #d5e5f5 !important; border-color: #3b82f6 !important; }
+    .timeline-dot.phase-3 { background: #f5d5e5 !important; border-color: #ec4899 !important; }
+
+    /* Links */
+    a {
+        color: #333 !important;
+        text-decoration: none !important;
+    }
+
+    /* Profile icons */
+    .profile-platform-icon {
+        border: 1px solid #ccc !important;
+    }
+
+    .profile-platform-icon.vk { background: #e8eef5 !important; color: #4A76A8 !important; }
+    .profile-platform-icon.ok { background: #fef3e2 !important; color: #EE8208 !important; }
+    .profile-platform-icon.telegram { background: #e2f3fa !important; color: #0088cc !important; }
+
+    /* Footer */
+    .dossier-footer {
+        color: #666 !important;
+        border-top: 1px solid #ddd !important;
+    }
+
+    /* Page break hints */
+    .dossier-section {
+        page-break-inside: avoid;
+    }
+
+    .business-card, .court-card, .profile-card {
+        page-break-inside: avoid;
+    }
+
+    /* Page margins */
+    @page {
+        margin: 15mm;
+        size: A4;
+    }
+
+    @page :first {
+        margin-top: 10mm;
+    }
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 640px) {
+    .cover-profile {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .personal-data-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .cover-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .cover-header {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .method-row {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .method-tool {
+        min-width: auto;
+    }
+}

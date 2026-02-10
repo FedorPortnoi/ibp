@@ -1,0 +1,628 @@
+{% extends "base.html" %}
+{% block title %}IBP - Досье: {{ target_name }}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dossier.css') }}">
+{% if print_mode is defined and print_mode %}
+<script>window.onload = function() { window.print(); }</script>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="dossier-container py-6">
+
+    {# ---- Header with actions ---- #}
+    <div class="flex items-center justify-between mb-6 no-print">
+        <div>
+            <h1 class="text-2xl font-bold text-text-primary font-display">
+                <span class="text-violet">Досье</span>
+            </h1>
+            <p class="text-text-dim text-sm mt-1">Профессиональный отчёт расследования</p>
+        </div>
+        <div class="dossier-actions">
+            {% if investigation.status in ['phase_3_complete', 'complete'] %}
+            <a href="/phase3/buratino/results/{{ investigation_id }}" class="btn btn-secondary btn-sm">
+                Фаза 3
+            </a>
+            {% endif %}
+            <a href="/report/{{ investigation_id }}" class="btn btn-secondary btn-sm">
+                Карточка
+            </a>
+            <a href="/dossier/{{ investigation_id }}/json" class="btn btn-secondary btn-sm">
+                JSON
+            </a>
+            <a href="/dossier/{{ investigation_id }}/pdf" class="btn btn-secondary btn-sm">
+                PDF
+            </a>
+            <button onclick="window.print()" class="btn btn-primary btn-sm">
+                Печать
+            </button>
+        </div>
+    </div>
+
+    {# ================================================================ #}
+    {# 1. COVER PAGE                                                    #}
+    {# ================================================================ #}
+    <div class="dossier-cover">
+        <div class="cover-header">
+            <div class="cover-branding">
+                <div>
+                    <div class="cover-logo">IBP</div>
+                    <div class="cover-subtitle">Досье расследования</div>
+                </div>
+            </div>
+            <div class="classification-badge confidential">
+                КОНФИДЕНЦИАЛЬНО
+            </div>
+        </div>
+
+        <div class="cover-profile">
+            {% if confirmed_profile and confirmed_profile.photo_url %}
+            <img src="{{ confirmed_profile.photo_url }}" alt="Фото" class="cover-photo"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="cover-photo-placeholder" style="display:none">НЕТ ФОТО</div>
+            {% else %}
+            <div class="cover-photo-placeholder">НЕТ ФОТО</div>
+            {% endif %}
+
+            <div class="cover-info">
+                <div class="cover-name">{{ target_name or 'Неизвестный' }}</div>
+                <div class="cover-meta">
+                    <div class="cover-meta-item">
+                        ID: <span style="font-family:'JetBrains Mono',monospace;">{{ investigation_id[:8] }}...</span>
+                    </div>
+                    <div class="cover-meta-item">
+                        Дата: <span>{{ generated_at.strftime('%d.%m.%Y') }}</span>
+                    </div>
+                    <div class="cover-meta-item">
+                        Статус: <span>{{ status }}</span>
+                    </div>
+                    {% if confirmed_profile and confirmed_profile.city %}
+                    <div class="cover-meta-item">
+                        Город: <span>{{ confirmed_profile.city }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="cover-meta-item">
+                        Достоверность: <span>{{ confidence }}%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="cover-stats">
+            <div class="cover-stat">
+                <div class="cover-stat-value">{{ profiles|length }}</div>
+                <div class="cover-stat-label">Профили</div>
+            </div>
+            <div class="cover-stat">
+                <div class="cover-stat-value">{{ phones|length + emails|length }}</div>
+                <div class="cover-stat-label">Контакты</div>
+            </div>
+            <div class="cover-stat">
+                <div class="cover-stat-value">{{ friends_count }}</div>
+                <div class="cover-stat-label">Связи</div>
+            </div>
+            <div class="cover-stat">
+                <div class="cover-stat-value">{{ business_records|length }}</div>
+                <div class="cover-stat-label">Компании</div>
+            </div>
+            <div class="cover-stat">
+                <div class="cover-stat-value">{{ court_records|length }}</div>
+                <div class="cover-stat-label">Суд. дела</div>
+            </div>
+            <div class="cover-stat">
+                <div class="cover-stat-value">{{ risk_label }}</div>
+                <div class="cover-stat-label">Риск</div>
+            </div>
+        </div>
+    </div>
+
+    {# ================================================================ #}
+    {# 2. EXECUTIVE SUMMARY                                             #}
+    {# ================================================================ #}
+    <div class="dossier-section">
+        <div class="dossier-section-header">
+            <div class="dossier-section-title">
+                <span class="dossier-section-number">1</span>
+                Резюме расследования
+            </div>
+        </div>
+        <div class="dossier-section-body">
+            <p class="executive-summary-text">{{ summary }}</p>
+        </div>
+    </div>
+
+    {# ================================================================ #}
+    {# 3. PERSONAL DATA                                                 #}
+    {# ================================================================ #}
+    <div class="dossier-section">
+        <div class="dossier-section-header">
+            <div class="dossier-section-title">
+                <span class="dossier-section-number">2</span>
+                Персональные данные
+            </div>
+        </div>
+        <div class="dossier-section-body">
+            <div class="personal-data-grid">
+                <div class="personal-data-item">
+                    <div class="personal-data-label">ФИО</div>
+                    <div class="personal-data-value">{{ target_name or 'Не указано' }}</div>
+                </div>
+                <div class="personal-data-item">
+                    <div class="personal-data-label">Псевдонимы / Юзернеймы</div>
+                    {% if aliases %}
+                    <div class="personal-data-value">{{ aliases|join(', ') }}</div>
+                    {% else %}
+                    <div class="personal-data-value empty">Данные не обнаружены</div>
+                    {% endif %}
+                </div>
+                <div class="personal-data-item">
+                    <div class="personal-data-label">Дата рождения</div>
+                    {% if confirmed_profile and confirmed_profile.birth_date %}
+                    <div class="personal-data-value">{{ confirmed_profile.birth_date }}{% if confirmed_profile.age %} ({{ confirmed_profile.age }} лет){% endif %}</div>
+                    {% else %}
+                    <div class="personal-data-value empty">Данные не обнаружены</div>
+                    {% endif %}
+                </div>
+                <div class="personal-data-item">
+                    <div class="personal-data-label">Город</div>
+                    {% if confirmed_profile and confirmed_profile.city %}
+                    <div class="personal-data-value">{{ confirmed_profile.city }}{% if confirmed_profile.country %}, {{ confirmed_profile.country }}{% endif %}</div>
+                    {% else %}
+                    <div class="personal-data-value empty">Данные не обнаружены</div>
+                    {% endif %}
+                </div>
+                <div class="personal-data-item">
+                    <div class="personal-data-label">Образование</div>
+                    {% if confirmed_profile and confirmed_profile.education %}
+                    <div class="personal-data-value">
+                        {% for edu in confirmed_profile.education %}
+                        {{ edu.university or edu.get('name', '') }}{% if edu.faculty %} ({{ edu.faculty }}){% endif %}{% if edu.graduation %}, {{ edu.graduation }}{% endif %}{% if not loop.last %}; {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="personal-data-value empty">Данные не обнаружены</div>
+                    {% endif %}
+                </div>
+                <div class="personal-data-item">
+                    <div class="personal-data-label">Карьера</div>
+                    {% if confirmed_profile and confirmed_profile.career %}
+                    <div class="personal-data-value">
+                        {% for job in confirmed_profile.career %}
+                        {{ job.company or job.get('name', '') }}{% if job.position %} - {{ job.position }}{% endif %}{% if not loop.last %}; {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="personal-data-value empty">Данные не обнаружены</div>
+                    {% endif %}
+                </div>
+                <div class="personal-data-item">
+                    <div class="personal-data-label">Пол</div>
+                    {% if confirmed_profile and confirmed_profile.gender %}
+                    <div class="personal-data-value">{% if confirmed_profile.gender == 'male' %}Мужской{% elif confirmed_profile.gender == 'female' %}Женский{% else %}{{ confirmed_profile.gender }}{% endif %}</div>
+                    {% else %}
+                    <div class="personal-data-value empty">Данные не обнаружены</div>
+                    {% endif %}
+                </div>
+                <div class="personal-data-item">
+                    <div class="personal-data-label">О себе</div>
+                    {% if confirmed_profile and confirmed_profile.bio %}
+                    <div class="personal-data-value">{{ confirmed_profile.bio[:200] }}{% if confirmed_profile.bio|length > 200 %}...{% endif %}</div>
+                    {% else %}
+                    <div class="personal-data-value empty">Данные не обнаружены</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ================================================================ #}
+    {# 4. DIGITAL PRESENCE                                              #}
+    {# ================================================================ #}
+    <div class="dossier-section">
+        <div class="dossier-section-header">
+            <div class="dossier-section-title">
+                <span class="dossier-section-number">3</span>
+                Цифровое присутствие
+                {% if profiles %}<span class="dossier-section-count">({{ profiles|length }})</span>{% endif %}
+            </div>
+        </div>
+        <div class="dossier-section-body">
+            {% if profiles %}
+                {% for p in profiles %}
+                <div class="profile-card{% if p.is_confirmed %} confirmed{% endif %}">
+                    {% set platform = p.platform|default('other')|lower %}
+                    <div class="profile-platform-icon {% if platform in ['vk', 'ok', 'telegram', 'instagram', 'facebook'] %}{{ platform }}{% else %}other{% endif %}">
+                        {% if platform == 'vk' %}VK{% elif platform == 'ok' %}OK{% elif platform == 'telegram' %}TG{% elif platform == 'instagram' %}IG{% elif platform == 'facebook' %}FB{% else %}@{% endif %}
+                    </div>
+                    <div class="profile-details">
+                        <div class="profile-name">{{ p.full_name or p.username or 'Неизвестно' }}</div>
+                        <div class="profile-username">@{{ p.username or p.get('platform_id', '') }}</div>
+                        {% if p.url %}
+                        <a href="{{ p.url }}" target="_blank" rel="noopener" class="profile-link">{{ p.url }}</a>
+                        {% endif %}
+                    </div>
+                    {% if p.is_confirmed %}
+                    <span class="confirmed-badge">Подтверждён</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="dossier-empty">Данные не обнаружены</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ================================================================ #}
+    {# 5. CONTACT INFORMATION                                           #}
+    {# ================================================================ #}
+    <div class="dossier-section">
+        <div class="dossier-section-header">
+            <div class="dossier-section-title">
+                <span class="dossier-section-number">4</span>
+                Контактная информация
+                {% if phones or emails %}<span class="dossier-section-count">({{ phones|length + emails|length }})</span>{% endif %}
+            </div>
+        </div>
+        <div class="dossier-section-body">
+            {% if phones or emails %}
+                {% for phone in phones %}
+                <div class="contact-row">
+                    <div>
+                        <span style="color:var(--text-muted);font-size:10px;margin-right:8px;">TEL</span>
+                        <span class="contact-value">{{ phone.number }}</span>
+                    </div>
+                    <div class="contact-meta">
+                        {% if phone.source %}
+                        <span class="contact-source">{{ phone.source }}</span>
+                        {% endif %}
+                        <span class="confidence-pill {{ phone.confidence|default('medium') }}">{{ phone.confidence|default('medium') }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% for email in emails %}
+                <div class="contact-row">
+                    <div>
+                        <span style="color:var(--text-muted);font-size:10px;margin-right:8px;">EMAIL</span>
+                        <span class="contact-value">{{ email.email }}</span>
+                    </div>
+                    <div class="contact-meta">
+                        {% if email.source %}
+                        <span class="contact-source">{{ email.source }}</span>
+                        {% endif %}
+                        <span class="confidence-pill {{ email.confidence|default('medium') }}">{{ email.confidence|default('medium') }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="dossier-empty">Данные не обнаружены</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ================================================================ #}
+    {# 6. SOCIAL NETWORK                                                #}
+    {# ================================================================ #}
+    <div class="dossier-section">
+        <div class="dossier-section-header">
+            <div class="dossier-section-title">
+                <span class="dossier-section-number">5</span>
+                Социальные связи
+                {% if friends_count %}<span class="dossier-section-count">({{ friends_count }} всего)</span>{% endif %}
+            </div>
+        </div>
+        <div class="dossier-section-body">
+            {% if friends_sample %}
+                {% for friend in friends_sample %}
+                <div class="friend-row">
+                    <div>
+                        <span class="friend-name">{{ friend.name }}</span>
+                        {% if friend.is_flagged %}
+                        <span class="friend-flagged">[ОТМЕЧЕН]</span>
+                        {% endif %}
+                    </div>
+                    <div class="friend-meta">
+                        {{ friend.platform|default('') }}{% if friend.city %}, {{ friend.city }}{% endif %}
+                        {% if friend.centrality_score %}
+                        <span style="margin-left:8px;font-size:10px;color:var(--violet);">CS: {{ '%.2f'|format(friend.centrality_score) }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% if friends_count > friends_sample|length %}
+                <div style="text-align:center;padding-top:10px;">
+                    <span style="font-size:11px;color:var(--text-muted);">... и ещё {{ friends_count - friends_sample|length }} связей</span>
+                </div>
+                {% endif %}
+            {% elif group_memberships %}
+                <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">Группы:</p>
+                {% for group in group_memberships[:10] %}
+                <div class="friend-row">
+                    <span class="friend-name">{{ group.name|default(group) if group is mapping else group }}</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="dossier-empty">Данные не обнаружены</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ================================================================ #}
+    {# 7. RISK ASSESSMENT                                               #}
+    {# ================================================================ #}
+    <div class="dossier-section">
+        <div class="dossier-section-header">
+            <div class="dossier-section-title">
+                <span class="dossier-section-number">6</span>
+                Оценка рисков
+            </div>
+        </div>
+        <div class="dossier-section-body">
+            <div class="risk-overview">
+                <div class="risk-level-badge {{ risk_level }}">
+                    {{ risk_label }}
+                </div>
+                <div class="risk-summary-text">
+                    {% if risk_level == 'high' %}
+                    Выявлены существенные факторы риска, требующие внимания. Рекомендуется углублённая проверка.
+                    {% elif risk_level == 'medium' %}
+                    Обнаружены факторы, которые могут представлять умеренный риск. Рекомендуется дополнительный анализ.
+                    {% elif risk_level == 'low' %}
+                    Выявлены незначительные факторы риска. Серьёзных угроз не обнаружено.
+                    {% else %}
+                    Значимых факторов риска не выявлено по результатам проведённого анализа.
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if risk_indicators %}
+                {% for risk in risk_indicators %}
+                <div class="risk-indicator-row {{ risk.severity|default('low') }}">
+                    <span class="risk-severity {{ risk.severity|default('low') }}">{{ risk.severity|default('low')|upper }}</span>
+                    <div>
+                        {% if risk.category %}
+                        <div class="risk-category">{{ risk.category }}</div>
+                        {% endif %}
+                        <div class="risk-description">{{ risk.description|default('Нет описания') }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="dossier-empty">Факторы риска не обнаружены</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ================================================================ #}
+    {# 8. BUSINESS & LEGAL                                              #}
+    {# ================================================================ #}
+    <div class="dossier-section">
+        <div class="dossier-section-header">
+            <div class="dossier-section-title">
+                <span class="dossier-section-number">7</span>
+                Бизнес и юридические связи
+                {% if business_records or court_records %}
+                <span class="dossier-section-count">({{ business_records|length }} компаний, {{ court_records|length }} дел)</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="dossier-section-body">
+            {# Business Records #}
+            {% if business_records %}
+            <p style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
+                Реестр ЕГРЮЛ/ЕГРИП ({{ business_records|length }}, действующих: {{ active_business_count }})
+            </p>
+                {% for br in business_records %}
+                {% set is_active = br.is_active %}
+                <div class="business-card{% if is_active %} active{% else %} liquidated{% endif %}">
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <div class="business-name">{{ br.company_name or br.short_name or 'Без названия' }}</div>
+                        {% if br.status %}
+                        <span class="business-status{% if is_active %} active{% else %} liquidated{% endif %}">
+                            {{ br.status }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="business-details">
+                        {% if br.inn %}
+                        <div class="business-detail">
+                            <span class="business-detail-label">ИНН: </span>
+                            <span class="business-detail-value">{{ br.inn }}</span>
+                        </div>
+                        {% endif %}
+                        {% if br.ogrn %}
+                        <div class="business-detail">
+                            <span class="business-detail-label">ОГРН: </span>
+                            <span class="business-detail-value">{{ br.ogrn }}</span>
+                        </div>
+                        {% endif %}
+                        {% if br.role %}
+                        <div class="business-detail">
+                            <span class="business-detail-label">Роль: </span>
+                            <span class="business-detail-value">{{ br.role_display }}</span>
+                        </div>
+                        {% endif %}
+                        {% if br.registration_date %}
+                        <div class="business-detail">
+                            <span class="business-detail-label">Рег.: </span>
+                            <span class="business-detail-value">{{ br.registration_date }}</span>
+                        </div>
+                        {% endif %}
+                        {% if br.legal_address %}
+                        <div class="business-detail">
+                            <span class="business-detail-label">Адрес: </span>
+                            <span class="business-detail-value">{{ br.legal_address[:80] }}{% if br.legal_address|length > 80 %}...{% endif %}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Реестр ЕГРЮЛ/ЕГРИП</p>
+                <div class="dossier-empty">Данные не обнаружены</div>
+            {% endif %}
+
+            {# Court Records #}
+            {% if court_records %}
+            <p style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:20px 0 12px;">
+                Судебные дела ({{ court_records|length }})
+            </p>
+                {% for cr in court_records %}
+                <div class="court-card{% if cr.is_negative %} negative{% endif %}">
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <div class="court-case-number">{{ cr.case_number or 'Б/Н' }}</div>
+                        {% if cr.source_url %}
+                        <a href="{{ cr.source_url }}" target="_blank" rel="noopener" class="profile-link no-print">Источник</a>
+                        {% endif %}
+                    </div>
+                    <div class="court-details">
+                        {% if cr.court_name %}
+                        <div class="court-detail">
+                            <span class="court-detail-label">Суд: </span>
+                            <span class="court-detail-value">{{ cr.court_name }}</span>
+                        </div>
+                        {% endif %}
+                        {% if cr.category %}
+                        <div class="court-detail">
+                            <span class="court-detail-label">Тип: </span>
+                            <span class="court-detail-value">{{ cr.category_display }}</span>
+                        </div>
+                        {% endif %}
+                        {% if cr.person_role %}
+                        <div class="court-detail">
+                            <span class="court-detail-label">Роль: </span>
+                            <span class="court-detail-value">{{ cr.role_display }}</span>
+                        </div>
+                        {% endif %}
+                        {% if cr.status %}
+                        <div class="court-detail">
+                            <span class="court-detail-label">Статус: </span>
+                            <span class="court-detail-value">{{ cr.status }}</span>
+                        </div>
+                        {% endif %}
+                        {% if cr.decision_date %}
+                        <div class="court-detail">
+                            <span class="court-detail-label">Дата решения: </span>
+                            <span class="court-detail-value">{{ cr.decision_date }}</span>
+                        </div>
+                        {% endif %}
+                        {% if cr.subject %}
+                        <div class="court-detail" style="flex-basis:100%;">
+                            <span class="court-detail-label">Предмет: </span>
+                            <span class="court-detail-value">{{ cr.subject[:150] }}{% if cr.subject|length > 150 %}...{% endif %}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% elif not business_records %}
+                {# Only show this if both are empty #}
+            {% else %}
+                <p style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:20px 0 12px;">Судебные дела</p>
+                <div class="dossier-empty">Данные не обнаружены</div>
+            {% endif %}
+
+            {# Enforcement Records #}
+            {% if enforcement_records %}
+            <p style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:20px 0 12px;">
+                Исполнительные производства ({{ enforcement_records|length }})
+            </p>
+                {% for proc in enforcement_records %}
+                <div class="business-card">
+                    <div class="business-name">{{ proc.debtor_name|default(proc.name|default('')) }}</div>
+                    <div class="business-details">
+                        {% if proc.amount %}
+                        <div class="business-detail">
+                            <span class="business-detail-label">Сумма: </span>
+                            <span class="business-detail-value" style="color:#eab308;">{{ proc.amount }} руб.</span>
+                        </div>
+                        {% endif %}
+                        {% if proc.status %}
+                        <div class="business-detail">
+                            <span class="business-detail-label">Статус: </span>
+                            <span class="business-detail-value">{{ proc.status }}</span>
+                        </div>
+                        {% endif %}
+                        {% if proc.department %}
+                        <div class="business-detail">
+                            <span class="business-detail-label">Отдел: </span>
+                            <span class="business-detail-value">{{ proc.department }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+
+            {% if not business_records and not court_records and not enforcement_records %}
+                <div class="dossier-empty">Данные не обнаружены</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ================================================================ #}
+    {# 9. TIMELINE                                                      #}
+    {# ================================================================ #}
+    <div class="dossier-section">
+        <div class="dossier-section-header">
+            <div class="dossier-section-title">
+                <span class="dossier-section-number">8</span>
+                Хронология расследования
+            </div>
+        </div>
+        <div class="dossier-section-body">
+            {% if timeline %}
+            <div class="timeline">
+                {% for event in timeline %}
+                <div class="timeline-event">
+                    <div class="timeline-dot phase-{{ event.phase }}"></div>
+                    {% if event.date %}
+                    <div class="timeline-date">{{ event.date.strftime('%d.%m.%Y %H:%M') }}</div>
+                    {% endif %}
+                    <div class="timeline-label">{{ event.label }}</div>
+                    {% if event.detail %}
+                    <div class="timeline-detail">{{ event.detail }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+                <div class="dossier-empty">Хронология недоступна</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ================================================================ #}
+    {# 10. METHODOLOGY                                                  #}
+    {# ================================================================ #}
+    <div class="dossier-section">
+        <div class="dossier-section-header">
+            <div class="dossier-section-title">
+                <span class="dossier-section-number">9</span>
+                Методология и источники
+            </div>
+        </div>
+        <div class="dossier-section-body">
+            {% if methodology %}
+                {% for method in methodology %}
+                    {% if method.used %}
+                    <div class="method-row">
+                        <div class="method-tool">{{ method.tool }}</div>
+                        <div class="method-description">{{ method.description }}</div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="dossier-empty">Информация о методологии недоступна</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ---- Footer ---- #}
+    <div class="dossier-footer">
+        <div>IBP - Identity-Based Profiler | ID: {{ investigation_id }} | {{ generated_at.strftime('%d.%m.%Y %H:%M') }}</div>
+        <div style="margin-top:4px;">Только для авторизованного использования. Конфиденциальный документ.</div>
+    </div>
+
+</div>
+{% endblock %}

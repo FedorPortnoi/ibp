@@ -114,7 +114,7 @@ def new_investigation():
 @phase1_bp.route('/search/<investigation_id>')
 def buratino_search_results(investigation_id):
     """
-    Run VK People Search and show results for selection.
+    Run VK + OK People Search and show results for selection.
     """
     investigation = Investigation.query.get_or_404(investigation_id)
 
@@ -125,16 +125,16 @@ def buratino_search_results(investigation_id):
     age_to = stats.get('age_to')
 
     # Run VK search if not already done
-    existing_profiles = SocialProfile.query.filter_by(
+    existing_vk = SocialProfile.query.filter_by(
         investigation_id=investigation_id,
         platform='vk'
     ).all()
 
-    if not existing_profiles:
+    if not existing_vk:
         # Import and run Buratino VK search
         from app.services.phase1.buratino_vk_search import buratino_vk_search
 
-        saved_profiles = buratino_vk_search.search_and_save(
+        buratino_vk_search.search_and_save(
             investigation_id=investigation_id,
             query=investigation.input_name,
             city=city,
@@ -143,14 +143,39 @@ def buratino_search_results(investigation_id):
             count=50
         )
 
-        # Reload from DB
-        existing_profiles = SocialProfile.query.filter_by(
-            investigation_id=investigation_id,
-            platform='vk'
-        ).order_by(SocialProfile.name_similarity.desc()).all()
+    # Run OK search if not already done
+    existing_ok = SocialProfile.query.filter_by(
+        investigation_id=investigation_id,
+        platform='ok'
+    ).all()
+
+    if not existing_ok:
+        try:
+            from app.services.phase1.ok_search_integration import ok_search_integration
+            ok_search_integration.search_and_save(
+                investigation_id=investigation_id,
+                query=investigation.input_name,
+                city=city,
+                age_from=age_from,
+                age_to=age_to,
+                count=20
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"OK search failed: {e}")
+
+    # Reload all profiles (VK + OK) sorted by similarity
+    all_profiles = SocialProfile.query.filter_by(
+        investigation_id=investigation_id
+    ).filter(
+        SocialProfile.platform.in_(['vk', 'ok'])
+    ).order_by(SocialProfile.name_similarity.desc()).all()
 
     # Update search stats
-    stats['vk_results_count'] = len(existing_profiles)
+    vk_count = sum(1 for p in all_profiles if p.platform == 'vk')
+    ok_count = sum(1 for p in all_profiles if p.platform == 'ok')
+    stats['vk_results_count'] = vk_count
+    stats['ok_results_count'] = ok_count
     stats['search_completed_at'] = datetime.now().isoformat()
     investigation.phase1_stats = stats
     db.session.commit()
@@ -158,7 +183,7 @@ def buratino_search_results(investigation_id):
     return render_template(
         'phase1_buratino_results.html',
         investigation=investigation,
-        profiles=existing_profiles,
+        profiles=all_profiles,
         search_name=investigation.input_name,
         city=city,
         age_from=age_from,
@@ -234,12 +259,13 @@ def refresh_search(investigation_id):
     age_from = request.json.get('age_from')
     age_to = request.json.get('age_to')
 
-    # Delete old search results
+    # Delete old unconfirmed search results (VK + OK)
     SocialProfile.query.filter_by(
         investigation_id=investigation_id,
-        platform='vk',
         is_confirmed=False
-    ).delete()
+    ).filter(
+        SocialProfile.platform.in_(['vk', 'ok'])
+    ).delete(synchronize_session='fetch')
     db.session.commit()
 
     # Update stats
@@ -250,9 +276,8 @@ def refresh_search(investigation_id):
     investigation.phase1_stats = stats
     db.session.commit()
 
-    # Run new search
+    # Run new VK search
     from app.services.phase1.buratino_vk_search import buratino_vk_search
-
     saved_profiles = buratino_vk_search.search_and_save(
         investigation_id=investigation_id,
         query=investigation.input_name,
@@ -261,6 +286,21 @@ def refresh_search(investigation_id):
         age_to=age_to,
         count=50
     )
+
+    # Run new OK search
+    try:
+        from app.services.phase1.ok_search_integration import ok_search_integration
+        ok_saved = ok_search_integration.search_and_save(
+            investigation_id=investigation_id,
+            query=investigation.input_name,
+            city=city,
+            age_from=age_from,
+            age_to=age_to,
+            count=20
+        )
+        saved_profiles.extend(ok_saved)
+    except Exception:
+        pass
 
     return jsonify({
         'success': True,
@@ -274,6 +314,59 @@ def get_upload(filename):
     """Serve uploaded files."""
     upload_folder = get_upload_folder()
     return send_from_directory(upload_folder, filename)
+
+
+@phase1_bp.route('/photo-search', methods=['POST'])
+def photo_search():
+    """
+    Photo-first investigation: upload photo -> face search -> results.
+    """
+    from app.services.photo_investigation import photo_investigation
+
+    if 'photo' not in request.files:
+        return jsonify({'error': 'Фото не загружено'}), 400
+
+    file = request.files['photo']
+    error = photo_investigation.validate_photo(file)
+    if error:
+        return jsonify({'error': error}), 400
+
+    upload_folder = get_upload_folder()
+    photo_path = photo_investigation.save_photo(file, upload_folder)
+
+    # Search for face matches
+    matches = photo_investigation.search_by_photo(photo_path)
+
+    return jsonify({
+        'success': True,
+        'photo_path': photo_path,
+        'matches': matches,
+        'count': len(matches),
+    })
+
+
+@phase1_bp.route('/photo-select', methods=['POST'])
+def photo_select():
+    """
+    User selects a match from photo search results.
+    Creates investigation and redirects to Phase 2.
+    """
+    from app.services.photo_investigation import photo_investigation
+
+    data = request.get_json()
+    if not data or 'match' not in data:
+        return jsonify({'error': 'Не выбран профиль'}), 400
+
+    match = data['match']
+    photo_path = data.get('photo_path', '')
+
+    investigation_id = photo_investigation.create_investigation_from_match(match, photo_path)
+
+    return jsonify({
+        'success': True,
+        'investigation_id': investigation_id,
+        'redirect': f'/phase2/analyze/{investigation_id}',
+    })
 
 
 @phase1_bp.route('/investigations')

@@ -7,14 +7,14 @@
     <!-- Header -->
     <div class="text-center mb-8">
         <h1 class="text-3xl font-bold text-violet mb-2 font-display">Новое расследование</h1>
-        <p class="text-gray-400">Введите имя объекта для поиска его профилей в соцсетях</p>
+        <p class="text-gray-400">Найдите человека по имени или фотографии</p>
     </div>
 
     <!-- Progress Steps -->
     <div class="flex items-center justify-center mb-8 space-x-2">
         <div class="flex items-center">
             <div class="w-8 h-8 rounded-full bg-violet flex items-center justify-center text-white font-bold text-sm">1</div>
-            <span class="ml-2 text-violet font-medium">Ввод имени</span>
+            <span class="ml-2 text-violet font-medium">Ввод данных</span>
         </div>
         <div class="w-8 h-px bg-gray-600"></div>
         <div class="flex items-center opacity-50">
@@ -28,8 +28,20 @@
         </div>
     </div>
 
-    <!-- Form Card -->
-    <div class="bg-bg-panel rounded-xl border border-violet-200 p-6">
+    <!-- Search Mode Tabs -->
+    <div class="flex mb-4 bg-bg-panel rounded-lg border border-violet-200 p-1">
+        <button id="tabName" onclick="switchTab('name')"
+                class="flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors bg-violet text-white">
+            Поиск по имени
+        </button>
+        <button id="tabPhoto" onclick="switchTab('photo')"
+                class="flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors text-gray-400 hover:text-white">
+            Поиск по фото
+        </button>
+    </div>
+
+    <!-- ===== NAME SEARCH TAB ===== -->
+    <div id="nameSearchPanel" class="bg-bg-panel rounded-xl border border-violet-200 p-6">
         <form id="newInvestigationForm" class="space-y-6">
             <!-- Target Name -->
             <div>
@@ -101,7 +113,7 @@
                 <div class="border-2 border-dashed border-violet-200 rounded-lg p-6 text-center hover:border-violet transition-colors cursor-pointer" id="dropzone">
                     <input type="file" id="photo" name="photo" accept="image/*" class="hidden">
                     <div id="dropzoneContent">
-                        <span class="text-3xl mb-2 block">📷</span>
+                        <span class="text-3xl mb-2 block">&#x1F4F7;</span>
                         <p class="text-gray-400 text-sm">Перетащите фото или нажмите для загрузки</p>
                         <p class="text-xs text-gray-500 mt-1">Для сопоставления лиц в результатах поиска</p>
                     </div>
@@ -114,36 +126,79 @@
 
             <!-- Submit Button -->
             <button type="submit" id="submitBtn" class="w-full bg-violet hover:bg-violet-dim text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2">
-                <span>Поиск профилей ВК</span>
-                <span>→</span>
+                <span>Поиск профилей ВК + ОК</span>
+                <span>&rarr;</span>
             </button>
         </form>
 
         <!-- Loading State -->
         <div id="loadingState" class="hidden text-center py-8">
-            <div class="animate-spin text-4xl mb-4">🔍</div>
-            <p class="text-violet font-medium">Поиск во ВКонтакте...</p>
+            <div class="animate-spin text-4xl mb-4">&#x1F50D;</div>
+            <p class="text-violet font-medium">Поиск во ВКонтакте и Одноклассниках...</p>
             <p class="text-gray-500 text-sm mt-2">Это может занять несколько секунд</p>
+        </div>
+    </div>
+
+    <!-- ===== PHOTO SEARCH TAB ===== -->
+    <div id="photoSearchPanel" class="bg-bg-panel rounded-xl border border-violet-200 p-6 hidden">
+        <div class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Загрузите фотографию лица
+                </label>
+                <div class="border-2 border-dashed border-violet-200 rounded-lg p-8 text-center hover:border-violet transition-colors cursor-pointer" id="photoDropzone">
+                    <input type="file" id="photoSearchInput" accept=".jpg,.jpeg,.png" class="hidden">
+                    <div id="photoDropzoneContent">
+                        <span class="text-4xl mb-3 block">&#x1F464;</span>
+                        <p class="text-gray-300 font-medium">Перетащите фото или нажмите для загрузки</p>
+                        <p class="text-xs text-gray-500 mt-2">JPG или PNG, до 10 МБ</p>
+                    </div>
+                    <div id="photoSearchPreview" class="hidden">
+                        <img id="photoSearchPreviewImg" src="" alt="Preview" class="max-h-48 mx-auto rounded-lg mb-3">
+                        <button type="button" id="removeSearchPhoto" class="text-red-400 text-sm hover:text-red-300">Удалить</button>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" id="photoSearchBtn" onclick="startPhotoSearch()" disabled
+                    class="w-full bg-violet hover:bg-violet-dim text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                <span>Найти по лицу</span>
+                <span>&rarr;</span>
+            </button>
+        </div>
+
+        <!-- Photo Search Loading -->
+        <div id="photoLoadingState" class="hidden text-center py-8">
+            <div class="animate-spin text-4xl mb-4">&#x1F50D;</div>
+            <p class="text-violet font-medium">Поиск лица в базах VK и OK...</p>
+            <p class="text-gray-500 text-sm mt-2">Анализ 300+ млн профилей</p>
+        </div>
+
+        <!-- Photo Search Results -->
+        <div id="photoResults" class="hidden mt-6">
+            <h3 class="text-lg font-semibold text-white mb-4">Найденные совпадения</h3>
+            <div id="photoResultsGrid" class="space-y-3"></div>
         </div>
     </div>
 
     <!-- Info Panel -->
     <div class="mt-6 bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
         <h3 class="text-violet font-semibold mb-2 flex items-center">
-            <span class="mr-2">💡</span> Как это работает
+            <span class="mr-2">&#x1F4A1;</span> Как это работает
         </h3>
         <ul class="text-sm text-gray-400 space-y-1">
-            <li>• Мы ищем людей во ВКонтакте по указанному имени</li>
-            <li>• Результаты ранжируются по сходству имён</li>
-            <li>• Вы выбираете правильный профиль из списка</li>
-            <li>• Затем мы извлекаем всю доступную информацию</li>
+            <li>&bull; Поиск по имени: ищем людей в ВКонтакте и Одноклассниках</li>
+            <li>&bull; Поиск по фото: распознавание лиц в 300+ млн профилей</li>
+            <li>&bull; Результаты ранжируются по сходству</li>
+            <li>&bull; Вы выбираете правильный профиль из списка</li>
+            <li>&bull; Затем мы извлекаем всю доступную информацию</li>
         </ul>
     </div>
 
     <!-- Link to legacy search -->
     <div class="mt-4 text-center">
         <a href="/phase1" class="text-sm text-gray-500 hover:text-violet-bright">
-            Или используйте классический поиск (по имени пользователя) →
+            Или используйте классический поиск (по имени пользователя) &rarr;
         </a>
     </div>
 </div>
@@ -152,6 +207,27 @@
 
 {% block scripts %}
 <script>
+    // ===== Tab Switching =====
+    function switchTab(tab) {
+        const namePanel = document.getElementById('nameSearchPanel');
+        const photoPanel = document.getElementById('photoSearchPanel');
+        const tabName = document.getElementById('tabName');
+        const tabPhoto = document.getElementById('tabPhoto');
+
+        if (tab === 'name') {
+            namePanel.classList.remove('hidden');
+            photoPanel.classList.add('hidden');
+            tabName.className = 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors bg-violet text-white';
+            tabPhoto.className = 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors text-gray-400 hover:text-white';
+        } else {
+            namePanel.classList.add('hidden');
+            photoPanel.classList.remove('hidden');
+            tabPhoto.className = 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors bg-violet text-white';
+            tabName.className = 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors text-gray-400 hover:text-white';
+        }
+    }
+
+    // ===== Name Search Tab =====
     const form = document.getElementById('newInvestigationForm');
     const submitBtn = document.getElementById('submitBtn');
     const loadingState = document.getElementById('loadingState');
@@ -162,7 +238,6 @@
     const previewImage = document.getElementById('previewImage');
     const removePhotoBtn = document.getElementById('removePhoto');
 
-    // Photo upload handling
     dropzone.addEventListener('click', () => photoInput.click());
 
     dropzone.addEventListener('dragover', (e) => {
@@ -206,7 +281,6 @@
         photoPreview.classList.add('hidden');
     });
 
-    // Form submission
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -216,7 +290,6 @@
             return;
         }
 
-        // Show loading
         form.classList.add('hidden');
         loadingState.classList.remove('hidden');
 
@@ -241,5 +314,188 @@
             loadingState.classList.add('hidden');
         }
     });
+
+    // ===== Photo Search Tab =====
+    const photoDropzone = document.getElementById('photoDropzone');
+    const photoSearchInput = document.getElementById('photoSearchInput');
+    const photoDropzoneContent = document.getElementById('photoDropzoneContent');
+    const photoSearchPreview = document.getElementById('photoSearchPreview');
+    const photoSearchPreviewImg = document.getElementById('photoSearchPreviewImg');
+    const removeSearchPhotoBtn = document.getElementById('removeSearchPhoto');
+    const photoSearchBtn = document.getElementById('photoSearchBtn');
+
+    let photoSearchFile = null;
+    let photoSearchResults = null;
+
+    photoDropzone.addEventListener('click', () => photoSearchInput.click());
+
+    photoDropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        photoDropzone.classList.add('border-violet', 'bg-violet-50');
+    });
+
+    photoDropzone.addEventListener('dragleave', () => {
+        photoDropzone.classList.remove('border-violet', 'bg-violet-50');
+    });
+
+    photoDropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        photoDropzone.classList.remove('border-violet', 'bg-violet-50');
+        if (e.dataTransfer.files.length) {
+            handlePhotoFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    photoSearchInput.addEventListener('change', (e) => {
+        if (e.target.files.length) {
+            handlePhotoFile(e.target.files[0]);
+        }
+    });
+
+    function handlePhotoFile(file) {
+        const validTypes = ['image/jpeg', 'image/png'];
+        if (!validTypes.includes(file.type)) {
+            alert('Поддерживаются только JPG и PNG');
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            alert('Файл слишком большой. Максимум 10 МБ.');
+            return;
+        }
+
+        photoSearchFile = file;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            photoSearchPreviewImg.src = e.target.result;
+            photoDropzoneContent.classList.add('hidden');
+            photoSearchPreview.classList.remove('hidden');
+            photoSearchBtn.disabled = false;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    removeSearchPhotoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        photoSearchFile = null;
+        photoSearchInput.value = '';
+        photoDropzoneContent.classList.remove('hidden');
+        photoSearchPreview.classList.add('hidden');
+        photoSearchBtn.disabled = true;
+        document.getElementById('photoResults').classList.add('hidden');
+    });
+
+    async function startPhotoSearch() {
+        if (!photoSearchFile) return;
+
+        const formContent = document.querySelector('#photoSearchPanel > div:first-child');
+        const loadingEl = document.getElementById('photoLoadingState');
+        const resultsEl = document.getElementById('photoResults');
+
+        formContent.classList.add('hidden');
+        photoSearchBtn.classList.add('hidden');
+        loadingEl.classList.remove('hidden');
+        resultsEl.classList.add('hidden');
+
+        const formData = new FormData();
+        formData.append('photo', photoSearchFile);
+
+        try {
+            const response = await fetch('/phase1/photo-search', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || 'Поиск не удался');
+            }
+
+            photoSearchResults = data;
+            renderPhotoResults(data);
+
+            loadingEl.classList.add('hidden');
+            formContent.classList.remove('hidden');
+            photoSearchBtn.classList.remove('hidden');
+            resultsEl.classList.remove('hidden');
+
+        } catch (error) {
+            alert('Ошибка: ' + error.message);
+            loadingEl.classList.add('hidden');
+            formContent.classList.remove('hidden');
+            photoSearchBtn.classList.remove('hidden');
+        }
+    }
+
+    function renderPhotoResults(data) {
+        const grid = document.getElementById('photoResultsGrid');
+        grid.innerHTML = '';
+
+        if (!data.matches || data.matches.length === 0) {
+            grid.innerHTML = '<p class="text-gray-500 text-center py-4">Совпадений не найдено</p>';
+            return;
+        }
+
+        data.matches.forEach((match, idx) => {
+            const similarity = Math.round((match.similarity_score || 0) * 100);
+            const platform = match.platform === 'ok' ? 'OK' : 'VK';
+            const platformColor = match.platform === 'ok' ? 'bg-orange-500' : 'bg-blue-500';
+
+            const card = document.createElement('div');
+            card.className = 'flex items-center gap-4 p-4 bg-bg-dark rounded-lg border border-violet-200 hover:border-violet cursor-pointer transition-all';
+            card.onclick = () => selectPhotoMatch(idx);
+
+            card.innerHTML = `
+                <div class="flex-shrink-0">
+                    ${match.photo_url
+                        ? `<img src="${match.photo_url}" class="w-14 h-14 rounded-full object-cover" onerror="this.src='https://vk.com/images/camera_200.png'">`
+                        : `<div class="w-14 h-14 rounded-full bg-violet flex items-center justify-center text-xl text-white font-bold">${(match.display_name || '?')[0]}</div>`
+                    }
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="font-medium text-white truncate">${match.display_name || 'Unknown'}</span>
+                        <span class="${platformColor} text-white text-xs px-2 py-0.5 rounded-full">${platform}</span>
+                    </div>
+                    <div class="text-sm text-gray-400 truncate">${match.city || ''} ${match.age ? match.age + ' лет' : ''}</div>
+                </div>
+                <div class="flex-shrink-0 text-right">
+                    <div class="text-lg font-bold ${similarity >= 80 ? 'text-green-400' : similarity >= 50 ? 'text-yellow-400' : 'text-gray-400'}">${similarity}%</div>
+                    <div class="text-xs text-gray-500">сходство</div>
+                </div>
+            `;
+
+            grid.appendChild(card);
+        });
+    }
+
+    async function selectPhotoMatch(idx) {
+        if (!photoSearchResults || !photoSearchResults.matches[idx]) return;
+
+        const match = photoSearchResults.matches[idx];
+        const confirmed = confirm(`Выбрать "${match.display_name || 'Unknown'}" (${match.platform === 'ok' ? 'OK' : 'VK'}) для расследования?`);
+        if (!confirmed) return;
+
+        try {
+            const response = await fetch('/phase1/photo-select', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    match: match,
+                    photo_path: photoSearchResults.photo_path
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.redirect) {
+                window.location.href = data.redirect;
+            } else {
+                throw new Error(data.error || 'Ошибка создания расследования');
+            }
+        } catch (error) {
+            alert('Ошибка: ' + error.message);
+        }
+    }
 </script>
 {% endblock %}
