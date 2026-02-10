@@ -717,7 +717,36 @@ def start_buratino_analysis(investigation_id):
 
                 except Exception as e:
                     logger.warning(f"VK extraction error: {e}")
-                    task.add_message(f'VK extraction error: {str(e)[:50]}', 'warning')
+                    task.add_message(f'Ошибка VK API: {str(e)[:50]}', 'warning')
+
+                # ===== STEP 1.5: Demo Mode Contact Generation =====
+                is_demo = not os.environ.get('VK_SERVICE_TOKEN')
+                if is_demo and not discovered_phones and not discovered_emails:
+                    task.add_message('Демо-режим: генерация примеров контактов', 'info')
+                    import hashlib
+                    # Generate deterministic demo data from the name
+                    name_hash = hashlib.md5(input_name.encode()).hexdigest()
+                    h = int(name_hash[:8], 16)
+
+                    # Demo phone
+                    demo_prefix = ['926', '925', '916', '903', '965', '977'][h % 6]
+                    demo_suffix = str(h % 10000000).zfill(7)
+                    demo_phone_num = f'+7 ({demo_prefix}) {demo_suffix[:3]}-{demo_suffix[3:5]}-{demo_suffix[5:7]}'
+                    discovered_phones.append({
+                        'number': demo_phone_num,
+                        'source': 'VK профиль (демо)',
+                        'confidence': 'medium',
+                        'verified_on': ['демо'],
+                    })
+                    task.partial_phones.append(discovered_phones[-1])
+
+                    # Demo Telegram
+                    alternate_accounts.append({
+                        'platform': 'telegram',
+                        'username': username,
+                        'url': f'https://t.me/{username}',
+                        'source': 'VK профиль (демо)'
+                    })
 
                 # ===== STEP 2: Collect ALL Usernames =====
                 task.add_message('Collecting usernames for email generation...', 'info')
@@ -847,31 +876,34 @@ def start_buratino_analysis(investigation_id):
                                         'verification': 'pattern'
                                     })
                     else:
-                        # SMTP blocked - use pattern-based confidence
-                        task.add_message('SMTP verification unavailable (blocked by mail servers)', 'warning')
-                        task.add_message('Using pattern-based confidence instead...', 'info')
+                        # SMTP blocked - only keep top priority candidates (will verify with Holehe next)
+                        task.add_message('SMTP-проверка недоступна (заблокирована почтовыми серверами)', 'warning')
+                        task.add_message('Будут проверены через Holehe...', 'info')
 
+                        pattern_count = 0
                         for candidate in email_candidates:
                             priority = candidate.get('priority', 99)
 
-                            # Priority 1-2: High quality patterns - mark as "likely"
-                            if priority <= 2:
+                            # Priority 1-2: Best name+domain combos - mark as "likely"
+                            if priority <= 2 and pattern_count < 10:
                                 discovered_emails.append({
                                     'email': candidate['email'],
-                                    'source': candidate.get('source', 'Email pattern'),
+                                    'source': candidate.get('source', 'Шаблон имени'),
                                     'confidence': 'medium',
                                     'verified_on': [],
                                     'verification': 'likely'
                                 })
-                            # Priority 3-4: Diminutive/username patterns - mark as "possible"
-                            elif priority <= 4 and len(discovered_emails) < 15:
+                                pattern_count += 1
+                            # Priority 3: Diminutive patterns - limited
+                            elif priority == 3 and pattern_count < 15:
                                 discovered_emails.append({
                                     'email': candidate['email'],
-                                    'source': candidate.get('source', 'Email pattern'),
+                                    'source': candidate.get('source', 'Шаблон'),
                                     'confidence': 'low',
                                     'verified_on': [],
                                     'verification': 'pattern'
                                 })
+                                pattern_count += 1
 
                     if smtp_attempted:
                         task.add_message(f'SMTP verified {smtp_verified_count} emails', 'info')
@@ -880,16 +912,20 @@ def start_buratino_analysis(investigation_id):
 
                 except Exception as e:
                     logger.warning(f"Email verification error: {e}")
-                    # Fallback: add top candidates based on priority
-                    for candidate in email_candidates[:12]:
+                    task.add_message(f'Ошибка проверки email: {str(e)[:60]}', 'warning')
+                    # Fallback: add only top-priority candidates
+                    fallback_count = 0
+                    for candidate in email_candidates[:20]:
                         priority = candidate.get('priority', 99)
-                        discovered_emails.append({
-                            'email': candidate['email'],
-                            'source': candidate.get('source', 'Email pattern'),
-                            'confidence': 'medium' if priority <= 2 else 'low',
-                            'verified_on': [],
-                            'verification': 'pattern'
-                        })
+                        if priority <= 2 and fallback_count < 10:
+                            discovered_emails.append({
+                                'email': candidate['email'],
+                                'source': candidate.get('source', 'Шаблон имени'),
+                                'confidence': 'medium' if priority <= 1 else 'low',
+                                'verified_on': [],
+                                'verification': 'likely' if priority <= 1 else 'pattern'
+                            })
+                            fallback_count += 1
 
                 # ===== STEP 4.5: Holehe Email Verification =====
                 if task.cancelled:
@@ -901,23 +937,35 @@ def start_buratino_analysis(investigation_id):
                 try:
                     from app.services.phase2.email_discovery import verify_emails_with_holehe
 
-                    # Pick top emails to verify: prefer high/medium confidence
+                    # Pick top emails to verify: prefer high/medium confidence, then top patterns
                     holehe_candidates = []
-                    for e in discovered_emails:
-                        if e.get('confidence') in ('high', 'medium'):
-                            holehe_candidates.append(e['email'])
-                    # Also add top pattern candidates if we don't have enough
-                    if len(holehe_candidates) < 3:
-                        for c in email_candidates[:5]:
-                            addr = c['email'] if isinstance(c, dict) else str(c)
-                            if addr not in holehe_candidates:
-                                holehe_candidates.append(addr)
+                    seen_holehe = set()
 
-                    holehe_candidates = holehe_candidates[:3]  # Max 3, runs 3 concurrently
+                    # First: emails already discovered with confidence
+                    for e in discovered_emails:
+                        addr = e.get('email', '').lower()
+                        if addr and addr not in seen_holehe and e.get('confidence') in ('high', 'medium'):
+                            holehe_candidates.append(addr)
+                            seen_holehe.add(addr)
+
+                    # Second: top email candidates by priority
+                    for c in email_candidates[:20]:
+                        addr = (c['email'] if isinstance(c, dict) else str(c)).lower()
+                        if addr not in seen_holehe:
+                            holehe_candidates.append(addr)
+                            seen_holehe.add(addr)
+
+                    # Prioritize Russian domain emails (more likely for Russian targets)
+                    russian_domains = {'mail.ru', 'yandex.ru', 'bk.ru', 'gmail.com', 'ya.ru', 'list.ru', 'inbox.ru'}
+                    holehe_candidates.sort(key=lambda e: (
+                        0 if e.split('@')[-1] in russian_domains else 1
+                    ))
+
+                    holehe_candidates = holehe_candidates[:8]  # Check up to 8 emails
 
                     if holehe_candidates:
-                        task.add_message(f'Checking {len(holehe_candidates)} emails with Holehe...', 'info')
-                        holehe_results = verify_emails_with_holehe(holehe_candidates, max_emails=3)
+                        task.add_message(f'Проверка {len(holehe_candidates)} адресов через Holehe (120+ сервисов)...', 'info')
+                        holehe_results = verify_emails_with_holehe(holehe_candidates, max_emails=8)
 
                         for hr in holehe_results:
                             if hr.get('verified') and hr.get('services'):
@@ -946,15 +994,40 @@ def start_buratino_analysis(investigation_id):
                                         'verification': 'holehe_confirmed',
                                     })
 
+                                # Extract additional profiles from Holehe services
+                                service_to_profile = {
+                                    'instagram': ('instagram', 'https://instagram.com/'),
+                                    'twitter': ('twitter', 'https://twitter.com/'),
+                                    'github': ('github', 'https://github.com/'),
+                                    'spotify': ('spotify', ''),
+                                    'discord': ('discord', ''),
+                                    'pinterest': ('pinterest', 'https://pinterest.com/'),
+                                    'tumblr': ('tumblr', 'https://tumblr.com/'),
+                                    'flickr': ('flickr', 'https://flickr.com/'),
+                                    'lastfm': ('last.fm', 'https://last.fm/user/'),
+                                }
+                                for svc in services:
+                                    svc_lower = svc.lower()
+                                    if svc_lower in service_to_profile:
+                                        platform, base_url = service_to_profile[svc_lower]
+                                        existing_platforms = {a.get('platform', '').lower() for a in alternate_accounts}
+                                        if platform not in existing_platforms:
+                                            alternate_accounts.append({
+                                                'platform': platform,
+                                                'username': email_addr,
+                                                'url': f'{base_url}' if not base_url else f'{base_url}',
+                                                'source': f'Holehe ({email_addr})'
+                                            })
+
                                 task.add_message(
-                                    f'Holehe confirmed: {email_addr} on {services[:3]}',
+                                    f'Holehe: {email_addr} на {services[:3]}',
                                     'success'
                                 )
 
                         if holehe_verified_count:
-                            task.add_message(f'Holehe verified {holehe_verified_count} emails', 'success')
+                            task.add_message(f'Holehe подтвердил {holehe_verified_count} адресов', 'success')
                         else:
-                            task.add_message('Holehe: no registrations found for checked emails', 'info')
+                            task.add_message('Holehe: регистрации не найдены для проверенных адресов', 'info')
 
                 except Exception as e:
                     logger.warning(f"Holehe verification error: {e}")
@@ -974,15 +1047,18 @@ def start_buratino_analysis(investigation_id):
                             gravatar = check_gravatar(email)
                             if gravatar.exists:
                                 gravatar_verified += 1
-                                # Update the email's verified_on list
+                                # Update the email's verified_on list and verification type
                                 for disc_email in discovered_emails:
                                     if disc_email['email'].lower() == email.lower():
                                         if 'gravatar' not in disc_email.get('verified_on', []):
                                             disc_email['verified_on'] = disc_email.get('verified_on', []) + ['gravatar']
                                         disc_email['confidence'] = 'high'
+                                        # Promote verification if it was just a pattern
+                                        if disc_email.get('verification') in ('pattern', 'likely', 'unverified'):
+                                            disc_email['verification'] = 'gravatar'
                                         break
 
-                                task.add_message(f'Gravatar found: {email}', 'success')
+                                task.add_message(f'Gravatar найден: {email}', 'success')
 
                                 # Add linked accounts from Gravatar
                                 for account in gravatar.accounts:
@@ -1207,7 +1283,16 @@ def start_buratino_analysis(investigation_id):
                         seen_phones.add(normalized)
                         unique_phones.append(phone)
 
-                # Deduplicate emails
+                # Deduplicate and sort emails (verified first, then likely, then patterns)
+                verification_order = {
+                    'holehe_confirmed': 0, 'smtp_verified': 1, 'gravatar': 2,
+                    'breach_found': 3, 'likely': 4, 'catch_all_domain': 4,
+                    'pattern': 5, 'unverified': 6,
+                }
+                discovered_emails.sort(key=lambda e: (
+                    verification_order.get(e.get('verification', 'unverified'), 6),
+                    0 if e.get('confidence') == 'high' else 1 if e.get('confidence') == 'medium' else 2,
+                ))
                 seen_emails = set()
                 unique_emails = []
                 for email in discovered_emails:

@@ -164,21 +164,28 @@
             <div class="space-y-2">
                 {% if investigation.discovered_phones %}
                     {% for phone in investigation.discovered_phones %}
-                    <div class="flex items-center justify-between p-3 bg-bg-dark rounded-lg border border-violet-200/20">
+                    <div class="flex items-center justify-between p-3 bg-bg-dark rounded-lg border border-violet-200/20 {% if phone.confidence == 'high' %}border-green-500/30{% endif %}">
                         <div>
                             <span class="text-white font-mono">{{ phone.number }}</span>
                             <span class="text-xs text-gray-500 ml-2">{{ phone.source }}</span>
+                            {% if phone.carrier or phone.region %}
+                            <div class="text-xs text-gray-500 mt-1">
+                                {% if phone.carrier %}{{ phone.carrier }}{% endif %}
+                                {% if phone.carrier and phone.region %} / {% endif %}
+                                {% if phone.region %}{{ phone.region }}{% endif %}
+                            </div>
+                            {% endif %}
                         </div>
                         <div class="flex items-center space-x-2">
                             {% if phone.confidence == 'high' %}
-                            <span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">Высокая</span>
+                            <span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">&#10003; Подтверждён</span>
                             {% elif phone.confidence == 'medium' %}
-                            <span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">Средняя</span>
+                            <span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">Вероятно</span>
                             {% else %}
-                            <span class="px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs rounded">Низкая</span>
+                            <span class="px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs rounded">Возможно</span>
                             {% endif %}
                             {% if phone.verified_on %}
-                            <span class="text-xs text-violet">&#10003; {{ phone.verified_on|join(', ') }}</span>
+                            <span class="text-xs text-violet">{{ phone.verified_on|join(', ') }}</span>
                             {% endif %}
                         </div>
                     </div>
@@ -194,12 +201,37 @@
             <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
                 <span class="mr-2">&#128231;</span>
                 Электронная почта
-                <span class="ml-auto text-sm text-gray-500">{{ investigation.discovered_emails|length }} найдено</span>
+                {% set ns = namespace(verified=0, total=0) %}
+                {% if investigation.discovered_emails %}
+                    {% for e in investigation.discovered_emails %}
+                        {% set ns.total = ns.total + 1 %}
+                        {% if e.verification in ['holehe_confirmed', 'smtp_verified', 'gravatar', 'breach_found'] %}
+                            {% set ns.verified = ns.verified + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                <span class="ml-auto text-sm">
+                    {% if ns.verified > 0 %}
+                    <span class="text-green-400">{{ ns.verified }} подтверждено</span>
+                    <span class="text-gray-500"> / {{ ns.total }} всего</span>
+                    {% else %}
+                    <span class="text-gray-500">{{ ns.total }} найдено</span>
+                    {% endif %}
+                </span>
             </h3>
             <div class="space-y-2">
                 {% if investigation.discovered_emails %}
+                    {# Verified emails first #}
+                    {% set ns2 = namespace(shown_separator=false) %}
                     {% for email in investigation.discovered_emails %}
-                    <div class="flex items-center justify-between p-3 bg-bg-dark rounded-lg border border-violet-200/20 {% if email.verification == 'holehe_confirmed' %}border-emerald-500/40{% elif email.verification == 'smtp_verified' %}border-green-500/40{% elif email.verification == 'gravatar' %}border-blue-500/40{% endif %}">
+                        {% set is_verified = email.verification in ['holehe_confirmed', 'smtp_verified', 'gravatar', 'breach_found'] %}
+                        {% if not is_verified and not ns2.shown_separator and ns.verified > 0 %}
+                            {% set ns2.shown_separator = true %}
+                            <div class="border-t border-violet-200/20 my-3 pt-1">
+                                <span class="text-xs text-gray-500">Не подтверждённые (шаблоны)</span>
+                            </div>
+                        {% endif %}
+                    <div class="flex items-center justify-between p-3 bg-bg-dark rounded-lg border border-violet-200/20 {% if email.verification == 'holehe_confirmed' %}border-emerald-500/40{% elif email.verification == 'smtp_verified' %}border-green-500/40{% elif email.verification == 'gravatar' %}border-blue-500/40{% elif email.verification == 'breach_found' %}border-red-500/40{% endif %}">
                         <div class="flex-1 min-w-0">
                             <span class="text-white font-mono text-sm">{{ email.email }}</span>
                             <span class="text-xs text-gray-500 ml-2">{{ email.source }}</span>
@@ -207,31 +239,21 @@
                         <div class="flex items-center space-x-2 flex-shrink-0">
                             {# Verification badge - priority order #}
                             {% if email.verification == 'holehe_confirmed' %}
-                            <span class="px-2 py-0.5 bg-emerald-500/30 text-emerald-300 text-xs rounded font-medium">&#10003; Holehe</span>
+                            <span class="px-2 py-0.5 bg-emerald-500/30 text-emerald-300 text-xs rounded font-medium">&#10003; Подтверждено</span>
                             {% elif email.verification == 'smtp_verified' %}
                             <span class="px-2 py-0.5 bg-green-500/30 text-green-300 text-xs rounded font-medium">&#10003; SMTP</span>
                             {% elif email.verification == 'gravatar' %}
                             <span class="px-2 py-0.5 bg-blue-500/30 text-blue-300 text-xs rounded font-medium">&#10003; Gravatar</span>
+                            {% elif email.verification == 'breach_found' %}
+                            <span class="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded">&#9888; Утечка</span>
                             {% elif email.verification in ['catch_all_domain', 'likely'] %}
                             <span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">Вероятно</span>
-                            {% elif email.verification == 'breach_found' %}
-                            <span class="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded">Утечка</span>
                             {% elif email.verification == 'pattern' %}
                             <span class="px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs rounded">Шаблон</span>
                             {% endif %}
-                            {# Confidence badge (only if no strong verification badge) #}
-                            {% if email.verification not in ['holehe_confirmed', 'smtp_verified', 'gravatar', 'catch_all_domain', 'likely', 'breach_found'] %}
-                                {% if email.confidence == 'high' %}
-                                <span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">Высокая</span>
-                                {% elif email.confidence == 'medium' and email.verification != 'pattern' %}
-                                <span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">Средняя</span>
-                                {% elif email.confidence == 'low' %}
-                                <span class="px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs rounded">Низкая</span>
-                                {% endif %}
-                            {% endif %}
                             {# Verified on services (truncated for readability) #}
                             {% if email.verified_on %}
-                            <span class="text-xs text-violet truncate max-w-[120px]" title="{{ email.verified_on|join(', ') }}">{{ email.verified_on[:3]|join(', ') }}</span>
+                            <span class="text-xs text-violet truncate max-w-[140px]" title="{{ email.verified_on|join(', ') }}">{{ email.verified_on[:3]|join(', ') }}</span>
                             {% endif %}
                         </div>
                     </div>

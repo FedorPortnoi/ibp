@@ -368,9 +368,9 @@ class EmailDiscoveryService:
         Run Holehe check for a single email using library API.
         Falls back to CLI if library import fails.
         """
-        # Method 1: Use holehe library directly via trio
+        # Method 1: Use holehe library directly via asyncio + httpx
         try:
-            import trio
+            import asyncio
             import httpx
 
             services = []
@@ -384,14 +384,30 @@ class EmailDiscoveryService:
 
                 out = []
                 async with httpx.AsyncClient(timeout=10.0) as client:
-                    for website_func in websites:
-                        try:
-                            await website_func(email_addr, client, out)
-                        except Exception:
-                            pass
+                    # Run in batches for speed
+                    batch_size = 30
+                    for i in range(0, len(websites), batch_size):
+                        batch = websites[i:i + batch_size]
+                        tasks = []
+                        for func in batch:
+                            tasks.append(_safe_call(func, email_addr, client, out))
+                        await asyncio.gather(*tasks)
                 return out
 
-            results = trio.run(_check, email)
+            async def _safe_call(func, email_addr, client, out):
+                try:
+                    await asyncio.wait_for(func(email_addr, client, out), timeout=8.0)
+                except (asyncio.TimeoutError, Exception):
+                    pass
+
+            # Run in a fresh event loop (safe from ThreadPoolExecutor)
+            loop = asyncio.new_event_loop()
+            try:
+                results = loop.run_until_complete(
+                    asyncio.wait_for(_check(email), timeout=25.0)
+                )
+            finally:
+                loop.close()
 
             for r in results:
                 if isinstance(r, dict) and r.get('exists') is True:
@@ -402,7 +418,7 @@ class EmailDiscoveryService:
             return {'services': services} if services else None
 
         except ImportError:
-            logger.debug("trio/holehe not available, trying CLI fallback")
+            logger.debug("httpx/holehe not available, trying CLI fallback")
         except Exception as e:
             logger.debug(f"Holehe library error for {email}: {e}")
 

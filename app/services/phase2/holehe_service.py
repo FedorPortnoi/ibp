@@ -125,7 +125,8 @@ async def check_email_holehe_async(email: str) -> HoleheResults:
 
 def check_email_sync(email: str) -> HoleheResults:
     """
-    Synchronous wrapper - uses CLI directly since async module loading is broken.
+    Synchronous wrapper for Holehe email check.
+    Uses holehe library API via httpx (preferred), falls back to CLI.
 
     Args:
         email: Email address to check
@@ -133,9 +134,100 @@ def check_email_sync(email: str) -> HoleheResults:
     Returns:
         HoleheResults with list of registered services
     """
-    # Use CLI directly - async version has broken module loading due to nested directories
-    logger.info(f"Checking email with Holehe CLI: {email}")
+    logger.info(f"Checking email with Holehe: {email}")
+
+    # Try library API first (faster, more reliable)
+    if HOLEHE_AVAILABLE:
+        try:
+            result = _check_email_via_library(email)
+            if result and result.error is None:
+                return result
+            logger.debug(f"Holehe library returned error for {email}, trying CLI")
+        except Exception as e:
+            logger.debug(f"Holehe library failed for {email}: {e}")
+
+    # Fallback to CLI
     return check_email_cli(email)
+
+
+def _check_email_via_library(email: str) -> HoleheResults:
+    """
+    Check email using holehe library API directly with httpx.
+    Uses holehe.core.get_functions() to discover all check modules.
+    """
+    import asyncio
+
+    async def _run_checks():
+        from holehe.core import get_functions, import_submodules
+        import holehe.modules
+
+        modules = import_submodules(holehe.modules)
+        websites = get_functions(modules)
+
+        registered = []
+        total_checked = 0
+        out = []
+
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            # Run all checks concurrently in batches
+            batch_size = 30
+            for i in range(0, len(websites), batch_size):
+                batch = websites[i:i + batch_size]
+                tasks = []
+                for func in batch:
+                    tasks.append(_safe_check(func, email, client, out))
+                await asyncio.gather(*tasks)
+                total_checked += len(batch)
+
+        # Parse results
+        for result in out:
+            if isinstance(result, dict) and result.get('exists') is True:
+                name = result.get('name', 'Unknown')
+                if name and name != 'Unknown':
+                    registered.append(EmailRegistration(
+                        service=name,
+                        exists=True,
+                        email_recovery=result.get('emailrecovery'),
+                        phone_recovery=result.get('phoneNumber'),
+                        profile_url=result.get('profileurl'),
+                        extra_info={
+                            k: v for k, v in result.items()
+                            if k not in ('name', 'exists', 'emailrecovery', 'phoneNumber', 'profileurl')
+                        }
+                    ))
+
+        return HoleheResults(
+            email=email,
+            registered_services=registered,
+            total_checked=total_checked,
+            total_registered=len(registered)
+        )
+
+    async def _safe_check(func, email_addr, client, out):
+        try:
+            await asyncio.wait_for(func(email_addr, client, out), timeout=8.0)
+        except (asyncio.TimeoutError, Exception):
+            pass
+
+    # Run in a new event loop (safe from background thread)
+    try:
+        loop = asyncio.new_event_loop()
+        try:
+            result = loop.run_until_complete(
+                asyncio.wait_for(_run_checks(), timeout=30.0)
+            )
+            return result
+        finally:
+            loop.close()
+    except Exception as e:
+        logger.debug(f"Holehe library error: {e}")
+        return HoleheResults(
+            email=email,
+            registered_services=[],
+            total_checked=0,
+            total_registered=0,
+            error=str(e)
+        )
 
 
 def check_email_cli(email: str) -> HoleheResults:

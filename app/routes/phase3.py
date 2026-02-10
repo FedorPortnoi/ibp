@@ -511,6 +511,14 @@ def buratino_results(investigation_id):
             {'name': 'ГАС Правосудие', 'url': 'https://bsr.sudrf.ru/bigs/portal.html', 'description': 'Портал судебного делопроизводства'},
         ]
 
+    # Calculate composite risk score for widget
+    risk_score = None
+    try:
+        from app.services.risk_scoring import calculate_risk_score
+        risk_score = calculate_risk_score(investigation_id)
+    except Exception as e:
+        logger.warning(f"Risk scoring failed: {e}")
+
     return render_template('phase3_buratino_results.html',
                          investigation=investigation,
                          profile=confirmed_profile,
@@ -518,4 +526,5 @@ def buratino_results(investigation_id):
                          court_records=court_records,
                          enforcement_proceedings=enforcement_proceedings,
                          risk_indicators=risk_indicators,
-                         manual_search_links=manual_search_links)
+                         manual_search_links=manual_search_links,
+                         risk_score=risk_score)

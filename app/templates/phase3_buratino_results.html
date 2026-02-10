@@ -11,8 +11,11 @@
             <p class="text-gray-400">Бизнес-реестры, судебные дела, исполнительные производства и оценка рисков</p>
         </div>
         <div class="flex space-x-3">
-            <a href="/report/{{ investigation.id }}" class="btn btn-primary">
-                Создать карточку личности
+            <a href="/dossier/{{ investigation.id }}" class="btn btn-primary">
+                Создать досье
+            </a>
+            <a href="/report/{{ investigation.id }}" class="btn btn-secondary">
+                Карточка личности
             </a>
         </div>
     </div>
@@ -38,6 +41,17 @@
                 Фаза 3 завершена
             </span>
         </div>
+    </div>
+    {% endif %}
+
+    <!-- Composite Risk Score Widget -->
+    {% if risk_score %}
+    <div class="flex items-center gap-4 mb-8">
+        {% set score = risk_score %}
+        {% include 'partials/risk_score_widget.html' %}
+        <a href="/risk-report/{{ investigation.id }}" class="text-sm text-violet hover:text-violet-bright transition-colors">
+            Подробный отчёт скоринга &rarr;
+        </a>
     </div>
     {% endif %}
 
@@ -376,9 +390,14 @@
         <a href="/phase2/buratino/results/{{ investigation.id }}" class="text-violet hover:text-violet-bright">
             &#8592; Назад к Фазе 2
         </a>
-        <a href="/report/{{ investigation.id }}" class="btn btn-primary">
-            Создать карточку личности &#8594;
-        </a>
+        <div class="flex space-x-3">
+            <a href="/dossier/{{ investigation.id }}" class="btn btn-primary">
+                Создать досье &#8594;
+            </a>
+            <a href="/report/{{ investigation.id }}" class="btn btn-secondary">
+                Карточка личности
+            </a>
+        </div>
     </div>
 </div>
 {% endblock %}
