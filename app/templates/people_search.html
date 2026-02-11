@@ -10,51 +10,196 @@
         padding: 24px;
     }
 
+    .column-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+    }
+
+    .column-header img {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+    }
+
+    .column-count {
+        font-size: 13px;
+        color: #9ca3af;
+        margin-left: auto;
+    }
+
     .result-card {
         background: rgba(17, 10, 31, 0.8);
         border: 1px solid rgba(139, 92, 246, 0.15);
         border-radius: 12px;
-        padding: 16px;
+        padding: 14px;
         transition: all 0.3s ease;
+        cursor: pointer;
+        margin-bottom: 10px;
     }
 
     .result-card:hover {
         border-color: rgba(139, 92, 246, 0.4);
-        transform: translateY(-2px);
-        box-shadow: 0 8px 32px rgba(139, 92, 246, 0.15);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 24px rgba(139, 92, 246, 0.12);
+    }
+
+    .result-card.selected {
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3), 0 8px 32px rgba(139, 92, 246, 0.2);
+        background: rgba(139, 92, 246, 0.08);
+    }
+
+    .profile-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid rgba(139, 92, 246, 0.25);
+        flex-shrink: 0;
+    }
+
+    .avatar-placeholder {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: rgba(139, 92, 246, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border: 2px solid rgba(139, 92, 246, 0.25);
     }
 
     .platform-badge {
-        padding: 4px 12px;
+        padding: 2px 8px;
         border-radius: 9999px;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
         text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .platform-vk { background: rgba(0, 119, 255, 0.2); color: #4da6ff; }
+    .platform-telegram { background: rgba(38, 165, 228, 0.2); color: #26a5e4; }
     .platform-ok { background: rgba(238, 130, 0, 0.2); color: #ff9933; }
-    .platform-telegram { background: rgba(0, 136, 204, 0.2); color: #00aaff; }
+    .platform-whatsapp { background: rgba(37, 211, 102, 0.2); color: #25d366; }
+    .platform-max { background: rgba(255, 100, 100, 0.2); color: #ff6464; }
 
-    .profile-avatar {
-        width: 64px;
-        height: 64px;
+    .confidence-badge {
+        padding: 2px 8px;
+        border-radius: 9999px;
+        font-size: 10px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .confidence-high { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+    .confidence-medium { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+    .confidence-low { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+    .source-label {
+        font-size: 10px;
+        color: #6b7280;
+        margin-top: 4px;
+    }
+
+    .column-spinner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 48px 0;
+    }
+
+    .spinner-ring {
+        width: 32px;
+        height: 32px;
+        border: 3px solid rgba(139, 92, 246, 0.2);
+        border-top-color: #8b5cf6;
         border-radius: 50%;
-        object-fit: cover;
-        border: 2px solid rgba(139, 92, 246, 0.3);
+        animation: spin 0.8s linear infinite;
     }
 
-    .checkbox-custom {
-        accent-color: #8b5cf6;
+    @keyframes spin {
+        to { transform: rotate(360deg); }
     }
 
-    .loading-pulse {
-        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    .column-error {
+        text-align: center;
+        padding: 24px;
+        color: #ef4444;
+        font-size: 14px;
     }
 
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
+    .column-empty {
+        text-align: center;
+        padding: 32px 16px;
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .select-btn {
+        padding: 4px 14px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        background: rgba(139, 92, 246, 0.15);
+        color: #a78bfa;
+        border: 1px solid rgba(139, 92, 246, 0.25);
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+
+    .select-btn:hover {
+        background: rgba(139, 92, 246, 0.3);
+        border-color: #8b5cf6;
+    }
+
+    .result-card.selected .select-btn {
+        background: #8b5cf6;
+        color: white;
+        border-color: #8b5cf6;
+    }
+
+    .proceed-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(10, 6, 24, 0.95);
+        border-top: 1px solid rgba(139, 92, 246, 0.3);
+        padding: 16px 24px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        z-index: 50;
+        backdrop-filter: blur(10px);
+    }
+
+    .proceed-bar.visible {
+        display: flex;
+    }
+
+    .proceed-btn {
+        padding: 10px 28px;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        background: #8b5cf6;
+        color: white;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .proceed-btn:hover {
+        background: #7c3aed;
+        box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
     }
 
     .stats-badge {
@@ -64,29 +209,56 @@
         border-radius: 9999px;
         font-size: 13px;
     }
+
+    /* Column collapse on mobile */
+    .column-toggle {
+        display: none;
+    }
+
+    @media (max-width: 1023px) {
+        .column-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .column-toggle .toggle-arrow {
+            transition: transform 0.2s;
+        }
+
+        .column-toggle.collapsed .toggle-arrow {
+            transform: rotate(-90deg);
+        }
+
+        .column-content.collapsed {
+            display: none;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto px-4 py-8">
+<div class="max-w-7xl mx-auto px-4 py-8">
     <!-- Header -->
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-white mb-2 font-display">
             <span class="text-violet">Поиск</span> людей
         </h1>
-        <p class="text-gray-400">Поиск по ВК, Одноклассникам и Telegram по имени</p>
+        <p class="text-gray-400">Параллельный поиск по ВКонтакте, Telegram и Яндекс</p>
     </div>
 
     <!-- Search Form -->
     <div class="search-card mb-8">
         <form id="search-form">
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
                 <!-- Name Input -->
                 <div class="md:col-span-4">
                     <label class="block text-sm font-medium text-gray-300 mb-2">Полное имя</label>
                     <input type="text" id="name"
                            class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition"
-                           placeholder="Павел Васильев" required>
+                           placeholder="Артём Козлов" required>
                 </div>
 
                 <!-- City Input -->
@@ -114,7 +286,7 @@
 
                 <!-- Search Button -->
                 <div class="md:col-span-1 flex items-end">
-                    <button type="submit"
+                    <button type="submit" id="search-btn"
                             class="w-full px-4 py-3 bg-violet hover:bg-violet-dim text-white font-semibold rounded-lg transition flex items-center justify-center">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -122,174 +294,394 @@
                     </button>
                 </div>
             </div>
-
-            <!-- Platform Selection -->
-            <div class="flex flex-wrap gap-4 items-center">
-                <span class="text-sm text-gray-400">Платформы:</span>
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="platform_vk" value="vk" checked class="checkbox-custom w-4 h-4 rounded">
-                    <span class="text-sm text-gray-300">VK</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="platform_ok" value="ok" checked class="checkbox-custom w-4 h-4 rounded">
-                    <span class="text-sm text-gray-300">OK</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="platform_telegram" value="telegram" checked class="checkbox-custom w-4 h-4 rounded">
-                    <span class="text-sm text-gray-300">Telegram</span>
-                </label>
-            </div>
         </form>
     </div>
 
-    <!-- Stats (hidden by default) -->
-    <div id="stats" class="mb-6 flex gap-3" style="display: none;">
-        <span class="stats-badge text-violet" id="stats-count">0 результатов</span>
-        <span class="stats-badge text-gray-400" id="stats-time">0s</span>
+    <!-- Three-Column Results Grid -->
+    <div id="results-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-6" style="display: none;">
+
+        <!-- Column 1: VK -->
+        <div id="vk-column" class="min-w-0">
+            <div class="column-header">
+                <img src="{{ url_for('static', filename='icons/vk.svg') }}" alt="VK">
+                <h2 class="text-lg font-bold text-white">ВКонтакте</h2>
+                <span id="vk-count" class="column-count"></span>
+            </div>
+            <div id="vk-results"></div>
+        </div>
+
+        <!-- Column 2: Telegram -->
+        <div id="tg-column" class="min-w-0">
+            <div class="column-header">
+                <img src="{{ url_for('static', filename='icons/telegram.svg') }}" alt="TG">
+                <h2 class="text-lg font-bold text-white">Telegram</h2>
+                <span id="tg-count" class="column-count"></span>
+            </div>
+            <div id="tg-results"></div>
+        </div>
+
+        <!-- Column 3: Yandex -->
+        <div id="yandex-column" class="min-w-0">
+            <div class="column-header">
+                <img src="{{ url_for('static', filename='icons/yandex.svg') }}" alt="Yandex">
+                <h2 class="text-lg font-bold text-white">Яндекс</h2>
+                <span id="yandex-count" class="column-count"></span>
+            </div>
+            <div id="yandex-results"></div>
+        </div>
     </div>
 
-    <!-- Results Container -->
-    <div id="results"></div>
+    <!-- Empty State (before first search) -->
+    <div id="empty-state" class="text-center py-16">
+        <svg class="w-16 h-16 mx-auto text-violet-200 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+        <p class="text-gray-500">Введите имя для поиска</p>
+    </div>
+</div>
+
+<!-- Proceed to Phase 2 bar -->
+<div id="proceed-bar" class="proceed-bar">
+    <span id="selected-info" class="text-gray-300 text-sm"></span>
+    <button id="proceed-btn" class="proceed-btn" onclick="proceedToPhase2()">
+        Продолжить к Фазе 2 →
+    </button>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let selectedProfile = null;
+
+// ═══════════════════════════════════════════════════════════════
+// SEARCH FORM HANDLER
+// ═══════════════════════════════════════════════════════════════
 document.getElementById('search-form').addEventListener('submit', async function(e) {
     e.preventDefault();
 
-    const resultsDiv = document.getElementById('results');
-    const statsDiv = document.getElementById('stats');
+    const name = document.getElementById('name').value.trim();
+    if (!name) return;
 
-    // Show loading state
-    resultsDiv.innerHTML = `
-        <div class="text-center py-16">
-            <div class="loading-pulse">
-                <svg class="w-16 h-16 mx-auto text-violet mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
-            </div>
-            <p class="text-gray-400">Поиск по платформам...</p>
+    const city = document.getElementById('city').value.trim();
+    const ageFrom = document.getElementById('age_from').value;
+    const ageTo = document.getElementById('age_to').value;
+
+    // Reset selection
+    selectedProfile = null;
+    document.getElementById('proceed-bar').classList.remove('visible');
+
+    // Show results grid, hide empty state
+    document.getElementById('results-grid').style.display = '';
+    document.getElementById('empty-state').style.display = 'none';
+
+    // Show spinners in all columns
+    showSpinner('vk-results', 'Поиск ВКонтакте...');
+    showSpinner('tg-results', 'Поиск Telegram...');
+    showSpinner('yandex-results', 'Поиск Яндекс...');
+
+    // Reset counts
+    document.getElementById('vk-count').textContent = '';
+    document.getElementById('tg-count').textContent = '';
+    document.getElementById('yandex-count').textContent = '';
+
+    // Disable search button
+    const btn = document.getElementById('search-btn');
+    btn.disabled = true;
+    btn.classList.add('opacity-50');
+
+    const body = JSON.stringify({
+        name: name,
+        city: city || null,
+        age_from: ageFrom ? parseInt(ageFrom) : null,
+        age_to: ageTo ? parseInt(ageTo) : null,
+    });
+
+    const headers = {'Content-Type': 'application/json'};
+
+    // Fire all three searches in parallel
+    const vkPromise = fetch('/api/search/vk', {method: 'POST', headers, body})
+        .then(r => r.json())
+        .then(data => renderColumn('vk', data))
+        .catch(err => renderError('vk', err.message));
+
+    const tgPromise = fetch('/api/search/telegram', {method: 'POST', headers, body})
+        .then(r => r.json())
+        .then(data => renderColumn('tg', data))
+        .catch(err => renderError('tg', err.message));
+
+    const yandexPromise = fetch('/api/search/yandex', {method: 'POST', headers, body})
+        .then(r => r.json())
+        .then(data => renderColumn('yandex', data))
+        .catch(err => renderError('yandex', err.message));
+
+    await Promise.allSettled([vkPromise, tgPromise, yandexPromise]);
+
+    // Re-enable search button
+    btn.disabled = false;
+    btn.classList.remove('opacity-50');
+});
+
+// ═══════════════════════════════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════════════════════════════
+function showSpinner(containerId, text) {
+    document.getElementById(containerId).innerHTML = `
+        <div class="column-spinner">
+            <div class="spinner-ring"></div>
+            <p class="text-gray-500 mt-3 text-sm">${text}</p>
         </div>
     `;
-    statsDiv.style.display = 'none';
+}
 
-    // Gather selected platforms
-    const platforms = [];
-    if (document.getElementById('platform_vk').checked) platforms.push('vk');
-    if (document.getElementById('platform_ok').checked) platforms.push('ok');
-    if (document.getElementById('platform_telegram').checked) platforms.push('telegram');
+function renderColumn(prefix, data) {
+    const containerId = prefix === 'tg' ? 'tg-results' : `${prefix}-results`;
+    const countId = prefix === 'tg' ? 'tg-count' : `${prefix}-count`;
+    const container = document.getElementById(containerId);
+    const countEl = document.getElementById(countId);
 
-    const searchData = {
-        name: document.getElementById('name').value.trim(),
-        city: document.getElementById('city').value.trim() || null,
-        age_from: document.getElementById('age_from').value || null,
-        age_to: document.getElementById('age_to').value || null,
-        platforms: platforms
-    };
+    if (data.status === 'error' && data.profiles.length === 0) {
+        const errMsg = data.errors && data.errors.length > 0 ? data.errors[0] : 'Ошибка поиска';
+        container.innerHTML = `<div class="column-error">${escapeHtml(errMsg)}</div>`;
+        countEl.textContent = '0';
+        return;
+    }
+
+    const profiles = data.profiles || [];
+    const errors = data.errors || [];
+
+    countEl.textContent = profiles.length > 0 ? `${profiles.length}` : '0';
+
+    if (profiles.length === 0 && errors.length === 0) {
+        container.innerHTML = `<div class="column-empty">Профили не найдены</div>`;
+        return;
+    }
+
+    let html = '';
+
+    // Show errors/warnings at top
+    if (errors.length > 0) {
+        html += `<div class="text-xs text-yellow-500 mb-3 px-2">${escapeHtml(errors[0])}</div>`;
+    }
+
+    profiles.forEach((profile, idx) => {
+        const cardId = `${prefix}-${idx}`;
+        html += renderProfileCard(profile, cardId);
+    });
+
+    container.innerHTML = html;
+
+    // Attach click handlers
+    container.querySelectorAll('.result-card').forEach(card => {
+        card.addEventListener('click', function() {
+            selectProfile(this);
+        });
+    });
+}
+
+function renderError(prefix, message) {
+    const containerId = prefix === 'tg' ? 'tg-results' : `${prefix}-results`;
+    const countId = prefix === 'tg' ? 'tg-count' : `${prefix}-count`;
+    document.getElementById(containerId).innerHTML = `<div class="column-error">${escapeHtml(message)}</div>`;
+    document.getElementById(countId).textContent = '0';
+}
+
+function renderProfileCard(profile, cardId) {
+    const platformClass = {
+        'vk': 'platform-vk',
+        'telegram': 'platform-telegram',
+        'ok': 'platform-ok',
+        'whatsapp': 'platform-whatsapp',
+        'max': 'platform-max',
+    }[profile.platform] || 'platform-vk';
+
+    const platformName = {
+        'vk': 'VK',
+        'telegram': 'TG',
+        'ok': 'OK',
+        'whatsapp': 'WA',
+        'max': 'Max',
+    }[profile.platform] || profile.platform;
+
+    const displayName = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Профиль';
+
+    // Avatar
+    let avatarHtml;
+    if (profile.photo_url) {
+        avatarHtml = `<img src="${escapeHtml(profile.photo_url)}" alt="" class="profile-avatar" onerror="this.parentElement.innerHTML='<div class=\\'avatar-placeholder\\'><svg class=\\'w-5 h-5 text-violet\\' fill=\\'none\\' stroke=\\'currentColor\\' viewBox=\\'0 0 24 24\\'><path stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\' stroke-width=\\'2\\' d=\\'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z\\'></path></svg></div>'">`;
+    } else {
+        avatarHtml = `<div class="avatar-placeholder">
+            <svg class="w-5 h-5 text-violet" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+            </svg>
+        </div>`;
+    }
+
+    // Confidence badge (only for non-null)
+    let confidenceHtml = '';
+    if (profile.confidence) {
+        const confClass = {
+            'high': 'confidence-high',
+            'medium': 'confidence-medium',
+            'low': 'confidence-low',
+        }[profile.confidence] || '';
+        const confLabel = {
+            'high': 'высокая',
+            'medium': 'средняя',
+            'low': 'низкая',
+        }[profile.confidence] || profile.confidence;
+        confidenceHtml = `<span class="confidence-badge ${confClass}">${confLabel}</span>`;
+    }
+
+    // Info line (city, age)
+    const infoParts = [];
+    if (profile.city) infoParts.push(escapeHtml(profile.city));
+    if (profile.age) infoParts.push(`${profile.age} лет`);
+    const infoLine = infoParts.length > 0 ? `<p class="text-xs text-gray-500 truncate">${infoParts.join(' · ')}</p>` : '';
+
+    // Bio snippet
+    const bioHtml = profile.bio ? `<p class="text-xs text-gray-600 truncate mt-1">${escapeHtml(profile.bio.substring(0, 100))}</p>` : '';
+
+    // Source label
+    const sourceHtml = profile.source ? `<div class="source-label">${escapeHtml(profile.source)}</div>` : '';
+
+    return `
+        <div class="result-card" id="${cardId}"
+             data-profile='${escapeAttr(JSON.stringify(profile))}'>
+            <div class="flex items-start gap-3">
+                ${avatarHtml}
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-medium text-white text-sm truncate">${escapeHtml(displayName)}</span>
+                        <span class="platform-badge ${platformClass}">${platformName}</span>
+                        ${confidenceHtml}
+                    </div>
+                    ${profile.username ? `<p class="text-xs text-gray-400 truncate">@${escapeHtml(profile.username)}</p>` : ''}
+                    ${infoLine}
+                    ${bioHtml}
+                    ${sourceHtml}
+                </div>
+                <div class="flex flex-col items-end gap-2 flex-shrink-0">
+                    <button class="select-btn" onclick="event.stopPropagation(); selectProfile(this.closest('.result-card'))">
+                        Выбрать
+                    </button>
+                    ${profile.url ? `<a href="${escapeHtml(profile.url)}" target="_blank" rel="noopener noreferrer"
+                        class="text-xs text-violet hover:text-violet-bright transition" onclick="event.stopPropagation()">
+                        Открыть ↗
+                    </a>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROFILE SELECTION
+// ═══════════════════════════════════════════════════════════════
+function selectProfile(cardElement) {
+    // Deselect previous
+    document.querySelectorAll('.result-card.selected').forEach(el => {
+        el.classList.remove('selected');
+    });
+
+    // Select new
+    cardElement.classList.add('selected');
 
     try {
-        const startTime = Date.now();
-        const response = await fetch('/api/search/people', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(searchData)
-        });
-
-        const data = await response.json();
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-
-        if (data.error) {
-            resultsDiv.innerHTML = `
-                <div class="search-card text-center py-8">
-                    <svg class="w-12 h-12 mx-auto text-red-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                    </svg>
-                    <p class="text-red-400">${data.error}</p>
-                </div>
-            `;
-            return;
-        }
-
-        // Show stats
-        const stats = data.stats || {};
-        statsDiv.style.display = 'flex';
-        document.getElementById('stats-count').textContent = `${stats.total_found || 0} результатов`;
-        document.getElementById('stats-time').textContent = `${stats.search_time || elapsed}s`;
-
-        // Render results
-        const profiles = data.profiles || [];
-        if (profiles.length === 0) {
-            resultsDiv.innerHTML = `
-                <div class="search-card text-center py-8">
-                    <svg class="w-12 h-12 mx-auto text-gray-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <p class="text-gray-400 mb-2">Профили не найдены</p>
-                    <p class="text-sm text-gray-500">Попробуйте другое написание имени или уменьшите число фильтров</p>
-                    ${data.status === 'pending' ? '<p class="text-sm text-violet mt-4">Сервис поиска инициализируется...</p>' : ''}
-                </div>
-            `;
-            return;
-        }
-
-        let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
-        profiles.forEach(profile => {
-            const platformClass = {
-                'vk': 'platform-vk',
-                'ok': 'platform-ok',
-                'telegram': 'platform-telegram'
-            }[profile.platform] || 'bg-gray-700 text-gray-300';
-
-            const platformName = {
-                'vk': 'VK',
-                'ok': 'OK',
-                'telegram': 'TG'
-            }[profile.platform] || profile.platform;
-
-            html += `
-                <div class="result-card">
-                    <div class="flex items-start gap-4">
-                        ${profile.photo_url
-                            ? `<img src="${profile.photo_url}" alt="" class="profile-avatar" onerror="this.style.display='none'">`
-                            : `<div class="w-16 h-16 rounded-full bg-violet-200 flex items-center justify-center">
-                                <svg class="w-8 h-8 text-violet" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                </svg>
-                               </div>`
-                        }
-                        <div class="flex-1 min-w-0">
-                            <h3 class="font-semibold text-white truncate">${profile.display_name || 'Unknown'}</h3>
-                            <p class="text-sm text-gray-400 truncate">@${profile.username || 'N/A'}</p>
-                            <div class="flex flex-wrap gap-2 mt-2">
-                                <span class="platform-badge ${platformClass}">${platformName}</span>
-                                ${profile.city ? `<span class="text-xs text-gray-500">${profile.city}</span>` : ''}
-                                ${profile.age ? `<span class="text-xs text-gray-500">${profile.age} лет</span>` : ''}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-4 flex gap-2">
-                        <a href="${profile.url}" target="_blank" rel="noopener noreferrer"
-                           class="flex-1 px-3 py-2 bg-violet-200 hover:bg-violet-400 text-violet text-sm font-medium rounded-lg text-center transition">
-                            Открыть профиль
-                        </a>
-                    </div>
-                </div>
-            `;
-        });
-        html += '</div>';
-        resultsDiv.innerHTML = html;
-
-    } catch (error) {
-        resultsDiv.innerHTML = `
-            <div class="search-card text-center py-8">
-                <svg class="w-12 h-12 mx-auto text-red-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <p class="text-red-400">Поиск не удался: ${error.message}</p>
-            </div>
-        `;
+        selectedProfile = JSON.parse(cardElement.dataset.profile);
+    } catch (e) {
+        console.error('Failed to parse profile data:', e);
+        return;
     }
-});
+
+    // Show proceed bar
+    const bar = document.getElementById('proceed-bar');
+    const info = document.getElementById('selected-info');
+    const displayName = [selectedProfile.first_name, selectedProfile.last_name].filter(Boolean).join(' ');
+    const platformLabel = {
+        'vk': 'ВКонтакте',
+        'telegram': 'Telegram',
+        'ok': 'OK',
+        'whatsapp': 'WhatsApp',
+        'max': 'Max',
+    }[selectedProfile.platform] || selectedProfile.platform;
+    info.textContent = `${displayName} — ${platformLabel}`;
+    bar.classList.add('visible');
+}
+
+async function proceedToPhase2() {
+    if (!selectedProfile) return;
+
+    const btn = document.getElementById('proceed-btn');
+    btn.disabled = true;
+    btn.textContent = 'Создание расследования...';
+
+    try {
+        // Create investigation via Phase 1 POST
+        const formData = new FormData();
+        formData.append('target_name', document.getElementById('name').value.trim());
+        const city = document.getElementById('city').value.trim();
+        if (city) formData.append('city', city);
+        const ageFrom = document.getElementById('age_from').value;
+        if (ageFrom) formData.append('age_from', ageFrom);
+        const ageTo = document.getElementById('age_to').value;
+        if (ageTo) formData.append('age_to', ageTo);
+
+        const resp = await fetch('/phase1/new', {
+            method: 'POST',
+            body: formData,
+        });
+
+        const data = await resp.json();
+        if (!data.success) {
+            alert(data.error || 'Ошибка создания расследования');
+            btn.disabled = false;
+            btn.textContent = 'Продолжить к Фазе 2 →';
+            return;
+        }
+
+        const investigationId = data.investigation_id;
+
+        // Save selected profile to investigation via confirm API
+        // First we need to create a SocialProfile record
+        const saveResp = await fetch(`/api/search/save-selection`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                investigation_id: investigationId,
+                profile: selectedProfile,
+            }),
+        });
+
+        const saveData = await saveResp.json();
+        if (saveData.success && saveData.redirect) {
+            window.location.href = saveData.redirect;
+        } else {
+            // Fallback: redirect to search results page
+            window.location.href = `/phase1/search/${investigationId}`;
+        }
+    } catch (err) {
+        alert('Ошибка: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Продолжить к Фазе 2 →';
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function escapeAttr(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 </script>
 {% endblock %}
