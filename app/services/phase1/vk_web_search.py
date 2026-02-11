@@ -56,18 +56,17 @@ USER_AGENTS = [
 STATE_FILE = os.path.join(SESSION_DIR, 'state.json')
 TOKEN_FILE = os.path.join(SESSION_DIR, 'web_token.json')
 
-# Screen name match threshold: 40% average first+last similarity.
-# Generous enough for diminutives (Ольга→Оля), strict enough to reject
-# completely different names (e.g. "Егор Гусев" for search "Ольга Ахтинас").
-SCREEN_NAME_MATCH_THRESHOLD = 0.4
-
-
 def verify_profile_name_matches_query(profile: dict, search_first: str, search_last: str) -> bool:
     """
-    Check if a VK profile's actual name matches the search query.
-    Returns True if it's a genuine match, False if it's a coincidental screen name.
+    Strict name matching for VK profile verification.
 
-    Uses fuzzy matching with transliteration and diminutive support.
+    Rules:
+    1. Last name MUST fuzzy-match >= 0.7 (non-negotiable)
+    2. First name MUST either:
+       - fuzzy-match >= 0.6, OR
+       - be a known diminutive (Дмитрий↔Дима), OR
+       - match via transliteration (Dmitry↔Дмитрий)
+    3. If neither matches → REJECT immediately
     """
     profile_first = (profile.get('first_name') or '').strip().lower()
     profile_last = (profile.get('last_name') or '').strip().lower()
@@ -77,11 +76,7 @@ def verify_profile_name_matches_query(profile: dict, search_first: str, search_l
     if not profile_first and not profile_last:
         return False
 
-    # Direct fuzzy comparison
-    first_sim = SequenceMatcher(None, search_first, profile_first).ratio()
-    last_sim = SequenceMatcher(None, search_last, profile_last).ratio()
-
-    # Cross-script comparison via transliteration
+    # Transliteration helper
     try:
         from transliterate import translit
 
@@ -103,36 +98,38 @@ def verify_profile_name_matches_query(profile: dict, search_first: str, search_l
         def _to_latin(text):
             return ''.join(_table.get(ch, ch) for ch in text)
 
-    sf_lat = _to_latin(search_first)
-    sl_lat = _to_latin(search_last)
-    pf_lat = _to_latin(profile_first)
-    pl_lat = _to_latin(profile_last)
+    # RULE 1: Last name MUST match (>= 0.7 similarity)
+    last_sim = max(
+        SequenceMatcher(None, search_last, profile_last).ratio(),
+        SequenceMatcher(None, _to_latin(search_last), _to_latin(profile_last)).ratio(),
+        SequenceMatcher(None, _to_latin(search_last), profile_last).ratio(),
+        SequenceMatcher(None, search_last, _to_latin(profile_last)).ratio(),
+    )
+    if last_sim < 0.7:
+        return False  # Hard reject: last name doesn't match
 
-    first_sim = max(first_sim,
-                    SequenceMatcher(None, sf_lat, pf_lat).ratio(),
-                    SequenceMatcher(None, sf_lat, profile_first).ratio(),
-                    SequenceMatcher(None, search_first, pf_lat).ratio())
-    last_sim = max(last_sim,
-                   SequenceMatcher(None, sl_lat, pl_lat).ratio(),
-                   SequenceMatcher(None, sl_lat, profile_last).ratio(),
-                   SequenceMatcher(None, search_last, pl_lat).ratio())
+    # RULE 2: First name must match (>= 0.6, or diminutive, or transliteration)
+    first_sim = max(
+        SequenceMatcher(None, search_first, profile_first).ratio(),
+        SequenceMatcher(None, _to_latin(search_first), _to_latin(profile_first)).ratio(),
+        SequenceMatcher(None, _to_latin(search_first), profile_first).ratio(),
+        SequenceMatcher(None, search_first, _to_latin(profile_first)).ratio(),
+    )
 
-    # Diminutive matching for first names — check if both names share
-    # a common formal root (e.g., Ольга↔Оля, Тихон↔Тиша).
-    # We do NOT use fuzzy string matching on diminutives because it creates
-    # false positives (e.g., "Тиханя" contains "аня" → false match with "Анна").
+    if first_sim >= 0.6:
+        return True
+
+    # Check diminutive matching (Дмитрий↔Дима, Ольга↔Оля, etc.)
     try:
         from app.services.phase1.russian_diminutives import get_all_name_variants
         search_variants = set(v.lower() for v in get_all_name_variants(search_first))
         profile_variants = set(v.lower() for v in get_all_name_variants(profile_first))
-        # If variants overlap, they share a formal root → same name
         if search_variants & profile_variants:
-            first_sim = max(first_sim, 0.95)
+            return True
     except ImportError:
         pass
 
-    overall = (first_sim + last_sim) / 2
-    return overall >= SCREEN_NAME_MATCH_THRESHOLD
+    return False
 
 
 def _has_session() -> bool:
@@ -208,8 +205,8 @@ class VKWebSearch:
         Strategy (ordered by accuracy, screen name guessing is conditional):
         1. People search via web token users.search (most accurate)
         2. newsfeed.search (supplementary — finds post authors)
-        3. Screen name guessing (ONLY if steps 1-2 found < 5 results,
-           with name verification from verify_profile_name_matches_query)
+        3. Enrich + verify results from steps 1-2
+        4. Screen name guessing (ONLY if < 10 VERIFIED results after filtering)
 
         Each profile is a dict with VK API user fields (same format as users.get).
         """
@@ -232,32 +229,43 @@ class VKWebSearch:
         newsfeed_ids = self._newsfeed_search(query)
         _add_ids(newsfeed_ids, 'newsfeed')
 
-        # Step 3: Screen name guessing (only if few results from accurate strategies)
-        if len(seen_ids) < 5:
+        # Step 3: Enrich and verify results from people search + newsfeed
+        verified_profiles = []
+        if all_user_ids:
+            verified_profiles = self._enrich_profiles(all_user_ids, query)
+
+        # Step 4: Screen name guessing — decide based on VERIFIED count, not raw IDs
+        if len(verified_profiles) < 10:
             logger.info(
-                f"VKWebSearch: only {len(seen_ids)} results from people/newsfeed search, "
-                f"trying screen name guessing..."
+                f"VKWebSearch: only {len(verified_profiles)} verified results from "
+                f"people/newsfeed ({len(seen_ids)} raw IDs), trying screen name guessing..."
             )
             guessed_ids = self._guess_screen_names(query)
-            _add_ids(guessed_ids, 'screen_name')
+            new_ids = [uid for uid in guessed_ids if uid not in seen_ids]
+            if new_ids:
+                for uid in new_ids:
+                    seen_ids.add(uid)
+                    id_methods[uid] = 'screen_name'
+                extra_profiles = self._enrich_profiles(new_ids, query)
+                for p in extra_profiles:
+                    p['discovery_method'] = id_methods.get(p.get('id'), 'screen_name')
+                verified_profiles.extend(extra_profiles)
         else:
             logger.info(
-                f"VKWebSearch: got {len(seen_ids)} results from people/newsfeed search, "
+                f"VKWebSearch: got {len(verified_profiles)} verified results, "
                 f"skipping screen name guessing"
             )
 
-        if not all_user_ids:
+        if not verified_profiles:
             logger.info(f"VKWebSearch: no results for '{query}'")
             return [], 0
 
-        # Step 4: Enrich discovered IDs with users.get (service token)
-        profiles = self._enrich_profiles(all_user_ids, query)
-
         # Tag each profile with its discovery method
-        for p in profiles:
-            p['discovery_method'] = id_methods.get(p.get('id'), 'unknown')
+        for p in verified_profiles:
+            if 'discovery_method' not in p:
+                p['discovery_method'] = id_methods.get(p.get('id'), 'unknown')
 
-        return profiles, len(profiles)
+        return verified_profiles, len(verified_profiles)
 
     def _guess_screen_names(self, query: str) -> List[int]:
         """

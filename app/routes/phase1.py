@@ -107,14 +107,14 @@ def new_investigation():
             'redirect': f'/phase1/search/{investigation_id}'
         })
 
-    # GET: Show the form
-    return render_template('phase1_buratino_new.html')
+    # GET: Show the three-column search page
+    return render_template('people_search.html')
 
 
 @phase1_bp.route('/search/<investigation_id>')
 def buratino_search_results(investigation_id):
     """
-    Run VK + OK People Search and show results for selection.
+    Run VK People Search and show results for selection.
     """
     investigation = Investigation.query.get_or_404(investigation_id)
 
@@ -143,39 +143,14 @@ def buratino_search_results(investigation_id):
             count=50
         )
 
-    # Run OK search if not already done
-    existing_ok = SocialProfile.query.filter_by(
-        investigation_id=investigation_id,
-        platform='ok'
-    ).all()
-
-    if not existing_ok:
-        try:
-            from app.services.phase1.ok_search_integration import ok_search_integration
-            ok_search_integration.search_and_save(
-                investigation_id=investigation_id,
-                query=investigation.input_name,
-                city=city,
-                age_from=age_from,
-                age_to=age_to,
-                count=20
-            )
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"OK search failed: {e}")
-
-    # Reload all profiles (VK + OK) sorted by similarity
+    # Reload all VK profiles sorted by similarity
     all_profiles = SocialProfile.query.filter_by(
-        investigation_id=investigation_id
-    ).filter(
-        SocialProfile.platform.in_(['vk', 'ok'])
+        investigation_id=investigation_id,
+        platform='vk'
     ).order_by(SocialProfile.name_similarity.desc()).all()
 
     # Update search stats
-    vk_count = sum(1 for p in all_profiles if p.platform == 'vk')
-    ok_count = sum(1 for p in all_profiles if p.platform == 'ok')
-    stats['vk_results_count'] = vk_count
-    stats['ok_results_count'] = ok_count
+    stats['vk_results_count'] = len(all_profiles)
     stats['search_completed_at'] = datetime.now().isoformat()
     investigation.phase1_stats = stats
     db.session.commit()
@@ -259,12 +234,11 @@ def refresh_search(investigation_id):
     age_from = request.json.get('age_from')
     age_to = request.json.get('age_to')
 
-    # Delete old unconfirmed search results (VK + OK)
+    # Delete old unconfirmed VK search results
     SocialProfile.query.filter_by(
         investigation_id=investigation_id,
-        is_confirmed=False
-    ).filter(
-        SocialProfile.platform.in_(['vk', 'ok'])
+        is_confirmed=False,
+        platform='vk'
     ).delete(synchronize_session='fetch')
     db.session.commit()
 
@@ -286,21 +260,6 @@ def refresh_search(investigation_id):
         age_to=age_to,
         count=50
     )
-
-    # Run new OK search
-    try:
-        from app.services.phase1.ok_search_integration import ok_search_integration
-        ok_saved = ok_search_integration.search_and_save(
-            investigation_id=investigation_id,
-            query=investigation.input_name,
-            city=city,
-            age_from=age_from,
-            age_to=age_to,
-            count=20
-        )
-        saved_profiles.extend(ok_saved)
-    except Exception:
-        pass
 
     return jsonify({
         'success': True,

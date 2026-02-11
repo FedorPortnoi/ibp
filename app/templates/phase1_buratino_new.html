@@ -126,7 +126,7 @@
 
             <!-- Submit Button -->
             <button type="submit" id="submitBtn" class="w-full bg-violet hover:bg-violet-dim text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2">
-                <span>Поиск профилей ВК + ОК</span>
+                <span>Поиск профилей ВКонтакте</span>
                 <span>&rarr;</span>
             </button>
         </form>
@@ -134,7 +134,7 @@
         <!-- Loading State -->
         <div id="loadingState" class="hidden text-center py-8">
             <div class="animate-spin text-4xl mb-4">&#x1F50D;</div>
-            <p class="text-violet font-medium">Поиск во ВКонтакте и Одноклассниках...</p>
+            <p class="text-violet font-medium">Поиск во ВКонтакте...</p>
             <p class="text-gray-500 text-sm mt-2">Это может занять несколько секунд</p>
         </div>
     </div>
@@ -170,7 +170,7 @@
         <!-- Photo Search Loading -->
         <div id="photoLoadingState" class="hidden text-center py-8">
             <div class="animate-spin text-4xl mb-4">&#x1F50D;</div>
-            <p class="text-violet font-medium">Поиск лица в базах VK и OK...</p>
+            <p class="text-violet font-medium">Поиск лица в базе VK...</p>
             <p class="text-gray-500 text-sm mt-2">Анализ 300+ млн профилей</p>
         </div>
 
@@ -187,7 +187,7 @@
             <span class="mr-2">&#x1F4A1;</span> Как это работает
         </h3>
         <ul class="text-sm text-gray-400 space-y-1">
-            <li>&bull; Поиск по имени: ищем людей в ВКонтакте и Одноклассниках</li>
+            <li>&bull; Поиск по имени: ищем людей во ВКонтакте, Telegram и Яндекс</li>
             <li>&bull; Поиск по фото: распознавание лиц в 300+ млн профилей</li>
             <li>&bull; Результаты ранжируются по сходству</li>
             <li>&bull; Вы выбираете правильный профиль из списка</li>
@@ -438,8 +438,8 @@
 
         data.matches.forEach((match, idx) => {
             const similarity = Math.round((match.similarity_score || 0) * 100);
-            const platform = match.platform === 'ok' ? 'OK' : 'VK';
-            const platformColor = match.platform === 'ok' ? 'bg-orange-500' : 'bg-blue-500';
+            const platform = match.platform === 'telegram' ? 'TG' : 'VK';
+            const platformColor = match.platform === 'telegram' ? 'bg-sky-500' : 'bg-blue-500';
 
             const card = document.createElement('div');
             card.className = 'flex items-center gap-4 p-4 bg-bg-dark rounded-lg border border-violet-200 hover:border-violet cursor-pointer transition-all';
@@ -473,7 +473,7 @@
         if (!photoSearchResults || !photoSearchResults.matches[idx]) return;
 
         const match = photoSearchResults.matches[idx];
-        const confirmed = confirm(`Выбрать "${match.display_name || 'Unknown'}" (${match.platform === 'ok' ? 'OK' : 'VK'}) для расследования?`);
+        const confirmed = confirm(`Выбрать "${match.display_name || 'Unknown'}" (${match.platform === 'telegram' ? 'TG' : 'VK'}) для расследования?`);
         if (!confirmed) return;
 
         try {

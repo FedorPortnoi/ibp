@@ -85,7 +85,6 @@
 
     .platform-vk { background: rgba(0, 119, 255, 0.2); color: #4da6ff; }
     .platform-telegram { background: rgba(38, 165, 228, 0.2); color: #26a5e4; }
-    .platform-ok { background: rgba(238, 130, 0, 0.2); color: #ff9933; }
     .platform-whatsapp { background: rgba(37, 211, 102, 0.2); color: #25d366; }
     .platform-max { background: rgba(255, 100, 100, 0.2); color: #ff6464; }
 
@@ -492,7 +491,6 @@ function renderProfileCard(profile, cardId) {
     const platformClass = {
         'vk': 'platform-vk',
         'telegram': 'platform-telegram',
-        'ok': 'platform-ok',
         'whatsapp': 'platform-whatsapp',
         'max': 'platform-max',
     }[profile.platform] || 'platform-vk';
@@ -500,7 +498,6 @@ function renderProfileCard(profile, cardId) {
     const platformName = {
         'vk': 'VK',
         'telegram': 'TG',
-        'ok': 'OK',
         'whatsapp': 'WA',
         'max': 'Max',
     }[profile.platform] || profile.platform;
@@ -603,7 +600,6 @@ function selectProfile(cardElement) {
     const platformLabel = {
         'vk': 'ВКонтакте',
         'telegram': 'Telegram',
-        'ok': 'OK',
         'whatsapp': 'WhatsApp',
         'max': 'Max',
     }[selectedProfile.platform] || selectedProfile.platform;

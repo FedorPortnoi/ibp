@@ -28,7 +28,7 @@ if sys.platform == 'win32':
 # Ensure project root is on path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from app.services.phase1.vk_web_search import verify_profile_name_matches_query, SCREEN_NAME_MATCH_THRESHOLD
+from app.services.phase1.vk_web_search import verify_profile_name_matches_query
 from app.services.phase1.buratino_vk_search import BuratinoVKSearch
 from app.services.phase1.fuzzy_matching import surname_similarity
 from app.services.phase1.russian_diminutives import get_all_name_variants
@@ -203,14 +203,25 @@ def test_surname_similarity():
 
 
 def test_threshold_value():
-    """Test that the SCREEN_NAME_MATCH_THRESHOLD is properly set."""
+    """Test that strict name matching rules are in place."""
     print("\n" + "=" * 70)
-    print("TEST 5: Threshold Configuration")
+    print("TEST 5: Strict Name Matching Rules")
     print("=" * 70)
 
-    print(f"  SCREEN_NAME_MATCH_THRESHOLD = {SCREEN_NAME_MATCH_THRESHOLD}")
-    is_good = 0.3 <= SCREEN_NAME_MATCH_THRESHOLD <= 0.6
-    print(f"  Range check (0.3 - 0.6): {'PASS' if is_good else 'FAIL'}")
+    # Last name must match >= 0.7, first name >= 0.6 or diminutive
+    # Test: completely different last name should be rejected
+    profile = {'first_name': 'Дмитрий', 'last_name': 'Козлов'}
+    result = verify_profile_name_matches_query(profile, 'дмитрий', 'волков')
+    print(f"  Same first, different last (Козлов vs Волков): {'REJECT' if not result else 'ACCEPT'}")
+    is_good = not result  # Should be rejected
+
+    # Test: similar last name should pass (Волков vs Волкова)
+    profile2 = {'first_name': 'Дмитрий', 'last_name': 'Волкова'}
+    result2 = verify_profile_name_matches_query(profile2, 'дмитрий', 'волков')
+    print(f"  Gender variant last name (Волкова vs Волков): {'ACCEPT' if result2 else 'REJECT'}")
+    is_good = is_good and result2  # Should be accepted
+
+    print(f"  Result: {'PASS' if is_good else 'FAIL'}")
     return is_good
 
 
@@ -333,7 +344,7 @@ def main():
     print("=" * 70)
     print("PHASE 1 FAKE-FILTERING VALIDATION TEST SUITE")
     print("=" * 70)
-    print(f"Threshold: {SCREEN_NAME_MATCH_THRESHOLD}")
+    print(f"Filter rules: last_name >= 0.7, first_name >= 0.6 or diminutive")
     print(f"VK Token: {'SET' if os.environ.get('VK_SERVICE_TOKEN') else 'NOT SET (demo mode)'}")
 
     results = {}

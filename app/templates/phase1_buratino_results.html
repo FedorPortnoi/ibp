@@ -7,11 +7,8 @@
     <!-- Header -->
     <div class="text-center mb-6">
         <h1 class="text-2xl font-bold text-violet mb-2 font-display">Выберите правильный профиль</h1>
-        {% set vk_count = profiles|selectattr('platform', 'equalto', 'vk')|list|length %}
-        {% set ok_count = profiles|selectattr('platform', 'equalto', 'ok')|list|length %}
         <p class="text-gray-400">
-            Найдено <span class="text-violet font-semibold">{{ profiles|length }}</span> профилей
-            {% if vk_count and ok_count %}(VK: {{ vk_count }}, OK: {{ ok_count }}){% elif vk_count %}VK{% elif ok_count %}OK{% endif %}
+            Найдено <span class="text-violet font-semibold">{{ profiles|length }}</span> профилей VK
             для <span class="text-white font-medium">"{{ investigation.input_name }}"</span>
             {% if city %}<span class="text-gray-500">в {{ city }}</span>{% endif %}
         </p>
@@ -112,11 +109,7 @@
                     <h3 class="font-semibold text-white group-hover:text-violet transition-colors">
                         {{ profile.full_name or profile.display_name or profile.username }}
                     </h3>
-                    {% if profile.platform == 'ok' %}
-                    <span class="bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full font-medium">OK</span>
-                    {% else %}
                     <span class="bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full font-medium">VK</span>
-                    {% endif %}
                 </div>
                 <p class="text-sm text-violet">@{{ profile.username or profile.platform_id }}</p>
 

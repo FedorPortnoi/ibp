@@ -159,7 +159,7 @@ def search_telegram():
 def search_yandex():
     """
     Yandex Name Search — broad web search for social media profile links.
-    Returns profiles found across VK, Telegram, WhatsApp, Max, OK.
+    Returns profiles found across VK, Telegram, WhatsApp, Max.
     """
     start = time.time()
 
