@@ -35,12 +35,14 @@ class DiscoveredPhone:
     verified: bool = False
     carrier: Optional[str] = None
     region: Optional[str] = None
+    telegram_url: Optional[str] = None  # Link to Telegram profile if phone came from there
 
 
 @dataclass
 class PhoneDiscoveryResults:
     """Complete results from phone discovery."""
     phones: List[DiscoveredPhone] = field(default_factory=list)
+    additional_profiles: List[Dict] = field(default_factory=list)  # Telegram profiles found via cross-ref
     candidates_generated: int = 0
     candidates_verified: int = 0
     discovery_time: float = 0
@@ -150,12 +152,17 @@ class PhoneDiscoveryService:
                     if key not in all_phones:
                         all_phones[key] = phone
 
-            # Method 5: Check Telegram bios for phone numbers
-            tg_phones = self._check_telegram_usernames(usernames[:5])
-            for phone in tg_phones:
-                key = self._normalize_key(phone.number)
-                if key not in all_phones:
-                    all_phones[key] = phone
+            # Method 5: VK→Telegram username cross-reference
+            if profile_urls:
+                vk_profiles = [p for p in profile_urls if p.get('platform', '').lower() == 'vk']
+                tg_phones, tg_profiles = self._cross_reference_telegram(
+                    vk_profiles, first_name, last_name
+                )
+                for phone in tg_phones:
+                    key = self._normalize_key(phone.number)
+                    if key not in all_phones:
+                        all_phones[key] = phone
+                results.additional_profiles.extend(tg_profiles)
 
             # Method 6: Generate phone candidates from usernames containing digits
             generated_phones = self._generate_phone_candidates(usernames, first_name, last_name)
@@ -516,41 +523,121 @@ class PhoneDiscoveryService:
 
         return phones[:10]  # Limit to 10 candidates
 
-    def _check_telegram_usernames(self, usernames: List[str]) -> List[DiscoveredPhone]:
-        """Check Telegram public profiles for phone hints."""
+    def _cross_reference_telegram(
+        self,
+        vk_profiles: List[Dict],
+        first_name: str,
+        last_name: str,
+    ) -> tuple:
+        """
+        Cross-reference VK profiles against Telegram.
+        Returns (phones, additional_profiles) tuple.
+        """
         phones = []
+        profiles = []
 
-        for username in usernames:
+        try:
+            from .telegram_crossref import TelegramCrossRef
+
+            # Check VK connections for Telegram username first
+            vk_connections_tg = self._get_vk_telegram_connection(vk_profiles)
+
+            checker = TelegramCrossRef(request_delay=1.5)
             try:
-                url = f"https://t.me/{username}"
-                response = self.session.get(url, timeout=10)
+                tg_results = checker.cross_reference_vk_profiles(
+                    vk_profiles=vk_profiles,
+                    first_name=first_name,
+                    last_name=last_name,
+                    vk_connections_telegram=vk_connections_tg,
+                )
 
-                if response.status_code != 200:
-                    continue
+                for tg in tg_results:
+                    tg_url = f'https://t.me/{tg.username}'
 
-                text = response.text
-
-                # Look for phone patterns in Telegram preview page
-                soup = BeautifulSoup(text, 'html.parser')
-
-                # Check page description
-                desc = soup.select_one('.tgme_page_description')
-                if desc:
-                    desc_text = desc.get_text()
-                    found_phones = self.validator.extract_phones(desc_text)
-                    for info in found_phones:
+                    # Extract phones from bio
+                    for phone_num in tg.phones_in_bio:
                         phones.append(DiscoveredPhone(
-                            number=info.display_format,
-                            source=f"Telegram bio (@{username})",
-                            confidence="high"
+                            number=phone_num,
+                            source=f'Telegram bio (@{tg.username})',
+                            confidence='medium' if tg.name_match else 'low',
+                            telegram_url=tg_url,
                         ))
 
-                time.sleep(0.3)
+                    # Always store the Telegram profile as additional profile
+                    note = ''
+                    if not tg.name_match and tg.display_name:
+                        note = 'Совпадение username, но имя отличается — возможно другой человек'
 
+                    profiles.append({
+                        'platform': 'telegram',
+                        'username': tg.username,
+                        'url': tg_url,
+                        'display_name': tg.display_name,
+                        'bio': tg.bio[:200] if tg.bio else '',
+                        'name_match': tg.name_match,
+                        'confidence': tg.confidence,
+                        'source': tg.source,
+                        'note': note,
+                    })
+
+                    logger.info(
+                        f"Telegram cross-ref: @{tg.username} — "
+                        f"name_match={tg.name_match}, phones={len(tg.phones_in_bio)}, "
+                        f"confidence={tg.confidence}"
+                    )
+
+            finally:
+                checker.close()
+
+        except ImportError:
+            logger.warning("telegram_crossref module not available")
+        except Exception as e:
+            logger.warning(f"Telegram cross-reference error: {e}")
+
+        return phones, profiles
+
+    def _get_vk_telegram_connection(self, vk_profiles: List[Dict]) -> Optional[str]:
+        """Check VK API connections field for linked Telegram username."""
+        vk_token = os.environ.get('VK_SERVICE_TOKEN', '')
+        if not vk_token:
+            return None
+
+        for profile in vk_profiles[:2]:
+            url = profile.get('url', '')
+            user_id = None
+            m = re.search(r'vk\.com/id(\d+)', url)
+            if m:
+                user_id = m.group(1)
+            else:
+                m = re.search(r'vk\.com/([a-zA-Z0-9_.]+)', url)
+                if m:
+                    user_id = m.group(1)
+
+            if not user_id:
+                continue
+
+            try:
+                resp = self.session.get(
+                    'https://api.vk.com/method/users.get',
+                    params={
+                        'user_ids': user_id,
+                        'fields': 'connections',
+                        'access_token': vk_token,
+                        'v': '5.199',
+                    },
+                    timeout=10,
+                )
+                data = resp.json()
+                users = data.get('response', [])
+                if users:
+                    tg_username = users[0].get('telegram')
+                    if tg_username:
+                        logger.info(f"VK connections: found Telegram username @{tg_username}")
+                        return tg_username
             except Exception as e:
-                logger.debug(f"Telegram check error for {username}: {e}")
+                logger.debug(f"VK connections check error: {e}")
 
-        return phones
+        return None
 
     def close(self):
         """Clean up resources."""

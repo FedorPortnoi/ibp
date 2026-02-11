@@ -167,7 +167,14 @@
                     <div class="flex items-center justify-between p-3 bg-bg-dark rounded-lg border border-violet-200/20 {% if phone.confidence == 'high' %}border-green-500/30{% endif %}">
                         <div>
                             <span class="text-white font-mono">{{ phone.number }}</span>
+                            {% if phone.telegram_url %}
+                            <a href="{{ phone.telegram_url }}" target="_blank" rel="noopener"
+                               class="text-xs text-blue-400 hover:text-blue-300 ml-2" title="Открыть Telegram профиль">
+                                {{ phone.source }} &#8599;
+                            </a>
+                            {% else %}
                             <span class="text-xs text-gray-500 ml-2">{{ phone.source }}</span>
+                            {% endif %}
                             {% if phone.carrier or phone.region %}
                             <div class="text-xs text-gray-500 mt-1">
                                 {% if phone.carrier %}{{ phone.carrier }}{% endif %}
@@ -276,7 +283,7 @@
             {% if investigation.alternate_accounts %}
                 {% for account in investigation.alternate_accounts %}
                 <a href="{{ account.url }}" target="_blank" rel="noopener"
-                   class="flex items-center p-3 bg-bg-dark rounded-lg border border-violet-200/20 hover:border-violet transition-colors">
+                   class="flex items-center p-3 bg-bg-dark rounded-lg border border-violet-200/20 hover:border-violet transition-colors {% if account.platform == 'telegram' and account.confidence == 'high' %}border-blue-500/30{% endif %}">
                     <div class="w-10 h-10 rounded-full bg-violet/20 flex items-center justify-center mr-3">
                         {% if account.platform == 'telegram' %}
                         <span class="text-lg">&#128172;</span>
@@ -297,9 +304,23 @@
                         {% endif %}
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-white font-medium capitalize">{{ account.platform }}</p>
-                        <p class="text-gray-400 text-sm truncate">{{ account.username or account.url }}</p>
+                        <div class="flex items-center space-x-2">
+                            <p class="text-white font-medium capitalize">{{ account.platform }}</p>
+                            {% if account.platform == 'telegram' and account.confidence %}
+                                {% if account.confidence == 'high' %}
+                                <span class="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">&#10003;</span>
+                                {% elif account.confidence == 'low' %}
+                                <span class="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">?</span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        <p class="text-gray-400 text-sm truncate">
+                            {% if account.display_name %}{{ account.display_name }} — {% endif %}@{{ account.username or account.url }}
+                        </p>
                         <p class="text-gray-500 text-xs">{{ account.source }}</p>
+                        {% if account.note %}
+                        <p class="text-yellow-500/70 text-xs mt-1">{{ account.note }}</p>
+                        {% endif %}
                     </div>
                     <span class="text-violet">&#8599;</span>
                 </a>

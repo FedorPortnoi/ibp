@@ -1228,18 +1228,46 @@ def start_buratino_analysis(investigation_id):
                         # Deduplicate against already-found phones
                         normalized = dp.number.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
                         if normalized not in {p['number'].replace(' ', '').replace('-', '').replace('(', '').replace(')', '') for p in discovered_phones}:
-                            discovered_phones.append({
+                            phone_entry = {
                                 'number': dp.number,
                                 'source': dp.source,
                                 'confidence': dp.confidence,
                                 'verified_on': [],
                                 'carrier': dp.carrier or '',
                                 'region': dp.region or '',
-                            })
+                            }
+                            if dp.telegram_url:
+                                phone_entry['telegram_url'] = dp.telegram_url
+                            discovered_phones.append(phone_entry)
                             new_phone_count += 1
+
+                    # Merge Telegram profiles from cross-reference into alternate_accounts
+                    tg_crossref_count = 0
+                    for tg_profile in phone_results.additional_profiles:
+                        tg_url = tg_profile.get('url', '').lower()
+                        if tg_url and tg_url not in {a.get('url', '').lower() for a in alternate_accounts}:
+                            alternate_accounts.append({
+                                'platform': 'telegram',
+                                'username': tg_profile.get('username', ''),
+                                'url': tg_profile.get('url', ''),
+                                'source': tg_profile.get('source', 'VK→Telegram cross-reference'),
+                                'display_name': tg_profile.get('display_name', ''),
+                                'confidence': tg_profile.get('confidence', 'low'),
+                                'note': tg_profile.get('note', ''),
+                            })
+                            tg_crossref_count += 1
+                            display = tg_profile.get('display_name', '')
+                            uname = tg_profile.get('username', '')
+                            match_str = 'совпадение имени' if tg_profile.get('name_match') else 'имя отличается'
+                            task.add_message(
+                                f'Telegram: @{uname} ({display}) — {match_str}',
+                                'success' if tg_profile.get('name_match') else 'warning'
+                            )
 
                     if new_phone_count:
                         task.add_message(f'Phone discovery found {new_phone_count} new phone numbers', 'success')
+                    elif tg_crossref_count:
+                        task.add_message(f'Telegram cross-reference: {tg_crossref_count} profiles found', 'info')
                     else:
                         task.add_message(f'Phone discovery: {phone_results.candidates_generated} candidates checked, no new phones', 'info')
 
