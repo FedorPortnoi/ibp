@@ -423,18 +423,53 @@ class BuratinoVKSearch:
 
         all_profiles_by_id: Dict[int, VKProfileResult] = {}
 
-        # ── PRIMARY: VKWebSearch (web token users.search + newsfeed + screen name) ──
+        # Build name variations: original + diminutives for broader coverage
+        name_variations = [query]
+        query_parts = query.strip().split()
+        if len(query_parts) >= 2:
+            _first = query_parts[0]
+            _last = query_parts[1]
+            try:
+                from app.services.phase1.russian_diminutives import get_all_name_variants
+                for v in get_all_name_variants(_first)[1:4]:
+                    vq = f"{v} {_last}".strip()
+                    if vq.lower() != query.lower():
+                        name_variations.append(vq)
+            except ImportError:
+                pass
+
+        # ── PRIMARY: VKWebSearch — accumulate across all name variations ──
         try:
             from app.services.phase1.vk_web_search import VKWebSearch
             web_searcher = VKWebSearch(service_token=self.token)
-            raw_profiles, _ = web_searcher.search(query, count=count)
-            for item in raw_profiles:
-                vk_id = item.get('id')
-                if vk_id and vk_id not in all_profiles_by_id:
-                    profile = self._parse_profile(item, target_name)
-                    if profile.name_match:
-                        all_profiles_by_id[vk_id] = profile
-            logger.info(f"VK search: {len(all_profiles_by_id)} matching profiles for '{query}'")
+
+            for variation in name_variations:
+                try:
+                    raw_profiles, _ = web_searcher.search(variation, count=count)
+                    added = 0
+                    for item in raw_profiles:
+                        vk_id = item.get('id')
+                        if vk_id and vk_id not in all_profiles_by_id:
+                            profile = self._parse_profile(item, target_name)
+                            if profile.name_match:
+                                all_profiles_by_id[vk_id] = profile
+                                added += 1
+                    if added:
+                        logger.info(
+                            f"VK search: +{added} from '{variation}' "
+                            f"({len(all_profiles_by_id)} total)"
+                        )
+                except Exception as e:
+                    logger.warning(f"VK search failed for '{variation}': {e}")
+
+                if len(all_profiles_by_id) >= 100:
+                    logger.info("VK search: hit 100 cap, skipping remaining variations")
+                    break
+
+            logger.info(
+                f"VK search: {len(all_profiles_by_id)} total unique profiles "
+                f"for '{target_name}'"
+            )
         except Exception as e:
             logger.warning(f"VK web search failed: {e}")
 
@@ -653,33 +688,9 @@ class BuratinoVKSearch:
             if p.vk_id not in all_profiles:
                 all_profiles[p.vk_id] = p
 
-        # ── Step 2: Diminutive variants (skip if already have enough) ──
-        if len(all_profiles) < 100:
-            try:
-                from app.services.phase1.russian_diminutives import get_all_name_variants
-                name_variants = get_all_name_variants(first_name)
-                # Skip the first one (it's the original name)
-                for variant in name_variants[1:5]:  # Max 4 diminutive searches
-                    variant_query = f"{variant} {last_name}".strip() if last_name else variant
-                    logger.info(f"Expanded search: diminutive '{variant_query}'")
-                    try:
-                        dim_profiles, _ = self.search(
-                            query=variant_query, city=city, age_from=age_from,
-                            age_to=age_to, count=20, target_name=query
-                        )
-                        for p in dim_profiles:
-                            if p.vk_id not in all_profiles:
-                                all_profiles[p.vk_id] = p
-                    except Exception as e:
-                        logger.warning(f"Diminutive search '{variant_query}' failed: {e}")
-                    if len(all_profiles) >= 100:
-                        logger.info(f"Expanded search: {len(all_profiles)} profiles, skipping remaining diminutives")
-                        break
-                    time.sleep(0.5)
-            except ImportError:
-                logger.warning("russian_diminutives module not available")
-        else:
-            logger.info(f"Expanded search: {len(all_profiles)} profiles from primary search, skipping diminutives")
+        # ── Step 2: Diminutive variants — now handled inside search() ──
+        # search() accumulates across original + diminutive name variations,
+        # so no separate diminutive round is needed here.
 
         # ── Step 3: Transliteration variants (screen name guessing) ──
         # Only run if we have few results from accurate strategies (steps 1-2)
