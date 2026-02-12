@@ -1,10 +1,9 @@
 """
 Phase 1 Search API — Parallel Multi-Platform Discovery
 =======================================================
-Three independent endpoints for parallel AJAX calls:
+Two independent endpoints for parallel AJAX calls:
   POST /api/search/vk       → VK People Search
   POST /api/search/telegram  → Telegram Discovery (3 methods)
-  POST /api/search/yandex    → Yandex Name Search
 
 Each endpoint accepts JSON body with name, city, age_from, age_to
 and returns a unified profile response format.
@@ -23,7 +22,7 @@ api_search_bp = Blueprint('api_search', __name__, url_prefix='/api/search')
 
 @api_search_bp.route('/page')
 def search_page():
-    """Render the three-column people search page."""
+    """Render the two-column people search page."""
     return render_template('people_search.html')
 
 
@@ -56,7 +55,6 @@ def search_vk():
             city=city,
             age_from=int(age_from) if age_from else None,
             age_to=int(age_to) if age_to else None,
-            count=50,
             target_name=name,
         )
 
@@ -152,63 +150,6 @@ def search_telegram():
             'count': 0,
             'profiles': [],
             'errors': [f'Ошибка поиска Telegram: {str(e)}'],
-        })
-
-
-@api_search_bp.route('/yandex', methods=['POST'])
-def search_yandex():
-    """
-    Yandex Name Search — broad web search for social media profile links.
-    Returns profiles found across VK, Telegram, WhatsApp, Max.
-    """
-    start = time.time()
-
-    try:
-        data = request.get_json(silent=True) or {}
-        name = (data.get('name') or '').strip()
-        if not name:
-            return jsonify({'status': 'error', 'count': 0, 'profiles': [], 'errors': ['Имя обязательно']})
-
-        city = (data.get('city') or '').strip()
-
-        name_parts = name.split()
-        first_name = name_parts[0] if name_parts else name
-        last_name = name_parts[1] if len(name_parts) > 1 else ''
-
-        from app.services.phase1.yandex_search import YandexNameSearch
-        svc = YandexNameSearch()
-
-        try:
-            profiles = svc.search(
-                first_name=first_name,
-                last_name=last_name,
-                city=city,
-            )
-        finally:
-            svc.close()
-
-        errors = []
-        if svc.captcha_blocked:
-            errors.append('Яндекс временно недоступен (CAPTCHA)')
-
-        elapsed = round(time.time() - start, 1)
-        logger.info(f"Yandex search: {len(profiles)} results in {elapsed}s for '{name}'")
-
-        return jsonify({
-            'status': 'ok',
-            'count': len(profiles),
-            'profiles': profiles,
-            'errors': errors,
-            'search_time': elapsed,
-        })
-
-    except Exception as e:
-        logger.error(f"Yandex search API error: {e}", exc_info=True)
-        return jsonify({
-            'status': 'error',
-            'count': 0,
-            'profiles': [],
-            'errors': [f'Ошибка поиска Яндекс: {str(e)}'],
         })
 
 

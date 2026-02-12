@@ -120,10 +120,17 @@ def verify_profile_name_matches_query(profile: dict, search_first: str, search_l
         return True
 
     # Check diminutive matching (Дмитрий↔Дима, Ольга↔Оля, etc.)
+    # Bidirectional: works whether search or profile is the diminutive form.
+    # Also adds Latin transliterations so "Oleg" (Latin) matches "Олежка" (Cyrillic).
     try:
         from app.services.phase1.russian_diminutives import get_all_name_variants
         search_variants = set(v.lower() for v in get_all_name_variants(search_first))
         profile_variants = set(v.lower() for v in get_all_name_variants(profile_first))
+
+        # Add Latin transliterations of all variants for cross-script matching
+        search_variants |= set(_to_latin(v) for v in search_variants)
+        profile_variants |= set(_to_latin(v) for v in profile_variants)
+
         if search_variants & profile_variants:
             return True
     except ImportError:
@@ -198,7 +205,6 @@ class VKWebSearch:
     def search(
         self,
         query: str,
-        count: int = 50,
     ) -> Tuple[List[Dict], int]:
         """
         Search VK for people by name. Returns (profiles, total_count).
@@ -223,7 +229,7 @@ class VKWebSearch:
                     id_methods[uid] = method
 
         # Step 1: People search (most accurate — searches real name fields)
-        web_search_ids = self._playwright_search(query, count)
+        web_search_ids = self._playwright_search(query)
         _add_ids(web_search_ids, 'people_search')
 
         # Step 2: Newsfeed search (supplementary — finds post authors)
@@ -388,7 +394,7 @@ class VKWebSearch:
     # Class-level flag: skip Playwright if login has already failed this session
     _login_failed = False
 
-    def _playwright_search(self, query: str, count: int = 50) -> List[int]:
+    def _playwright_search(self, query: str) -> List[int]:
         """
         Search VK using the web token obtained from the browser session.
 
@@ -416,7 +422,7 @@ class VKWebSearch:
             return []
 
         # Step 3: Call users.search with the web token
-        return self._users_search_with_token(web_token, query, count)
+        return self._users_search_with_token(web_token, query)
 
     def _refresh_web_token(self) -> Optional[str]:
         """
@@ -496,17 +502,16 @@ class VKWebSearch:
         return None
 
     def _users_search_with_token(
-        self, token: str, query: str, count: int
+        self, token: str, query: str
     ) -> List[int]:
         """
         Call VK API users.search with a web token.
 
-        Always fetches up to 1000 results from VK, then filters:
+        Fetches up to 1000 results from VK, then filters:
         1. Real human profiles (no bots/deleted/communities)
         2. Name verification (fuzzy match against query)
-        3. Cap at 100 verified profiles
 
-        Returns list of verified user IDs.
+        Returns all verified user IDs (no artificial cap).
         """
         if not self._session:
             return []
@@ -558,9 +563,6 @@ class VKWebSearch:
                 ]
             else:
                 verified_items = human_items
-
-            # Step 3: Cap at 100 verified profiles
-            verified_items = verified_items[:100]
 
             user_ids = [item['id'] for item in verified_items if 'id' in item]
             logger.info(

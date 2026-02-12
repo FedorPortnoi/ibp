@@ -245,25 +245,39 @@
         <h1 class="text-3xl font-bold text-white mb-2 font-display">
             <span class="text-violet">Поиск</span> людей
         </h1>
-        <p class="text-gray-400">Параллельный поиск по ВКонтакте, Telegram и Яндекс</p>
+        <p class="text-gray-400">Параллельный поиск по ВКонтакте и Telegram</p>
     </div>
 
     <!-- Search Form -->
     <div class="search-card mb-8">
-        <form id="search-form">
+        <form id="search-form" autocomplete="off">
             <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
                 <!-- Name Input -->
-                <div class="md:col-span-4">
+                <div class="md:col-span-3">
                     <label class="block text-sm font-medium text-gray-300 mb-2">Полное имя</label>
-                    <input type="text" id="name"
+                    <input type="text" id="name" autocomplete="off"
                            class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition"
                            placeholder="Артём Козлов" required>
+                </div>
+
+                <!-- Photo Upload -->
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Фото</label>
+                    <label id="photo-label" for="photo-input"
+                           class="flex items-center justify-center w-full h-[46px] bg-bg-dark border border-violet-200 rounded-lg cursor-pointer hover:border-violet transition"
+                           title="Фото (необязательно)">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </label>
+                    <input type="file" id="photo-input" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden">
                 </div>
 
                 <!-- City Input -->
                 <div class="md:col-span-3">
                     <label class="block text-sm font-medium text-gray-300 mb-2">Город (необязательно)</label>
-                    <input type="text" id="city"
+                    <input type="text" id="city" autocomplete="off"
                            class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition"
                            placeholder="Москва">
                 </div>
@@ -271,14 +285,14 @@
                 <!-- Age Range -->
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-300 mb-2">Возраст от</label>
-                    <input type="number" id="age_from" min="1" max="120"
+                    <input type="number" id="age_from" min="1" max="120" autocomplete="off"
                            class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition"
                            placeholder="18">
                 </div>
 
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-300 mb-2">Возраст до</label>
-                    <input type="number" id="age_to" min="1" max="120"
+                    <input type="number" id="age_to" min="1" max="120" autocomplete="off"
                            class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition"
                            placeholder="65">
                 </div>
@@ -296,8 +310,8 @@
         </form>
     </div>
 
-    <!-- Three-Column Results Grid -->
-    <div id="results-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-6" style="display: none;">
+    <!-- Two-Column Results Grid -->
+    <div id="results-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-6" style="display: none;">
 
         <!-- Column 1: VK -->
         <div id="vk-column" class="min-w-0">
@@ -317,16 +331,6 @@
                 <span id="tg-count" class="column-count"></span>
             </div>
             <div id="tg-results"></div>
-        </div>
-
-        <!-- Column 3: Yandex -->
-        <div id="yandex-column" class="min-w-0">
-            <div class="column-header">
-                <img src="{{ url_for('static', filename='icons/yandex.svg') }}" alt="Yandex">
-                <h2 class="text-lg font-bold text-white">Яндекс</h2>
-                <span id="yandex-count" class="column-count"></span>
-            </div>
-            <div id="yandex-results"></div>
         </div>
     </div>
 
@@ -355,6 +359,32 @@
 // ═══════════════════════════════════════════════════════════════
 let selectedProfile = null;
 
+// Reset form on page load to prevent browser from restoring old values
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('search-form').reset();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PHOTO UPLOAD INDICATOR
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('photo-input').addEventListener('change', function() {
+    const label = document.getElementById('photo-label');
+    if (this.files && this.files[0]) {
+        label.classList.add('border-violet');
+        label.innerHTML = `<svg class="w-5 h-5 text-violet" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>`;
+        label.title = this.files[0].name;
+    } else {
+        label.classList.remove('border-violet');
+        label.innerHTML = `<svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+        </svg>`;
+        label.title = 'Фото (необязательно)';
+    }
+});
+
 // ═══════════════════════════════════════════════════════════════
 // SEARCH FORM HANDLER
 // ═══════════════════════════════════════════════════════════════
@@ -379,12 +409,10 @@ document.getElementById('search-form').addEventListener('submit', async function
     // Show spinners in all columns
     showSpinner('vk-results', 'Поиск ВКонтакте...');
     showSpinner('tg-results', 'Поиск Telegram...');
-    showSpinner('yandex-results', 'Поиск Яндекс...');
 
     // Reset counts
     document.getElementById('vk-count').textContent = '';
     document.getElementById('tg-count').textContent = '';
-    document.getElementById('yandex-count').textContent = '';
 
     // Disable search button
     const btn = document.getElementById('search-btn');
@@ -400,7 +428,7 @@ document.getElementById('search-form').addEventListener('submit', async function
 
     const headers = {'Content-Type': 'application/json'};
 
-    // Fire all three searches in parallel
+    // Fire both searches in parallel
     const vkPromise = fetch('/api/search/vk', {method: 'POST', headers, body})
         .then(r => r.json())
         .then(data => renderColumn('vk', data))
@@ -411,12 +439,7 @@ document.getElementById('search-form').addEventListener('submit', async function
         .then(data => renderColumn('tg', data))
         .catch(err => renderError('tg', err.message));
 
-    const yandexPromise = fetch('/api/search/yandex', {method: 'POST', headers, body})
-        .then(r => r.json())
-        .then(data => renderColumn('yandex', data))
-        .catch(err => renderError('yandex', err.message));
-
-    await Promise.allSettled([vkPromise, tgPromise, yandexPromise]);
+    await Promise.allSettled([vkPromise, tgPromise]);
 
     // Re-enable search button
     btn.disabled = false;
@@ -624,6 +647,10 @@ async function proceedToPhase2() {
         if (ageFrom) formData.append('age_from', ageFrom);
         const ageTo = document.getElementById('age_to').value;
         if (ageTo) formData.append('age_to', ageTo);
+        const photoInput = document.getElementById('photo-input');
+        if (photoInput.files && photoInput.files[0]) {
+            formData.append('photo', photoInput.files[0]);
+        }
 
         const resp = await fetch('/phase1/new', {
             method: 'POST',
