@@ -1,41 +1,32 @@
 """
-Yandex Name Search — Phase 1
-==============================
-Searches yandex.ru for social media profiles matching a name.
-Extracts links to VK, Telegram, WhatsApp, Max, OK.
+Yandex People Search — Phase 1 (Playwright)
+============================================
+Searches yandex.ru/people for social media profiles matching a name.
+Uses Playwright browser to bypass SmartCaptcha blocking.
 
+Extracts links to VK, Telegram, WhatsApp, Max, OK from Yandex People cards.
 Handles SmartCaptcha gracefully — returns empty results if blocked.
 """
 
 import logging
+import random
 import re
 import time
+import traceback
 from typing import List, Dict, Optional
-from urllib.parse import urlparse, parse_qs, unquote
-
-import requests
-from bs4 import BeautifulSoup
+from urllib.parse import urlparse, quote_plus
 
 logger = logging.getLogger(__name__)
 
-YANDEX_SEARCH_URL = 'https://yandex.ru/search/'
-
+# Target social media domains to extract from Yandex People results
 TARGET_DOMAINS = {
     'vk.com': 'vk',
     't.me': 'telegram',
     'wa.me': 'whatsapp',
     'max.ru': 'max',
     'ok.ru': 'ok',
-}
-
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-    'Accept-Encoding': 'gzip, deflate',
-    'DNT': '1',
-    'Connection': 'keep-alive',
-    'Upgrade-Insecure-Requests': '1',
+    'instagram.com': 'instagram',
+    'facebook.com': 'facebook',
 }
 
 # Reserved URL paths that aren't user profiles
@@ -46,23 +37,37 @@ RESERVED_PATHS = {
     'friends', 'groups_list', 'apps', 'docs', 'im', 'mail',
 }
 
-# Max queries per search
-MAX_QUERIES = 4
-QUERY_DELAY = 2.5  # seconds between Yandex queries
+# User agent for browser context
+USER_AGENT = (
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+    'AppleWebKit/537.36 (KHTML, like Gecko) '
+    'Chrome/131.0.0.0 Safari/537.36'
+)
+
+# Yandex People URL patterns to try
+YANDEX_PEOPLE_URLS = [
+    'https://yandex.ru/people?query={query}',
+    'https://yandex.ru/people/search?text={query}',
+]
+
+MAX_RESULTS = 100
 
 
 class YandexNameSearch:
     """
-    Searches Yandex for social media profiles matching a name.
+    Searches Yandex People for social media profiles matching a name.
+    Uses Playwright for browser-based rendering to avoid CAPTCHA blocking.
 
     Usage:
         svc = YandexNameSearch()
         results = svc.search('Артём', 'Козлов')
     """
 
+    # Class-level singleton browser to reuse across searches
+    _browser = None
+    _playwright = None
+
     def __init__(self):
-        self.session = requests.Session()
-        self.session.headers.update(HEADERS)
         self._captcha_hit = False
 
     def search(
@@ -72,158 +77,505 @@ class YandexNameSearch:
         city: str = '',
     ) -> List[Dict]:
         """
-        Search Yandex for social media profiles matching the name.
-
+        Search Yandex People for social media profiles matching the name.
         Returns list of profile dicts in the standard search response format.
         """
-        full_name = f"{first_name} {last_name}"
+        self._captcha_hit = False
+        full_name = f"{first_name} {last_name}".strip()
 
-        queries = [
-            f'"{full_name}"',
-            f'"{full_name}" site:vk.com',
-            f'"{full_name}" site:t.me',
-        ]
+        if not full_name:
+            return []
+
+        # Build query with optional city filter
+        query = full_name
         if city:
-            queries.append(f'"{full_name}" {city}')
+            query = f"{full_name} {city}"
 
+        try:
+            profiles = self._search_playwright(query, first_name, last_name)
+            logger.info(f"Yandex search: found {len(profiles)} profiles for {full_name}")
+            return profiles[:MAX_RESULTS]
+        except Exception as e:
+            logger.error(f"Yandex search error: {e}\n{traceback.format_exc()}")
+            return []
+
+    def _search_playwright(
+        self,
+        query: str,
+        first_name: str,
+        last_name: str,
+    ) -> List[Dict]:
+        """Execute Yandex People search via Playwright browser."""
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            logger.error("Yandex Playwright: playwright not installed, returning empty")
+            return []
+
+        page = None
+        try:
+            browser = self._get_browser()
+            if not browser:
+                return []
+
+            # Create new page with Russian locale
+            context = browser.new_context(
+                locale='ru-RU',
+                user_agent=USER_AGENT,
+                viewport={'width': 1280, 'height': 900},
+            )
+            page = context.new_page()
+
+            # Stealth: remove webdriver flag
+            page.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            """)
+
+            # Random human-like delay before navigation
+            delay = random.uniform(1.0, 3.0)
+            time.sleep(delay)
+
+            # Try each Yandex People URL pattern
+            profiles = []
+            for url_template in YANDEX_PEOPLE_URLS:
+                url = url_template.format(query=quote_plus(query))
+                logger.info(f"Yandex Playwright: navigating to {url}")
+
+                try:
+                    page.goto(url, wait_until='domcontentloaded', timeout=15000)
+                except Exception as nav_err:
+                    logger.warning(f"Yandex Playwright: navigation error for {url}: {nav_err}")
+                    continue
+
+                # Wait for page to settle
+                page.wait_for_timeout(2000)
+
+                # Check for CAPTCHA
+                if self._check_captcha(page):
+                    self._captcha_hit = True
+                    logger.warning(f"Yandex SmartCaptcha detected for query: \"{query}\"")
+                    break
+
+                # Scroll down to trigger lazy loading
+                self._scroll_page(page)
+
+                # Parse profile cards from rendered DOM
+                raw_profiles = self._parse_people_cards(page, first_name, last_name)
+                if raw_profiles:
+                    logger.info(f"Yandex Playwright: URL pattern worked: {url_template}")
+                    profiles = raw_profiles
+                    break
+                else:
+                    logger.info(f"Yandex Playwright: no results from {url_template}, trying next")
+
+            # Close context (not browser — keep singleton alive)
+            try:
+                context.close()
+            except Exception:
+                pass
+
+            return profiles
+
+        except Exception as e:
+            logger.error(f"Yandex Playwright error: {e}\n{traceback.format_exc()}")
+            if page:
+                try:
+                    page.context.close()
+                except Exception:
+                    pass
+            return []
+
+    @classmethod
+    def _get_browser(cls):
+        """Get or create the singleton Playwright browser instance."""
+        if cls._browser and cls._browser.is_connected():
+            return cls._browser
+
+        try:
+            from playwright.sync_api import sync_playwright
+
+            # Close stale playwright instance if any
+            if cls._playwright:
+                try:
+                    cls._playwright.stop()
+                except Exception:
+                    pass
+
+            cls._playwright = sync_playwright().start()
+            cls._browser = cls._playwright.chromium.launch(
+                headless=True,
+                args=[
+                    '--disable-blink-features=AutomationControlled',
+                    '--no-sandbox',
+                    '--disable-dev-shm-usage',
+                ],
+            )
+            logger.info("Yandex Playwright: browser launched")
+            return cls._browser
+
+        except Exception as e:
+            logger.error(f"Yandex Playwright: browser launch failed: {e}")
+            cls._browser = None
+            cls._playwright = None
+            return None
+
+    @staticmethod
+    def _check_captcha(page) -> bool:
+        """Detect Yandex SmartCaptcha or CAPTCHA challenge on the page."""
+        try:
+            url = page.url.lower()
+            if 'captcha' in url or 'showcaptcha' in url:
+                return True
+        except Exception:
+            pass
+
+        # Check for captcha-related elements in DOM
+        captcha_selectors = [
+            '[class*="Captcha"]',
+            '[id*="captcha"]',
+            'form[action*="captcha"]',
+            'img[src*="captcha"]',
+            '[class*="CheckboxCaptcha"]',
+            '[class*="SmartCaptcha"]',
+        ]
+        for sel in captcha_selectors:
+            try:
+                el = page.locator(sel).first
+                if el.is_visible(timeout=500):
+                    return True
+            except Exception:
+                continue
+
+        # Check page text for confirmation prompts
+        try:
+            body_text = page.locator('body').inner_text(timeout=1000)
+            if any(s in body_text for s in ['Подтвердите', 'не робот', 'I\'m not a robot']):
+                return True
+        except Exception:
+            pass
+
+        return False
+
+    @staticmethod
+    def _scroll_page(page) -> None:
+        """Scroll down 2-3 times to trigger lazy loading of profile cards."""
+        try:
+            for _ in range(3):
+                page.evaluate('window.scrollBy(0, window.innerHeight * 0.8)')
+                page.wait_for_timeout(random.randint(800, 1500))
+        except Exception:
+            pass
+
+    def _parse_people_cards(
+        self,
+        page,
+        first_name: str,
+        last_name: str,
+    ) -> List[Dict]:
+        """
+        Parse Yandex People profile cards from the rendered DOM.
+        Uses JavaScript evaluation for flexible extraction.
+        """
+        # Extract structured data from the page via JS
+        raw_cards = page.evaluate("""
+        () => {
+            const results = [];
+
+            // Strategy 1: Look for person card elements with data attributes
+            const dataCards = document.querySelectorAll(
+                '[data-testid*="person"], [data-testid*="card"], [data-testid*="result"]'
+            );
+            if (dataCards.length > 0) {
+                dataCards.forEach(card => {
+                    const links = [];
+                    card.querySelectorAll('a[href]').forEach(a => {
+                        links.push({href: a.href, text: a.textContent.trim()});
+                    });
+                    const imgs = [];
+                    card.querySelectorAll('img[src]').forEach(img => {
+                        imgs.push(img.src);
+                    });
+                    results.push({
+                        text: card.textContent.trim().substring(0, 500),
+                        links: links,
+                        imgs: imgs,
+                    });
+                });
+                return {strategy: 'data-testid', cards: results};
+            }
+
+            // Strategy 2: Look for repeated card-like structures
+            // Yandex People typically wraps each person in a card div
+            const allLinks = document.querySelectorAll('a[href]');
+            const socialDomains = ['vk.com', 't.me', 'ok.ru', 'instagram.com',
+                                   'facebook.com', 'wa.me', 'max.ru'];
+            const cardMap = new Map();
+
+            allLinks.forEach(link => {
+                const href = link.href || '';
+                const isSocial = socialDomains.some(d => href.includes(d));
+                if (!isSocial) return;
+
+                // Find the card container — walk up to find a reasonable parent
+                let container = link.parentElement;
+                for (let i = 0; i < 5 && container; i++) {
+                    // Stop if we find a parent that looks like a card wrapper
+                    const classes = (container.className || '').toLowerCase();
+                    if (classes.includes('card') || classes.includes('item') ||
+                        classes.includes('result') || classes.includes('person') ||
+                        classes.includes('snippet')) {
+                        break;
+                    }
+                    // Also stop if parent has multiple social links (= card boundary)
+                    const parentSocialLinks = Array.from(
+                        container.querySelectorAll('a[href]')
+                    ).filter(a => socialDomains.some(d => (a.href||'').includes(d)));
+                    if (parentSocialLinks.length > 1) break;
+                    container = container.parentElement;
+                }
+
+                if (!container) return;
+
+                // Use container as card key
+                const key = container.outerHTML.substring(0, 100);
+                if (!cardMap.has(key)) {
+                    const links = [];
+                    container.querySelectorAll('a[href]').forEach(a => {
+                        links.push({href: a.href, text: a.textContent.trim()});
+                    });
+                    const imgs = [];
+                    container.querySelectorAll('img[src]').forEach(img => {
+                        if (img.src && !img.src.includes('data:') &&
+                            img.width > 20 && img.height > 20) {
+                            imgs.push(img.src);
+                        }
+                    });
+                    cardMap.set(key, {
+                        text: container.textContent.trim().substring(0, 500),
+                        links: links,
+                        imgs: imgs,
+                    });
+                }
+            });
+
+            if (cardMap.size > 0) {
+                return {strategy: 'social-links', cards: Array.from(cardMap.values())};
+            }
+
+            // Strategy 3: Fallback — just collect all social media links on the page
+            const fallbackLinks = [];
+            allLinks.forEach(link => {
+                const href = link.href || '';
+                const isSocial = socialDomains.some(d => href.includes(d));
+                if (isSocial) {
+                    // Get surrounding text (up 3 levels)
+                    let ctx = link.parentElement;
+                    for (let i = 0; i < 2 && ctx && ctx.parentElement; i++) {
+                        ctx = ctx.parentElement;
+                    }
+                    fallbackLinks.push({
+                        href: href,
+                        text: link.textContent.trim(),
+                        context: ctx ? ctx.textContent.trim().substring(0, 300) : '',
+                    });
+                }
+            });
+
+            if (fallbackLinks.length > 0) {
+                // Group by unique href
+                const grouped = {};
+                fallbackLinks.forEach(l => {
+                    if (!grouped[l.href]) {
+                        grouped[l.href] = l;
+                    }
+                });
+                return {
+                    strategy: 'fallback-links',
+                    cards: Object.values(grouped).map(l => ({
+                        text: l.context || l.text,
+                        links: [{href: l.href, text: l.text}],
+                        imgs: [],
+                    }))
+                };
+            }
+
+            return {strategy: 'none', cards: []};
+        }
+        """)
+
+        strategy = raw_cards.get('strategy', 'none')
+        cards = raw_cards.get('cards', [])
+        logger.info(
+            f"Yandex Playwright: DOM extraction strategy='{strategy}', "
+            f"found {len(cards)} card(s)"
+        )
+
+        if not cards:
+            return []
+
+        # Process each card into profile dicts
         all_profiles = []
         seen_urls = set()
 
-        for i, query in enumerate(queries[:MAX_QUERIES]):
-            if self._captcha_hit:
-                logger.warning("Yandex CAPTCHA detected, stopping further queries")
-                break
+        for card in cards:
+            text = card.get('text', '')
+            links = card.get('links', [])
+            imgs = card.get('imgs', [])
+            photo_url = imgs[0] if imgs else None
 
-            try:
-                html = self._fetch_yandex(query)
-                if not html:
+            # Extract person name from card text (first line is usually the name)
+            card_name = self._extract_name_from_text(text)
+
+            for link_info in links:
+                href = link_info.get('href', '')
+                if not href:
                     continue
 
-                if self._is_captcha_page(html):
-                    self._captcha_hit = True
-                    logger.warning(f"Yandex SmartCaptcha detected for query: {query}")
-                    break
+                # Match against target social media domains
+                platform = None
+                for domain, plat in TARGET_DOMAINS.items():
+                    if domain in href:
+                        platform = plat
+                        break
 
-                profiles = self._extract_social_links(html, full_name)
-                for p in profiles:
-                    url = p.get('url', '').lower().rstrip('/')
-                    if url and url not in seen_urls:
-                        seen_urls.add(url)
-                        all_profiles.append(p)
+                if not platform:
+                    continue
 
-            except Exception as e:
-                logger.warning(f"Yandex search error for '{query}': {e}")
+                username = self._extract_username(href, platform)
+                if not username:
+                    continue
 
-            # Rate limit between queries
-            if i < len(queries) - 1:
-                time.sleep(QUERY_DELAY)
+                # Deduplicate by URL
+                url_key = href.lower().rstrip('/')
+                if url_key in seen_urls:
+                    continue
+                seen_urls.add(url_key)
 
-        logger.info(f"Yandex search: found {len(all_profiles)} profiles for {full_name}")
-        return all_profiles
+                # Extract city and age from card text
+                city = self._extract_city(text)
+                age = self._extract_age(text)
 
-    def _fetch_yandex(self, query: str) -> Optional[str]:
-        """Fetch Yandex search results page."""
+                # Determine name fields
+                display_first = first_name
+                display_last = last_name
+                if card_name:
+                    name_parts = card_name.split(None, 1)
+                    if len(name_parts) >= 2:
+                        display_first = name_parts[0]
+                        display_last = name_parts[1]
+                    elif name_parts:
+                        display_first = name_parts[0]
+
+                all_profiles.append({
+                    'platform': platform,
+                    'id': '',
+                    'url': href,
+                    'first_name': display_first,
+                    'last_name': display_last,
+                    'photo_url': photo_url,
+                    'city': city,
+                    'age': age,
+                    'username': username,
+                    'bio': text[:200] if text else '',
+                    'confidence': None,
+                    'source': 'Яндекс поиск',
+                })
+
+        # Name verification — only keep profiles matching the search name
+        verified = self._verify_profiles(all_profiles, first_name, last_name)
+        logger.info(
+            f"Yandex Playwright: {len(verified)} profiles passed name verification "
+            f"(out of {len(all_profiles)})"
+        )
+
+        return verified
+
+    @staticmethod
+    def _verify_profiles(
+        profiles: List[Dict],
+        first_name: str,
+        last_name: str,
+    ) -> List[Dict]:
+        """Verify profile names match the search query using shared name matcher."""
+        if not first_name and not last_name:
+            return profiles
+
         try:
-            resp = self.session.get(
-                YANDEX_SEARCH_URL,
-                params={
-                    'text': query,
-                    'lr': 213,  # Moscow region
-                },
-                timeout=15,
-                allow_redirects=True,
-            )
+            from app.services.phase1.vk_web_search import verify_profile_name_matches_query
+        except ImportError:
+            # Fallback: basic case-insensitive match
+            logger.warning("Yandex: could not import name verifier, using basic matching")
+            verified = []
+            fn_lower = first_name.lower()
+            ln_lower = last_name.lower()
+            for p in profiles:
+                pf = (p.get('first_name') or '').lower()
+                pl = (p.get('last_name') or '').lower()
+                if fn_lower in pf or pf in fn_lower or ln_lower in pl or pl in ln_lower:
+                    verified.append(p)
+            return verified
 
-            if resp.status_code != 200:
-                logger.warning(f"Yandex returned HTTP {resp.status_code}")
-                return None
+        verified = []
+        for p in profiles:
+            if verify_profile_name_matches_query(p, first_name, last_name):
+                p['confidence'] = 'высокая'
+                verified.append(p)
 
-            return resp.text
-
-        except requests.Timeout:
-            logger.warning("Yandex request timeout")
-            return None
-        except requests.RequestException as e:
-            logger.warning(f"Yandex request error: {e}")
-            return None
+        return verified
 
     @staticmethod
-    def _is_captcha_page(html: str) -> bool:
-        """Detect Yandex SmartCaptcha or CAPTCHA challenge."""
-        captcha_signals = [
-            'captcha', 'SmartCaptcha', 'showcaptcha', 'CheckboxCaptcha',
-            'captcha-image', '/captcha/',
+    def _extract_name_from_text(text: str) -> Optional[str]:
+        """Extract a person's name from card text (usually the first line)."""
+        if not text:
+            return None
+        lines = text.strip().split('\n')
+        if not lines:
+            return None
+        first_line = lines[0].strip()
+        # A name is typically 2-3 words, mostly Cyrillic
+        if len(first_line) > 50:
+            return None
+        words = first_line.split()
+        if 1 <= len(words) <= 4:
+            # Check if mostly Cyrillic
+            cyrillic_count = sum(1 for w in words if re.search(r'[а-яА-ЯёЁ]', w))
+            if cyrillic_count >= len(words) * 0.5:
+                return first_line
+        return None
+
+    @staticmethod
+    def _extract_city(text: str) -> str:
+        """Try to extract city from card text."""
+        # Common Russian cities as quick check
+        cities = [
+            'Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург',
+            'Казань', 'Нижний Новгород', 'Челябинск', 'Самара', 'Омск',
+            'Ростов-на-Дону', 'Уфа', 'Красноярск', 'Пермь', 'Воронеж',
+            'Волгоград', 'Краснодар', 'Саратов', 'Тюмень', 'Тольятти',
         ]
-        html_lower = html.lower()
-        # Check if it's actually a captcha page, not just a mention in JS
-        captcha_count = sum(1 for s in captcha_signals if s.lower() in html_lower)
-        return captcha_count >= 2
-
-    def _extract_social_links(self, html: str, full_name: str) -> List[Dict]:
-        """Extract social media profile links from Yandex search results."""
-        soup = BeautifulSoup(html, 'html.parser')
-        profiles = []
-
-        # Find all links in the page
-        for link in soup.find_all('a', href=True):
-            href = link['href']
-            clean_url = self._extract_real_url(href)
-            if not clean_url:
-                continue
-
-            # Check if URL matches target domains
-            for domain, platform in TARGET_DOMAINS.items():
-                if domain in clean_url:
-                    username = self._extract_username(clean_url, platform)
-                    if not username:
-                        continue
-
-                    # Get surrounding text for name hints
-                    snippet = self._get_parent_text(link)
-
-                    profiles.append({
-                        'platform': platform,
-                        'id': '',
-                        'url': clean_url,
-                        'first_name': full_name.split()[0] if full_name else '',
-                        'last_name': ' '.join(full_name.split()[1:]) if full_name else '',
-                        'photo_url': None,
-                        'city': '',
-                        'age': None,
-                        'username': username,
-                        'bio': snippet[:200] if snippet else '',
-                        'confidence': None,
-                        'source': 'Яндекс поиск',
-                    })
-                    break
-
-        return profiles
+        for city in cities:
+            if city in text:
+                return city
+        return ''
 
     @staticmethod
-    def _extract_real_url(href: str) -> Optional[str]:
-        """
-        Extract the real URL from Yandex redirect wrappers.
-        Yandex wraps links in redirectors like /clck/... or //yandex.ru/clck/...
-        """
-        if not href:
-            return None
+    def _extract_age(text: str) -> Optional[str]:
+        """Try to extract age from card text."""
+        # Patterns like "25 лет", "32 года", "21 год"
+        match = re.search(r'(\d{1,2})\s*(?:лет|год[а]?)', text)
+        if match:
+            age = int(match.group(1))
+            if 14 <= age <= 99:
+                return f"{age}"
 
-        # Direct URL
-        if href.startswith('http') and 'yandex' not in href.split('/')[2]:
-            return href
-
-        # Yandex redirect wrapper — extract from query param
-        if '/clck/' in href or 'yandex.ru' in href:
-            parsed = urlparse(href)
-            params = parse_qs(parsed.query)
-            # Common redirect param names
-            for param in ['url', 'text', 'to']:
-                if param in params:
-                    return unquote(params[param][0])
-
-        # Try extracting URL from data attributes
-        if href.startswith('//'):
-            return 'https:' + href
+        # Birth year pattern
+        match = re.search(r'(?:р\.\s*)?(\d{4})\s*(?:г\.р\.|года рождения)?', text)
+        if match:
+            year = int(match.group(1))
+            if 1930 <= year <= 2010:
+                import datetime
+                age = datetime.date.today().year - year
+                return f"{age}"
 
         return None
 
@@ -236,6 +588,8 @@ class YandexNameSearch:
             'whatsapp': r'wa\.me/(\d+)',
             'max': r'max\.ru/([a-zA-Z][a-zA-Z0-9_.]+)',
             'ok': r'ok\.ru/(?:profile/)?([a-zA-Z0-9_.]+)',
+            'instagram': r'instagram\.com/([a-zA-Z][a-zA-Z0-9_.]+)',
+            'facebook': r'facebook\.com/([a-zA-Z][a-zA-Z0-9_.]+)',
         }
         pattern = patterns.get(platform)
         if not pattern:
@@ -249,29 +603,31 @@ class YandexNameSearch:
 
         return None
 
-    @staticmethod
-    def _get_parent_text(link_element, max_chars: int = 200) -> str:
-        """Get surrounding text from the link's parent element."""
-        try:
-            parent = link_element.parent
-            if parent:
-                # Go up 2 levels to get snippet context
-                grandparent = parent.parent
-                if grandparent:
-                    text = grandparent.get_text(separator=' ', strip=True)
-                    return text[:max_chars] if text else ''
-            return ''
-        except Exception:
-            return ''
-
     @property
     def captcha_blocked(self) -> bool:
         """Whether a CAPTCHA was hit during the last search."""
         return self._captcha_hit
 
     def close(self):
-        """Clean up resources."""
-        self.session.close()
+        """Clean up resources. Browser singleton stays alive for reuse."""
+        pass
+
+    @classmethod
+    def shutdown_browser(cls):
+        """Fully shut down the singleton browser (call on server shutdown)."""
+        if cls._browser:
+            try:
+                cls._browser.close()
+            except Exception:
+                pass
+            cls._browser = None
+        if cls._playwright:
+            try:
+                cls._playwright.stop()
+            except Exception:
+                pass
+            cls._playwright = None
+        logger.info("Yandex Playwright: browser shut down")
 
 
 if __name__ == '__main__':
@@ -291,3 +647,5 @@ if __name__ == '__main__':
 
     if svc.captcha_blocked:
         print("\n  WARNING: Yandex CAPTCHA was triggered")
+
+    YandexNameSearch.shutdown_browser()
