@@ -185,7 +185,8 @@ class VKWebSearch:
         "photo_max_orig", "photo_400_orig", "photo_200", "photo_100",
         "city", "country", "bdate", "domain", "screen_name",
         "education", "universities", "schools", "career",
-        "is_closed", "can_access_closed"
+        "is_closed", "can_access_closed",
+        "last_seen", "verified", "deactivated"
     ]
 
     def __init__(self, service_token: Optional[str] = None):
@@ -361,6 +362,27 @@ class VKWebSearch:
             result.append(table.get(ch, ch))
         return ''.join(result)
 
+    @staticmethod
+    def _is_real_human_profile(profile: dict) -> bool:
+        """Filter out bots, communities, deleted accounts, fake pages."""
+        # Skip deactivated/deleted accounts
+        if profile.get('deactivated'):
+            return False
+
+        # Must have first and last name
+        first = (profile.get('first_name') or '').strip()
+        last = (profile.get('last_name') or '').strip()
+        if not first or not last:
+            return False
+
+        # Skip "DELETED" markers
+        if first.lower() == 'deleted' or last.lower() == 'deleted':
+            return False
+        if 'DELETED' in first.upper() or 'DELETED' in last.upper():
+            return False
+
+        return True
+
     # ── Web token search (Playwright session → users.search API) ──
 
     # Class-level flag: skip Playwright if login has already failed this session
@@ -476,7 +498,16 @@ class VKWebSearch:
     def _users_search_with_token(
         self, token: str, query: str, count: int
     ) -> List[int]:
-        """Call VK API users.search with a web token. Returns user IDs."""
+        """
+        Call VK API users.search with a web token.
+
+        Always fetches up to 1000 results from VK, then filters:
+        1. Real human profiles (no bots/deleted/communities)
+        2. Name verification (fuzzy match against query)
+        3. Cap at 100 verified profiles
+
+        Returns list of verified user IDs.
+        """
         if not self._session:
             return []
 
@@ -485,7 +516,7 @@ class VKWebSearch:
                 f"{self.VK_API_BASE}/users.search",
                 data={
                     'q': query,
-                    'count': min(count, 1000),
+                    'count': 1000,  # Always fetch maximum from VK
                     'fields': ','.join(self.PROFILE_FIELDS),
                     'access_token': token,
                     'v': self.VK_API_VERSION,
@@ -513,8 +544,29 @@ class VKWebSearch:
             items = response.get('items', [])
             total = response.get('count', 0)
 
-            user_ids = [item['id'] for item in items if 'id' in item]
-            logger.info(f"VKWebSearch users.search: {total} total, got {len(user_ids)} IDs for '{query}'")
+            # Step 1: Filter for real human profiles
+            human_items = [item for item in items if self._is_real_human_profile(item)]
+
+            # Step 2: Apply name verification
+            query_parts = query.lower().split()
+            if len(query_parts) >= 2:
+                search_first = query_parts[0]
+                search_last = query_parts[1]
+                verified_items = [
+                    item for item in human_items
+                    if verify_profile_name_matches_query(item, search_first, search_last)
+                ]
+            else:
+                verified_items = human_items
+
+            # Step 3: Cap at 100 verified profiles
+            verified_items = verified_items[:100]
+
+            user_ids = [item['id'] for item in verified_items if 'id' in item]
+            logger.info(
+                f"VKWebSearch users.search: {total} total, {len(items)} raw, "
+                f"{len(human_items)} human, {len(user_ids)} verified for '{query}'"
+            )
             return user_ids
 
         except Exception as e:

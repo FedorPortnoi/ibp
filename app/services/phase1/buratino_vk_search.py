@@ -640,40 +640,59 @@ class BuratinoVKSearch:
         first_name = query_parts[0] if query_parts else query
         last_name = query_parts[1] if len(query_parts) > 1 else ""
 
+        # Use larger internal count for primary search to maximize results
+        internal_count = max(count, 100)
+
         # ── Step 1: Original name search ──
         logger.info(f"Expanded search: original query '{query}'")
         profiles, _ = self.search(
             query=query, city=city, age_from=age_from,
-            age_to=age_to, count=count, target_name=query
+            age_to=age_to, count=internal_count, target_name=query
         )
         for p in profiles:
             if p.vk_id not in all_profiles:
                 all_profiles[p.vk_id] = p
 
-        # ── Step 2: Diminutive variants ──
-        try:
-            from app.services.phase1.russian_diminutives import get_all_name_variants
-            name_variants = get_all_name_variants(first_name)
-            # Skip the first one (it's the original name)
-            for variant in name_variants[1:5]:  # Max 4 diminutive searches
-                variant_query = f"{variant} {last_name}".strip() if last_name else variant
-                logger.info(f"Expanded search: diminutive '{variant_query}'")
-                try:
-                    dim_profiles, _ = self.search(
-                        query=variant_query, city=city, age_from=age_from,
-                        age_to=age_to, count=20, target_name=query
-                    )
-                    for p in dim_profiles:
-                        if p.vk_id not in all_profiles:
-                            all_profiles[p.vk_id] = p
-                except Exception as e:
-                    logger.warning(f"Diminutive search '{variant_query}' failed: {e}")
-                time.sleep(0.5)
-        except ImportError:
-            logger.warning("russian_diminutives module not available")
+        # ── Step 2: Diminutive variants (skip if already have enough) ──
+        if len(all_profiles) < 100:
+            try:
+                from app.services.phase1.russian_diminutives import get_all_name_variants
+                name_variants = get_all_name_variants(first_name)
+                # Skip the first one (it's the original name)
+                for variant in name_variants[1:5]:  # Max 4 diminutive searches
+                    variant_query = f"{variant} {last_name}".strip() if last_name else variant
+                    logger.info(f"Expanded search: diminutive '{variant_query}'")
+                    try:
+                        dim_profiles, _ = self.search(
+                            query=variant_query, city=city, age_from=age_from,
+                            age_to=age_to, count=20, target_name=query
+                        )
+                        for p in dim_profiles:
+                            if p.vk_id not in all_profiles:
+                                all_profiles[p.vk_id] = p
+                    except Exception as e:
+                        logger.warning(f"Diminutive search '{variant_query}' failed: {e}")
+                    if len(all_profiles) >= 100:
+                        logger.info(f"Expanded search: {len(all_profiles)} profiles, skipping remaining diminutives")
+                        break
+                    time.sleep(0.5)
+            except ImportError:
+                logger.warning("russian_diminutives module not available")
+        else:
+            logger.info(f"Expanded search: {len(all_profiles)} profiles from primary search, skipping diminutives")
 
         # ── Step 3: Transliteration variants (screen name guessing) ──
         # Only run if we have few results from accurate strategies (steps 1-2)
+        if len(all_profiles) >= 100:
+            logger.info(
+                f"Expanded search: {len(all_profiles)} results, "
+                f"skipping screen name guessing and first-name-only search"
+            )
+            result = list(all_profiles.values())
+            result.sort(key=lambda p: p.name_similarity, reverse=True)
+            logger.info(f"Expanded search: total {len(result)} unique profiles for '{query}'")
+            return result
+
         if len(all_profiles) < 5:
             logger.info(
                 f"Expanded search: only {len(all_profiles)} results from people search, "
