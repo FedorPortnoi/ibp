@@ -99,8 +99,12 @@ def search_vk():
 @api_search_bp.route('/telegram', methods=['POST'])
 def search_telegram():
     """
-    Telegram Discovery — three methods (VK cross-ref, username guessing, Telethon).
-    Returns Telegram profiles as JSON.
+    Telegram Discovery — three methods:
+      A) VK cross-reference (check t.me/{vk_screen_name})
+      B) Username guessing (generate candidates, check t.me/{candidate})
+      C) Telethon directory search (search Telegram by name)
+
+    Accepts vk_screen_names from the frontend (extracted after VK search completes).
     """
     start = time.time()
 
@@ -113,6 +117,7 @@ def search_telegram():
         city = (data.get('city') or '').strip()
         age_from = data.get('age_from')
         age_to = data.get('age_to')
+        vk_screen_names = data.get('vk_screen_names', [])
 
         name_parts = name.split()
         first_name = name_parts[0] if name_parts else name
@@ -125,6 +130,7 @@ def search_telegram():
             profiles = svc.discover(
                 first_name=first_name,
                 last_name=last_name,
+                vk_screen_names=vk_screen_names,
                 city=city,
                 age_from=int(age_from) if age_from else None,
                 age_to=int(age_to) if age_to else None,

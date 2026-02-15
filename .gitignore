@@ -115,6 +115,10 @@ coverage.xml
 # === VK browser session (contains auth cookies) ===
 vk_session/
 
+# === Telegram session files ===
+tg_session/
+telegram_session/
+
 # === OS files ===
 .DS_Store
 
