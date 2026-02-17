@@ -240,6 +240,21 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Mode Tabs -->
+    <div class="flex mb-6 bg-bg-panel rounded-xl border border-violet-200 p-1.5">
+        <button id="tab-search" onclick="switchMode('search')"
+                class="flex-1 py-3 px-6 rounded-lg text-sm font-semibold transition-all bg-violet text-white shadow-lg shadow-violet/20">
+            &#x1F50D; Поиск людей
+        </button>
+        <button id="tab-candidate" onclick="switchMode('candidate')"
+                class="flex-1 py-3 px-6 rounded-lg text-sm font-semibold transition-all text-gray-400 hover:text-white hover:bg-white/5">
+            &#x1F6E1;&#xFE0F; Проверка кандидата
+        </button>
+    </div>
+
+    <!-- ===== TAB 1: Поиск людей ===== -->
+    <div id="tab-search-panel">
+
     <!-- Header -->
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-white mb-2 font-display">
@@ -341,6 +356,143 @@
         </svg>
         <p class="text-gray-500">Введите имя для поиска</p>
     </div>
+
+    <!-- "Не нашли?" button (shown after search completes) -->
+    <div id="not-found-btn" class="text-center mt-6" style="display: none;">
+        <button onclick="switchToCandidateWithName()"
+                class="px-6 py-2.5 border border-violet-200 text-gray-300 hover:text-white hover:border-violet rounded-lg transition-all text-sm">
+            Не нашли кого искали? Попробуйте <span class="text-violet font-medium">проверку кандидата</span> &rarr;
+        </button>
+    </div>
+
+    </div><!-- /tab-search-panel -->
+
+    <!-- ===== TAB 2: Проверка кандидата ===== -->
+    <div id="tab-candidate-panel" class="hidden">
+        <div class="max-w-3xl mx-auto">
+
+            <!-- Info Banner -->
+            <div class="mb-6 flex items-start gap-3 bg-violet-50 border border-violet-200 rounded-xl p-4">
+                <span class="text-2xl flex-shrink-0">&#x1F6E1;&#xFE0F;</span>
+                <div>
+                    <h2 class="text-xl font-bold text-white mb-1">Проверка кандидата</h2>
+                    <p class="text-gray-400 text-sm">Полная проверка по государственным реестрам, судам, ФССП, санкционным спискам и соцсетям. Чем больше данных вы укажете, тем точнее результат.</p>
+                </div>
+            </div>
+
+            <!-- Candidate Form -->
+            <form id="candidate-form" action="/candidate/start" method="POST">
+                <div class="search-card">
+                    <!-- Row 1: Name + DOB -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div class="md:col-span-2">
+                            <label for="cand_full_name" class="block text-sm font-medium text-gray-300 mb-2">
+                                Полное имя (ФИО) <span class="text-red-400">*</span>
+                            </label>
+                            <input type="text" id="cand_full_name" name="full_name" required
+                                   placeholder="Морозов Андрей Викторович"
+                                   class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                        </div>
+                        <div>
+                            <label for="cand_dob" class="block text-sm font-medium text-gray-300 mb-2">
+                                Дата рождения <span class="text-red-400">*</span>
+                            </label>
+                            <input type="date" id="cand_dob" name="date_of_birth" required
+                                   class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                        </div>
+                    </div>
+
+                    <!-- Row 2: INN + Passport + Region -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label for="cand_inn" class="block text-sm font-medium text-gray-300 mb-2">
+                                ИНН <span class="text-gray-600 text-xs">(необязательно)</span>
+                            </label>
+                            <input type="text" id="cand_inn" name="inn"
+                                   placeholder="771234567890" maxlength="12"
+                                   pattern="\d{12}" title="12 цифр"
+                                   class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                        </div>
+                        <div>
+                            <label for="cand_passport" class="block text-sm font-medium text-gray-300 mb-2">
+                                Паспорт <span class="text-gray-600 text-xs">(необязательно)</span>
+                            </label>
+                            <input type="text" id="cand_passport" name="passport"
+                                   placeholder="4515 123456"
+                                   pattern="\d{4}\s?\d{6}" title="Серия (4 цифры) и номер (6 цифр)"
+                                   class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                        </div>
+                        <div>
+                            <label for="cand_region" class="block text-sm font-medium text-gray-300 mb-2">
+                                Регион <span class="text-gray-600 text-xs">(необязательно)</span>
+                            </label>
+                            <input type="text" id="cand_region" name="region"
+                                   placeholder="Москва"
+                                   class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Address (full width) -->
+                    <div class="mb-4">
+                        <label for="cand_address" class="block text-sm font-medium text-gray-300 mb-2">
+                            Адрес регистрации <span class="text-gray-600 text-xs">(необязательно)</span>
+                        </label>
+                        <input type="text" id="cand_address" name="registered_address"
+                               placeholder="г. Москва, ул. Ленина, д. 5, кв. 12"
+                               class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                    </div>
+
+                    <!-- Row 4: Phone + Email -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <label for="cand_phone" class="block text-sm font-medium text-gray-300 mb-2">
+                                Телефон <span class="text-gray-600 text-xs">(необязательно)</span>
+                            </label>
+                            <input type="text" id="cand_phone" name="phone"
+                                   placeholder="+79001234567"
+                                   class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                        </div>
+                        <div>
+                            <label for="cand_email" class="block text-sm font-medium text-gray-300 mb-2">
+                                Email <span class="text-gray-600 text-xs">(необязательно)</span>
+                            </label>
+                            <input type="email" id="cand_email" name="email"
+                                   placeholder="morozov@mail.ru"
+                                   class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                        </div>
+                    </div>
+
+                    <!-- Quality Indicator -->
+                    <div id="quality-indicator" class="mb-6 px-4 py-3 rounded-lg bg-bg-dark border border-violet-100 text-sm text-gray-500">
+                        Заполните имя и дату рождения для начала проверки
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" id="candidate-submit-btn"
+                            class="w-full px-4 py-3 bg-violet hover:bg-violet-dim text-white font-semibold rounded-lg transition flex items-center justify-center">
+                        &#x1F6E1;&#xFE0F; Начать проверку
+                    </button>
+                </div>
+            </form>
+
+            <!-- What Gets Checked -->
+            <div class="mt-6 bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
+                <h3 class="text-violet font-semibold mb-2">Что проверяется</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-400">
+                    <div>&bull; ЕГРЮЛ/ЕГРИП &mdash; бизнес-реестры</div>
+                    <div>&bull; ФССП &mdash; исполнительные производства</div>
+                    <div>&bull; Суды &mdash; судебные дела</div>
+                    <div>&bull; Банкротство &mdash; ЕФРСБ</div>
+                    <div>&bull; Санкции и розыск</div>
+                    <div>&bull; ВКонтакте, Telegram</div>
+                    <div>&bull; Email и телефон</div>
+                    <div>&bull; Оценка рисков</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
 </div>
 
 <!-- Proceed to Phase 2 bar -->
@@ -359,9 +511,108 @@
 // ═══════════════════════════════════════════════════════════════
 let selectedProfile = null;
 
+// ═══════════════════════════════════════════════════════════════
+// MODE TABS (Поиск людей / Проверка кандидата)
+// ═══════════════════════════════════════════════════════════════
+const TAB_ACTIVE = 'flex-1 py-3 px-6 rounded-lg text-sm font-semibold transition-all bg-violet text-white shadow-lg shadow-violet/20';
+const TAB_INACTIVE = 'flex-1 py-3 px-6 rounded-lg text-sm font-semibold transition-all text-gray-400 hover:text-white hover:bg-white/5';
+
+function switchMode(mode) {
+    const searchPanel = document.getElementById('tab-search-panel');
+    const candidatePanel = document.getElementById('tab-candidate-panel');
+    const tabSearch = document.getElementById('tab-search');
+    const tabCandidate = document.getElementById('tab-candidate');
+    const proceedBar = document.getElementById('proceed-bar');
+
+    if (mode === 'search') {
+        searchPanel.classList.remove('hidden');
+        candidatePanel.classList.add('hidden');
+        tabSearch.className = TAB_ACTIVE;
+        tabCandidate.className = TAB_INACTIVE;
+        if (selectedProfile) proceedBar.classList.add('visible');
+    } else {
+        searchPanel.classList.add('hidden');
+        candidatePanel.classList.remove('hidden');
+        tabCandidate.className = TAB_ACTIVE;
+        tabSearch.className = TAB_INACTIVE;
+        proceedBar.classList.remove('visible');
+    }
+}
+
+function switchToCandidateWithName() {
+    const name = document.getElementById('name').value.trim();
+    const city = document.getElementById('city').value.trim();
+
+    switchMode('candidate');
+
+    if (name) document.getElementById('cand_full_name').value = name;
+    if (city) document.getElementById('cand_region').value = city;
+
+    updateQualityIndicator();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CANDIDATE FORM — Quality Indicator
+// ═══════════════════════════════════════════════════════════════
+function updateQualityIndicator() {
+    const name = document.getElementById('cand_full_name').value.trim();
+    const dob = document.getElementById('cand_dob').value;
+    const inn = document.getElementById('cand_inn').value.trim();
+    const passport = document.getElementById('cand_passport').value.trim();
+    const address = document.getElementById('cand_address').value.trim();
+
+    const el = document.getElementById('quality-indicator');
+
+    if (!name || !dob) {
+        el.textContent = 'Заполните имя и дату рождения для начала проверки';
+        el.className = 'mb-6 px-4 py-3 rounded-lg bg-bg-dark border border-violet-100 text-sm text-gray-500';
+        return;
+    }
+
+    if (inn && passport && address) {
+        el.innerHTML = '&#x1F4CB; <span class="text-green-400 font-medium">Полная проверка</span> \u2014 максимальный охват источников';
+        el.className = 'mb-6 px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/20 text-sm text-gray-300';
+    } else if (inn) {
+        el.innerHTML = '&#x1F4CB; <span class="text-violet-bright font-medium">Расширенная проверка</span> \u2014 включая бизнес-реестры по ИНН';
+        el.className = 'mb-6 px-4 py-3 rounded-lg bg-violet-50 border border-violet-200 text-sm text-gray-300';
+    } else {
+        el.innerHTML = '&#x1F4CB; <span class="text-gray-300 font-medium">Базовая проверка</span> \u2014 будут проверены основные источники';
+        el.className = 'mb-6 px-4 py-3 rounded-lg bg-bg-dark border border-violet-100 text-sm text-gray-400';
+    }
+}
+
 // Reset form on page load to prevent browser from restoring old values
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('search-form').reset();
+
+    // Set max date for DOB (today)
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('cand_dob').setAttribute('max', today);
+
+    // Attach quality indicator listeners
+    ['cand_full_name', 'cand_dob', 'cand_inn', 'cand_passport', 'cand_address'].forEach(function(id) {
+        document.getElementById(id).addEventListener('input', updateQualityIndicator);
+    });
+
+    // Candidate form submit handler (temporary — no backend yet)
+    document.getElementById('candidate-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const fd = new FormData(this);
+        const data = Object.fromEntries(fd.entries());
+        console.log('Candidate check data:', data);
+        alert('Маршрут /candidate/start ещё не создан');
+    });
+
+    // Check URL params for tab switch
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tab') === 'candidate') {
+        switchMode('candidate');
+        const prefillName = params.get('name');
+        if (prefillName) {
+            document.getElementById('cand_full_name').value = prefillName;
+            updateQualityIndicator();
+        }
+    }
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -465,6 +716,9 @@ document.getElementById('search-form').addEventListener('submit', async function
     // Re-enable search button
     btn.disabled = false;
     btn.classList.remove('opacity-50');
+
+    // Show "Не нашли?" button
+    document.getElementById('not-found-btn').style.display = '';
 });
 
 // ═══════════════════════════════════════════════════════════════
