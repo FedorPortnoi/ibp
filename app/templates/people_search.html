@@ -594,13 +594,38 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById(id).addEventListener('input', updateQualityIndicator);
     });
 
-    // Candidate form submit handler (temporary — no backend yet)
-    document.getElementById('candidate-form').addEventListener('submit', function(e) {
+    // Candidate form submit handler
+    document.getElementById('candidate-form').addEventListener('submit', async function(e) {
         e.preventDefault();
-        const fd = new FormData(this);
-        const data = Object.fromEntries(fd.entries());
-        console.log('Candidate check data:', data);
-        alert('Маршрут /candidate/start ещё не создан');
+
+        const btn = document.getElementById('candidate-submit-btn');
+        btn.disabled = true;
+        btn.textContent = 'Запуск проверки...';
+
+        try {
+            const fd = new FormData(this);
+            const body = Object.fromEntries(fd.entries());
+
+            const resp = await fetch('/candidate/start', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body),
+            });
+
+            const data = await resp.json();
+
+            if (!resp.ok || data.error) {
+                throw new Error(data.error || 'Ошибка запуска проверки');
+            }
+
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            }
+        } catch (err) {
+            alert(err.message);
+            btn.disabled = false;
+            btn.innerHTML = '&#x1F6E1;&#xFE0F; Начать проверку';
+        }
     });
 
     // Check URL params for tab switch

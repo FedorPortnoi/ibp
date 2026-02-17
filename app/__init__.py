@@ -71,6 +71,7 @@ def create_app(config_name=None):
     from app.routes.timeline import timeline_bp
     from app.routes.dossier import dossier_bp
     from app.routes.api_search import api_search_bp
+    from app.routes.candidate_check import candidate_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(phase1_bp)
@@ -83,6 +84,7 @@ def create_app(config_name=None):
     app.register_blueprint(timeline_bp)
     app.register_blueprint(dossier_bp)
     app.register_blueprint(api_search_bp)
+    app.register_blueprint(candidate_bp)
 
     # Global auth check — protect ALL routes except login and static files
     @app.before_request
