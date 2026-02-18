@@ -157,19 +157,32 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 results = svc.search(full_name, dob_str, region)
                 return [r.to_dict() for r in results]
 
-            task.update('gov_registries', 'ЕГРЮЛ + Суды + ФССП — параллельный поиск...', 8)
+            task.update('gov_registries', 'ЕГРЮЛ + Суды + ФССП + ЕФРСБ — параллельный поиск...', 8)
 
             fssp_records = []
+            bankruptcy_records = []
 
-            with ThreadPoolExecutor(max_workers=3) as executor:
+            def _search_bankruptcy(full_name, inn, date_of_birth):
+                """Search ЕФРСБ bankruptcy records."""
+                from app.services.candidate.bankruptcy_service import BankruptcyService
+                svc = BankruptcyService(timeout=30)
+                dob_str = date_of_birth.strftime('%Y-%m-%d') if date_of_birth else None
+                results = svc.search(full_name, inn=inn, dob=dob_str)
+                return [r.to_dict() for r in results]
+
+            with ThreadPoolExecutor(max_workers=4) as executor:
                 future_biz = executor.submit(_search_business, check.full_name, check.inn)
                 future_courts = executor.submit(_search_courts, check.full_name)
                 future_fssp = executor.submit(
                     _search_fssp, check.full_name, check.date_of_birth, check.region,
                 )
+                future_bankruptcy = executor.submit(
+                    _search_bankruptcy, check.full_name, check.inn, check.date_of_birth,
+                )
 
                 for future in as_completed(
-                    [future_biz, future_courts, future_fssp], timeout=120,
+                    [future_biz, future_courts, future_fssp, future_bankruptcy],
+                    timeout=120,
                 ):
                     try:
                         if future is future_biz:
@@ -267,6 +280,72 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                                 task.add_message('ФССП: производств не найдено', 'info')
                             sources_checked += 1
 
+                        elif future is future_bankruptcy:
+                            bankruptcy_records = future.result(timeout=60)
+                            is_manual = (
+                                bankruptcy_records
+                                and len(bankruptcy_records) == 1
+                                and bankruptcy_records[0].get('source') == 'manual'
+                            )
+                            if is_manual:
+                                task.add_message(
+                                    'ЕФРСБ: требуется ручная проверка',
+                                    'warning',
+                                )
+                            elif bankruptcy_records:
+                                task.add_message(
+                                    f'Банкротство: найдено {len(bankruptcy_records)} записей',
+                                    'success',
+                                )
+                                sources_with_results += 1
+
+                                # ── Bankruptcy red flags ──
+                                from datetime import datetime as _dt
+                                for rec in bankruptcy_records:
+                                    rec_active = rec.get('is_active', False)
+                                    rec_stage = (rec.get('stage') or '').lower()
+
+                                    if rec_active:
+                                        all_red_flags.append({
+                                            'severity': 'critical',
+                                            'source': 'bankruptcy',
+                                            'text': (
+                                                'Активное банкротное дело — '
+                                                'ограничение на руководящие должности'
+                                            ),
+                                        })
+                                    elif 'завершен' in rec_stage or 'прекращен' in rec_stage:
+                                        # Check if completed within last 3 years
+                                        pub_date = rec.get('publication_date', '')
+                                        if pub_date:
+                                            try:
+                                                parts = pub_date.split('.')
+                                                if len(parts) == 3:
+                                                    d = _dt(
+                                                        int(parts[2]),
+                                                        int(parts[1]),
+                                                        int(parts[0]),
+                                                    )
+                                                    years_ago = (
+                                                        _dt.now() - d
+                                                    ).days / 365.25
+                                                    if years_ago < 3:
+                                                        all_red_flags.append({
+                                                            'severity': 'warning',
+                                                            'source': 'bankruptcy',
+                                                            'text': (
+                                                                'Завершённое банкротство '
+                                                                'менее 3 лет назад'
+                                                            ),
+                                                        })
+                                            except (ValueError, IndexError):
+                                                pass
+                            else:
+                                task.add_message(
+                                    'Банкротство: записей не найдено', 'info',
+                                )
+                            sources_checked += 1
+
                     except Exception as e:
                         if future is future_biz:
                             logger.warning(f"ЕГРЮЛ search failed: {e}")
@@ -276,22 +355,21 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             logger.warning(f"Court search failed: {e}")
                             task.add_message('Суды: источник недоступен', 'warning')
                             sources_checked += 1
-                        else:
+                        elif future is future_fssp:
                             logger.warning(f"ФССП search failed: {e}")
                             task.add_message('ФССП: источник недоступен', 'warning')
+                            sources_checked += 1
+                        else:
+                            logger.warning(f"ЕФРСБ search failed: {e}")
+                            task.add_message('ЕФРСБ: источник недоступен', 'warning')
                             sources_checked += 1
 
             check.business_records = biz_records
             check.court_records = court_records
             check.fssp_records = fssp_records
+            check.bankruptcy_records = bankruptcy_records
             task.update('gov_registries', 'Реестры проверены', 25)
             _pause()
-
-            # 1.5 Bankruptcy (stub)
-            task.update('gov_registries', 'ЕФРСБ — проверка банкротства...', 28)
-            task.add_message('ЕФРСБ: сервис в разработке', 'warning')
-            check.bankruptcy_records = []
-            sources_checked += 1
 
             db.session.commit()
 
