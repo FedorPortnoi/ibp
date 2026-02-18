@@ -653,8 +653,9 @@
         {% else %}
             {% for profile in social_profiles %}
             <div class="social-card">
-                {% if profile.get('photo_url') %}
-                    <img src="{{ profile.photo_url }}" alt="" class="social-avatar"
+                {% set avatar = profile.get('avatar_url') or profile.get('photo_url') %}
+                {% if avatar %}
+                    <img src="{{ avatar }}" alt="" class="social-avatar"
                          onerror="this.style.display='none'">
                 {% else %}
                     <div class="social-avatar flex items-center justify-center text-lg text-gray-600">
@@ -666,9 +667,14 @@
                     {% if profile.get('username') %}
                         <div class="text-xs text-gray-500 truncate">@{{ profile.username }}</div>
                     {% endif %}
-                    {% if profile.get('city') %}
-                        <div class="text-xs text-gray-600">{{ profile.city }}</div>
-                    {% endif %}
+                    <div class="flex items-center gap-2 mt-0.5">
+                        {% if profile.get('city') %}
+                            <span class="text-xs text-gray-600">{{ profile.city }}</span>
+                        {% endif %}
+                        {% if profile.get('source_method') %}
+                            <span class="text-xs text-gray-600">{{ profile.source_method }}</span>
+                        {% endif %}
+                    </div>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     {% if profile.get('platform') == 'vk' %}
@@ -678,9 +684,10 @@
                     {% elif profile.get('platform') %}
                         <span class="status-badge badge-gray">{{ profile.platform }}</span>
                     {% endif %}
-                    {% if profile.get('confidence') == 'high' %}
+                    {% set conf = profile.get('confidence', '') %}
+                    {% if conf in ('высокая', 'high') %}
                         <span class="status-badge badge-green">высокая</span>
-                    {% elif profile.get('confidence') == 'medium' %}
+                    {% elif conf in ('средняя', 'medium') %}
                         <span class="status-badge badge-yellow">средняя</span>
                     {% endif %}
                     {% if profile.get('url') %}

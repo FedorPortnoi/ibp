@@ -433,60 +433,149 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             task.update('social', 'Поиск в социальных сетях...', 50)
 
             social_profiles = []
+            vk_screen_names = []
 
-            # 3.1 VK search (existing)
-            task.update('social', 'ВКонтакте — поиск профилей...', 55)
+            # 3.1 VK search — run first so Telegram can use screen_names
+            task.update('social', 'VK — поиск профилей...', 52)
             try:
                 from app.services.phase1.buratino_vk_search import buratino_vk_search
-                vk_profiles, vk_total = buratino_vk_search.search(
-                    query=check.full_name,
-                    city=check.region,
-                )
+
+                # Calculate age range from DOB for filtering (±2 years)
+                vk_age_from = vk_age_to = None
+                if check.date_of_birth:
+                    from datetime import date as _date
+                    today = _date.today()
+                    age = today.year - check.date_of_birth.year - (
+                        (today.month, today.day) < (check.date_of_birth.month, check.date_of_birth.day)
+                    )
+                    vk_age_from = max(age - 2, 16)
+                    vk_age_to = age + 2
+
+                def _vk_search():
+                    return buratino_vk_search.search(
+                        query=check.full_name,
+                        city=check.region,
+                        age_from=vk_age_from,
+                        age_to=vk_age_to,
+                    )
+
+                # Timeout: 60s max for VK search
+                with ThreadPoolExecutor(max_workers=1) as vk_pool:
+                    vk_future = vk_pool.submit(_vk_search)
+                    try:
+                        vk_profiles, _ = vk_future.result(timeout=60)
+                    except Exception as e:
+                        logger.warning(f"VK search timeout/error: {e}")
+                        vk_profiles = []
+
                 if vk_profiles:
                     for p in vk_profiles[:10]:
                         d = p.to_dict() if hasattr(p, 'to_dict') else p
+                        sim = d.get('name_similarity', 0)
+
+                        # Only high + medium confidence
+                        if sim >= 75:
+                            confidence = 'высокая'
+                        elif sim >= 50:
+                            confidence = 'средняя'
+                        else:
+                            continue
+
                         social_profiles.append({
                             'platform': 'vk',
                             'display_name': d.get('full_name', ''),
                             'username': d.get('screen_name', ''),
                             'url': d.get('profile_url', ''),
-                            'photo_url': d.get('photo_url', ''),
+                            'avatar_url': d.get('photo_url'),
+                            'photo_url': d.get('photo_url'),
+                            'confidence': confidence,
+                            'confidence_score': round(sim / 100, 2),
+                            'source_method': 'VK People Search',
                             'city': d.get('city', ''),
                         })
-                    task.add_message(f'ВКонтакте: найдено {len(vk_profiles)} профилей', 'success')
+
+                        # Collect screen_names for Telegram cross-ref (Method A)
+                        sn = d.get('screen_name', '')
+                        if sn and not (sn.startswith('id') and sn[2:].isdigit()):
+                            vk_screen_names.append(sn)
+
+                    vk_count = sum(1 for p in social_profiles if p['platform'] == 'vk')
+                    task.add_message(f'VK: найдено {vk_count} профилей', 'success')
                     sources_with_results += 1
                 else:
-                    task.add_message('ВКонтакте: профили не найдены', 'info')
+                    task.add_message('VK: профили не найдены', 'info')
                 sources_checked += 1
             except Exception as e:
                 logger.warning(f"VK search failed: {e}")
-                task.add_message('ВКонтакте: поиск недоступен', 'warning')
+                task.add_message('VK: поиск недоступен', 'warning')
                 sources_checked += 1
             _pause()
 
-            # 3.2 Telegram search (existing)
+            # 3.2 Telegram search — uses VK screen_names for cross-ref
             task.update('social', 'Telegram — поиск профилей...', 62)
             try:
                 from app.services.phase1.telegram_discovery import TelegramDiscoveryService
-                tg_svc = TelegramDiscoveryService()
-                try:
-                    tg_results = tg_svc.discover(
-                        first_name=name_parts['first'],
-                        last_name=name_parts['last'],
-                        city=check.region or '',
-                    )
-                finally:
-                    tg_svc.close()
+
+                def _tg_search():
+                    svc = TelegramDiscoveryService()
+                    try:
+                        return svc.discover(
+                            first_name=name_parts['first'],
+                            last_name=name_parts['last'],
+                            vk_screen_names=vk_screen_names,
+                            city=check.region or '',
+                        )
+                    finally:
+                        svc.close()
+
+                # Timeout: 60s max for Telegram search
+                with ThreadPoolExecutor(max_workers=1) as tg_pool:
+                    tg_future = tg_pool.submit(_tg_search)
+                    try:
+                        tg_results = tg_future.result(timeout=60)
+                    except Exception as e:
+                        logger.warning(f"Telegram search timeout/error: {e}")
+                        tg_results = []
+
+                tg_count = 0
                 if tg_results:
                     for p in tg_results[:10]:
+                        conf = p.get('confidence', '')
+                        # Only high + medium confidence
+                        if conf not in ('высокая', 'средняя'):
+                            continue
+
+                        display_name = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip()
+                        source_raw = p.get('source', '')
+
+                        # Derive source_method from source description
+                        if 'VK' in source_raw:
+                            source_method = 'VK → Telegram'
+                        elif 'Шаблон' in source_raw:
+                            source_method = 'Username guessing'
+                        elif 'Telethon' in source_raw or p.get('source_method', ''):
+                            source_method = 'Telethon'
+                        else:
+                            source_method = 'Telegram search'
+
+                        confidence_score = 0.85 if conf == 'высокая' else 0.55
+
                         social_profiles.append({
                             'platform': 'telegram',
-                            'display_name': p.get('display_name', ''),
+                            'display_name': display_name or p.get('username', ''),
                             'username': p.get('username', ''),
                             'url': p.get('url', ''),
-                            'photo_url': p.get('photo_url', ''),
+                            'avatar_url': p.get('photo_url'),
+                            'photo_url': p.get('photo_url'),
+                            'confidence': conf,
+                            'confidence_score': confidence_score,
+                            'source_method': source_method,
+                            'city': p.get('city', ''),
                         })
-                    task.add_message(f'Telegram: найдено {len(tg_results)} профилей', 'success')
+                        tg_count += 1
+
+                if tg_count:
+                    task.add_message(f'Telegram: найдено {tg_count} профилей', 'success')
                     sources_with_results += 1
                 else:
                     task.add_message('Telegram: профили не найдены', 'info')
@@ -496,6 +585,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 task.add_message('Telegram: поиск недоступен', 'warning')
                 sources_checked += 1
 
+            task.update('social', f'Соцсети: найдено {len(social_profiles)} профилей', 70)
             check.social_media_profiles = social_profiles
             db.session.commit()
             _pause()
