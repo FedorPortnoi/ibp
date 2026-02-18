@@ -257,6 +257,12 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                                             'source': 'fssp',
                                             'text': f'Налоговая задолженность ({rec.get("proceedings_number", "")})',
                                         })
+                                    if 'штраф' in subj:
+                                        all_red_flags.append({
+                                            'severity': 'info',
+                                            'source': 'fssp',
+                                            'text': f'Штраф ({rec.get("proceedings_number", "")})',
+                                        })
                             else:
                                 task.add_message('ФССП: производств не найдено', 'info')
                             sources_checked += 1
