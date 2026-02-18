@@ -287,7 +287,12 @@
                 <span class="badge {% if bankruptcy_records %}badge-count{% else %}badge-empty{% endif %}">{{ bankruptcy_records|length if bankruptcy_records else '—' }}</span>
             </a>
             <a href="#sec-sanctions" class="nav-pill">&#x1F6AB; Санкции
-                <span class="badge badge-empty">—</span>
+                {% if sanctions is iterable and sanctions is not string and sanctions is not mapping %}
+                    {% set sanc_checked = sanctions|selectattr('checked')|list|length %}
+                    <span class="badge {% if sanc_checked %}badge-count{% else %}badge-empty{% endif %}">{{ sanc_checked if sanc_checked else '—' }}</span>
+                {% else %}
+                    <span class="badge badge-empty">—</span>
+                {% endif %}
             </a>
             <a href="#sec-social" class="nav-pill">&#x1F4F1; Соцсети
                 <span class="badge {% if social_profiles %}badge-count{% else %}badge-empty{% endif %}">{{ social_profiles|length if social_profiles else '—' }}</span>
@@ -566,30 +571,68 @@
             <h2>&#x1F6AB; Проверка по спискам</h2>
         </div>
 
-        {% set sanction_lists = [
-            ('rosfinmonitoring', 'Росфинмониторинг'),
-            ('mvd_wanted', 'МВД Розыск'),
-            ('interpol', 'Интерпол'),
-            ('extremists', 'Перечень экстремистов'),
-        ] %}
+        {% set expected_sources = ['Росфинмониторинг', 'МВД Розыск', 'Интерпол', 'Перечень экстремистов'] %}
 
-        {% for key, label in sanction_lists %}
-            {% set result = sanctions.get(key, {}) if sanctions else {} %}
-            <div class="sanction-row">
-                <span class="text-sm text-gray-300">{{ label }}</span>
-                {% if result.get('checked') and result.get('found') %}
-                    <span class="status-badge badge-red font-semibold">&#x1F534; НАЙДЕН</span>
-                {% elif result.get('checked') and not result.get('found') %}
-                    {% if result.get('status') == 'stub' %}
-                        <span class="text-xs text-gray-600">&#x23F3; Не проверено</span>
-                    {% else %}
+        {% if sanctions is iterable and sanctions is not string and sanctions is not mapping %}
+            {# New format: list of SanctionsResult dicts #}
+            {% for result in sanctions %}
+                <div class="sanction-row">
+                    <div class="flex-1">
+                        <span class="text-sm text-gray-300">{{ result.get('source_name', 'Источник') }}</span>
+                    </div>
+                    {% if result.get('checked') and result.get('found') %}
+                        <div class="text-right">
+                            <span class="status-badge badge-red font-semibold">&#x1F534; НАЙДЕН</span>
+                            {% if result.get('match_details') %}
+                                <div class="text-xs text-red-400 mt-1">{{ result.match_details }}</div>
+                            {% endif %}
+                        </div>
+                    {% elif result.get('checked') and not result.get('found') %}
                         <span class="text-sm text-green-400">&#x2705; Не найден</span>
+                    {% else %}
+                        <div class="text-right">
+                            <span class="text-xs text-gray-600">&#x23F3; Не удалось проверить</span>
+                            {% if result.get('error') %}
+                                <div class="text-xs text-gray-600 mt-1">{{ result.error }}</div>
+                            {% endif %}
+                        </div>
                     {% endif %}
-                {% else %}
-                    <span class="text-xs text-gray-600">&#x23F3; Не проверено</span>
-                {% endif %}
-            </div>
-        {% endfor %}
+                    {% if result.get('url') %}
+                        <a href="{{ result.url }}" target="_blank" rel="noopener"
+                           class="text-xs text-violet hover:text-violet-bright transition ml-3 shrink-0">&#x2197;</a>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% elif sanctions is mapping %}
+            {# Legacy format: dict keyed by source id #}
+            {% set sanction_lists = [
+                ('rosfinmonitoring', 'Росфинмониторинг'),
+                ('mvd_wanted', 'МВД Розыск'),
+                ('interpol', 'Интерпол'),
+                ('extremists', 'Перечень экстремистов'),
+            ] %}
+            {% for key, label in sanction_lists %}
+                {% set result = sanctions.get(key, {}) %}
+                <div class="sanction-row">
+                    <span class="text-sm text-gray-300">{{ label }}</span>
+                    {% if result.get('checked') and result.get('found') %}
+                        <span class="status-badge badge-red font-semibold">&#x1F534; НАЙДЕН</span>
+                    {% elif result.get('checked') and not result.get('found') %}
+                        <span class="text-sm text-green-400">&#x2705; Не найден</span>
+                    {% else %}
+                        <span class="text-xs text-gray-600">&#x23F3; Не проверено</span>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% else %}
+            {# No sanctions data at all #}
+            {% for src in expected_sources %}
+                <div class="sanction-row">
+                    <span class="text-sm text-gray-300">{{ src }}</span>
+                    <span class="text-xs text-gray-600">&#x23F3; Источник не подключён</span>
+                </div>
+            {% endfor %}
+        {% endif %}
     </section>
 
     {# ================================================================

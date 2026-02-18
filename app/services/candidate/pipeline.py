@@ -376,22 +376,54 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             # ══════════════════════════════════════════════
             # STAGE 2: SECURITY CHECKS (~45%)
             # ══════════════════════════════════════════════
-            task.update('security', 'Проверка по спискам безопасности...', 35)
+            task.update('security', 'Проверка санкционных списков...', 35)
 
-            sanctions = {
-                'rosfinmonitoring': {'checked': True, 'found': False, 'status': 'stub'},
-                'mvd_wanted': {'checked': True, 'found': False, 'status': 'stub'},
-                'interpol': {'checked': True, 'found': False, 'status': 'stub'},
-                'extremists': {'checked': True, 'found': False, 'status': 'stub'},
-            }
+            from app.services.candidate.sanctions_check import SanctionsService
+            sanctions_svc = SanctionsService()
+            sanctions_results = sanctions_svc.check_all(check.full_name, inn=check.inn)
 
-            task.add_message('Росфинмониторинг: сервис в разработке', 'warning')
-            task.add_message('МВД розыск: сервис в разработке', 'warning')
-            task.add_message('Интерпол: сервис в разработке', 'warning')
-            task.add_message('Экстремисты: сервис в разработке', 'warning')
-            sources_checked += 4
+            sanctions_checked = 0
+            for sr in sanctions_results:
+                d = sr.to_dict()
+                if d['checked'] and d['found']:
+                    task.add_message(
+                        f"{d['source_name']}: НАЙДЕН",
+                        'error',
+                    )
+                    all_red_flags.append({
+                        'severity': 'critical',
+                        'source': 'sanctions',
+                        'text': f"Найден в списке: {d['source_name']}"
+                               + (f" — {d['match_details']}" if d['match_details'] else ''),
+                    })
+                    sources_with_results += 1
+                elif d['checked'] and not d['found']:
+                    task.add_message(
+                        f"{d['source_name']}: не найден",
+                        'success',
+                    )
+                else:
+                    task.add_message(
+                        f"{d['source_name']}: не удалось проверить"
+                        + (f" ({d['error']})" if d['error'] else ''),
+                        'warning',
+                    )
+                    all_red_flags.append({
+                        'severity': 'info',
+                        'source': 'sanctions',
+                        'text': f"Не удалось проверить: {d['source_name']}"
+                               + (f" — {d['error']}" if d['error'] else ''),
+                    })
+                sanctions_checked += 1
 
-            check.sanctions_results = sanctions
+            sources_checked += sanctions_checked
+            task.update(
+                'security',
+                f'Санкции: проверено {sanctions_checked} источника',
+                45,
+            )
+
+            check.sanctions_results = [sr.to_dict() for sr in sanctions_results]
             db.session.commit()
             _pause()
 
