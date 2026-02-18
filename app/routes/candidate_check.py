@@ -162,21 +162,43 @@ def progress_status(task_id):
 
 @candidate_bp.route('/dossier/<check_id>')
 def dossier_page(check_id):
-    """View completed dossier (placeholder — full template in a later prompt)."""
-    check = CandidateCheck.query.get_or_404(check_id)
+    """View completed dossier."""
+    check = CandidateCheck.query.get(check_id)
+    if not check:
+        return render_template('errors/404.html'), 404
 
-    # For now, return JSON summary until dossier template is built
-    return jsonify({
-        'check': check.to_dict(),
-        'business_records': check.business_records,
-        'court_records': check.court_records,
-        'fssp_records': check.fssp_records,
-        'bankruptcy_records': check.bankruptcy_records,
-        'sanctions_results': check.sanctions_results,
-        'social_media_profiles': check.social_media_profiles,
-        'contact_discoveries': check.contact_discoveries,
-        'red_flags': check.red_flags,
-    })
+    # If still running, redirect to progress page
+    if check.status in ('pending', 'running'):
+        # Find active task for this check
+        for tid, t in candidate_tasks.items():
+            if t.check_id == check_id:
+                return redirect(f'/candidate/progress/{tid}')
+        # No task found — show dossier anyway (stale state)
+
+    # Format duration
+    duration_display = ''
+    if check.check_duration_seconds:
+        secs = check.check_duration_seconds
+        if secs >= 60:
+            mins = int(secs // 60)
+            remaining = int(secs % 60)
+            duration_display = f'{mins}м {remaining}с'
+        else:
+            duration_display = f'{secs:.0f}с'
+
+    return render_template(
+        'candidate_dossier.html',
+        check=check,
+        duration_display=duration_display,
+        business_records=check.business_records,
+        court_records=check.court_records,
+        fssp_records=check.fssp_records,
+        bankruptcy_records=check.bankruptcy_records,
+        sanctions=check.sanctions_results,
+        social_profiles=check.social_media_profiles,
+        contacts=check.contact_discoveries,
+        red_flags=check.red_flags,
+    )
 
 
 @candidate_bp.route('/history')

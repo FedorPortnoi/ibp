@@ -1,0 +1,600 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Identity Card - Иван Петров</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        /* Header Section */
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .photo-container {
+            flex-shrink: 0;
+        }
+
+        .photo {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .photo-placeholder {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: #95a5a6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: white;
+            border: 4px solid white;
+        }
+
+        .header-info {
+            flex-grow: 1;
+        }
+
+        .name {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .aliases {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 10px;
+        }
+
+        .quick-info {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 14px;
+        }
+
+        .quick-info-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .confidence-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+
+        /* Content Sections */
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+
+        /* Contact Grid */
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .contact-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .contact-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: white;
+        }
+
+        .contact-icon.phone { background: #27ae60; }
+        .contact-icon.email { background: #e74c3c; }
+        .contact-icon.messenger { background: #9b59b6; }
+
+        .contact-details {
+            flex-grow: 1;
+        }
+
+        .contact-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+        }
+
+        .contact-value {
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        /* Social Links */
+        .social-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .social-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border-radius: 25px;
+            text-decoration: none;
+            color: #333;
+            transition: all 0.2s;
+        }
+
+        .social-link:hover {
+            background: #3498db;
+            color: white;
+        }
+
+        .social-link.vk { border-left: 3px solid #4a76a8; }
+        .social-link.telegram { border-left: 3px solid #0088cc; }
+        .social-link.instagram { border-left: 3px solid #e1306c; }
+        .social-link.facebook { border-left: 3px solid #4267b2; }
+        .social-link.twitter { border-left: 3px solid #1da1f2; }
+        .social-link.ok { border-left: 3px solid #ed812b; }
+
+        .verified-badge {
+            color: #3498db;
+            font-size: 12px;
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e0e0e0;
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 20px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -24px;
+            top: 5px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #3498db;
+        }
+
+        .timeline-date {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+
+        .timeline-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .timeline-description {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .timeline-platform {
+            display: inline-block;
+            font-size: 11px;
+            padding: 2px 8px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            margin-top: 5px;
+        }
+
+        /* Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-weight: 500;
+        }
+
+        /* Tags */
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 5px 12px;
+            background: #ecf0f1;
+            border-radius: 15px;
+            font-size: 13px;
+        }
+
+        /* Footer */
+        .footer {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            font-size: 12px;
+            color: #7f8c8d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sources {
+            display: flex;
+            gap: 10px;
+        }
+
+        .source-badge {
+            padding: 3px 10px;
+            background: #dfe6e9;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+            }
+
+            .container {
+                box-shadow: none;
+                margin: 0;
+                max-width: 100%;
+            }
+
+            .social-link:hover {
+                background: #f8f9fa;
+                color: #333;
+            }
+
+            @page {
+                margin: 1cm;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header" style="position: relative;">
+            <div class="photo-container">
+                
+                <div class="photo-placeholder">И</div>
+                
+            </div>
+            <div class="header-info">
+                <div class="name">Иван Петров</div>
+                
+                <div class="aliases">Также известен как: Ivan Petrov, ivan_p</div>
+                
+                <div class="quick-info">
+                    
+                    <span class="quick-info-item">📅 34 лет</span>
+                    
+                    
+                    <span class="quick-info-item">📍 Москва, Россия</span>
+                    
+                    
+                    <span class="quick-info-item">💼 Программист</span>
+                    
+                </div>
+            </div>
+            
+            <div class="confidence-badge">
+                Достоверность: 85.0%
+            </div>
+            
+        </div>
+
+        <div class="content">
+            <!-- Personal Info -->
+            <div class="section">
+                <div class="section-title">Персональные данные</div>
+                <div class="info-grid">
+                    
+                    <div class="info-item">
+                        <span class="info-label">Дата рождения</span>
+                        <span class="info-value">1990-05-15</span>
+                    </div>
+                    
+                    
+                    <div class="info-item">
+                        <span class="info-label">Пол</span>
+                        <span class="info-value">Мужской</span>
+                    </div>
+                    
+                    
+                    <div class="info-item">
+                        <span class="info-label">Родной город</span>
+                        <span class="info-value">Казань</span>
+                    </div>
+                    
+                    
+                    <div class="info-item">
+                        <span class="info-label">Место работы</span>
+                        <span class="info-value">Яндекс</span>
+                    </div>
+                    
+                </div>
+                
+                <div class="info-item" style="margin-top: 15px;">
+                    <span class="info-label">О себе</span>
+                    <span class="info-value">Разработчик. Люблю путешествия и фотографию.</span>
+                </div>
+                
+            </div>
+
+            <!-- Contacts -->
+            
+            <div class="section">
+                <div class="section-title">Контакты</div>
+                <div class="contact-grid">
+                    
+                    <div class="contact-item">
+                        <div class="contact-icon phone">
+                            📱
+                        </div>
+                        <div class="contact-details">
+                            <div class="contact-label">Личный</div>
+                            <div class="contact-value">+7 (916) 123-45-67</div>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-item">
+                        <div class="contact-icon email">
+                            ✉️
+                        </div>
+                        <div class="contact-details">
+                            <div class="contact-label">Рабочий</div>
+                            <div class="contact-value">ivan.petrov@example.com</div>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-item">
+                        <div class="contact-icon messenger">
+                            💬
+                        </div>
+                        <div class="contact-details">
+                            <div class="contact-label">Telegram</div>
+                            <div class="contact-value">@ivan_petrov</div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+            
+
+            <!-- Social Links -->
+            
+            <div class="section">
+                <div class="section-title">Социальные сети</div>
+                <div class="social-grid">
+                    
+                    <a href="https://vk.com/ivan_petrov" target="_blank" class="social-link vk">
+                        VK
+                        @ivan_petrov
+                        <span class="verified-badge">✓</span>
+                        <span style="font-size: 11px; opacity: 0.7;">(1523)</span>
+                    </a>
+                    
+                    <a href="https://t.me/ivan_petrov" target="_blank" class="social-link telegram">
+                        TELEGRAM
+                        @ivan_petrov
+                        
+                        
+                    </a>
+                    
+                    <a href="https://instagram.com/ivan.petrov" target="_blank" class="social-link instagram">
+                        INSTAGRAM
+                        @ivan.petrov
+                        
+                        <span style="font-size: 11px; opacity: 0.7;">(892)</span>
+                    </a>
+                    
+                    <a href="https://github.com/ivanpetrov" target="_blank" class="social-link github">
+                        GITHUB
+                        @ivanpetrov
+                        
+                        <span style="font-size: 11px; opacity: 0.7;">(156)</span>
+                    </a>
+                    
+                </div>
+            </div>
+            
+
+            <!-- Education -->
+            
+            <div class="section">
+                <div class="section-title">Образование</div>
+                <div class="tags">
+                    
+                    <span class="tag">🎓 МГУ им. Ломоносова, факультет ВМК, 2012</span>
+                    
+                </div>
+            </div>
+            
+
+            <!-- Interests -->
+            
+            <div class="section">
+                <div class="section-title">Интересы</div>
+                <div class="tags">
+                    
+                    <span class="tag">Программирование</span>
+                    
+                    <span class="tag">Фотография</span>
+                    
+                    <span class="tag">Путешествия</span>
+                    
+                    <span class="tag">Музыка</span>
+                    
+                </div>
+            </div>
+            
+
+            <!-- Timeline -->
+            
+            <div class="section">
+                <div class="section-title">Хронология</div>
+                <div class="timeline">
+                    
+                    <div class="timeline-item">
+                        <div class="timeline-date">2024-01-15 00:00:00</div>
+                        <div class="timeline-title">Опубликовал пост</div>
+                        
+                        <div class="timeline-description">Новый год в Москве был великолепен!</div>
+                        
+                        
+                        <span class="timeline-platform">VK</span>
+                        
+                    </div>
+                    
+                    <div class="timeline-item">
+                        <div class="timeline-date">2023-12-01 00:00:00</div>
+                        <div class="timeline-title">Добавил фотографии</div>
+                        
+                        <div class="timeline-description">Поездка в Санкт-Петербург</div>
+                        
+                        
+                        <span class="timeline-platform">Instagram</span>
+                        
+                    </div>
+                    
+                    <div class="timeline-item">
+                        <div class="timeline-date">2023-09-01 00:00:00</div>
+                        <div class="timeline-title">Устроился на работу</div>
+                        
+                        <div class="timeline-description">Начал работать в Яндекс</div>
+                        
+                        
+                    </div>
+                    
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div>
+                Сгенерировано: 05.02.2026 13:23
+            </div>
+            
+            <div class="sources">
+                Источники:
+                
+                <span class="source-badge">VK</span>
+                
+                <span class="source-badge">Telegram</span>
+                
+                <span class="source-badge">Instagram</span>
+                
+            </div>
+            
+        </div>
+    </div>
+</body>
+</html>

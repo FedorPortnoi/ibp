@@ -7,6 +7,7 @@ Wires existing IBP services and stubs out future ones.
 
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -109,87 +110,175 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             # ══════════════════════════════════════════════
             task.update('gov_registries', 'Проверка государственных реестров...', 5)
 
-            # 1.1 ЕГРЮЛ by name (existing service)
             biz_records = []
-            task.update('gov_registries', 'ЕГРЮЛ — поиск по имени...', 8)
-            try:
-                from app.services.phase3.business_registry import BusinessRegistrySearch
-                biz_searcher = BusinessRegistrySearch(timeout=30)
-                biz_results = biz_searcher.search_by_name(check.full_name)
-                if biz_results:
-                    biz_records = [r.to_dict() for r in biz_results]
-                    task.add_message(f'ЕГРЮЛ: найдено {len(biz_records)} записей', 'success')
-                else:
-                    task.add_message('ЕГРЮЛ: записи не найдены', 'info')
-                sources_checked += 1
-                if biz_records:
-                    sources_with_results += 1
-            except Exception as e:
-                logger.warning(f"ЕГРЮЛ search failed: {e}")
-                task.add_message('ЕГРЮЛ: источник недоступен', 'warning')
-                sources_checked += 1
+            court_records = []
 
-            # 1.2 ЕГРЮЛ by INN (if provided)
-            if check.inn:
-                task.update('gov_registries', 'ЕГРЮЛ — поиск по ИНН...', 12)
-                try:
-                    from app.services.phase3.business_registry import BusinessRegistrySearch
-                    inn_searcher = BusinessRegistrySearch(timeout=30)
-                    inn_result = inn_searcher.search_by_inn(check.inn)
-                    if inn_result:
-                        inn_dict = inn_result.to_dict()
-                        # Deduplicate
-                        existing_ids = {(r.get('inn', '') or '') + (r.get('ogrn', '') or '') for r in biz_records}
-                        key = (inn_dict.get('inn', '') or '') + (inn_dict.get('ogrn', '') or '')
-                        if key not in existing_ids:
-                            biz_records.append(inn_dict)
-                        task.add_message(f'ЕГРЮЛ по ИНН: найдена запись', 'success')
-                        sources_with_results += 1
-                    else:
-                        task.add_message('ЕГРЮЛ по ИНН: не найдено', 'info')
-                    sources_checked += 1
-                except Exception as e:
-                    logger.warning(f"ЕГРЮЛ INN search failed: {e}")
-                    task.add_message('ЕГРЮЛ по ИНН: источник недоступен', 'warning')
-                    sources_checked += 1
+            # Run business registry + court search in parallel
+            def _search_business(full_name, inn):
+                """Search ЕГРЮЛ by name, and by INN if provided."""
+                from app.services.phase3.business_registry import BusinessRegistrySearch
+                records = []
+                searcher = BusinessRegistrySearch(timeout=30)
+
+                # By name (always)
+                name_results = searcher.search_by_name(full_name)
+                if name_results:
+                    records = [r.to_dict() for r in name_results]
+
+                # By INN (if provided) — more precise, deduplicate against name results
+                if inn:
+                    inn_results = searcher.search_by_inn(inn)
+                    if inn_results:
+                        existing_keys = {
+                            (r.get('inn', '') or '') + (r.get('ogrn', '') or '')
+                            for r in records
+                        }
+                        for r in inn_results:
+                            d = r.to_dict()
+                            key = (d.get('inn', '') or '') + (d.get('ogrn', '') or '')
+                            if key not in existing_keys:
+                                records.append(d)
+                                existing_keys.add(key)
+
+                return records
+
+            def _search_courts(full_name):
+                """Search court records by name."""
+                from app.services.phase3.court_search import CourtRecordSearch
+                searcher = CourtRecordSearch(timeout=30)
+                results = searcher.search_by_name(full_name)
+                return [r.to_dict() for r in results] if results else []
+
+            def _search_fssp(full_name, date_of_birth, region):
+                """Search ФССП enforcement proceedings."""
+                from app.services.candidate.fssp_service import FSSPService
+                svc = FSSPService(timeout=30, max_pages=3)
+                dob_str = date_of_birth.strftime('%Y-%m-%d') if date_of_birth else None
+                results = svc.search(full_name, dob_str, region)
+                return [r.to_dict() for r in results]
+
+            task.update('gov_registries', 'ЕГРЮЛ + Суды + ФССП — параллельный поиск...', 8)
+
+            fssp_records = []
+
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                future_biz = executor.submit(_search_business, check.full_name, check.inn)
+                future_courts = executor.submit(_search_courts, check.full_name)
+                future_fssp = executor.submit(
+                    _search_fssp, check.full_name, check.date_of_birth, check.region,
+                )
+
+                for future in as_completed(
+                    [future_biz, future_courts, future_fssp], timeout=120,
+                ):
+                    try:
+                        if future is future_biz:
+                            biz_records = future.result(timeout=60)
+                            if biz_records:
+                                task.add_message(f'ЕГРЮЛ: найдено {len(biz_records)} записей', 'success')
+                                sources_with_results += 1
+                            else:
+                                task.add_message('ЕГРЮЛ: записи не найдены', 'info')
+                            sources_checked += 1
+                            if check.inn:
+                                sources_checked += 1  # INN search counts as separate source
+
+                        elif future is future_courts:
+                            court_records = future.result(timeout=60)
+                            if court_records:
+                                task.add_message(f'Суды: найдено {len(court_records)} дел', 'success')
+                                sources_with_results += 1
+                                if len(court_records) > 5:
+                                    all_red_flags.append({
+                                        'severity': 'warning',
+                                        'source': 'courts',
+                                        'text': f'Найдено {len(court_records)} судебных дел',
+                                    })
+                            else:
+                                task.add_message('Суды: дела не найдены', 'info')
+                            sources_checked += 1
+
+                        elif future is future_fssp:
+                            fssp_records = future.result(timeout=90)
+                            is_manual = (
+                                fssp_records
+                                and len(fssp_records) == 1
+                                and fssp_records[0].get('source') == 'manual'
+                            )
+                            if is_manual:
+                                task.add_message(
+                                    'ФССП: требуется ручная проверка (CAPTCHA)',
+                                    'warning',
+                                )
+                            elif fssp_records:
+                                task.add_message(
+                                    f'ФССП: найдено {len(fssp_records)} производств', 'success',
+                                )
+                                sources_with_results += 1
+
+                                # ── ФССП red flags ──
+                                active = [r for r in fssp_records if r.get('is_active')]
+                                if active:
+                                    all_red_flags.append({
+                                        'severity': 'warning',
+                                        'source': 'fssp',
+                                        'text': f'Активных исполнительных производств: {len(active)}',
+                                    })
+                                if len(active) >= 3:
+                                    all_red_flags.append({
+                                        'severity': 'risk',
+                                        'source': 'fssp',
+                                        'text': f'Множественные активные производства ({len(active)})',
+                                    })
+                                for rec in fssp_records:
+                                    amt = rec.get('amount')
+                                    subj = (rec.get('subject') or '').lower()
+                                    if amt and amt > 500_000:
+                                        all_red_flags.append({
+                                            'severity': 'risk',
+                                            'source': 'fssp',
+                                            'text': f'Крупная задолженность: {amt:,.0f} руб. ({rec.get("proceedings_number", "")})',
+                                        })
+                                    elif amt and amt > 100_000:
+                                        all_red_flags.append({
+                                            'severity': 'warning',
+                                            'source': 'fssp',
+                                            'text': f'Задолженность {amt:,.0f} руб. ({rec.get("proceedings_number", "")})',
+                                        })
+                                    if 'алимент' in subj:
+                                        all_red_flags.append({
+                                            'severity': 'warning',
+                                            'source': 'fssp',
+                                            'text': f'Алиментные обязательства ({rec.get("proceedings_number", "")})',
+                                        })
+                                    if 'налог' in subj:
+                                        all_red_flags.append({
+                                            'severity': 'risk',
+                                            'source': 'fssp',
+                                            'text': f'Налоговая задолженность ({rec.get("proceedings_number", "")})',
+                                        })
+                            else:
+                                task.add_message('ФССП: производств не найдено', 'info')
+                            sources_checked += 1
+
+                    except Exception as e:
+                        if future is future_biz:
+                            logger.warning(f"ЕГРЮЛ search failed: {e}")
+                            task.add_message('ЕГРЮЛ: источник недоступен', 'warning')
+                            sources_checked += 1
+                        elif future is future_courts:
+                            logger.warning(f"Court search failed: {e}")
+                            task.add_message('Суды: источник недоступен', 'warning')
+                            sources_checked += 1
+                        else:
+                            logger.warning(f"ФССП search failed: {e}")
+                            task.add_message('ФССП: источник недоступен', 'warning')
+                            sources_checked += 1
 
             check.business_records = biz_records
-            _pause()
-
-            # 1.3 Courts (existing service)
-            court_records = []
-            task.update('gov_registries', 'Суды — поиск судебных дел...', 18)
-            try:
-                from app.services.phase3.court_search import CourtRecordSearch
-                court_searcher = CourtRecordSearch(timeout=30)
-                court_results = court_searcher.search_by_name(check.full_name)
-                if court_results:
-                    court_records = [r.to_dict() for r in court_results]
-                    task.add_message(f'Суды: найдено {len(court_records)} дел', 'success')
-                    if len(court_records) > 5:
-                        all_red_flags.append({
-                            'severity': 'warning',
-                            'source': 'courts',
-                            'text': f'Найдено {len(court_records)} судебных дел',
-                        })
-                else:
-                    task.add_message('Суды: дела не найдены', 'info')
-                sources_checked += 1
-                if court_records:
-                    sources_with_results += 1
-            except Exception as e:
-                logger.warning(f"Court search failed: {e}")
-                task.add_message('Суды: источник недоступен', 'warning')
-                sources_checked += 1
-
             check.court_records = court_records
-            _pause()
-
-            # 1.4 ФССП (stub — service not yet built)
-            task.update('gov_registries', 'ФССП — исполнительные производства...', 24)
-            task.add_message('ФССП: сервис в разработке', 'warning')
-            check.fssp_records = []
-            sources_checked += 1
+            check.fssp_records = fssp_records
+            task.update('gov_registries', 'Реестры проверены', 25)
             _pause()
 
             # 1.5 Bankruptcy (stub)

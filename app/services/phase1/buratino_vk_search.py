@@ -399,12 +399,12 @@ class BuratinoVKSearch:
         age_from: Optional[int] = None,
         age_to: Optional[int] = None,
         sex: Optional[int] = None,
-        count: int = 50,
         offset: int = 0,
         target_name: Optional[str] = None
     ) -> Tuple[List[VKProfileResult], int]:
         """
-        Search VKontakte for people by name.
+        Search VKontakte for people by name. Returns all verified profiles
+        (no artificial cap — only limited by what VK API returns).
 
         Strategy:
         1. VKWebSearch with web token (PRIMARY — calls users.search via cached
@@ -419,7 +419,7 @@ class BuratinoVKSearch:
 
         # ── Demo mode ──
         if self._demo_mode:
-            return self._demo_search(query, city, age_from, age_to, count, target_name)
+            return self._demo_search(query, city, age_from, age_to, target_name)
 
         all_profiles_by_id: Dict[int, VKProfileResult] = {}
 
@@ -445,7 +445,7 @@ class BuratinoVKSearch:
 
             for variation in name_variations:
                 try:
-                    raw_profiles, _ = web_searcher.search(variation, count=count)
+                    raw_profiles, _ = web_searcher.search(variation)
                     added = 0
                     for item in raw_profiles:
                         vk_id = item.get('id')
@@ -461,10 +461,6 @@ class BuratinoVKSearch:
                         )
                 except Exception as e:
                     logger.warning(f"VK search failed for '{variation}': {e}")
-
-                if len(all_profiles_by_id) >= 100:
-                    logger.info("VK search: hit 100 cap, skipping remaining variations")
-                    break
 
             logger.info(
                 f"VK search: {len(all_profiles_by_id)} total unique profiles "
@@ -488,7 +484,7 @@ class BuratinoVKSearch:
 
         profiles = list(all_profiles_by_id.values())
         profiles.sort(key=lambda p: p.name_similarity, reverse=True)
-        return profiles[:count], len(all_profiles_by_id)
+        return profiles, len(all_profiles_by_id)
 
     def fetch_friends(
         self,
@@ -568,7 +564,6 @@ class BuratinoVKSearch:
         city: Optional[str],
         age_from: Optional[int],
         age_to: Optional[int],
-        count: int,
         target_name: str
     ) -> Tuple[List[VKProfileResult], int]:
         """Generate demo search results."""
@@ -647,7 +642,7 @@ class BuratinoVKSearch:
         # Sort by name similarity
         profiles.sort(key=lambda p: p.name_similarity, reverse=True)
 
-        return profiles[:count], len(profiles)
+        return profiles, len(profiles)
 
     def search_expanded(
         self,
@@ -655,16 +650,14 @@ class BuratinoVKSearch:
         city: Optional[str] = None,
         age_from: Optional[int] = None,
         age_to: Optional[int] = None,
-        count: int = 50
     ) -> List[VKProfileResult]:
         """
-        Expanded search: original name + diminutives + transliterations + first-name-only.
-        Deduplicates by VK user ID. Returns all results with search_variant tags.
+        Expanded search: original name + transliterations + first-name-only.
+        Deduplicates by VK user ID. Returns all verified results (no artificial cap).
 
         Args:
             query: Full name (e.g. "Тихон Портной")
             city, age_from, age_to: Filters
-            count: Max results per sub-search
 
         Returns:
             Combined, deduplicated list of VKProfileResult
@@ -675,14 +668,11 @@ class BuratinoVKSearch:
         first_name = query_parts[0] if query_parts else query
         last_name = query_parts[1] if len(query_parts) > 1 else ""
 
-        # Use larger internal count for primary search to maximize results
-        internal_count = max(count, 100)
-
-        # ── Step 1: Original name search ──
+        # ── Step 1: Original name search (includes diminutive variants) ──
         logger.info(f"Expanded search: original query '{query}'")
         profiles, _ = self.search(
             query=query, city=city, age_from=age_from,
-            age_to=age_to, count=internal_count, target_name=query
+            age_to=age_to, target_name=query
         )
         for p in profiles:
             if p.vk_id not in all_profiles:
@@ -693,17 +683,7 @@ class BuratinoVKSearch:
         # so no separate diminutive round is needed here.
 
         # ── Step 3: Transliteration variants (screen name guessing) ──
-        # Only run if we have few results from accurate strategies (steps 1-2)
-        if len(all_profiles) >= 100:
-            logger.info(
-                f"Expanded search: {len(all_profiles)} results, "
-                f"skipping screen name guessing and first-name-only search"
-            )
-            result = list(all_profiles.values())
-            result.sort(key=lambda p: p.name_similarity, reverse=True)
-            logger.info(f"Expanded search: total {len(result)} unique profiles for '{query}'")
-            return result
-
+        # Only run if we have few results from accurate strategies
         if len(all_profiles) < 5:
             logger.info(
                 f"Expanded search: only {len(all_profiles)} results from people search, "
@@ -776,7 +756,7 @@ class BuratinoVKSearch:
                 logger.info(f"Expanded search: first-name-only '{first_name}'")
                 fn_profiles, _ = self.search(
                     query=first_name, city=city, age_from=age_from,
-                    age_to=age_to, count=30, target_name=query
+                    age_to=age_to, target_name=query
                 )
                 for p in fn_profiles:
                     if p.vk_id not in all_profiles:
@@ -802,7 +782,6 @@ class BuratinoVKSearch:
         city: Optional[str] = None,
         age_from: Optional[int] = None,
         age_to: Optional[int] = None,
-        count: int = 50
     ) -> List[Dict]:
         """
         Search VK (with expanded name variants) and save results to database.
@@ -816,7 +795,6 @@ class BuratinoVKSearch:
             city: Optional city filter
             age_from: Minimum age
             age_to: Maximum age
-            count: Max results
 
         Returns:
             List of saved profile dicts
@@ -830,7 +808,6 @@ class BuratinoVKSearch:
             city=city,
             age_from=age_from,
             age_to=age_to,
-            count=count
         )
 
         saved_profiles = []
@@ -910,7 +887,6 @@ def search_vk_buratino(
     city: str = None,
     age_from: int = None,
     age_to: int = None,
-    limit: int = 50
 ) -> List[Dict]:
     """
     Convenience function for Buratino-style VK search.
@@ -920,7 +896,6 @@ def search_vk_buratino(
         city: Optional city filter
         age_from: Minimum age
         age_to: Maximum age
-        limit: Max results
 
     Returns:
         List of profile dicts
@@ -930,7 +905,6 @@ def search_vk_buratino(
         city=city,
         age_from=age_from,
         age_to=age_to,
-        count=limit,
         target_name=name
     )
     return [p.to_dict() for p in profiles]

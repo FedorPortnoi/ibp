@@ -1,0 +1,464 @@
+[2026-02-09 09:07:46] [INFO] [app.services.phase2.social_graph] SocialGraphBuilder: Running in DEMO mode
+[2026-02-09 09:07:46] [INFO] [ibp] Database tables created successfully
+
+    ===========================================================
+    IBP - Identity-Based Profiler
+    OSINT Investigation Platform
+
+    Server running at: http://127.0.0.1:5000
+    Press CTRL+C to stop
+    ===========================================================
+    
+
+==========================================================
+  IBP STARTUP CHECKS -- 2026-02-09 09:07:46
+==========================================================
+  [OK] Database: ibp.db (292 KB, 3 investigations)
+  [FAIL] VK Token: Invalid (...st_token) -- User authorization failed: invalid access_token (4).
+  [OK] Playwright: Installed
+  [OK] Holehe: vunknown
+  [!!] Telethon: Installed but TELEGRAM_API_ID not set
+  [OK] Snoop: Found at C:\Users\fedor\osint_tools\snoop
+  [OK] Python: 3.12.10
+==========================================================
+
+ * Serving Flask app 'app'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:5000
+Press CTRL+C to quit
+ * Restarting with stat
+[2026-02-09 09:07:51] [INFO] [app.services.phase2.social_graph] SocialGraphBuilder: Running in DEMO mode
+[2026-02-09 09:07:51] [INFO] [ibp] Database tables created successfully
+ * Debugger is active!
+ * Debugger PIN: 108-296-781
+127.0.0.1 - - [09/Feb/2026 09:07:53] "GET /investigations HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:07:58] "GET /dashboard HTTP/1.1" 302 -
+127.0.0.1 - - [09/Feb/2026 09:08:03] "POST /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:08:09] "GET /investigations HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:08:15] "POST /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:45] "GET / HTTP/1.1" 302 -
+127.0.0.1 - - [09/Feb/2026 09:10:45] "GET /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:45] "GET /static/css/variables.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:45] "GET /static/css/animations.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:45] "GET /static/css/base.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:46] "GET /static/css/components.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:50] "GET /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:50] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:50] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:50] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:50] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:51] "GET /investigations HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:51] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:51] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:51] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:51] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:51] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:52] "GET /dashboard HTTP/1.1" 302 -
+127.0.0.1 - - [09/Feb/2026 09:10:52] "GET /investigations HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:52] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:52] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:52] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:52] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:53] "GET /vk/callback HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:53] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:53] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:53] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:53] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:54] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:55] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:56] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:56] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:58] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:10:58] "GET /nonexistent-page-xyz HTTP/1.1" 404 -
+127.0.0.1 - - [09/Feb/2026 09:10:58] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:58] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:58] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:10:58] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:00] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:10] "GET /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:10] "GET /static/css/variables.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:10] "GET /static/css/components.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:10] "GET /static/css/base.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:10] "GET /static/css/animations.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:11] "GET /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:11] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:11] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:11] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:11] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:11] "POST /phase1/new HTTP/1.1" 200 -
+[2026-02-09 09:11:11] [INFO] [app.services.phase1.buratino_vk_search] BuratinoVKSearch: Running in DEMO mode (no VK token)
+[2026-02-09 09:11:11] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: original query '\u0422\u0438\u0445\u043e\u043d \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:11] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: '\u0422\u0438\u0445\u043e\u043d \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:11] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: diminutive '\u0422\u0438\u0448\u0430 \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:11] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: '\u0422\u0438\u0448\u0430 \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:12] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: diminutive '\u0422\u0438\u0448\u043a\u0430 \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:12] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: '\u0422\u0438\u0448\u043a\u0430 \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+127.0.0.1 - - [09/Feb/2026 09:11:12] "GET /api/vk/token-status HTTP/1.1" 200 -
+[2026-02-09 09:11:12] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: diminutive '\u0422\u0438\u0448\u043e\u043a \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:12] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: '\u0422\u0438\u0448\u043e\u043a \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+127.0.0.1 - - [09/Feb/2026 09:11:12] "GET /api/vk/token-status HTTP/1.1" 200 -
+[2026-02-09 09:11:13] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: diminutive '\u0422\u0438\u0445\u0430\u043d\u044f \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:13] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: '\u0422\u0438\u0445\u0430\u043d\u044f \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:13] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: only 3 results from people search, trying screen name guessing...
+[2026-02-09 09:11:13] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: total 3 unique profiles for '\u0422\u0438\u0445\u043e\u043d \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:13] [INFO] [app.services.phase1.buratino_vk_search] Saved 3 VK profiles for investigation 771f1d8a472148f0a2bbace52cdd5cf5
+127.0.0.1 - - [09/Feb/2026 09:11:14] "GET /phase1/search/771f1d8a472148f0a2bbace52cdd5cf5 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:14] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:14] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:14] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:14] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:16] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:17] "GET /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:17] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:17] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:17] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:17] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:17] "POST /phase1/new HTTP/1.1" 200 -
+[2026-02-09 09:11:17] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: original query 'Tikhon Portnoi'
+[2026-02-09 09:11:17] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: 'Tikhon Portnoi'
+[2026-02-09 09:11:17] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: only 3 results from people search, trying screen name guessing...
+[2026-02-09 09:11:17] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: total 3 unique profiles for 'Tikhon Portnoi'
+[2026-02-09 09:11:17] [INFO] [app.services.phase1.buratino_vk_search] Saved 3 VK profiles for investigation 4994a52a9b1f44eba5be8c33d7d7e05c
+127.0.0.1 - - [09/Feb/2026 09:11:17] "GET /phase1/search/4994a52a9b1f44eba5be8c33d7d7e05c HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:17] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:17] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:17] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:17] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:19] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:19] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:20] "GET /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:20] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:20] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:20] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:20] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:20] "POST /phase1/new HTTP/1.1" 400 -
+127.0.0.1 - - [09/Feb/2026 09:11:22] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:27] "GET /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:27] "GET /static/css/variables.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:27] "GET /static/css/base.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:27] "GET /static/css/components.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:27] "GET /static/css/animations.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:28] "POST /phase1/new HTTP/1.1" 200 -
+[2026-02-09 09:11:28] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: original query '\u041e\u043b\u044c\u0433\u0430 \u0410\u0445\u0442\u0438\u043d\u0430\u0441'
+[2026-02-09 09:11:28] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: '\u041e\u043b\u044c\u0433\u0430 \u0410\u0445\u0442\u0438\u043d\u0430\u0441'
+[2026-02-09 09:11:28] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: diminutive '\u041e\u043b\u044f \u0410\u0445\u0442\u0438\u043d\u0430\u0441'
+[2026-02-09 09:11:28] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: '\u041e\u043b\u044f \u0410\u0445\u0442\u0438\u043d\u0430\u0441'
+[2026-02-09 09:11:28] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: diminutive '\u041e\u043b\u044c\u043a\u0430 \u0410\u0445\u0442\u0438\u043d\u0430\u0441'
+[2026-02-09 09:11:28] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: '\u041e\u043b\u044c\u043a\u0430 \u0410\u0445\u0442\u0438\u043d\u0430\u0441'
+[2026-02-09 09:11:29] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: diminutive '\u041e\u043b\u0435\u043d\u044c\u043a\u0430 \u0410\u0445\u0442\u0438\u043d\u0430\u0441'
+[2026-02-09 09:11:29] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: '\u041e\u043b\u0435\u043d\u044c\u043a\u0430 \u0410\u0445\u0442\u0438\u043d\u0430\u0441'
+127.0.0.1 - - [09/Feb/2026 09:11:29] "GET /api/vk/token-status HTTP/1.1" 200 -
+[2026-02-09 09:11:29] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: only 3 results from people search, trying screen name guessing...
+[2026-02-09 09:11:29] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: total 3 unique profiles for '\u041e\u043b\u044c\u0433\u0430 \u0410\u0445\u0442\u0438\u043d\u0430\u0441'
+[2026-02-09 09:11:29] [INFO] [app.services.phase1.buratino_vk_search] Saved 3 VK profiles for investigation ce2f07430ae64f52b66a253f2633b939
+127.0.0.1 - - [09/Feb/2026 09:11:29] "GET /phase1/search/ce2f07430ae64f52b66a253f2633b939 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:30] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:30] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:30] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:30] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:31] "GET /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:31] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:31] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:31] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:31] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:31] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:32] "POST /phase1/new HTTP/1.1" 200 -
+[2026-02-09 09:11:32] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: original query '\u0412\u043b\u0430\u0434\u0430 \u041a\u043b\u0430\u0434\u043a\u043e'
+[2026-02-09 09:11:32] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: '\u0412\u043b\u0430\u0434\u0430 \u041a\u043b\u0430\u0434\u043a\u043e'
+[2026-02-09 09:11:32] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: only 3 results from people search, trying screen name guessing...
+[2026-02-09 09:11:32] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: total 3 unique profiles for '\u0412\u043b\u0430\u0434\u0430 \u041a\u043b\u0430\u0434\u043a\u043e'
+[2026-02-09 09:11:32] [INFO] [app.services.phase1.buratino_vk_search] Saved 3 VK profiles for investigation b27bd232190b4c18a54f65933a7d34bc
+127.0.0.1 - - [09/Feb/2026 09:11:32] "GET /phase1/search/b27bd232190b4c18a54f65933a7d34bc HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:32] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:32] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:32] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:32] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:33] "GET /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:33] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:33] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:33] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:33] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:33] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:34] "POST /phase1/new HTTP/1.1" 200 -
+[2026-02-09 09:11:34] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: original query '\u0422\u0438\u0445\u043e\u043d \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:34] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: '\u0422\u0438\u0445\u043e\u043d \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:34] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: diminutive '\u0422\u0438\u0448\u0430 \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:34] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: '\u0422\u0438\u0448\u0430 \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+127.0.0.1 - - [09/Feb/2026 09:11:34] "GET /api/vk/token-status HTTP/1.1" 200 -
+[2026-02-09 09:11:34] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: diminutive '\u0422\u0438\u0448\u043a\u0430 \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:34] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: '\u0422\u0438\u0448\u043a\u0430 \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:35] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: diminutive '\u0422\u0438\u0448\u043e\u043a \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:35] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: '\u0422\u0438\u0448\u043e\u043a \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+127.0.0.1 - - [09/Feb/2026 09:11:35] "GET /api/vk/token-status HTTP/1.1" 200 -
+[2026-02-09 09:11:35] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: diminutive '\u0422\u0438\u0445\u0430\u043d\u044f \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:35] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: '\u0422\u0438\u0445\u0430\u043d\u044f \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:36] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: only 3 results from people search, trying screen name guessing...
+[2026-02-09 09:11:36] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: total 3 unique profiles for '\u0422\u0438\u0445\u043e\u043d \u041f\u043e\u0440\u0442\u043d\u043e\u0439'
+[2026-02-09 09:11:36] [INFO] [app.services.phase1.buratino_vk_search] Saved 3 VK profiles for investigation 2066620b09b34347a910c730aecd29b1
+127.0.0.1 - - [09/Feb/2026 09:11:36] "GET /phase1/search/2066620b09b34347a910c730aecd29b1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:36] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:36] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:36] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:36] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:38] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:45] "GET /investigations HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:45] "GET /static/css/variables.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:45] "GET /static/css/components.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:45] "GET /static/css/base.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:45] "GET /static/css/animations.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:47] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:48] "GET /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:48] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:48] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:48] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:48] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:49] "POST /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:49] "GET /investigations HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:49] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:49] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:49] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:49] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:11:50] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:11:51] "GET /api/vk/token-status HTTP/1.1" 200 -
+[2026-02-09 09:11:51] [INFO] [ibp.routes.main] Deleted investigation fc1a88b377f548c78f0bbc25a6af2880
+127.0.0.1 - - [09/Feb/2026 09:11:51] "DELETE /api/investigations/fc1a88b377f548c78f0bbc25a6af2880 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:01] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:01] "GET /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:01] "GET /static/css/variables.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:01] "GET /static/css/base.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:01] "GET /static/css/components.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:01] "GET /static/css/animations.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:03] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:04] "GET /vk/callback HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:04] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:04] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:04] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:04] "GET /static/css/animations.css HTTP/1.1" 304 -
+[2026-02-09 09:12:05] [INFO] [ibp.vk_token] VK token saved: ...st_token
+127.0.0.1 - - [09/Feb/2026 09:12:06] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:07] "POST /vk/save-token HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:13] "GET /this-page-does-not-exist HTTP/1.1" 404 -
+127.0.0.1 - - [09/Feb/2026 09:12:13] "GET /static/css/base.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:13] "GET /static/css/variables.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:13] "GET /static/css/components.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:13] "GET /static/css/animations.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:14] "GET /report/nonexistent-investigation-id-12345 HTTP/1.1" 404 -
+127.0.0.1 - - [09/Feb/2026 09:12:14] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:14] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:14] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:14] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /phase2/ HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "POST /phase1/new HTTP/1.1" 200 -
+[2026-02-09 09:12:15] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: original query 'alert("xss")'
+[2026-02-09 09:12:15] [INFO] [app.services.phase1.buratino_vk_search] Generating demo results for: 'alert("xss")'
+[2026-02-09 09:12:15] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: only 3 results from people search, trying screen name guessing...
+[2026-02-09 09:12:15] [INFO] [app.services.phase1.buratino_vk_search] Expanded search: total 3 unique profiles for 'alert("xss")'
+[2026-02-09 09:12:15] [INFO] [app.services.phase1.buratino_vk_search] Saved 3 VK profiles for investigation a60ae06109b243dabe78d5b03161e353
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /phase1/search/a60ae06109b243dabe78d5b03161e353 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /static/css/animations.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:15] "POST /phase1/new HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:16] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:17] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:17] "GET /api/vk/token-status HTTP/1.1" 200 -
+ * Detected change in 'C:\\Users\\fedor\\ibp\\app\\routes\\report.py', reloading
+
+    ===========================================================
+    IBP - Identity-Based Profiler
+    OSINT Investigation Platform
+
+    Server running at: http://127.0.0.1:5000
+    Press CTRL+C to stop
+    ===========================================================
+    
+
+==========================================================
+  IBP STARTUP CHECKS -- 2026-02-09 09:07:51
+==========================================================
+  [OK] Database: ibp.db (292 KB, 3 investigations)
+  [FAIL] VK Token: Invalid (...st_token) -- User authorization failed: invalid access_token (4).
+  [OK] Playwright: Installed
+  [OK] Holehe: vunknown
+  [!!] Telethon: Installed but TELEGRAM_API_ID not set
+  [OK] Snoop: Found at C:\Users\fedor\osint_tools\snoop
+  [OK] Python: 3.12.10
+==========================================================
+
+ * Restarting with stat
+[2026-02-09 09:12:21] [INFO] [app.services.phase2.social_graph] SocialGraphBuilder: Running in DEMO mode
+[2026-02-09 09:12:21] [INFO] [ibp] Database tables created successfully
+ * Debugger is active!
+ * Debugger PIN: 108-296-781
+127.0.0.1 - - [09/Feb/2026 09:12:24] "GET /phase2/analyze/2cb97c2b53c5468e HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:24] "GET /static/css/base.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:24] "GET /static/css/components.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:24] "GET /static/css/animations.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:24] "GET /static/css/variables.css HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:25] "POST /phase2/api/start-analysis/2cb97c2b53c5468e HTTP/1.1" 200 -
+[2026-02-09 09:12:25] [INFO] [app.services.phase1.buratino_vk_search] BuratinoVKSearch: Running in DEMO mode (no VK token)
+127.0.0.1 - - [09/Feb/2026 09:12:25] "POST /phase2/api/start-analysis/2cb97c2b53c5468e HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:25] "GET /phase2/progress/c66e86dd85b143ba8c08816486bb2268 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:26] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:27] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:27] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+[2026-02-09 09:12:27] [WARNING] [app.services.phase2.vk_api_extractor] VK API error: User authorization failed: no access_token passed.
+[2026-02-09 09:12:27] [WARNING] [app.services.phase2.vk_api_extractor] VK API error: User authorization failed: no access_token passed.
+127.0.0.1 - - [09/Feb/2026 09:12:28] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:29] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:30] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:30] "GET /phase2/progress/c66e86dd85b143ba8c08816486bb2268 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:31] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:32] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:33] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:34] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:35] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:35] "GET /phase2/progress/c66e86dd85b143ba8c08816486bb2268 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:36] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:37] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:38] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:39] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:40] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:40] "GET /phase2/progress/c66e86dd85b143ba8c08816486bb2268 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:41] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:42] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:43] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:44] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:45] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:45] "GET /phase2/progress/c66e86dd85b143ba8c08816486bb2268 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:46] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:47] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:48] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:49] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:50] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:50] "GET /phase2/progress/c66e86dd85b143ba8c08816486bb2268 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:51] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:52] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:53] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:54] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:55] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:55] "GET /phase2/progress/c66e86dd85b143ba8c08816486bb2268 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:56] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:57] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:58] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:12:59] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:00] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:00] "GET /phase2/progress/c66e86dd85b143ba8c08816486bb2268 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:01] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:02] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:03] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:04] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:05] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:05] "GET /phase2/progress/c66e86dd85b143ba8c08816486bb2268 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:06] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:07] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:08] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:09] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:10] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:10] "GET /phase2/progress/c66e86dd85b143ba8c08816486bb2268 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:11] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:12] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:13] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:14] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:15] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:15] "GET /phase2/progress/c66e86dd85b143ba8c08816486bb2268 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:16] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:17] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:18] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:19] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:20] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:20] "GET /phase2/progress/c66e86dd85b143ba8c08816486bb2268 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:21] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:22] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:23] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:24] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:25] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:25] "GET /phase2/progress/c66e86dd85b143ba8c08816486bb2268 HTTP/1.1" 200 -
+[2026-02-09 09:13:26] [INFO] [app.services.phase2.source_manager] Discovered 14 sources: ['DeHashed API', 'HIBP Pwned Passwords', 'HudsonRock Cavalier', 'LeakCheck API', 'Snusbase API', 'Email Pattern Generator', 'GetContact Lookup', 'NumBuster Lookup', 'Holehe Email Check', 'SMTP Verification', 'Himera Search API', 'InfoTrackPeople API', 'Telegram OSINT Bots', 'VK Profile API']
+[2026-02-09 09:13:26] [INFO] [app.services.phase2.source_manager] Running 6 sources: ['HIBP Pwned Passwords', 'HudsonRock Cavalier', 'LeakCheck API', 'Email Pattern Generator', 'SMTP Verification', 'VK Profile API']
+[2026-02-09 09:13:26] [INFO] [app.services.phase2.base_source.EmailPatternSource] Generated 50 email candidates
+[2026-02-09 09:13:26] [INFO] [app.services.phase2.source_manager] Source Email Pattern Generator: returned 50 results
+[2026-02-09 09:13:26] [INFO] [app.services.phase2.source_manager] Source SMTP Verification: returned 1 results
+127.0.0.1 - - [09/Feb/2026 09:13:26] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+[2026-02-09 09:13:26] [INFO] [app.services.phase2.source_manager] Discovered 14 sources: ['DeHashed API', 'HIBP Pwned Passwords', 'HudsonRock Cavalier', 'LeakCheck API', 'Snusbase API', 'Email Pattern Generator', 'GetContact Lookup', 'NumBuster Lookup', 'Holehe Email Check', 'SMTP Verification', 'Himera Search API', 'InfoTrackPeople API', 'Telegram OSINT Bots', 'VK Profile API']
+[2026-02-09 09:13:26] [INFO] [app.services.phase2.source_manager] Running 6 sources: ['HIBP Pwned Passwords', 'HudsonRock Cavalier', 'LeakCheck API', 'Email Pattern Generator', 'SMTP Verification', 'VK Profile API']
+[2026-02-09 09:13:26] [INFO] [app.services.phase2.base_source.EmailPatternSource] Generated 50 email candidates
+[2026-02-09 09:13:26] [INFO] [app.services.phase2.source_manager] Source Email Pattern Generator: returned 50 results
+[2026-02-09 09:13:26] [INFO] [app.services.phase2.source_manager] Source SMTP Verification: returned 1 results
+127.0.0.1 - - [09/Feb/2026 09:13:27] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+[2026-02-09 09:13:28] [WARNING] [app.services.phase2.vk_api_extractor] VK API error: User authorization failed: no access_token passed.
+127.0.0.1 - - [09/Feb/2026 09:13:28] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+[2026-02-09 09:13:29] [WARNING] [app.services.phase2.vk_api_extractor] VK API error: User authorization failed: no access_token passed.
+127.0.0.1 - - [09/Feb/2026 09:13:29] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:30] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+[2026-02-09 09:13:30] [INFO] [app.services.phase2.source_manager] SourceManager complete: 51 results in 4.5s (types: email=51)
+[2026-02-09 09:13:30] [INFO] [app.services.phase2.phone_discovery] Starting phone discovery: \u041d\u043e\u0432\u0438\u043a\u043e\u0432 \u0424\u0451\u0434\u043e\u0440
+127.0.0.1 - - [09/Feb/2026 09:13:31] "GET /phase2/progress/c66e86dd85b143ba8c08816486bb2268 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:31] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+[2026-02-09 09:13:31] [INFO] [app.services.phase2.source_manager] SourceManager complete: 51 results in 4.5s (types: email=51)
+[2026-02-09 09:13:31] [INFO] [app.services.phase2.phone_discovery] Starting phone discovery: \u041d\u043e\u0432\u0438\u043a\u043e\u0432 \u0424\u0451\u0434\u043e\u0440
+127.0.0.1 - - [09/Feb/2026 09:13:32] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+[2026-02-09 09:13:32] [INFO] [app.services.phase2.phone_discovery] Phone discovery complete: 0 phones in 2.1s
+[2026-02-09 09:13:32] [INFO] [app.services.phase1.buratino_vk_search] Generating demo friends for user 12345
+[2026-02-09 09:13:32] [INFO] [app.routes.phase2] Phase 2 complete: {'friends_count': 8, 'phones_found': 0, 'emails_found': 80, 'profiles_found': 0}
+127.0.0.1 - - [09/Feb/2026 09:13:33] "GET /phase2/progress/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:33] "GET /phase2/results/b735d0a637124c1b89a3e494c9fc10c1 HTTP/1.1" 200 -
+[2026-02-09 09:13:33] [INFO] [app.services.phase2.phone_discovery] Phone discovery complete: 0 phones in 2.0s
+[2026-02-09 09:13:33] [INFO] [app.services.phase1.buratino_vk_search] Generating demo friends for user 12345
+[2026-02-09 09:13:33] [INFO] [app.routes.phase2] Phase 2 complete: {'friends_count': 8, 'phones_found': 0, 'emails_found': 80, 'profiles_found': 0}
+127.0.0.1 - - [09/Feb/2026 09:13:36] "GET /phase2/progress/c66e86dd85b143ba8c08816486bb2268 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:36] "GET /phase2/buratino/results/2cb97c2b53c5468e HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:36] "GET /static/css/variables.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:13:36] "GET /static/css/base.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:13:36] "GET /static/css/components.css HTTP/1.1" 304 -
+127.0.0.1 - - [09/Feb/2026 09:13:36] "GET /static/css/animations.css HTTP/1.1" 304 -
+[2026-02-09 09:13:37] [INFO] [app.services.phase2.social_graph] SocialGraphBuilder: Running in DEMO mode
+[2026-02-09 09:13:38] [INFO] [app.services.phase2.social_graph] Detected 1 communities
+[2026-02-09 09:13:38] [INFO] [app.services.phase2.social_graph] Graph built: 9 nodes, 8 edges
+127.0.0.1 - - [09/Feb/2026 09:13:38] "GET /phase2/api/graph/2cb97c2b53c5468e HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:39] "GET /api/vk/token-status HTTP/1.1" 200 -
+127.0.0.1 - - [09/Feb/2026 09:13:47] "GET /api/vk/token-status HTTP/1.1" 200 -
+ * Detected change in 'C:\\Users\\fedor\\ibp\\app\\services\\report_generator.py', reloading
+
+    ===========================================================
+    IBP - Identity-Based Profiler
+    OSINT Investigation Platform
+
+    Server running at: http://127.0.0.1:5000
+    Press CTRL+C to stop
+    ===========================================================
+    
+
+==========================================================
+  IBP STARTUP CHECKS -- 2026-02-09 09:12:21
+==========================================================
+  [OK] Database: ibp.db (292 KB, 12 investigations)
+  [FAIL] VK Token: Invalid (...st_token) -- User authorization failed: invalid access_token (4).
+  [OK] Playwright: Installed
+  [OK] Holehe: vunknown
+  [!!] Telethon: Installed but TELEGRAM_API_ID not set
+  [OK] Snoop: Found at C:\Users\fedor\osint_tools\snoop
+  [OK] Python: 3.12.10
+==========================================================
+
+Exception in thread Thread-1 (serve_forever):
+Traceback (most recent call last):
+Fatal Python error: _enter_buffered_busy: could not acquire lock for <_io.BufferedWriter name='<stderr>'> at interpreter shutdown, possibly due to daemon threads
+Python runtime state: finalizing (tstate=0x00007ff8a14a3d50)
+
+Current thread 0x00003fe4 (most recent call first):
+  <no Python frame>
+
+Extension modules: markupsafe._speedups, sqlalchemy.cyextension.collections, sqlalchemy.cyextension.immutabledict, sqlalchemy.cyextension.processors, sqlalchemy.cyextension.resultproxy, sqlalchemy.cyextension.util, greenlet._greenlet, _brotli, charset_normalizer.md, lxml._elementpath, lxml.etree, multidict._multidict, yarl._quoting_c, propcache._helpers_c, aiohttp._http_writer, aiohttp._http_parser, aiohttp._websocket.mask, aiohttp._websocket.reader_c, _cffi_backend, frozenlist._frozenlist, numpy._core._multiarray_umath, numpy.linalg._umath_linalg, PIL._imaging, numpy.random._common, numpy.random.bit_generator, numpy.random._bounded_integers, numpy.random._pcg64, numpy.random._mt19937, numpy.random._generator, numpy.random._philox, numpy.random._sfc64, numpy.random.mtrand (total: 32)

@@ -109,6 +109,11 @@ class TelegramDiscoveryService:
             logger.warning(f"TG Method C (Telethon) error: {e}")
 
         results = list(all_profiles.values())[:self.MAX_TOTAL_RESULTS]
+
+        # Sort all results: высокая/high first, then средняя/medium, then низкая/low
+        confidence_order = {'высокая': 0, 'high': 0, 'средняя': 1, 'medium': 1, 'низкая': 2, 'low': 2}
+        results.sort(key=lambda p: confidence_order.get(p.get('confidence', ''), 3))
+
         deduped = (count_a + count_b + count_c) - len(results)
 
         logger.info(
@@ -155,23 +160,40 @@ class TelegramDiscoveryService:
             tg_profile = self._checker.check_username_web(screen_name)
 
             if tg_profile.exists and tg_profile.is_personal:
-                # Method A doesn't require strict name verification
-                # (VK profile was already verified by VK search), but check anyway
-                match = self._checker._verify_names(
+                # Verify Telegram display name matches the target person
+                match = self._score_name_match(
                     first_name, last_name, tg_profile.display_name
                 )
-                if match['match']:
-                    confidence = 'high' if match['score'] > 0.7 else 'medium'
+                score = match['score']
+
+                if score >= 0.6:
+                    confidence = 'высокая'
+                    source = 'VK → TG: имя совпадает'
+                elif score >= 0.3:
+                    confidence = 'средняя'
+                    if 'first_name_only' in match.get('method', ''):
+                        source = 'VK → TG: только имя'
+                    else:
+                        source = 'VK → TG: частичное совпадение'
                 else:
-                    confidence = 'low'
+                    confidence = 'низкая'
+                    source = 'VK → TG: имя не совпадает'
 
                 profile_dict = self._to_dict(
                     tg_profile,
                     confidence=confidence,
-                    source='Совпадение с VK username',
+                    source=source,
                 )
                 found.append(profile_dict)
-                logger.info(f"TG Method A: found @{screen_name} (VK cross-ref)")
+                logger.info(
+                    f"TG Method A: found @{screen_name} — "
+                    f"\"{tg_profile.display_name}\" "
+                    f"(score={score:.2f}, {confidence}) [{source}]"
+                )
+
+        # Sort: высокая first, then средняя, then низкая
+        confidence_order = {'высокая': 0, 'средняя': 1, 'низкая': 2}
+        found.sort(key=lambda p: confidence_order.get(p.get('confidence', ''), 3))
 
         logger.info(f"TG Method A (VK cross-ref): checked {len(candidates)}, found {len(found)}")
         return found
@@ -202,15 +224,23 @@ class TelegramDiscoveryService:
             tg_profile = self._checker.check_username_web(candidate)
 
             if tg_profile.exists and tg_profile.is_personal:
-                match = self._checker._verify_names(
+                match = self._score_name_match(
                     first_name, last_name, tg_profile.display_name
                 )
-                if match['match']:
-                    confidence = 'medium' if match['score'] > 0.7 else 'low'
-                    source = 'Совпадение username'
+                score = match['score']
+
+                if score >= 0.6:
+                    confidence = 'высокая'
+                    source = 'Шаблон → TG: имя совпадает'
+                elif score >= 0.3:
+                    confidence = 'средняя'
+                    if 'first_name_only' in match.get('method', ''):
+                        source = 'Шаблон → TG: только имя'
+                    else:
+                        source = 'Шаблон → TG: частичное совпадение'
                 else:
-                    # Username matches pattern but display name doesn't match
-                    continue
+                    confidence = 'низкая'
+                    source = 'Шаблон → TG: имя не совпадает'
 
                 profile_dict = self._to_dict(
                     tg_profile,
@@ -218,7 +248,15 @@ class TelegramDiscoveryService:
                     source=source,
                 )
                 found.append(profile_dict)
-                logger.info(f"TG Method B: found @{candidate} (guessing)")
+                logger.info(
+                    f"TG Method B: found @{candidate} — "
+                    f"\"{tg_profile.display_name}\" "
+                    f"(score={score:.2f}, {confidence}) [{source}]"
+                )
+
+        # Sort: высокая first, then средняя, then низкая
+        confidence_order = {'высокая': 0, 'средняя': 1, 'низкая': 2}
+        found.sort(key=lambda p: confidence_order.get(p.get('confidence', ''), 3))
 
         logger.info(f"TG Method B (guessing): checked {len(candidates)}, found {len(found)}")
         return found
@@ -235,7 +273,7 @@ class TelegramDiscoveryService:
     ) -> List[Dict]:
         """
         Use Telethon's contacts.SearchRequest to find Telegram users by name.
-        Searches both Cyrillic and Latin transliteration of the name.
+        Searches Cyrillic name, diminutive variants, and Latin transliteration.
         """
         api_id = os.environ.get('TELEGRAM_API_ID', '')
         api_hash = os.environ.get('TELEGRAM_API_HASH', '')
@@ -258,14 +296,27 @@ class TelegramDiscoveryService:
             os.makedirs(session_dir, exist_ok=True)
             session_path = os.path.join(session_dir, 'ibp_session')
 
-            # Build search queries (Cyrillic + Latin)
+            # Build search queries: Cyrillic full name first, then diminutives, then Latin
             search_queries = []
             full_name = f"{first_name} {last_name}".strip()
             if full_name:
                 search_queries.append(full_name)
 
+            # Add diminutive variants (e.g. "Тёма Козлов" for "Артём Козлов")
+            try:
+                from app.services.phase1.russian_diminutives import get_all_name_variants
+                diminutives = get_all_name_variants(first_name)
+                # Remove the original name itself
+                diminutives = [d for d in diminutives if d.lower() != first_name.lower()]
+                for dim in diminutives[:3]:
+                    dim_query = f"{dim} {last_name}".strip()
+                    if dim_query and dim_query.lower() not in {q.lower() for q in search_queries}:
+                        search_queries.append(dim_query)
+            except (ImportError, Exception) as e:
+                logger.debug(f"TG Method C: diminutives unavailable: {e}")
+
             latin_name = self._transliterate_full_name(first_name, last_name)
-            if latin_name and latin_name.lower() != full_name.lower():
+            if latin_name and latin_name.lower() not in {q.lower() for q in search_queries}:
                 search_queries.append(latin_name)
 
             async def _search():
@@ -282,7 +333,11 @@ class TelegramDiscoveryService:
 
                 profiles = []
                 try:
-                    for query in search_queries:
+                    for i, query in enumerate(search_queries):
+                        # Rate limit: small delay between API calls
+                        if i > 0:
+                            await asyncio.sleep(1.0)
+
                         logger.info(f'TG Method C (Telethon): searching directory for "{query}"...')
                         try:
                             result = await client(SearchRequest(
@@ -295,23 +350,35 @@ class TelegramDiscoveryService:
                                     continue
 
                                 username = getattr(user, 'username', '') or ''
-                                if username.lower() in already_checked:
+                                # Dedup key: username if available, else telegram user id
+                                dedup_key = username.lower() if username else f'tg_id_{user.id}'
+                                if dedup_key in already_checked:
                                     continue
 
                                 display = f"{user.first_name or ''} {user.last_name or ''}".strip()
                                 if not username and not display:
                                     continue
 
-                                already_checked.add(username.lower())
+                                already_checked.add(dedup_key)
 
-                                # Verify name match
-                                match = self._checker._verify_names(
+                                # Verify name match — same thresholds as Methods A and B
+                                match = self._score_name_match(
                                     first_name, last_name, display
                                 )
-                                if match['match']:
-                                    confidence = 'high' if match['score'] > 0.7 else 'medium'
+                                score = match['score']
+
+                                if score >= 0.6:
+                                    confidence = 'высокая'
+                                    source = 'Поиск Telegram: имя совпадает'
+                                elif score >= 0.3:
+                                    confidence = 'средняя'
+                                    if 'first_name_only' in match.get('method', ''):
+                                        source = 'Поиск Telegram: только имя'
+                                    else:
+                                        source = 'Поиск Telegram: частичное совпадение'
                                 else:
-                                    confidence = 'low'
+                                    confidence = 'низкая'
+                                    source = 'Поиск Telegram: имя не совпадает'
 
                                 profiles.append({
                                     'platform': 'telegram',
@@ -325,12 +392,16 @@ class TelegramDiscoveryService:
                                     'username': username,
                                     'bio': '',
                                     'confidence': confidence,
-                                    'source': 'Поиск Telegram',
+                                    'source': source,
                                     'source_method': 'Telethon directory search',
                                 })
+                                logger.info(
+                                    f"TG Method C: found {'@' + username if username else f'id{user.id}'} — "
+                                    f"\"{display}\" (score={score:.2f}, {confidence}) [{source}]"
+                                )
 
                         except FloodWaitError as e:
-                            logger.warning(f"TG Method C: Telethon flood wait: {e.seconds}s")
+                            logger.warning(f"TG Method C: Telethon flood wait: {e.seconds}s, stopping search")
                             break
                         except Exception as e:
                             logger.warning(f"TG Method C: Telethon search error for '{query}': {e}")
@@ -345,6 +416,10 @@ class TelegramDiscoveryService:
                 found = loop.run_until_complete(_search())
             finally:
                 loop.close()
+
+            # Sort: высокая first, then средняя, then низкая
+            confidence_order = {'высокая': 0, 'средняя': 1, 'низкая': 2}
+            found.sort(key=lambda p: confidence_order.get(p.get('confidence', ''), 3))
 
             logger.info(f"TG Method C (Telethon): found {len(found)} users")
             return found
@@ -456,6 +531,92 @@ class TelegramDiscoveryService:
             'э': 'e', 'ю': 'yu', 'я': 'ya',
         }
         return ''.join(table.get(ch, ch) for ch in text.lower())
+
+    @staticmethod
+    def _clean_display_name(name: str) -> str:
+        """Strip emojis, special characters, and extra whitespace from a display name."""
+        import unicodedata
+        # Keep letters (any script), spaces, and hyphens
+        cleaned = ''.join(
+            ch for ch in name
+            if unicodedata.category(ch).startswith('L') or ch in ' -'
+        )
+        return re.sub(r'\s+', ' ', cleaned).strip()
+
+    def _score_name_match(self, first_name: str, last_name: str, display_name: str) -> Dict:
+        """
+        Score name match with cross-script normalization.
+
+        Handles Latin display names vs Cyrillic targets by:
+        1. Stripping emojis/special chars from display name
+        2. Running original comparison (Cyrillic vs Cyrillic)
+        3. Transliterating both sides to Latin and comparing again
+        4. Checking diminutive variants across scripts via transliteration
+
+        Returns the best score across all comparison passes.
+        """
+        cleaned = self._clean_display_name(display_name)
+        if not cleaned or not (first_name or last_name):
+            return {'match': False, 'score': 0.0, 'method': 'no_data'}
+
+        # Pass 1: Original comparison (Cyrillic vs Cyrillic already works)
+        result = self._checker._verify_names(first_name, last_name, cleaned)
+        best_score = result['score']
+        best_method = result['method']
+
+        # Pass 2: Transliterate both sides to Latin, compare again
+        # Catches "Natalya" vs "Наталья" → both become "natalya"
+        # Also normalizes mixed-script names like "Натаshа" → "natasha"
+        target_first_lat = self._basic_translit(first_name)
+        target_last_lat = self._basic_translit(last_name)
+        display_lat = self._basic_translit(cleaned)
+
+        lat_result = self._checker._verify_names(
+            target_first_lat, target_last_lat, display_lat
+        )
+        if lat_result['score'] > best_score:
+            best_score = lat_result['score']
+            best_method = f"latin_{lat_result['method']}"
+
+        # Pass 3: Cross-script diminutive check
+        # Transliterate all Cyrillic diminutive variants to Latin,
+        # check if display name matches any variant
+        if best_score < 0.5:
+            display_parts = display_lat.split()
+            display_first_lat = display_parts[0] if display_parts else ''
+
+            if display_first_lat:
+                try:
+                    from app.services.phase1.russian_diminutives import get_all_name_variants
+                    cyrillic_variants = get_all_name_variants(first_name)
+                    latin_variants = {self._basic_translit(v) for v in cyrillic_variants}
+                    latin_variants.add(target_first_lat)
+
+                    if display_first_lat in latin_variants:
+                        display_last_lat = display_parts[-1] if len(display_parts) > 1 else ''
+                        if display_last_lat and target_last_lat:
+                            from difflib import SequenceMatcher
+                            last_sim = SequenceMatcher(
+                                None, target_last_lat, display_last_lat
+                            ).ratio()
+                            score = 0.85 if last_sim > 0.7 else 0.6
+                        else:
+                            score = 0.5
+
+                        if score > best_score:
+                            best_score = score
+                            best_method = 'cross_script_diminutive'
+                except (ImportError, Exception):
+                    pass
+
+        # First-name-only cap: single-word display names can never be высокая
+        # Without a last name we can't distinguish this Наталья from thousands of others
+        display_words = cleaned.split()
+        if len(display_words) < 2 and best_score > 0.55:
+            best_score = 0.55
+            best_method = f"{best_method}/first_name_only"
+
+        return {'match': best_score >= 0.5, 'score': best_score, 'method': best_method}
 
     @staticmethod
     def _to_dict(tg_profile, confidence: str, source: str) -> Dict:

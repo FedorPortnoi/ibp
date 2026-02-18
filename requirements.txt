@@ -29,6 +29,7 @@ phonenumbers==9.0.21
 
 # === Telegram Integration (optional) ===
 Telethon==1.42.0
+cryptg==0.4.0                   # Optional: speeds up Telethon crypto
 
 # === NLP / Text Processing ===
 pymorphy2==0.9.1

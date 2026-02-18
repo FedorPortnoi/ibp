@@ -1,4 +1,7 @@
 {
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
   "permissions": {
     "allow": [
       "Bash",
@@ -39,7 +42,9 @@
       "WebFetch(domain:en.gravatar.com)",
       "WebFetch(domain:gravatar.com)",
       "WebFetch(domain:emailrep.io)",
-      "WebFetch(domain:hunter.io)"
+      "WebFetch(domain:hunter.io)",
+      "WebFetch(domain:t.me)",
+      "WebFetch(domain:fssp.gov.ru)"
     ]
   }
 }

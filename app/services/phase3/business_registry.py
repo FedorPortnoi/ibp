@@ -398,19 +398,25 @@ class BusinessRegistrySearch:
 
     # ===== INN Search =====
 
-    def search_by_inn(self, inn: str) -> Optional[BusinessRecord]:
-        """Search for company details by INN via nalog.ru."""
+    def search_by_inn(self, inn: str) -> List[BusinessRecord]:
+        """Search for all companies linked to an INN via nalog.ru.
+
+        A personal INN (12 digits) can be linked to multiple ИП/companies.
+        Returns all matches, not just the first.
+        """
         if not inn or not inn.isdigit():
-            return None
+            return []
 
         try:
-            results = self._search_nalog_egrul(inn, limit=1)
-            if results:
-                return results[0]
+            results = self._search_nalog_egrul(inn, limit=50)
+            # Mark INN-based results as high confidence
+            for r in results:
+                r.confidence = "high"
+            return results
         except Exception as e:
             logger.warning(f"INN search failed: {e}")
 
-        return None
+        return []
 
     @staticmethod
     def get_manual_search_urls(name: str) -> List[Dict[str, str]]:

@@ -140,7 +140,6 @@ def buratino_search_results(investigation_id):
             city=city,
             age_from=age_from,
             age_to=age_to,
-            count=50
         )
 
     # Reload all VK profiles sorted by similarity
@@ -258,7 +257,6 @@ def refresh_search(investigation_id):
         city=city,
         age_from=age_from,
         age_to=age_to,
-        count=50
     )
 
     return jsonify({

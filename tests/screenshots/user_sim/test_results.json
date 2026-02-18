@@ -1,0 +1,128 @@
+[
+  {
+    "name": "Дмитрий Кузнецов",
+    "key": "01_kuznetsov",
+    "phase1_results": 0,
+    "phase1_time": 0,
+    "phase1_profiles": [],
+    "phase2_emails": 0,
+    "phase2_phones": 0,
+    "phase2_time": 0,
+    "issues": [
+      "Phase 1 redirect timeout (120s)"
+    ],
+    "screenshots": []
+  },
+  {
+    "name": "Екатерина Волкова",
+    "key": "02_volkova",
+    "phase1_results": 0,
+    "phase1_time": 0,
+    "phase1_profiles": [],
+    "phase2_emails": 0,
+    "phase2_phones": 0,
+    "phase2_time": 0,
+    "issues": [
+      "Phase 1 redirect timeout (120s)"
+    ],
+    "screenshots": []
+  },
+  {
+    "name": "Фёдор Новиков",
+    "key": "03_novikov",
+    "phase1_results": 0,
+    "phase1_time": 0,
+    "phase1_profiles": [],
+    "phase2_emails": 0,
+    "phase2_phones": 0,
+    "phase2_time": 0,
+    "issues": [
+      "Phase 1 redirect timeout (120s)"
+    ],
+    "screenshots": []
+  },
+  {
+    "name": "Анастасия Щербакова",
+    "key": "04_scherbakova",
+    "phase1_results": 0,
+    "phase1_time": 0,
+    "phase1_profiles": [],
+    "phase2_emails": 0,
+    "phase2_phones": 0,
+    "phase2_time": 0,
+    "issues": [
+      "Phase 1 redirect timeout (120s)"
+    ],
+    "screenshots": []
+  },
+  {
+    "name": "Ярослав Чернышёв",
+    "key": "05_chernyshev",
+    "phase1_results": 0,
+    "phase1_time": 0,
+    "phase1_profiles": [],
+    "phase2_emails": 0,
+    "phase2_phones": 0,
+    "phase2_time": 0,
+    "issues": [
+      "Phase 1 redirect timeout (120s)"
+    ],
+    "screenshots": []
+  },
+  {
+    "name": "Юлия Белоусова",
+    "key": "06_belousova",
+    "phase1_results": 0,
+    "phase1_time": 0,
+    "phase1_profiles": [],
+    "phase2_emails": 0,
+    "phase2_phones": 0,
+    "phase2_time": 0,
+    "issues": [
+      "Phase 1 redirect timeout (120s)"
+    ],
+    "screenshots": []
+  },
+  {
+    "name": "Евгений Лебедев",
+    "key": "07_lebedev",
+    "phase1_results": 0,
+    "phase1_time": 0,
+    "phase1_profiles": [],
+    "phase2_emails": 0,
+    "phase2_phones": 0,
+    "phase2_time": 0,
+    "issues": [
+      "Phase 1 redirect timeout (120s)"
+    ],
+    "screenshots": []
+  },
+  {
+    "name": "Алёна Козлова",
+    "key": "08_kozlova",
+    "phase1_results": 0,
+    "phase1_time": 0,
+    "phase1_profiles": [],
+    "phase2_emails": 0,
+    "phase2_phones": 0,
+    "phase2_time": 0,
+    "issues": [
+      "Phase 1 redirect timeout (120s)"
+    ],
+    "screenshots": []
+  },
+  {
+    "name": "Ксения Жукова",
+    "key": "09_zhukova",
+    "phase1_results": 0,
+    "phase1_time": 0,
+    "phase1_profiles": [],
+    "phase2_emails": 0,
+    "phase2_phones": 0,
+    "phase2_time": 0,
+    "issues": [
+      "Phase 1 redirect timeout (120s)"
+    ],
+    "screenshots": []
+  }
+]

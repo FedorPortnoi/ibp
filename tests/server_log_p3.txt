@@ -1,0 +1,286 @@
+[2026-02-08 20:00:15] [INFO] [app.services.phase2.social_graph] SocialGraphBuilder: Running in DEMO mode
+[2026-02-08 20:00:15] [INFO] [ibp] Database tables created successfully
+
+    ===========================================================
+    IBP - Identity-Based Profiler
+    OSINT Investigation Platform
+
+    Server running at: http://127.0.0.1:5000
+    Press CTRL+C to stop
+    ===========================================================
+    
+
+==========================================================
+  IBP STARTUP CHECKS -- 2026-02-08 20:00:15
+==========================================================
+  [OK] Database: ibp.db (268 KB, 9 investigations)
+  [FAIL] VK Token: Invalid (...st_token) -- User authorization failed: invalid access_token (4).
+  [OK] Playwright: Installed
+  [OK] Holehe: vunknown
+  [!!] Telethon: Installed but TELEGRAM_API_ID not set
+  [OK] Snoop: Found at C:\Users\fedor\osint_tools\snoop
+  [OK] Python: 3.12.10
+==========================================================
+
+ * Serving Flask app 'app'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:5000
+Press CTRL+C to quit
+ * Restarting with stat
+[2026-02-08 20:00:18] [INFO] [app.services.phase2.social_graph] SocialGraphBuilder: Running in DEMO mode
+[2026-02-08 20:00:18] [INFO] [ibp] Database tables created successfully
+ * Debugger is active!
+ * Debugger PIN: 108-296-781
+ * Detected change in 'C:\\Users\\fedor\\ibp\\app\\routes\\report.py', reloading
+
+    ===========================================================
+    IBP - Identity-Based Profiler
+    OSINT Investigation Platform
+
+    Server running at: http://127.0.0.1:5000
+    Press CTRL+C to stop
+    ===========================================================
+    
+
+==========================================================
+  IBP STARTUP CHECKS -- 2026-02-08 20:00:18
+==========================================================
+  [OK] Database: ibp.db (268 KB, 9 investigations)
+  [FAIL] VK Token: Invalid (...st_token) -- User authorization failed: invalid access_token (4).
+  [OK] Playwright: Installed
+  [OK] Holehe: vunknown
+  [!!] Telethon: Installed but TELEGRAM_API_ID not set
+  [OK] Snoop: Found at C:\Users\fedor\osint_tools\snoop
+  [OK] Python: 3.12.10
+==========================================================
+
+ * Restarting with stat
+[2026-02-08 20:08:43] [INFO] [app.services.phase2.social_graph] SocialGraphBuilder: Running in DEMO mode
+[2026-02-08 20:08:43] [INFO] [ibp] Database tables created successfully
+ * Debugger is active!
+ * Debugger PIN: 108-296-781
+ * Detected change in 'C:\\Users\\fedor\\ibp\\app\\routes\\report.py', reloading
+
+    ===========================================================
+    IBP - Identity-Based Profiler
+    OSINT Investigation Platform
+
+    Server running at: http://127.0.0.1:5000
+    Press CTRL+C to stop
+    ===========================================================
+    
+
+==========================================================
+  IBP STARTUP CHECKS -- 2026-02-08 20:08:43
+==========================================================
+  [OK] Database: ibp.db (292 KB, 2 investigations)
+  [FAIL] VK Token: Invalid (...st_token) -- User authorization failed: invalid access_token (4).
+  [OK] Playwright: Installed
+  [OK] Holehe: vunknown
+  [!!] Telethon: Installed but TELEGRAM_API_ID not set
+  [OK] Snoop: Found at C:\Users\fedor\osint_tools\snoop
+  [OK] Python: 3.12.10
+==========================================================
+
+ * Restarting with stat
+[2026-02-08 20:08:49] [INFO] [app.services.phase2.social_graph] SocialGraphBuilder: Running in DEMO mode
+[2026-02-08 20:08:49] [INFO] [ibp] Database tables created successfully
+ * Debugger is active!
+ * Debugger PIN: 108-296-781
+ * Detected change in 'C:\\Users\\fedor\\ibp\\app\\routes\\report.py', reloading
+
+    ===========================================================
+    IBP - Identity-Based Profiler
+    OSINT Investigation Platform
+
+    Server running at: http://127.0.0.1:5000
+    Press CTRL+C to stop
+    ===========================================================
+    
+
+==========================================================
+  IBP STARTUP CHECKS -- 2026-02-08 20:08:49
+==========================================================
+  [OK] Database: ibp.db (292 KB, 2 investigations)
+  [FAIL] VK Token: Invalid (...st_token) -- User authorization failed: invalid access_token (4).
+  [OK] Playwright: Installed
+  [OK] Holehe: vunknown
+  [!!] Telethon: Installed but TELEGRAM_API_ID not set
+  [OK] Snoop: Found at C:\Users\fedor\osint_tools\snoop
+  [OK] Python: 3.12.10
+==========================================================
+
+ * Restarting with stat
+[2026-02-08 20:08:55] [INFO] [app.services.phase2.social_graph] SocialGraphBuilder: Running in DEMO mode
+[2026-02-08 20:08:55] [INFO] [ibp] Database tables created successfully
+ * Debugger is active!
+ * Debugger PIN: 108-296-781
+ * Detected change in 'C:\\Users\\fedor\\ibp\\app\\services\\phase3\\business_registry.py', reloading
+
+    ===========================================================
+    IBP - Identity-Based Profiler
+    OSINT Investigation Platform
+
+    Server running at: http://127.0.0.1:5000
+    Press CTRL+C to stop
+    ===========================================================
+    
+
+==========================================================
+  IBP STARTUP CHECKS -- 2026-02-08 20:08:55
+==========================================================
+  [OK] Database: ibp.db (292 KB, 2 investigations)
+  [FAIL] VK Token: Invalid (...st_token) -- User authorization failed: invalid access_token (4).
+  [OK] Playwright: Installed
+  [OK] Holehe: vunknown
+  [!!] Telethon: Installed but TELEGRAM_API_ID not set
+  [OK] Snoop: Found at C:\Users\fedor\osint_tools\snoop
+  [OK] Python: 3.12.10
+==========================================================
+
+ * Restarting with stat
+[2026-02-08 20:24:06] [INFO] [app.services.phase2.social_graph] SocialGraphBuilder: Running in DEMO mode
+[2026-02-08 20:24:06] [INFO] [ibp] Database tables created successfully
+ * Debugger is active!
+ * Debugger PIN: 108-296-781
+ * Detected change in 'C:\\Users\\fedor\\ibp\\app\\services\\phase3\\court_search.py', reloading
+
+    ===========================================================
+    IBP - Identity-Based Profiler
+    OSINT Investigation Platform
+
+    Server running at: http://127.0.0.1:5000
+    Press CTRL+C to stop
+    ===========================================================
+    
+
+==========================================================
+  IBP STARTUP CHECKS -- 2026-02-08 20:24:06
+==========================================================
+  [OK] Database: ibp.db (292 KB, 0 investigations)
+  [FAIL] VK Token: Invalid (...st_token) -- User authorization failed: invalid access_token (4).
+  [OK] Playwright: Installed
+  [OK] Holehe: vunknown
+  [!!] Telethon: Installed but TELEGRAM_API_ID not set
+  [OK] Snoop: Found at C:\Users\fedor\osint_tools\snoop
+  [OK] Python: 3.12.10
+==========================================================
+
+ * Restarting with stat
+[2026-02-08 20:28:15] [INFO] [app.services.phase2.social_graph] SocialGraphBuilder: Running in DEMO mode
+[2026-02-08 20:28:15] [INFO] [ibp] Database tables created successfully
+ * Debugger is active!
+ * Debugger PIN: 108-296-781
+ * Detected change in 'C:\\Users\\fedor\\ibp\\app\\models\\business_record.py', reloading
+
+    ===========================================================
+    IBP - Identity-Based Profiler
+    OSINT Investigation Platform
+
+    Server running at: http://127.0.0.1:5000
+    Press CTRL+C to stop
+    ===========================================================
+    
+
+==========================================================
+  IBP STARTUP CHECKS -- 2026-02-08 20:28:15
+==========================================================
+  [OK] Database: ibp.db (292 KB, 0 investigations)
+  [FAIL] VK Token: Invalid (...st_token) -- User authorization failed: invalid access_token (4).
+  [OK] Playwright: Installed
+  [OK] Holehe: vunknown
+  [!!] Telethon: Installed but TELEGRAM_API_ID not set
+  [OK] Snoop: Found at C:\Users\fedor\osint_tools\snoop
+  [OK] Python: 3.12.10
+==========================================================
+
+ * Restarting with stat
+[2026-02-08 20:29:01] [INFO] [app.services.phase2.social_graph] SocialGraphBuilder: Running in DEMO mode
+[2026-02-08 20:29:01] [INFO] [ibp] Database tables created successfully
+ * Debugger is active!
+ * Debugger PIN: 108-296-781
+ * Detected change in 'C:\\Users\\fedor\\ibp\\app\\routes\\phase3.py', reloading
+
+    ===========================================================
+    IBP - Identity-Based Profiler
+    OSINT Investigation Platform
+
+    Server running at: http://127.0.0.1:5000
+    Press CTRL+C to stop
+    ===========================================================
+    
+
+==========================================================
+  IBP STARTUP CHECKS -- 2026-02-08 20:29:01
+==========================================================
+  [OK] Database: ibp.db (292 KB, 0 investigations)
+  [FAIL] VK Token: Invalid (...st_token) -- User authorization failed: invalid access_token (4).
+  [OK] Playwright: Installed
+  [OK] Holehe: vunknown
+  [!!] Telethon: Installed but TELEGRAM_API_ID not set
+  [OK] Snoop: Found at C:\Users\fedor\osint_tools\snoop
+  [OK] Python: 3.12.10
+==========================================================
+
+ * Restarting with stat
+[2026-02-08 20:29:30] [INFO] [app.services.phase2.social_graph] SocialGraphBuilder: Running in DEMO mode
+[2026-02-08 20:29:30] [INFO] [ibp] Database tables created successfully
+ * Debugger is active!
+ * Debugger PIN: 108-296-781
+ * Detected change in 'C:\\Users\\fedor\\ibp\\app\\services\\phase3\\text_analyzer.py', reloading
+
+    ===========================================================
+    IBP - Identity-Based Profiler
+    OSINT Investigation Platform
+
+    Server running at: http://127.0.0.1:5000
+    Press CTRL+C to stop
+    ===========================================================
+    
+
+==========================================================
+  IBP STARTUP CHECKS -- 2026-02-08 20:29:30
+==========================================================
+  [OK] Database: ibp.db (292 KB, 0 investigations)
+  [FAIL] VK Token: Invalid (...st_token) -- User authorization failed: invalid access_token (4).
+  [OK] Playwright: Installed
+  [OK] Holehe: vunknown
+  [!!] Telethon: Installed but TELEGRAM_API_ID not set
+  [OK] Snoop: Found at C:\Users\fedor\osint_tools\snoop
+  [OK] Python: 3.12.10
+==========================================================
+
+ * Restarting with stat
+[2026-02-08 20:30:17] [INFO] [app.services.phase2.social_graph] SocialGraphBuilder: Running in DEMO mode
+[2026-02-08 20:30:17] [INFO] [ibp] Database tables created successfully
+ * Debugger is active!
+ * Debugger PIN: 108-296-781
+ * Detected change in 'C:\\Users\\fedor\\ibp\\tests\\test_phase3_e2e.py', reloading
+
+    ===========================================================
+    IBP - Identity-Based Profiler
+    OSINT Investigation Platform
+
+    Server running at: http://127.0.0.1:5000
+    Press CTRL+C to stop
+    ===========================================================
+    
+
+==========================================================
+  IBP STARTUP CHECKS -- 2026-02-08 20:30:17
+==========================================================
+  [OK] Database: ibp.db (292 KB, 0 investigations)
+  [FAIL] VK Token: Invalid (...st_token) -- User authorization failed: invalid access_token (4).
+  [OK] Playwright: Installed
+  [OK] Holehe: vunknown
+  [!!] Telethon: Installed but TELEGRAM_API_ID not set
+  [OK] Snoop: Found at C:\Users\fedor\osint_tools\snoop
+  [OK] Python: 3.12.10
+==========================================================
+
+ * Restarting with stat
+[2026-02-08 20:32:09] [INFO] [app.services.phase2.social_graph] SocialGraphBuilder: Running in DEMO mode
+[2026-02-08 20:32:09] [INFO] [ibp] Database tables created successfully
+ * Debugger is active!
+ * Debugger PIN: 108-296-781

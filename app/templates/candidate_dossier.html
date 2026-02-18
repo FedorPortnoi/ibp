@@ -1,0 +1,681 @@
+{% extends "base.html" %}
+{% block title %}Досье — {{ check.full_name }} — IBP{% endblock %}
+
+{% block head %}
+<style>
+    /* Section cards */
+    .dossier-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 12px;
+        transition: border-color 0.2s;
+    }
+    .dossier-card:hover {
+        border-color: var(--border-default);
+    }
+
+    /* Risk box variants */
+    .risk-low { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); }
+    .risk-medium { background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .risk-high { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); }
+    .risk-critical { background: rgba(185, 28, 28, 0.12); border: 1px solid rgba(185, 28, 28, 0.4); }
+
+    /* Section nav pills */
+    .nav-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 9999px;
+        border: 1px solid var(--border-subtle);
+        background: var(--bg-panel);
+        color: var(--text-secondary);
+        font-size: 0.8125rem;
+        white-space: nowrap;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .nav-pill:hover {
+        border-color: var(--violet);
+        background: rgba(139, 92, 246, 0.1);
+        color: var(--text-primary);
+    }
+    .nav-pill .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 9999px;
+        font-size: 0.6875rem;
+        font-weight: 600;
+    }
+    .badge-count { background: rgba(139, 92, 246, 0.2); color: var(--violet-bright); }
+    .badge-empty { background: rgba(100, 116, 139, 0.15); color: var(--text-dim); }
+
+    /* Status badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 10px;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    .badge-green { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+    .badge-gray { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
+    .badge-red { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+    .badge-yellow { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .badge-blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 24px 16px;
+        color: var(--text-dim);
+        font-size: 0.875rem;
+    }
+    .empty-state.good { color: #4ade80; }
+    .empty-state.stub { color: var(--text-muted); }
+
+    /* Red flag list */
+    .flag-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        margin-bottom: 4px;
+    }
+    .flag-warning { background: rgba(245, 158, 11, 0.06); color: #fbbf24; }
+    .flag-risk { background: rgba(239, 68, 68, 0.06); color: #f87171; }
+    .flag-critical { background: rgba(185, 28, 28, 0.08); color: #fca5a5; }
+
+    /* Section header */
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+    .section-header h2 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    .section-count {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        font-weight: 400;
+    }
+
+    /* Sanctions pass/fail */
+    .sanction-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        border-radius: 8px;
+        margin-bottom: 6px;
+        background: var(--bg-dark);
+        border: 1px solid var(--border-subtle);
+    }
+
+    /* Social profile card */
+    .social-card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px;
+        border-radius: 10px;
+        background: var(--bg-dark);
+        border: 1px solid var(--border-subtle);
+        margin-bottom: 8px;
+    }
+    .social-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid var(--border-default);
+        background: var(--bg-panel);
+    }
+
+    /* Export buttons */
+    .export-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: 1px solid var(--border-default);
+        background: var(--bg-panel);
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+    }
+    .export-btn:hover {
+        border-color: var(--violet);
+        background: rgba(139, 92, 246, 0.1);
+        color: var(--text-primary);
+    }
+
+    /* Print styles */
+    @media print {
+        nav, footer, .nav-pills-wrap, .export-wrap, .back-link { display: none !important; }
+        body { background: white !important; color: black !important; }
+        .dossier-card { border: 1px solid #ddd !important; background: #fafafa !important; break-inside: avoid; }
+        .risk-low, .risk-medium, .risk-high, .risk-critical { border-width: 2px !important; }
+        * { color: black !important; }
+        .section-header { border-bottom-color: #ddd !important; }
+    }
+
+    /* Smooth scroll */
+    html { scroll-behavior: smooth; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+
+    {# ================================================================
+       1. HEADER BAR
+       ================================================================ #}
+    <div class="mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-white font-display mb-2">{{ check.full_name }}</h1>
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-400">
+                    {% if check.date_of_birth %}
+                        <span>{{ check.date_of_birth.strftime('%d.%m.%Y') }}</span>
+                    {% endif %}
+                    {% if check.inn %}
+                        <span>ИНН {{ check.inn }}</span>
+                    {% endif %}
+                    {% if check.region %}
+                        <span>{{ check.region }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="text-right shrink-0">
+                {% if check.status == 'complete' %}
+                    <span class="status-badge badge-green">Завершена</span>
+                {% elif check.status == 'error' %}
+                    <span class="status-badge badge-red">Ошибка</span>
+                {% else %}
+                    <span class="status-badge badge-yellow">{{ check.status }}</span>
+                {% endif %}
+                <div class="text-xs text-gray-500 mt-1">
+                    {% if check.completed_at %}
+                        {{ check.completed_at.strftime('%d.%m.%Y %H:%M') }}
+                    {% endif %}
+                    {% if duration_display %}
+                        <span class="ml-1">за {{ duration_display }}</span>
+                    {% endif %}
+                </div>
+                <div class="text-xs text-gray-600 mt-0.5">
+                    {{ check.check_level_display }}
+                    &middot; {{ check.sources_checked or 0 }} источников
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ================================================================
+       2. RISK ASSESSMENT BOX
+       ================================================================ #}
+    {% set risk_cfg = {
+        'low':      {'cls': 'risk-low',      'icon': '',  'label': 'НИЗКИЙ РИСК',      'desc': 'Серьёзных проблем не обнаружено'},
+        'medium':   {'cls': 'risk-medium',    'icon': '',  'label': 'СРЕДНИЙ РИСК',     'desc': 'Обнаружены потенциальные проблемы'},
+        'high':     {'cls': 'risk-high',      'icon': '',  'label': 'ВЫСОКИЙ РИСК',     'desc': 'Обнаружены серьёзные проблемы'},
+        'critical': {'cls': 'risk-critical',  'icon': '',  'label': 'КРИТИЧЕСКИЙ РИСК', 'desc': 'Обнаружены критические проблемы — рекомендуется отказ'},
+    } %}
+    {% set rc = risk_cfg.get(check.risk_level, risk_cfg['low']) %}
+
+    <div class="{{ rc.cls }} rounded-xl p-5 mb-6" id="risk-box">
+        <div class="flex items-center gap-3 mb-2">
+            {% if check.risk_level == 'low' %}
+                <span class="text-2xl">&#x1F7E2;</span>
+            {% elif check.risk_level == 'medium' %}
+                <span class="text-2xl">&#x26A0;&#xFE0F;</span>
+            {% else %}
+                <span class="text-2xl">&#x1F534;</span>
+            {% endif %}
+            <span class="text-xl font-bold text-white">{{ rc.label }}</span>
+        </div>
+        <p class="text-sm text-gray-300 mb-3">{{ rc.desc }}</p>
+
+        {% if red_flags %}
+            <div class="space-y-1">
+                {% for flag in red_flags %}
+                    <div class="flag-item {% if flag.severity == 'critical' %}flag-critical{% elif flag.severity == 'risk' %}flag-risk{% else %}flag-warning{% endif %}">
+                        {% if flag.severity == 'critical' %}&#x1F534;{% elif flag.severity == 'risk' %}&#x1F534;{% else %}&#x26A0;&#xFE0F;{% endif %}
+                        <span>{{ flag.text }}</span>
+                        <span class="text-xs opacity-50 ml-auto">({{ flag.source }})</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-sm text-green-400">&#x2705; Красных флагов не обнаружено</div>
+        {% endif %}
+    </div>
+
+    {# ================================================================
+       3. SECTION NAVIGATION
+       ================================================================ #}
+    <div class="nav-pills-wrap overflow-x-auto mb-8 -mx-4 px-4">
+        <div class="flex gap-2 pb-2">
+            <a href="#sec-business" class="nav-pill">&#x1F4CB; Бизнес
+                <span class="badge {% if business_records %}badge-count{% else %}badge-empty{% endif %}">{{ business_records|length if business_records else '—' }}</span>
+            </a>
+            <a href="#sec-courts" class="nav-pill">&#x2696;&#xFE0F; Суды
+                <span class="badge {% if court_records %}badge-count{% else %}badge-empty{% endif %}">{{ court_records|length if court_records else '—' }}</span>
+            </a>
+            <a href="#sec-fssp" class="nav-pill">&#x1F4B0; Долги
+                <span class="badge {% if fssp_records %}badge-count{% else %}badge-empty{% endif %}">{{ fssp_records|length if fssp_records else '—' }}</span>
+            </a>
+            <a href="#sec-bankruptcy" class="nav-pill">&#x1F3E6; Банкротство
+                <span class="badge {% if bankruptcy_records %}badge-count{% else %}badge-empty{% endif %}">{{ bankruptcy_records|length if bankruptcy_records else '—' }}</span>
+            </a>
+            <a href="#sec-sanctions" class="nav-pill">&#x1F6AB; Санкции
+                <span class="badge badge-empty">—</span>
+            </a>
+            <a href="#sec-social" class="nav-pill">&#x1F4F1; Соцсети
+                <span class="badge {% if social_profiles %}badge-count{% else %}badge-empty{% endif %}">{{ social_profiles|length if social_profiles else '—' }}</span>
+            </a>
+            <a href="#sec-contacts" class="nav-pill">&#x1F4E7; Контакты
+                {% set contact_count = (contacts.get('phones', [])|length + contacts.get('emails', [])|length) if contacts else 0 %}
+                <span class="badge {% if contact_count %}badge-count{% else %}badge-empty{% endif %}">{{ contact_count if contact_count else '—' }}</span>
+            </a>
+        </div>
+    </div>
+
+    {# ================================================================
+       4. BUSINESS SECTION
+       ================================================================ #}
+    <section id="sec-business" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F4CB; Бизнес-связи (ЕГРЮЛ/ЕГРИП)</h2>
+            {% if business_records is not none %}
+                <span class="section-count">{{ business_records|length }} записей</span>
+            {% endif %}
+        </div>
+
+        {% if business_records is none %}
+            <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
+        {% elif business_records|length == 0 %}
+            <div class="empty-state good">Записей не найдено</div>
+        {% else %}
+            {% for biz in business_records %}
+            <div class="dossier-card">
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                    <div class="font-semibold text-white text-sm">{{ biz.get('name', biz.get('company_name', 'Без названия')) }}</div>
+                    {% set biz_status = biz.get('status', '') %}
+                    {% if 'ликвид' in (biz_status|lower) or biz.get('end_date') %}
+                        <span class="status-badge badge-gray shrink-0">Ликвидировано &#x26A0;&#xFE0F;</span>
+                    {% elif biz_status %}
+                        <span class="status-badge badge-green shrink-0">{{ biz_status }}</span>
+                    {% else %}
+                        <span class="status-badge badge-green shrink-0">Действующее</span>
+                    {% endif %}
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-400">
+                    {% if biz.get('inn') %}
+                        <div><span class="text-gray-600">ИНН:</span> {{ biz.inn }}</div>
+                    {% endif %}
+                    {% if biz.get('ogrn') %}
+                        <div><span class="text-gray-600">ОГРН:</span> {{ biz.ogrn }}</div>
+                    {% endif %}
+                    {% if biz.get('role') %}
+                        <div><span class="text-gray-600">Роль:</span> {{ biz.role }}</div>
+                    {% endif %}
+                    {% if biz.get('reg_date') or biz.get('registration_date') %}
+                        <div><span class="text-gray-600">Регистрация:</span> {{ biz.get('reg_date', biz.get('registration_date', '')) }}</div>
+                    {% endif %}
+                    {% if biz.get('end_date') %}
+                        <div><span class="text-gray-600">Ликвидация:</span> {{ biz.end_date }}</div>
+                    {% endif %}
+                    {% if biz.get('address') %}
+                        <div class="sm:col-span-2"><span class="text-gray-600">Адрес:</span> {{ biz.address }}</div>
+                    {% endif %}
+                    {% if biz.get('activity') or biz.get('okved') %}
+                        <div class="sm:col-span-2"><span class="text-gray-600">ОКВЭД:</span> {{ biz.get('activity', biz.get('okved', '')) }}</div>
+                    {% endif %}
+                    {% if biz.get('capital') %}
+                        <div><span class="text-gray-600">Капитал:</span> {{ biz.capital }}</div>
+                    {% endif %}
+                </div>
+                {% if biz.get('source_url') or biz.get('url') %}
+                    <div class="mt-2">
+                        <a href="{{ biz.get('source_url', biz.get('url', '')) }}" target="_blank" rel="noopener"
+                           class="text-xs text-violet hover:text-violet-bright transition">Источник &#x2197;</a>
+                    </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% endif %}
+    </section>
+
+    {# ================================================================
+       5. COURTS SECTION
+       ================================================================ #}
+    <section id="sec-courts" class="mb-10">
+        <div class="section-header">
+            <h2>&#x2696;&#xFE0F; Судебные дела</h2>
+            {% if court_records is not none %}
+                <span class="section-count">{{ court_records|length }} дел</span>
+            {% endif %}
+        </div>
+
+        {% if court_records is none %}
+            <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
+        {% elif court_records|length == 0 %}
+            <div class="empty-state good">Судебных дел не найдено</div>
+        {% else %}
+            {% for case in court_records %}
+            <div class="dossier-card">
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                    <div class="font-semibold text-white text-sm">
+                        {% if case.get('case_number') %}{{ case.case_number }} &mdash; {% endif %}
+                        {{ case.get('court', case.get('court_name', '')) }}
+                    </div>
+                    {% set cat = case.get('category', case.get('article', ''))|lower %}
+                    {% if 'уголов' in cat %}
+                        <span class="status-badge badge-red shrink-0">&#x1F534; Уголовное</span>
+                    {% elif case.get('role', '')|lower in ['ответчик', 'defendant'] %}
+                        <span class="status-badge badge-yellow shrink-0">&#x26A0;&#xFE0F; Ответчик</span>
+                    {% elif case.get('status') %}
+                        <span class="status-badge badge-gray shrink-0">{{ case.status }}</span>
+                    {% endif %}
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-400">
+                    {% if case.get('role') %}
+                        <div><span class="text-gray-600">Роль:</span> {{ case.role }}</div>
+                    {% endif %}
+                    {% if case.get('category') or case.get('article') %}
+                        <div><span class="text-gray-600">Категория:</span> {{ case.get('category', case.get('article', '')) }}</div>
+                    {% endif %}
+                    {% if case.get('date') %}
+                        <div><span class="text-gray-600">Дата:</span> {{ case.date }}</div>
+                    {% endif %}
+                    {% if case.get('status') %}
+                        <div><span class="text-gray-600">Статус:</span> {{ case.status }}</div>
+                    {% endif %}
+                </div>
+                {% if case.get('url') or case.get('source_url') %}
+                    <div class="mt-2">
+                        <a href="{{ case.get('url', case.get('source_url', '')) }}" target="_blank" rel="noopener"
+                           class="text-xs text-violet hover:text-violet-bright transition">Источник &#x2197;</a>
+                    </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% endif %}
+    </section>
+
+    {# ================================================================
+       6. FSSP SECTION
+       ================================================================ #}
+    <section id="sec-fssp" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F4B0; Исполнительные производства (ФССП)</h2>
+            {% if fssp_records is not none %}
+                <span class="section-count">{{ fssp_records|length }} записей</span>
+            {% endif %}
+        </div>
+
+        {% if fssp_records is none %}
+            <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
+        {% elif fssp_records|length == 0 %}
+            <div class="empty-state good">Исполнительных производств не найдено</div>
+        {% else %}
+            {% for proc in fssp_records %}
+                {% if proc.get('source') == 'manual' %}
+                <div class="dossier-card" style="border-color: rgba(245, 158, 11, 0.3);">
+                    <div class="text-sm text-yellow-400 mb-2">&#x26A0;&#xFE0F; Автоматическая проверка заблокирована CAPTCHA</div>
+                    <div class="text-xs text-gray-400 mb-3">{{ proc.get('subject', '') }}</div>
+                    <a href="https://fssp.gov.ru/iss/ip/" target="_blank" rel="noopener"
+                       class="text-sm text-violet hover:text-violet-bright transition">
+                        &#x1F50D; Проверить вручную на fssp.gov.ru &#x2197;
+                    </a>
+                </div>
+                {% else %}
+                <div class="dossier-card">
+                    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                        <div class="font-semibold text-white text-sm">{{ proc.get('proceedings_number', proc.get('number', 'Б/Н')) }}</div>
+                        {% if proc.get('is_active') %}
+                            <span class="status-badge badge-red shrink-0">Активное</span>
+                        {% elif proc.get('end_date') %}
+                            <span class="status-badge badge-gray shrink-0">Окончено {{ proc.end_date }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-400">
+                        {% if proc.get('subject') %}
+                            <div class="sm:col-span-2"><span class="text-gray-600">Предмет:</span> {{ proc.subject }}</div>
+                        {% endif %}
+                        {% if proc.get('amount') %}
+                            {% set amount_val = proc.amount|float(0) %}
+                            <div>
+                                <span class="text-gray-600">Сумма:</span>
+                                <span class="{% if amount_val > 100000 %}text-red-400 font-semibold{% else %}text-gray-300{% endif %}">
+                                    {{ '{:,.0f}'.format(amount_val).replace(',', ' ') }} &#x20BD;
+                                </span>
+                            </div>
+                        {% endif %}
+                        {% if proc.get('document_details') %}
+                            <div class="sm:col-span-2"><span class="text-gray-600">Документ:</span> {{ proc.document_details }}</div>
+                        {% endif %}
+                        {% if proc.get('department') %}
+                            <div><span class="text-gray-600">Отдел:</span> {{ proc.department }}</div>
+                        {% endif %}
+                        {% if proc.get('end_reason') %}
+                            <div><span class="text-gray-600">Причина окончания:</span> {{ proc.end_reason }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    </section>
+
+    {# ================================================================
+       7. BANKRUPTCY SECTION
+       ================================================================ #}
+    <section id="sec-bankruptcy" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F3E6; Банкротство (ЕФРСБ)</h2>
+            {% if bankruptcy_records is not none %}
+                <span class="section-count">{{ bankruptcy_records|length }} записей</span>
+            {% endif %}
+        </div>
+
+        {% if bankruptcy_records is none %}
+            <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
+        {% elif bankruptcy_records|length == 0 %}
+            <div class="empty-state good">Банкротных дел не найдено</div>
+        {% else %}
+            {% for br in bankruptcy_records %}
+            <div class="dossier-card">
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                    <div class="font-semibold text-white text-sm">{{ br.get('case_number', 'Б/Н') }}</div>
+                    {% set brstage = br.get('stage', '')|lower %}
+                    {% if 'конкурс' in brstage or 'банкрот' in brstage %}
+                        <span class="status-badge badge-red shrink-0">&#x1F534; {{ br.stage }}</span>
+                    {% elif brstage %}
+                        <span class="status-badge badge-yellow shrink-0">{{ br.stage }}</span>
+                    {% endif %}
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-400">
+                    {% if br.get('court') %}
+                        <div><span class="text-gray-600">Суд:</span> {{ br.court }}</div>
+                    {% endif %}
+                    {% if br.get('date') %}
+                        <div><span class="text-gray-600">Дата:</span> {{ br.date }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </section>
+
+    {# ================================================================
+       8. SANCTIONS SECTION
+       ================================================================ #}
+    <section id="sec-sanctions" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F6AB; Проверка по спискам</h2>
+        </div>
+
+        {% set sanction_lists = [
+            ('rosfinmonitoring', 'Росфинмониторинг'),
+            ('mvd_wanted', 'МВД Розыск'),
+            ('interpol', 'Интерпол'),
+            ('extremists', 'Перечень экстремистов'),
+        ] %}
+
+        {% for key, label in sanction_lists %}
+            {% set result = sanctions.get(key, {}) if sanctions else {} %}
+            <div class="sanction-row">
+                <span class="text-sm text-gray-300">{{ label }}</span>
+                {% if result.get('checked') and result.get('found') %}
+                    <span class="status-badge badge-red font-semibold">&#x1F534; НАЙДЕН</span>
+                {% elif result.get('checked') and not result.get('found') %}
+                    {% if result.get('status') == 'stub' %}
+                        <span class="text-xs text-gray-600">&#x23F3; Не проверено</span>
+                    {% else %}
+                        <span class="text-sm text-green-400">&#x2705; Не найден</span>
+                    {% endif %}
+                {% else %}
+                    <span class="text-xs text-gray-600">&#x23F3; Не проверено</span>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </section>
+
+    {# ================================================================
+       9. SOCIAL MEDIA SECTION
+       ================================================================ #}
+    <section id="sec-social" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F4F1; Социальные сети</h2>
+            {% if social_profiles is not none %}
+                <span class="section-count">{{ social_profiles|length }} профилей</span>
+            {% endif %}
+        </div>
+
+        {% if social_profiles is none %}
+            <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
+        {% elif social_profiles|length == 0 %}
+            <div class="empty-state">Профилей не найдено</div>
+        {% else %}
+            {% for profile in social_profiles %}
+            <div class="social-card">
+                {% if profile.get('photo_url') %}
+                    <img src="{{ profile.photo_url }}" alt="" class="social-avatar"
+                         onerror="this.style.display='none'">
+                {% else %}
+                    <div class="social-avatar flex items-center justify-center text-lg text-gray-600">
+                        {% if profile.get('platform') == 'telegram' %}&#x2708;{% else %}&#x1F464;{% endif %}
+                    </div>
+                {% endif %}
+                <div class="flex-1 min-w-0">
+                    <div class="font-medium text-white text-sm truncate">{{ profile.get('display_name', 'Без имени') }}</div>
+                    {% if profile.get('username') %}
+                        <div class="text-xs text-gray-500 truncate">@{{ profile.username }}</div>
+                    {% endif %}
+                    {% if profile.get('city') %}
+                        <div class="text-xs text-gray-600">{{ profile.city }}</div>
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    {% if profile.get('platform') == 'vk' %}
+                        <span class="status-badge badge-blue">VK</span>
+                    {% elif profile.get('platform') == 'telegram' %}
+                        <span class="status-badge badge-blue">TG</span>
+                    {% elif profile.get('platform') %}
+                        <span class="status-badge badge-gray">{{ profile.platform }}</span>
+                    {% endif %}
+                    {% if profile.get('confidence') == 'high' %}
+                        <span class="status-badge badge-green">высокая</span>
+                    {% elif profile.get('confidence') == 'medium' %}
+                        <span class="status-badge badge-yellow">средняя</span>
+                    {% endif %}
+                    {% if profile.get('url') %}
+                        <a href="{{ profile.url }}" target="_blank" rel="noopener"
+                           class="text-xs text-violet hover:text-violet-bright transition">Открыть &#x2197;</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </section>
+
+    {# ================================================================
+       10. CONTACTS SECTION
+       ================================================================ #}
+    <section id="sec-contacts" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F4E7; Обнаруженные контакты</h2>
+        </div>
+
+        {% set phones = contacts.get('phones', []) if contacts else [] %}
+        {% set emails = contacts.get('emails', []) if contacts else [] %}
+
+        {% if not phones and not emails %}
+            <div class="empty-state">Дополнительных контактов не обнаружено</div>
+        {% else %}
+            {% if phones %}
+                <div class="mb-4">
+                    <h3 class="text-sm font-medium text-gray-400 mb-2">Телефоны</h3>
+                    {% for ph in phones %}
+                        <div class="dossier-card flex items-center justify-between py-3">
+                            <span class="text-sm text-white font-mono">{{ ph.get('number', '') }}</span>
+                            <span class="text-xs text-gray-600">{{ ph.get('source', '') }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if emails %}
+                <div>
+                    <h3 class="text-sm font-medium text-gray-400 mb-2">Email</h3>
+                    {% for em in emails %}
+                        <div class="dossier-card flex items-center justify-between py-3">
+                            <span class="text-sm text-white font-mono">{{ em.get('address', '') }}</span>
+                            <span class="text-xs text-gray-600">{{ em.get('source', '') }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endif %}
+    </section>
+
+    {# ================================================================
+       11. FOOTER
+       ================================================================ #}
+    <div class="export-wrap flex flex-wrap gap-3 mb-6 pt-4 border-t border-violet-100">
+        <button onclick="window.print()" class="export-btn">&#x1F5A8; Печать</button>
+        <a href="/candidate/export/json?id={{ check.id }}" class="export-btn">&#x1F4CB; Скачать JSON</a>
+        <a href="/candidate/export/pdf?id={{ check.id }}" class="export-btn">&#x1F4C4; Скачать PDF</a>
+    </div>
+
+    <div class="text-center text-xs text-gray-600 mb-6 leading-relaxed">
+        Данные получены из открытых источников. Результат проверки не является юридическим документом и носит информационный характер.
+    </div>
+
+    <div class="back-link text-center">
+        <a href="/phase1/new" class="text-sm text-gray-500 hover:text-violet-bright transition">
+            &larr; Вернуться к списку проверок
+        </a>
+    </div>
+
+</div>
+{% endblock %}

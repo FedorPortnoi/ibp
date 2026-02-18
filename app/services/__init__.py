@@ -5,6 +5,5 @@ Services are organized by phase:
 - phase1/ - VK People Search (Buratino)
 - phase2/ - Contact discovery, social graph
 - phase3/ - Business/court records
-- phase4/ - Research orchestration
 - report_generator.py - Identity card generation
 """

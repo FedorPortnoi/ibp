@@ -204,8 +204,13 @@ function poll() {
                 if (data.status === 'error') {
                     showError(data.error || 'Неизвестная ошибка');
                 } else {
+                    // Show completion message and auto-redirect
+                    document.getElementById('progress-label').textContent = '\u2705 Проверка завершена! Переход к досье...';
                     document.getElementById('complete-actions').classList.remove('hidden');
                     document.getElementById('dossier-link').href = '/candidate/dossier/' + CHECK_ID;
+                    setTimeout(function() {
+                        window.location.href = '/candidate/dossier/' + CHECK_ID;
+                    }, 1500);
                 }
             }
         })

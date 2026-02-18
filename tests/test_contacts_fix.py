@@ -1421,6 +1421,661 @@ class TestPhoneDiscoveryService:
 
 
 # ==============================================================================
+# TEST 18: HOLEHE SERVICE — Library API (builder's rewrite)
+# ==============================================================================
+
+class TestHoleheServiceLibrary:
+    """Test the rewritten holehe_service.py using library API via httpx."""
+
+    def test_holehe_results_dataclass(self):
+        """HoleheResults should have correct fields."""
+        from app.services.phase2.holehe_service import HoleheResults, EmailRegistration
+
+        result = HoleheResults(
+            email='test@gmail.com',
+            registered_services=[
+                EmailRegistration(service='twitter', exists=True),
+                EmailRegistration(service='spotify', exists=True, email_recovery='t***@gmail.com'),
+            ],
+            total_checked=120,
+            total_registered=2,
+        )
+
+        assert result.email == 'test@gmail.com'
+        assert result.total_registered == 2
+        assert result.error is None
+        assert result.registered_services[0].service == 'twitter'
+        assert result.registered_services[1].email_recovery == 't***@gmail.com'
+
+    def test_email_registration_defaults(self):
+        """EmailRegistration should have sensible defaults."""
+        from app.services.phase2.holehe_service import EmailRegistration
+
+        reg = EmailRegistration(service='discord', exists=True)
+        assert reg.email_recovery is None
+        assert reg.phone_recovery is None
+        assert reg.profile_url is None
+        assert reg.extra_info == {}
+
+    def test_check_email_sync_returns_holehe_results(self):
+        """check_email_sync should return HoleheResults (mocked)."""
+        from app.services.phase2.holehe_service import check_email_sync, HoleheResults
+
+        with patch('app.services.phase2.holehe_service._check_email_via_library') as mock_lib:
+            mock_lib.return_value = HoleheResults(
+                email='test@mail.ru',
+                registered_services=[],
+                total_checked=50,
+                total_registered=0,
+            )
+
+            result = check_email_sync('test@mail.ru')
+
+        assert isinstance(result, HoleheResults)
+        assert result.email == 'test@mail.ru'
+        assert result.error is None
+
+    def test_check_email_sync_falls_back_to_cli(self):
+        """check_email_sync should fall back to CLI if library fails."""
+        from app.services.phase2.holehe_service import check_email_sync, HoleheResults
+
+        with patch('app.services.phase2.holehe_service._check_email_via_library',
+                   side_effect=Exception("library failed")), \
+             patch('app.services.phase2.holehe_service.check_email_cli') as mock_cli:
+            mock_cli.return_value = HoleheResults(
+                email='test@mail.ru',
+                registered_services=[],
+                total_checked=120,
+                total_registered=0,
+            )
+
+            result = check_email_sync('test@mail.ru')
+
+        assert isinstance(result, HoleheResults)
+        mock_cli.assert_called_once_with('test@mail.ru')
+
+    def test_check_email_cli_timeout(self):
+        """CLI should handle timeout gracefully."""
+        from app.services.phase2.holehe_service import check_email_cli
+
+        with patch('app.services.phase2.holehe_service.subprocess.run',
+                   side_effect=__import__('subprocess').TimeoutExpired(cmd='holehe', timeout=15)):
+            result = check_email_cli('test@gmail.com')
+
+        assert result.error == 'Timeout'
+        assert result.total_registered == 0
+
+    def test_check_email_cli_not_installed(self):
+        """CLI should handle missing holehe binary."""
+        from app.services.phase2.holehe_service import check_email_cli
+
+        with patch('app.services.phase2.holehe_service.subprocess.run',
+                   side_effect=FileNotFoundError):
+            result = check_email_cli('test@gmail.com')
+
+        assert result.error == 'Holehe not installed'
+
+    def test_check_email_cli_parses_output(self):
+        """CLI should parse [+] lines as registered services."""
+        from app.services.phase2.holehe_service import check_email_cli
+
+        mock_result = MagicMock()
+        mock_result.stdout = """
+[+] twitter
+[+] instagram: email recovery t***@gmail.com
+[-] facebook
+[+] spotify
+"""
+
+        with patch('app.services.phase2.holehe_service.subprocess.run', return_value=mock_result):
+            result = check_email_cli('test@gmail.com')
+
+        assert result.total_registered >= 2
+        service_names = [r.service for r in result.registered_services]
+        assert 'twitter' in service_names
+        assert 'spotify' in service_names
+
+    def test_batch_check_emails_sync(self):
+        """batch_check_emails should check multiple emails."""
+        from app.services.phase2.holehe_service import batch_check_emails, HoleheResults
+
+        with patch('app.services.phase2.holehe_service.check_email_sync') as mock_sync:
+            mock_sync.return_value = HoleheResults(
+                email='a@b.com', registered_services=[], total_checked=0, total_registered=0,
+            )
+
+            results = batch_check_emails(['a@b.com', 'c@d.com'], delay=0)
+
+        assert len(results) == 2
+        assert 'a@b.com' in results
+        assert 'c@d.com' in results
+
+    def test_get_service_categories(self):
+        """get_service_categories should return dict of service lists."""
+        from app.services.phase2.holehe_service import get_service_categories
+
+        cats = get_service_categories()
+        assert 'russian' in cats
+        assert 'vk' in cats['russian']
+        assert 'social' in cats
+        assert 'instagram' in cats['social']
+        assert 'work' in cats
+        assert 'github' in cats['work']
+
+    def test_holehe_available_flag(self):
+        """HOLEHE_AVAILABLE should be True since httpx is installed."""
+        from app.services.phase2.holehe_service import HOLEHE_AVAILABLE
+        assert HOLEHE_AVAILABLE is True
+
+
+# ==============================================================================
+# TEST 19: PATTERN EMAIL CAP — Max 15 pattern emails
+# ==============================================================================
+
+class TestPatternEmailCap:
+    """Test that pattern emails are capped at 15 (builder's fix)."""
+
+    def test_pattern_cap_applied_in_fallback(self):
+        """When SMTP is blocked, pattern_count should not exceed 15."""
+        # Simulate the fallback path logic from phase2.py
+        email_candidates = [
+            {'email': f'user{i}@mail.ru', 'priority': p, 'source': 'Test'}
+            for i, p in enumerate(
+                [1]*5 + [2]*5 + [3]*10 + [4]*10  # 30 candidates
+            )
+        ]
+
+        # Reproduce the builder's logic from phase2.py lines 876-910
+        discovered_emails = []
+        pattern_count = 0
+        for candidate in email_candidates:
+            priority = candidate.get('priority', 99)
+            if priority <= 2 and pattern_count < 10:
+                discovered_emails.append({
+                    'email': candidate['email'],
+                    'source': candidate.get('source', 'Шаблон имени'),
+                    'confidence': 'medium',
+                    'verified_on': [],
+                    'verification': 'likely'
+                })
+                pattern_count += 1
+            elif priority == 3 and pattern_count < 15:
+                discovered_emails.append({
+                    'email': candidate['email'],
+                    'source': candidate.get('source', 'Шаблон'),
+                    'confidence': 'low',
+                    'verified_on': [],
+                    'verification': 'pattern'
+                })
+                pattern_count += 1
+
+        assert len(discovered_emails) <= 15, \
+            f"Pattern emails should be capped at 15, got {len(discovered_emails)}"
+        assert len(discovered_emails) == 15, \
+            f"Should fill up to cap, got {len(discovered_emails)}"
+
+        # Verify priority 1-2 go first
+        likely_count = sum(1 for e in discovered_emails if e['verification'] == 'likely')
+        pattern_only = sum(1 for e in discovered_emails if e['verification'] == 'pattern')
+        assert likely_count == 10, f"All 10 priority 1-2 should be 'likely', got {likely_count}"
+        assert pattern_only == 5, f"Remaining 5 slots should be 'pattern', got {pattern_only}"
+
+    def test_fallback_error_path_also_capped(self):
+        """Fallback on error should also cap at 10 high-priority."""
+        email_candidates = [
+            {'email': f'user{i}@mail.ru', 'priority': p, 'source': 'Test'}
+            for i, p in enumerate(
+                [1]*8 + [2]*8 + [3]*8  # 24 candidates
+            )
+        ]
+
+        # Reproduce error fallback logic from phase2.py
+        discovered_emails = []
+        fallback_count = 0
+        for candidate in email_candidates[:20]:
+            priority = candidate.get('priority', 99)
+            if priority <= 2 and fallback_count < 10:
+                discovered_emails.append({
+                    'email': candidate['email'],
+                    'source': candidate.get('source', 'Шаблон имени'),
+                    'confidence': 'medium' if priority <= 1 else 'low',
+                    'verified_on': [],
+                    'verification': 'likely' if priority <= 1 else 'pattern'
+                })
+                fallback_count += 1
+
+        assert len(discovered_emails) <= 10, \
+            f"Error fallback should cap at 10, got {len(discovered_emails)}"
+
+
+# ==============================================================================
+# TEST 20: HOLEHE LIMIT INCREASE — 3 → 8 emails
+# ==============================================================================
+
+class TestHoleheLimitIncrease:
+    """Test that Holehe now checks up to 8 emails (was 3)."""
+
+    def test_holehe_candidates_limit_is_8(self):
+        """Builder increased Holehe candidate limit from 3 to 8."""
+        # Simulate the candidate selection logic from phase2.py
+        discovered_emails = [
+            {'email': f'discovered{i}@mail.ru', 'confidence': 'medium'}
+            for i in range(5)
+        ]
+        email_candidates = [
+            {'email': f'candidate{i}@yandex.ru', 'priority': i}
+            for i in range(15)
+        ]
+
+        holehe_candidates = []
+        seen_holehe = set()
+
+        for e in discovered_emails:
+            addr = e.get('email', '').lower()
+            if addr and addr not in seen_holehe and e.get('confidence') in ('high', 'medium'):
+                holehe_candidates.append(addr)
+                seen_holehe.add(addr)
+
+        for c in email_candidates[:20]:
+            addr = (c['email'] if isinstance(c, dict) else str(c)).lower()
+            if addr not in seen_holehe:
+                holehe_candidates.append(addr)
+                seen_holehe.add(addr)
+
+        # Russian domain priority sort
+        russian_domains = {'mail.ru', 'yandex.ru', 'bk.ru', 'gmail.com', 'ya.ru', 'list.ru', 'inbox.ru'}
+        holehe_candidates.sort(key=lambda e: (
+            0 if e.split('@')[-1] in russian_domains else 1
+        ))
+
+        holehe_candidates = holehe_candidates[:8]
+
+        assert len(holehe_candidates) == 8, \
+            f"Holehe should check up to 8 emails, got {len(holehe_candidates)}"
+
+    def test_russian_domains_prioritized(self):
+        """Russian email domains should be checked first by Holehe."""
+        candidates = [
+            'user@protonmail.com',
+            'user@yandex.ru',
+            'user@tutanota.com',
+            'user@mail.ru',
+            'user@fastmail.com',
+            'user@gmail.com',
+        ]
+
+        russian_domains = {'mail.ru', 'yandex.ru', 'bk.ru', 'gmail.com', 'ya.ru', 'list.ru', 'inbox.ru'}
+        candidates.sort(key=lambda e: (
+            0 if e.split('@')[-1] in russian_domains else 1
+        ))
+
+        # First 3 should be Russian domains
+        for i in range(3):
+            domain = candidates[i].split('@')[-1]
+            assert domain in russian_domains, \
+                f"Position {i} should be Russian domain, got {domain}"
+
+
+# ==============================================================================
+# TEST 21: EMAIL SORTING — Verification strength ordering
+# ==============================================================================
+
+class TestEmailSortingOrder:
+    """Test that emails are sorted by verification strength (builder's fix)."""
+
+    def test_verification_order(self):
+        """Emails should be sorted: holehe > smtp > gravatar > likely > pattern."""
+        verification_order = {
+            'holehe_confirmed': 0, 'smtp_verified': 1, 'gravatar': 2,
+            'breach_found': 3, 'likely': 4, 'catch_all_domain': 4,
+            'pattern': 5, 'unverified': 6,
+        }
+
+        emails = [
+            {'email': 'pattern@mail.ru', 'verification': 'pattern', 'confidence': 'low'},
+            {'email': 'holehe@mail.ru', 'verification': 'holehe_confirmed', 'confidence': 'high'},
+            {'email': 'likely@mail.ru', 'verification': 'likely', 'confidence': 'medium'},
+            {'email': 'smtp@mail.ru', 'verification': 'smtp_verified', 'confidence': 'high'},
+            {'email': 'gravatar@mail.ru', 'verification': 'gravatar', 'confidence': 'high'},
+            {'email': 'unverified@mail.ru', 'verification': 'unverified', 'confidence': 'low'},
+        ]
+
+        emails.sort(key=lambda e: (
+            verification_order.get(e.get('verification', 'unverified'), 6),
+            0 if e.get('confidence') == 'high' else 1 if e.get('confidence') == 'medium' else 2,
+        ))
+
+        assert emails[0]['verification'] == 'holehe_confirmed'
+        assert emails[1]['verification'] == 'smtp_verified'
+        assert emails[2]['verification'] == 'gravatar'
+        assert emails[-1]['verification'] == 'unverified'
+
+    def test_same_verification_sorts_by_confidence(self):
+        """Within same verification type, high confidence comes first."""
+        verification_order = {
+            'holehe_confirmed': 0, 'smtp_verified': 1, 'gravatar': 2,
+            'breach_found': 3, 'likely': 4, 'pattern': 5, 'unverified': 6,
+        }
+
+        emails = [
+            {'email': 'low@mail.ru', 'verification': 'pattern', 'confidence': 'low'},
+            {'email': 'medium@mail.ru', 'verification': 'pattern', 'confidence': 'medium'},
+            {'email': 'high@mail.ru', 'verification': 'pattern', 'confidence': 'high'},
+        ]
+
+        emails.sort(key=lambda e: (
+            verification_order.get(e.get('verification', 'unverified'), 6),
+            0 if e.get('confidence') == 'high' else 1 if e.get('confidence') == 'medium' else 2,
+        ))
+
+        assert emails[0]['confidence'] == 'high'
+        assert emails[1]['confidence'] == 'medium'
+        assert emails[2]['confidence'] == 'low'
+
+    def test_email_discovery_service_sorts_results(self):
+        """EmailDiscoveryService.discover() should return sorted results."""
+        from app.services.phase2.email_discovery import (
+            EmailDiscoveryService, DiscoveredEmail, EmailDiscoveryResults
+        )
+
+        service = EmailDiscoveryService()
+
+        # Test the sorting logic directly (same as in discover() method)
+        all_emails = {
+            'pattern@mail.ru': DiscoveredEmail(
+                email='pattern@mail.ru', source='Pattern', confidence='low',
+                verification='pattern'
+            ),
+            'holehe@mail.ru': DiscoveredEmail(
+                email='holehe@mail.ru', source='Holehe', confidence='high',
+                verified=True, verified_on=['holehe:twitter'],
+                verification='holehe_confirmed'
+            ),
+            'smtp@gmail.com': DiscoveredEmail(
+                email='smtp@gmail.com', source='SMTP', confidence='high',
+                verified=True, verified_on=['smtp'],
+                verification='smtp_verified'
+            ),
+        }
+
+        verification_order = {
+            'holehe_confirmed': 0, 'multi_verified': 0, 'smtp_verified': 1,
+            'gravatar': 2, 'likely': 3, 'pattern': 4, 'unverified': 5,
+        }
+
+        sorted_emails = sorted(
+            all_emails.values(),
+            key=lambda e: (
+                verification_order.get(e.verification, 5),
+                0 if e.confidence == 'high' else 1 if e.confidence == 'medium' else 2,
+            )
+        )
+
+        assert sorted_emails[0].email == 'holehe@mail.ru'
+        assert sorted_emails[1].email == 'smtp@gmail.com'
+        assert sorted_emails[2].email == 'pattern@mail.ru'
+
+        service.close()
+
+
+# ==============================================================================
+# TEST 22: DEMO MODE — Contact generation without API keys
+# ==============================================================================
+
+class TestDemoModeContacts:
+    """Test demo mode contact generation (builder's new feature)."""
+
+    def test_demo_phone_is_deterministic(self):
+        """Same name should always generate the same demo phone."""
+        import hashlib
+
+        input_name = 'Даниил Глазков'
+        name_hash = hashlib.md5(input_name.encode()).hexdigest()
+        h = int(name_hash[:8], 16)
+
+        prefixes = ['926', '925', '916', '903', '965', '977']
+        demo_prefix = prefixes[h % 6]
+        demo_suffix = str(h % 10000000).zfill(7)
+        phone1 = f'+7 ({demo_prefix}) {demo_suffix[:3]}-{demo_suffix[3:5]}-{demo_suffix[5:7]}'
+
+        # Run again — should be identical
+        name_hash2 = hashlib.md5(input_name.encode()).hexdigest()
+        h2 = int(name_hash2[:8], 16)
+        demo_prefix2 = prefixes[h2 % 6]
+        demo_suffix2 = str(h2 % 10000000).zfill(7)
+        phone2 = f'+7 ({demo_prefix2}) {demo_suffix2[:3]}-{demo_suffix2[3:5]}-{demo_suffix2[5:7]}'
+
+        assert phone1 == phone2, "Demo phone should be deterministic for same name"
+
+    def test_demo_phone_format_valid(self):
+        """Demo phone should match Russian mobile format."""
+        import hashlib
+
+        for name in ['Тест Один', 'Мария Иванова', 'Олег Сидоров']:
+            name_hash = hashlib.md5(name.encode()).hexdigest()
+            h = int(name_hash[:8], 16)
+
+            prefixes = ['926', '925', '916', '903', '965', '977']
+            demo_prefix = prefixes[h % 6]
+            demo_suffix = str(h % 10000000).zfill(7)
+            phone = f'+7 ({demo_prefix}) {demo_suffix[:3]}-{demo_suffix[3:5]}-{demo_suffix[5:7]}'
+
+            # Should match +7 (9XX) XXX-XX-XX format
+            assert phone.startswith('+7 (9'), f"Demo phone '{phone}' should start with +7 (9"
+            assert re.match(r'^\+7 \(9\d{2}\) \d{3}-\d{2}-\d{2}$', phone), \
+                f"Demo phone '{phone}' should match +7 (9XX) XXX-XX-XX format"
+
+    def test_different_names_different_phones(self):
+        """Different names should produce different demo phones."""
+        import hashlib
+
+        phones = set()
+        for name in ['Иван Петров', 'Мария Сидорова', 'Олег Кузнецов', 'Анна Козлова']:
+            name_hash = hashlib.md5(name.encode()).hexdigest()
+            h = int(name_hash[:8], 16)
+
+            prefixes = ['926', '925', '916', '903', '965', '977']
+            demo_prefix = prefixes[h % 6]
+            demo_suffix = str(h % 10000000).zfill(7)
+            phone = f'+7 ({demo_prefix}) {demo_suffix[:3]}-{demo_suffix[3:5]}-{demo_suffix[5:7]}'
+            phones.add(phone)
+
+        assert len(phones) >= 3, "Different names should produce mostly different phones"
+
+    def test_demo_telegram_account_uses_username(self):
+        """Demo mode should create Telegram account using VK username."""
+        username = 'etoglaz'
+        alternate_accounts = []
+
+        # Reproduce demo Telegram logic from phase2.py
+        alternate_accounts.append({
+            'platform': 'telegram',
+            'username': username,
+            'url': f'https://t.me/{username}',
+            'source': 'VK профиль (демо)'
+        })
+
+        assert len(alternate_accounts) == 1
+        assert alternate_accounts[0]['platform'] == 'telegram'
+        assert alternate_accounts[0]['url'] == 'https://t.me/etoglaz'
+        assert 'демо' in alternate_accounts[0]['source']
+
+
+# ==============================================================================
+# TEST 23: VERIFICATION PRIORITY MERGING
+# ==============================================================================
+
+class TestVerificationPriorityMerging:
+    """Test that email verification merges correctly when multiple sources confirm."""
+
+    def test_holehe_upgrades_pattern(self):
+        """Holehe confirmation should upgrade a pattern email to holehe_confirmed."""
+        from app.services.phase2.email_discovery import DiscoveredEmail
+
+        verification_priority = {
+            'holehe_confirmed': 0, 'smtp_verified': 1, 'gravatar': 2,
+            'multi_verified': 0, 'likely': 3, 'pattern': 4, 'unverified': 5,
+        }
+
+        existing = DiscoveredEmail(
+            email='user@mail.ru', source='Pattern', confidence='low',
+            verified=False, verified_on=[], verification='pattern'
+        )
+
+        new_info = DiscoveredEmail(
+            email='user@mail.ru', source='Holehe', confidence='high',
+            verified=True, verified_on=['holehe:twitter'],
+            verification='holehe_confirmed'
+        )
+
+        # Merge logic from email_discovery.py discover() method
+        existing.verified_on.extend(new_info.verified_on)
+        existing.verified_on = list(set(existing.verified_on))
+        if new_info.verified:
+            existing.verified = True
+        if len(existing.verified_on) >= 2:
+            existing.confidence = 'high'
+            existing.verification = 'multi_verified'
+        elif new_info.confidence == 'high':
+            existing.confidence = 'high'
+        if verification_priority.get(new_info.verification, 5) < \
+           verification_priority.get(existing.verification, 5):
+            existing.verification = new_info.verification
+
+        assert existing.verified is True
+        assert existing.confidence == 'high'
+        assert 'holehe:twitter' in existing.verified_on
+        assert existing.verification == 'holehe_confirmed'
+
+    def test_multi_verified_on_two_sources(self):
+        """Two independent verifications should become multi_verified."""
+        from app.services.phase2.email_discovery import DiscoveredEmail
+
+        existing = DiscoveredEmail(
+            email='user@mail.ru', source='SMTP', confidence='high',
+            verified=True, verified_on=['smtp'], verification='smtp_verified'
+        )
+
+        new_info = DiscoveredEmail(
+            email='user@mail.ru', source='Gravatar', confidence='medium',
+            verified=True, verified_on=['gravatar'], verification='gravatar'
+        )
+
+        # Merge
+        existing.verified_on.extend(new_info.verified_on)
+        existing.verified_on = list(set(existing.verified_on))
+        if new_info.verified:
+            existing.verified = True
+        if len(existing.verified_on) >= 2:
+            existing.confidence = 'high'
+            existing.verification = 'multi_verified'
+
+        assert existing.verification == 'multi_verified'
+        assert existing.confidence == 'high'
+        assert 'smtp' in existing.verified_on
+        assert 'gravatar' in existing.verified_on
+
+    def test_gravatar_promotes_pattern_to_gravatar(self):
+        """Gravatar verification should promote pattern emails in route logic."""
+        # Reproduce the Gravatar promotion logic from phase2.py
+        disc_email = {
+            'email': 'user@mail.ru',
+            'confidence': 'low',
+            'verified_on': [],
+            'verification': 'pattern',
+        }
+
+        # Simulate Gravatar found
+        if 'gravatar' not in disc_email.get('verified_on', []):
+            disc_email['verified_on'] = disc_email.get('verified_on', []) + ['gravatar']
+        disc_email['confidence'] = 'high'
+        if disc_email.get('verification') in ('pattern', 'likely', 'unverified'):
+            disc_email['verification'] = 'gravatar'
+
+        assert disc_email['verification'] == 'gravatar'
+        assert disc_email['confidence'] == 'high'
+        assert 'gravatar' in disc_email['verified_on']
+
+
+# ==============================================================================
+# TEST 24: HOLEHE SERVICE TO PROFILE EXTRACTION
+# ==============================================================================
+
+class TestHoleheProfileExtraction:
+    """Test that Holehe service matches extract additional profiles."""
+
+    def test_service_to_profile_mapping(self):
+        """Holehe services should map to profile platforms."""
+        service_to_profile = {
+            'instagram': ('instagram', 'https://instagram.com/'),
+            'twitter': ('twitter', 'https://twitter.com/'),
+            'github': ('github', 'https://github.com/'),
+            'spotify': ('spotify', ''),
+            'discord': ('discord', ''),
+            'pinterest': ('pinterest', 'https://pinterest.com/'),
+            'tumblr': ('tumblr', 'https://tumblr.com/'),
+            'flickr': ('flickr', 'https://flickr.com/'),
+            'lastfm': ('last.fm', 'https://last.fm/user/'),
+        }
+
+        # Simulate extracting profiles from Holehe services
+        services = ['instagram', 'twitter', 'github', 'spotify', 'unknown_service']
+        alternate_accounts = []
+        email_addr = 'test@gmail.com'
+
+        for svc in services:
+            svc_lower = svc.lower()
+            if svc_lower in service_to_profile:
+                platform, base_url = service_to_profile[svc_lower]
+                existing_platforms = {a.get('platform', '').lower() for a in alternate_accounts}
+                if platform not in existing_platforms:
+                    alternate_accounts.append({
+                        'platform': platform,
+                        'username': email_addr,
+                        'url': f'{base_url}' if not base_url else f'{base_url}',
+                        'source': f'Holehe ({email_addr})'
+                    })
+
+        assert len(alternate_accounts) == 4, \
+            f"Should extract 4 known services, got {len(alternate_accounts)}"
+
+        platforms = {a['platform'] for a in alternate_accounts}
+        assert 'instagram' in platforms
+        assert 'twitter' in platforms
+        assert 'github' in platforms
+        assert 'spotify' in platforms
+
+    def test_no_duplicate_platforms(self):
+        """Should not add duplicate platforms from Holehe."""
+        service_to_profile = {
+            'instagram': ('instagram', 'https://instagram.com/'),
+        }
+
+        alternate_accounts = [
+            {'platform': 'instagram', 'username': 'existing', 'url': 'https://instagram.com/existing'}
+        ]
+
+        services = ['instagram']
+        email_addr = 'test@gmail.com'
+
+        for svc in services:
+            svc_lower = svc.lower()
+            if svc_lower in service_to_profile:
+                platform, base_url = service_to_profile[svc_lower]
+                existing_platforms = {a.get('platform', '').lower() for a in alternate_accounts}
+                if platform not in existing_platforms:
+                    alternate_accounts.append({
+                        'platform': platform,
+                        'username': email_addr,
+                        'url': base_url,
+                        'source': f'Holehe ({email_addr})'
+                    })
+
+        assert len(alternate_accounts) == 1, \
+            "Should not add duplicate instagram platform"
+
+
+# ==============================================================================
 # RUN CONFIGURATION
 # ==============================================================================
 

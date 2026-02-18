@@ -17,7 +17,6 @@ def combined_search_and_save(
     city: Optional[str] = None,
     age_from: Optional[int] = None,
     age_to: Optional[int] = None,
-    vk_count: int = 50,
     ok_count: int = 20,
 ) -> Dict[str, List[Dict]]:
     """
@@ -29,7 +28,6 @@ def combined_search_and_save(
         city: Optional city filter
         age_from: Min age
         age_to: Max age
-        vk_count: Max VK results
         ok_count: Max OK results
 
     Returns:
@@ -46,7 +44,6 @@ def combined_search_and_save(
             city=city,
             age_from=age_from,
             age_to=age_to,
-            count=vk_count,
         )
         logger.info(f"Combined search: {len(results['vk'])} VK profiles for '{query}'")
     except Exception as e:

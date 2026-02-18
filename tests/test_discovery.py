@@ -154,32 +154,6 @@ def mock_vk_wall_posts():
 class TestOKSearch:
     """Tests for OK (Odnoklassniki) search integration."""
 
-    def test_cyrillic_name_search_returns_results(self, app):
-        """OK search returns results for a Cyrillic name query."""
-        from app.services.phase4.ok_people_search import OKPeopleSearch
-
-        searcher = OKPeopleSearch()
-        mock_html = """
-        <html><body>
-        <div class="ucard">
-            <a href="/profile/111222333">
-                <span class="emphased">Тихон Портной</span>
-            </a>
-            <img src="https://ok.ru/photo.jpg" />
-            <div class="ucard-v-info_cnt">30 лет, Москва</div>
-        </div>
-        </body></html>
-        """
-        with patch.object(searcher.session, 'get') as mock_get:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.url = 'https://ok.ru/search'
-            mock_response.text = mock_html
-            mock_get.return_value = mock_response
-            results = searcher.search_people('Тихон Портной')
-
-        assert isinstance(results, list), "search_people should return a list"
-
     def test_ok_integration_demo_search_returns_profiles(self, app):
         """OKSearchIntegration demo search returns profile dicts for Cyrillic name."""
         from app.services.phase1.ok_search_integration import OKSearchIntegration
