@@ -160,6 +160,7 @@ class CandidateCheck(db.Model):
     @property
     def risk_level_display(self):
         return {
+            'clean': 'НИЗКИЙ РИСК',
             'low': 'НИЗКИЙ РИСК',
             'medium': 'СРЕДНИЙ РИСК',
             'high': 'ВЫСОКИЙ РИСК',

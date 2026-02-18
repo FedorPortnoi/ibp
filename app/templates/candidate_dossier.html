@@ -91,6 +91,7 @@
         font-size: 0.875rem;
         margin-bottom: 4px;
     }
+    .flag-info { background: rgba(59, 130, 246, 0.06); color: #60a5fa; }
     .flag-warning { background: rgba(245, 158, 11, 0.06); color: #fbbf24; }
     .flag-risk { background: rgba(239, 68, 68, 0.06); color: #f87171; }
     .flag-critical { background: rgba(185, 28, 28, 0.08); color: #fca5a5; }
@@ -234,16 +235,17 @@
        2. RISK ASSESSMENT BOX
        ================================================================ #}
     {% set risk_cfg = {
-        'low':      {'cls': 'risk-low',      'icon': '',  'label': 'НИЗКИЙ РИСК',      'desc': 'Серьёзных проблем не обнаружено'},
+        'clean':    {'cls': 'risk-low',      'icon': '',  'label': 'НИЗКИЙ РИСК',      'desc': 'Проблем не обнаружено'},
+        'low':      {'cls': 'risk-low',      'icon': '',  'label': 'НИЗКИЙ РИСК',      'desc': 'Незначительные замечания'},
         'medium':   {'cls': 'risk-medium',    'icon': '',  'label': 'СРЕДНИЙ РИСК',     'desc': 'Обнаружены потенциальные проблемы'},
         'high':     {'cls': 'risk-high',      'icon': '',  'label': 'ВЫСОКИЙ РИСК',     'desc': 'Обнаружены серьёзные проблемы'},
         'critical': {'cls': 'risk-critical',  'icon': '',  'label': 'КРИТИЧЕСКИЙ РИСК', 'desc': 'Обнаружены критические проблемы — рекомендуется отказ'},
     } %}
-    {% set rc = risk_cfg.get(check.risk_level, risk_cfg['low']) %}
+    {% set rc = risk_cfg.get(check.risk_level, risk_cfg['clean']) %}
 
     <div class="{{ rc.cls }} rounded-xl p-5 mb-6" id="risk-box">
         <div class="flex items-center gap-3 mb-2">
-            {% if check.risk_level == 'low' %}
+            {% if check.risk_level in ('clean', 'low') %}
                 <span class="text-2xl">&#x1F7E2;</span>
             {% elif check.risk_level == 'medium' %}
                 <span class="text-2xl">&#x26A0;&#xFE0F;</span>
@@ -257,10 +259,15 @@
         {% if red_flags %}
             <div class="space-y-1">
                 {% for flag in red_flags %}
-                    <div class="flag-item {% if flag.severity == 'critical' %}flag-critical{% elif flag.severity == 'risk' %}flag-risk{% else %}flag-warning{% endif %}">
-                        {% if flag.severity == 'critical' %}&#x1F534;{% elif flag.severity == 'risk' %}&#x1F534;{% else %}&#x26A0;&#xFE0F;{% endif %}
-                        <span>{{ flag.text }}</span>
-                        <span class="text-xs opacity-50 ml-auto">({{ flag.source }})</span>
+                    <div class="flag-item {% if flag.severity == 'critical' %}flag-critical{% elif flag.severity == 'high' %}flag-risk{% elif flag.severity == 'medium' %}flag-warning{% else %}flag-info{% endif %}">
+                        {% if flag.severity == 'critical' %}&#x1F534;&#x1F534;{% elif flag.severity == 'high' %}&#x1F534;{% elif flag.severity == 'medium' %}&#x26A0;&#xFE0F;{% else %}&#x2139;&#xFE0F;{% endif %}
+                        <div class="flex-1 min-w-0">
+                            <span>{{ flag.text }}</span>
+                            {% if flag.get('details') %}
+                                <div class="text-xs opacity-60 mt-0.5">{{ flag.details }}</div>
+                            {% endif %}
+                        </div>
+                        <span class="text-xs opacity-50 ml-auto shrink-0">({{ flag.get('category', flag.get('source', '')) }})</span>
                     </div>
                 {% endfor %}
             </div>
@@ -274,6 +281,9 @@
        ================================================================ #}
     <div class="nav-pills-wrap overflow-x-auto mb-8 -mx-4 px-4">
         <div class="flex gap-2 pb-2">
+            <a href="#risk-box" class="nav-pill">&#x1F6E1; Риски
+                <span class="badge {% if red_flags %}badge-count{% else %}badge-empty{% endif %}" {% if red_flags|length > 0 %}style="background: rgba(239, 68, 68, 0.2); color: #f87171;"{% endif %}>{{ red_flags|length if red_flags else '0' }}</span>
+            </a>
             <a href="#sec-business" class="nav-pill">&#x1F4CB; Бизнес
                 <span class="badge {% if business_records %}badge-count{% else %}badge-empty{% endif %}">{{ business_records|length if business_records else '—' }}</span>
             </a>

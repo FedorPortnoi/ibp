@@ -201,12 +201,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             if court_records:
                                 task.add_message(f'Суды: найдено {len(court_records)} дел', 'success')
                                 sources_with_results += 1
-                                if len(court_records) > 5:
-                                    all_red_flags.append({
-                                        'severity': 'warning',
-                                        'source': 'courts',
-                                        'text': f'Найдено {len(court_records)} судебных дел',
-                                    })
                             else:
                                 task.add_message('Суды: дела не найдены', 'info')
                             sources_checked += 1
@@ -229,53 +223,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                                 )
                                 sources_with_results += 1
 
-                                # ── ФССП red flags ──
-                                active = [r for r in fssp_records if r.get('is_active')]
-                                if active:
-                                    all_red_flags.append({
-                                        'severity': 'warning',
-                                        'source': 'fssp',
-                                        'text': f'Активных исполнительных производств: {len(active)}',
-                                    })
-                                if len(active) >= 3:
-                                    all_red_flags.append({
-                                        'severity': 'risk',
-                                        'source': 'fssp',
-                                        'text': f'Множественные активные производства ({len(active)})',
-                                    })
-                                for rec in fssp_records:
-                                    amt = rec.get('amount')
-                                    subj = (rec.get('subject') or '').lower()
-                                    if amt and amt > 500_000:
-                                        all_red_flags.append({
-                                            'severity': 'risk',
-                                            'source': 'fssp',
-                                            'text': f'Крупная задолженность: {amt:,.0f} руб. ({rec.get("proceedings_number", "")})',
-                                        })
-                                    elif amt and amt > 100_000:
-                                        all_red_flags.append({
-                                            'severity': 'warning',
-                                            'source': 'fssp',
-                                            'text': f'Задолженность {amt:,.0f} руб. ({rec.get("proceedings_number", "")})',
-                                        })
-                                    if 'алимент' in subj:
-                                        all_red_flags.append({
-                                            'severity': 'warning',
-                                            'source': 'fssp',
-                                            'text': f'Алиментные обязательства ({rec.get("proceedings_number", "")})',
-                                        })
-                                    if 'налог' in subj:
-                                        all_red_flags.append({
-                                            'severity': 'risk',
-                                            'source': 'fssp',
-                                            'text': f'Налоговая задолженность ({rec.get("proceedings_number", "")})',
-                                        })
-                                    if 'штраф' in subj:
-                                        all_red_flags.append({
-                                            'severity': 'info',
-                                            'source': 'fssp',
-                                            'text': f'Штраф ({rec.get("proceedings_number", "")})',
-                                        })
                             else:
                                 task.add_message('ФССП: производств не найдено', 'info')
                             sources_checked += 1
@@ -299,47 +246,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                                 )
                                 sources_with_results += 1
 
-                                # ── Bankruptcy red flags ──
-                                from datetime import datetime as _dt
-                                for rec in bankruptcy_records:
-                                    rec_active = rec.get('is_active', False)
-                                    rec_stage = (rec.get('stage') or '').lower()
-
-                                    if rec_active:
-                                        all_red_flags.append({
-                                            'severity': 'critical',
-                                            'source': 'bankruptcy',
-                                            'text': (
-                                                'Активное банкротное дело — '
-                                                'ограничение на руководящие должности'
-                                            ),
-                                        })
-                                    elif 'завершен' in rec_stage or 'прекращен' in rec_stage:
-                                        # Check if completed within last 3 years
-                                        pub_date = rec.get('publication_date', '')
-                                        if pub_date:
-                                            try:
-                                                parts = pub_date.split('.')
-                                                if len(parts) == 3:
-                                                    d = _dt(
-                                                        int(parts[2]),
-                                                        int(parts[1]),
-                                                        int(parts[0]),
-                                                    )
-                                                    years_ago = (
-                                                        _dt.now() - d
-                                                    ).days / 365.25
-                                                    if years_ago < 3:
-                                                        all_red_flags.append({
-                                                            'severity': 'warning',
-                                                            'source': 'bankruptcy',
-                                                            'text': (
-                                                                'Завершённое банкротство '
-                                                                'менее 3 лет назад'
-                                                            ),
-                                                        })
-                                            except (ValueError, IndexError):
-                                                pass
                             else:
                                 task.add_message(
                                     'Банкротство: записей не найдено', 'info',
@@ -390,12 +296,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         f"{d['source_name']}: НАЙДЕН",
                         'error',
                     )
-                    all_red_flags.append({
-                        'severity': 'critical',
-                        'source': 'sanctions',
-                        'text': f"Найден в списке: {d['source_name']}"
-                               + (f" — {d['match_details']}" if d['match_details'] else ''),
-                    })
                     sources_with_results += 1
                 elif d['checked'] and not d['found']:
                     task.add_message(
@@ -408,12 +308,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         + (f" ({d['error']})" if d['error'] else ''),
                         'warning',
                     )
-                    all_red_flags.append({
-                        'severity': 'info',
-                        'source': 'sanctions',
-                        'text': f"Не удалось проверить: {d['source_name']}"
-                               + (f" — {d['error']}" if d['error'] else ''),
-                    })
                 sanctions_checked += 1
 
             sources_checked += sanctions_checked
@@ -625,30 +519,22 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             # ══════════════════════════════════════════════
             task.update('risk', 'Анализ рисков...', 90)
 
-            # Basic red flag logic
-            if len(biz_records) > 10:
-                all_red_flags.append({
-                    'severity': 'warning',
-                    'source': 'business',
-                    'text': f'Связан с {len(biz_records)} организациями',
-                })
+            from app.services.candidate.risk_scorer import RiskScorer
+            scorer = RiskScorer()
+            risk_level, scorer_flags = scorer.analyze(check)
 
-            # Determine risk level
-            critical_count = sum(1 for f in all_red_flags if f['severity'] == 'critical')
-            risk_count = sum(1 for f in all_red_flags if f['severity'] == 'risk')
-            warning_count = sum(1 for f in all_red_flags if f['severity'] == 'warning')
+            # Merge inline flags from stages 1-4 with scorer output, dedup by code
+            seen_codes = {f['code'] for f in scorer_flags if f.get('code')}
+            merged_flags = list(scorer_flags)
+            for flag in all_red_flags:
+                code = flag.get('code', '')
+                if not code or code not in seen_codes:
+                    merged_flags.append(flag)
+                    if code:
+                        seen_codes.add(code)
 
-            if critical_count > 0:
-                risk_level = 'critical'
-            elif risk_count > 0:
-                risk_level = 'high'
-            elif warning_count > 0:
-                risk_level = 'medium'
-            else:
-                risk_level = 'low'
-
-            check.red_flags = all_red_flags
-            check.red_flag_count = len(all_red_flags)
+            check.red_flags = merged_flags
+            check.red_flag_count = len(merged_flags)
             check.risk_level = risk_level
             check.sources_checked = sources_checked
             check.sources_with_results = sources_with_results
