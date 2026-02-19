@@ -205,10 +205,21 @@ def dossier_page(check_id):
 @candidate_bp.route('/history')
 def history():
     """List past candidate checks."""
-    checks = CandidateCheck.query.order_by(CandidateCheck.created_at.desc()).limit(50).all()
-    return jsonify({
-        'checks': [c.to_dict() for c in checks],
-    })
+    checks = CandidateCheck.query.order_by(CandidateCheck.created_at.desc()).all()
+    return render_template('candidate_history.html', checks=checks)
+
+
+@candidate_bp.route('/delete/<check_id>', methods=['POST'])
+def delete_check(check_id):
+    """Delete a candidate check record."""
+    check = CandidateCheck.query.get(check_id)
+    if not check:
+        return jsonify({'error': 'Проверка не найдена'}), 404
+
+    logger.info(f"Deleting candidate check {check_id} for '{check.full_name}'")
+    db.session.delete(check)
+    db.session.commit()
+    return redirect(url_for('candidate.history'))
 
 
 @candidate_bp.route('/export/<check_id>/json')
