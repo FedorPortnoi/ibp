@@ -753,10 +753,20 @@
        11. FOOTER
        ================================================================ #}
     <div class="export-wrap flex flex-wrap gap-3 mb-6 pt-4 border-t border-violet-100">
+        <a href="/candidate/export/{{ check.id }}/json" class="export-btn">&#x1F4CB; Скачать JSON</a>
+        <a href="/candidate/export/{{ check.id }}/pdf" class="export-btn" id="pdf-btn">&#x1F4C4; Скачать PDF</a>
         <button onclick="window.print()" class="export-btn">&#x1F5A8; Печать</button>
-        <a href="/candidate/export/json?id={{ check.id }}" class="export-btn">&#x1F4CB; Скачать JSON</a>
-        <a href="/candidate/export/pdf?id={{ check.id }}" class="export-btn">&#x1F4C4; Скачать PDF</a>
     </div>
+    <script>
+    document.getElementById('pdf-btn').addEventListener('click', function(e) {
+        var btn = this;
+        // Let the default link action proceed; show feedback
+        var origText = btn.innerHTML;
+        btn.innerHTML = '&#x23F3; Генерация PDF...';
+        btn.style.pointerEvents = 'none';
+        setTimeout(function() { btn.innerHTML = origText; btn.style.pointerEvents = ''; }, 8000);
+    });
+    </script>
 
     <div class="text-center text-xs text-gray-600 mb-6 leading-relaxed">
         Данные получены из открытых источников. Результат проверки не является юридическим документом и носит информационный характер.

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+        font-size: 11px;
+        color: #1a1a1a;
+        line-height: 1.5;
+        background: white;
+    }
+
+    /* Header */
+    .header { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #7c3aed; }
+    .header-brand { font-size: 10px; color: #7c3aed; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
+    .header h1 { font-size: 22px; color: #111; margin-bottom: 4px; }
+    .header-meta { font-size: 10px; color: #666; }
+    .header-meta span { margin-right: 12px; }
+
+    /* Section headers */
+    h2 {
+        font-size: 14px;
+        color: #333;
+        margin: 20px 0 10px 0;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #d1d5db;
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+    }
+    h2 .count { font-size: 11px; color: #9ca3af; font-weight: 400; }
+
+    /* Risk box */
+    .risk-box { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
+    .risk-low { background: #f0fdf4; border: 2px solid #86efac; }
+    .risk-medium { background: #fffbeb; border: 2px solid #fcd34d; }
+    .risk-high { background: #fef2f2; border: 2px solid #fca5a5; }
+    .risk-critical { background: #fef2f2; border: 2px solid #ef4444; }
+    .risk-label { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .risk-low .risk-label { color: #166534; }
+    .risk-medium .risk-label { color: #92400e; }
+    .risk-high .risk-label { color: #991b1b; }
+    .risk-critical .risk-label { color: #7f1d1d; }
+
+    /* Flags */
+    .flag { padding: 4px 8px; margin-bottom: 3px; border-radius: 4px; font-size: 10px; display: flex; align-items: flex-start; gap: 6px; }
+    .flag-critical { background: #fee2e2; color: #991b1b; }
+    .flag-high { background: #fee2e2; color: #b91c1c; }
+    .flag-medium { background: #fef3c7; color: #92400e; }
+    .flag-info { background: #eff6ff; color: #1e40af; }
+    .flag .source { color: #9ca3af; margin-left: auto; font-size: 9px; }
+
+    /* Cards */
+    .card {
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 8px 12px;
+        margin-bottom: 6px;
+        background: #fafafa;
+        break-inside: avoid;
+    }
+    .card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .card-title { font-weight: 600; font-size: 11px; color: #111; }
+    .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; font-size: 10px; color: #555; }
+    .card-grid.full { grid-template-columns: 1fr; }
+    .lbl { color: #9ca3af; }
+
+    /* Badges */
+    .badge { display: inline-block; font-size: 9px; padding: 1px 8px; border-radius: 10px; font-weight: 600; }
+    .bg-green { background: #dcfce7; color: #166534; }
+    .bg-red { background: #fee2e2; color: #991b1b; }
+    .bg-yellow { background: #fef3c7; color: #92400e; }
+    .bg-gray { background: #f3f4f6; color: #4b5563; }
+    .bg-blue { background: #dbeafe; color: #1e40af; }
+
+    /* Sanctions table */
+    .stbl { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .stbl td { padding: 7px 10px; border-bottom: 1px solid #e5e7eb; }
+    .stbl .pass { color: #166534; font-weight: 600; }
+    .stbl .fail { color: #991b1b; font-weight: 700; }
+    .stbl .na { color: #9ca3af; }
+
+    /* Social */
+    .soc { padding: 6px 0; border-bottom: 1px solid #f3f4f6; font-size: 10px; display: flex; align-items: center; gap: 8px; }
+    .soc-name { font-weight: 600; color: #111; }
+    .soc-detail { color: #666; font-size: 9px; }
+
+    /* Empty / clean */
+    .empty { text-align: center; color: #9ca3af; padding: 12px; font-size: 10px; }
+    .clean { text-align: center; color: #166534; padding: 12px; font-size: 10px; }
+
+    /* Footer */
+    .footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 8px; color: #9ca3af; line-height: 1.6; }
+
+    /* Manual check card */
+    .manual-card { border-color: #fcd34d; }
+    .manual-card .manual-msg { color: #92400e; font-size: 10px; }
+</style>
+</head>
+<body>
+
+{# ================================================================ HEADER #}
+<div class="header">
+    <div class="header-brand">IBP &mdash; ДОСЬЕ КАНДИДАТА</div>
+    <h1>{{ check.full_name }}</h1>
+    <div class="header-meta">
+        {% if check.date_of_birth %}<span>{{ check.date_of_birth.strftime('%d.%m.%Y') }}</span>{% endif %}
+        {% if check.inn %}<span>ИНН {{ check.inn }}</span>{% endif %}
+        {% if check.region %}<span>{{ check.region }}</span>{% endif %}
+        <span>{{ check.check_level_display }}</span>
+    </div>
+    <div class="header-meta" style="margin-top: 2px;">
+        {% if check.completed_at %}
+            <span>Проверка: {{ check.completed_at.strftime('%d.%m.%Y %H:%M') }}{% if duration_display %} ({{ duration_display }}){% endif %}</span>
+        {% endif %}
+        <span>{{ check.sources_checked or 0 }} источников проверено</span>
+    </div>
+</div>
+
+{# ================================================================ RISK BOX #}
+{% set risk_map = {
+    'clean': {'cls': 'risk-low', 'label': 'НИЗКИЙ РИСК'},
+    'low': {'cls': 'risk-low', 'label': 'НИЗКИЙ РИСК'},
+    'medium': {'cls': 'risk-medium', 'label': 'СРЕДНИЙ РИСК'},
+    'high': {'cls': 'risk-high', 'label': 'ВЫСОКИЙ РИСК'},
+    'critical': {'cls': 'risk-critical', 'label': 'КРИТИЧЕСКИЙ РИСК'},
+} %}
+{% set rc = risk_map.get(check.risk_level, risk_map['clean']) %}
+
+<div class="risk-box {{ rc.cls }}">
+    <div class="risk-label">{{ rc.label }}</div>
+    {% if red_flags %}
+        {% for flag in red_flags %}
+            <div class="flag {% if flag.severity == 'critical' %}flag-critical{% elif flag.severity == 'high' %}flag-high{% elif flag.severity == 'medium' %}flag-medium{% else %}flag-info{% endif %}">
+                <span>{% if flag.severity == 'critical' %}[!!!]{% elif flag.severity == 'high' %}[!]{% elif flag.severity == 'medium' %}[~]{% else %}[i]{% endif %}</span>
+                <span>{{ flag.text }}</span>
+                {% if flag.get('category') or flag.get('source') %}<span class="source">({{ flag.get('category', flag.get('source', '')) }})</span>{% endif %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <div style="color: #166534; font-size: 11px;">Красных флагов не обнаружено</div>
+    {% endif %}
+</div>
+
+{# ================================================================ BUSINESS #}
+<h2>Бизнес-связи (ЕГРЮЛ/ЕГРИП)
+    {% if business_records is not none %}<span class="count">&mdash; {{ business_records|length }} записей</span>{% endif %}
+</h2>
+
+{% if business_records is none %}
+    <div class="empty">Источник не подключён</div>
+{% elif business_records|length == 0 %}
+    <div class="clean">Записей не найдено</div>
+{% else %}
+    {% for biz in business_records %}
+    <div class="card">
+        <div class="card-head">
+            <div class="card-title">{{ biz.get('name', biz.get('company_name', 'Без названия')) }}</div>
+            {% set biz_status = biz.get('status', '') %}
+            {% if 'ликвид' in (biz_status|lower) or biz.get('end_date') %}
+                <span class="badge bg-gray">Ликвидировано</span>
+            {% else %}
+                <span class="badge bg-green">Действующее</span>
+            {% endif %}
+        </div>
+        <div class="card-grid">
+            {% if biz.get('inn') %}<div><span class="lbl">ИНН:</span> {{ biz.inn }}</div>{% endif %}
+            {% if biz.get('ogrn') %}<div><span class="lbl">ОГРН:</span> {{ biz.ogrn }}</div>{% endif %}
+            {% if biz.get('role') %}<div><span class="lbl">Роль:</span> {{ biz.role }}</div>{% endif %}
+            {% if biz.get('reg_date') or biz.get('registration_date') %}
+                <div><span class="lbl">Рег:</span> {{ biz.get('reg_date', biz.get('registration_date', '')) }}</div>
+            {% endif %}
+            {% if biz.get('end_date') %}<div><span class="lbl">Ликв:</span> {{ biz.end_date }}</div>{% endif %}
+        </div>
+    </div>
+    {% endfor %}
+{% endif %}
+
+{# ================================================================ COURTS #}
+<h2>Судебные дела
+    {% if court_records is not none %}<span class="count">&mdash; {{ court_records|length }} дел</span>{% endif %}
+</h2>
+
+{% if court_records is none %}
+    <div class="empty">Источник не подключён</div>
+{% elif court_records|length == 0 %}
+    <div class="clean">Судебных дел не найдено</div>
+{% else %}
+    {% for case in court_records %}
+    <div class="card">
+        <div class="card-head">
+            <div class="card-title">
+                {% if case.get('case_number') %}{{ case.case_number }} &mdash; {% endif %}
+                {{ case.get('court', case.get('court_name', '')) }}
+            </div>
+            {% set cat = (case.get('category', case.get('article', ''))|lower) %}
+            {% if 'уголов' in cat %}
+                <span class="badge bg-red">Уголовное</span>
+            {% elif case.get('role', '')|lower in ['ответчик', 'defendant'] %}
+                <span class="badge bg-yellow">Ответчик</span>
+            {% endif %}
+        </div>
+        <div class="card-grid">
+            {% if case.get('role') %}<div><span class="lbl">Роль:</span> {{ case.role }}</div>{% endif %}
+            {% if case.get('category') or case.get('article') %}<div><span class="lbl">Кат:</span> {{ case.get('category', case.get('article', '')) }}</div>{% endif %}
+            {% if case.get('date') %}<div><span class="lbl">Дата:</span> {{ case.date }}</div>{% endif %}
+            {% if case.get('status') %}<div><span class="lbl">Статус:</span> {{ case.status }}</div>{% endif %}
+        </div>
+    </div>
+    {% endfor %}
+{% endif %}
+
+{# ================================================================ FSSP #}
+<h2>Исполнительные производства (ФССП)
+    {% if fssp_records is not none %}<span class="count">&mdash; {{ fssp_records|length }}</span>{% endif %}
+</h2>
+
+{% if fssp_records is none %}
+    <div class="empty">Источник не подключён</div>
+{% elif fssp_records|length == 0 %}
+    <div class="clean">Исполнительных производств не найдено</div>
+{% else %}
+    {% for proc in fssp_records %}
+        {% if proc.get('source') == 'manual' %}
+        <div class="card manual-card">
+            <div class="manual-msg">Автоматическая проверка заблокирована CAPTCHA &mdash; проверьте вручную на fssp.gov.ru</div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-head">
+                <div class="card-title">{{ proc.get('proceedings_number', proc.get('number', 'Б/Н')) }}</div>
+                {% if proc.get('is_active') %}
+                    <span class="badge bg-red">Активное</span>
+                {% elif proc.get('end_date') %}
+                    <span class="badge bg-gray">Окончено</span>
+                {% endif %}
+            </div>
+            <div class="card-grid">
+                {% if proc.get('subject') %}<div><span class="lbl">Предмет:</span> {{ proc.subject }}</div>{% endif %}
+                {% if proc.get('amount') %}<div><span class="lbl">Сумма:</span> {{ proc.amount }} &#8381;</div>{% endif %}
+                {% if proc.get('department') %}<div><span class="lbl">Отдел:</span> {{ proc.department }}</div>{% endif %}
+                {% if proc.get('end_reason') %}<div><span class="lbl">Причина:</span> {{ proc.end_reason }}</div>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+{% endif %}
+
+{# ================================================================ BANKRUPTCY #}
+<h2>Банкротство (ЕФРСБ)
+    {% if bankruptcy_records is not none %}<span class="count">&mdash; {{ bankruptcy_records|length }}</span>{% endif %}
+</h2>
+
+{% if bankruptcy_records is none %}
+    <div class="empty">Источник не подключён</div>
+{% elif bankruptcy_records|length == 0 %}
+    <div class="clean">Банкротных дел не найдено</div>
+{% else %}
+    {% for br in bankruptcy_records %}
+        {% if br.get('source') == 'manual' %}
+        <div class="card manual-card">
+            <div class="manual-msg">Проверьте вручную на bankrot.fedresurs.ru</div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-head">
+                <div class="card-title">{{ br.get('case_number', 'Б/Н') }}</div>
+                {% if br.get('is_active') %}
+                    <span class="badge bg-red">{{ br.get('stage', 'Активное') }}</span>
+                {% elif br.get('stage') %}
+                    <span class="badge bg-gray">{{ br.stage }}</span>
+                {% endif %}
+            </div>
+            <div class="card-grid">
+                {% if br.get('debtor_name') %}<div><span class="lbl">Должник:</span> {{ br.debtor_name }}</div>{% endif %}
+                {% if br.get('debtor_inn') %}<div><span class="lbl">ИНН:</span> {{ br.debtor_inn }}</div>{% endif %}
+                {% if br.get('court_name') %}<div><span class="lbl">Суд:</span> {{ br.court_name }}</div>{% endif %}
+                {% if br.get('publication_date') %}<div><span class="lbl">Дата:</span> {{ br.publication_date }}</div>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+{% endif %}
+
+{# ================================================================ SANCTIONS #}
+<h2>Проверка по спискам</h2>
+
+<table class="stbl">
+{% if sanctions is iterable and sanctions is not string and sanctions is not mapping %}
+    {% for result in sanctions %}
+    <tr>
+        <td>{{ result.get('source_name', 'Источник') }}</td>
+        <td style="text-align: right;">
+            {% if result.get('checked') and result.get('found') %}
+                <span class="fail">НАЙДЕН</span>
+            {% elif result.get('checked') and not result.get('found') %}
+                <span class="pass">&#10003; Не найден</span>
+            {% else %}
+                <span class="na">Не удалось проверить</span>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+{% elif sanctions is mapping %}
+    {% set sanction_lists = [
+        ('rosfinmonitoring', 'Росфинмониторинг'),
+        ('mvd_wanted', 'МВД Розыск'),
+        ('interpol', 'Интерпол'),
+        ('extremists', 'Перечень экстремистов'),
+    ] %}
+    {% for key, label in sanction_lists %}
+        {% set result = sanctions.get(key, {}) %}
+        <tr>
+            <td>{{ label }}</td>
+            <td style="text-align: right;">
+                {% if result.get('checked') and result.get('found') %}
+                    <span class="fail">НАЙДЕН</span>
+                {% elif result.get('checked') and not result.get('found') %}
+                    <span class="pass">&#10003; Не найден</span>
+                {% else %}
+                    <span class="na">Не проверено</span>
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+{% else %}
+    {% for src in ['Росфинмониторинг', 'МВД Розыск', 'Интерпол', 'Перечень экстремистов'] %}
+    <tr>
+        <td>{{ src }}</td>
+        <td style="text-align: right;"><span class="na">Не подключено</span></td>
+    </tr>
+    {% endfor %}
+{% endif %}
+</table>
+
+{# ================================================================ SOCIAL MEDIA #}
+<h2>Социальные сети
+    {% if social_profiles is not none %}<span class="count">&mdash; {{ social_profiles|length }} профилей</span>{% endif %}
+</h2>
+
+{% if social_profiles is none %}
+    <div class="empty">Источник не подключён</div>
+{% elif social_profiles|length == 0 %}
+    <div class="empty">Профилей не найдено</div>
+{% else %}
+    {% for profile in social_profiles %}
+    <div class="soc">
+        <span class="soc-name">{{ profile.get('display_name', 'Без имени') }}</span>
+        {% if profile.get('username') %}<span class="soc-detail">@{{ profile.username }}</span>{% endif %}
+        {% if profile.get('platform') %}<span class="badge bg-blue">{{ profile.platform|upper }}</span>{% endif %}
+        {% set conf = profile.get('confidence', '') %}
+        {% if conf in ('высокая', 'high') %}<span class="badge bg-green">высокая</span>{% endif %}
+        {% if conf in ('средняя', 'medium') %}<span class="badge bg-yellow">средняя</span>{% endif %}
+        {% if profile.get('city') %}<span class="soc-detail">{{ profile.city }}</span>{% endif %}
+        {% if profile.get('url') %}<span class="soc-detail">{{ profile.url }}</span>{% endif %}
+    </div>
+    {% endfor %}
+{% endif %}
+
+{# ================================================================ CONTACTS #}
+<h2>Обнаруженные контакты</h2>
+
+{% set phones = contacts.get('phones', []) if contacts else [] %}
+{% set emails = contacts.get('emails', []) if contacts else [] %}
+
+{% if not phones and not emails %}
+    <div class="empty">Дополнительных контактов не обнаружено</div>
+{% else %}
+    {% if phones %}
+        <div style="margin-bottom: 6px; font-weight: 600;">Телефоны:</div>
+        {% for ph in phones %}
+            <div style="font-size: 10px; margin-bottom: 2px;">{{ ph.get('number', '') }} <span class="lbl">({{ ph.get('source', '') }})</span></div>
+        {% endfor %}
+    {% endif %}
+    {% if emails %}
+        <div style="margin: 8px 0 6px; font-weight: 600;">Email:</div>
+        {% for em in emails %}
+            <div style="font-size: 10px; margin-bottom: 2px;">{{ em.get('address', '') }} <span class="lbl">({{ em.get('source', '') }})</span></div>
+        {% endfor %}
+    {% endif %}
+{% endif %}
+
+{# ================================================================ FOOTER #}
+<div class="footer">
+    Данные получены из открытых источников.
+    Результат проверки не является юридическим документом и носит информационный характер.<br>
+    Сгенерировано: {{ generated_date }} | IBP v1.0
+</div>
+
+</body>
+</html>

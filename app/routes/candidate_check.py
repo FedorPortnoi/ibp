@@ -6,11 +6,12 @@ Blueprint for /candidate/* — background check pipeline.
 
 import re
 import uuid
+import json
 import threading
 import logging
 from datetime import datetime, date
 
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, current_app
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, current_app, make_response
 
 from app import db
 from app.models.candidate_check import CandidateCheck
@@ -208,6 +209,140 @@ def history():
     return jsonify({
         'checks': [c.to_dict() for c in checks],
     })
+
+
+@candidate_bp.route('/export/<check_id>/json')
+def export_json(check_id):
+    """Export dossier as downloadable JSON file."""
+    check = CandidateCheck.query.get(check_id)
+    if not check:
+        return jsonify({'error': 'Проверка не найдена'}), 404
+
+    # Build initials for filename (e.g. "Иванов_ИИ")
+    parts = check.full_name.strip().split()
+    if len(parts) >= 3:
+        name_slug = f"{parts[0]}_{''.join(p[0] for p in parts[1:])}"
+    elif len(parts) == 2:
+        name_slug = f"{parts[0]}_{parts[1][0]}"
+    else:
+        name_slug = parts[0] if parts else 'candidate'
+
+    date_str = datetime.utcnow().strftime('%Y-%m-%d')
+    filename = f"dossier_{name_slug}_{date_str}.json"
+
+    dossier = {
+        'meta': {
+            'generated_at': datetime.utcnow().isoformat(),
+            'ibp_version': '1.0',
+            'check_id': check.id,
+            'duration_seconds': check.check_duration_seconds,
+            'check_level': check.check_level_display,
+            'sources_checked': check.sources_checked,
+            'sources_with_results': check.sources_with_results,
+            'status': check.status,
+        },
+        'candidate': {
+            'full_name': check.full_name,
+            'date_of_birth': check.date_of_birth.isoformat() if check.date_of_birth else None,
+            'inn': check.inn,
+            'region': check.region,
+            'phone': check.phone,
+            'email': check.email,
+        },
+        'risk_assessment': {
+            'risk_level': check.risk_level,
+            'risk_level_display': check.risk_level_display,
+            'red_flag_count': check.red_flag_count,
+            'red_flags': check.red_flags,
+        },
+        'business_records': check.business_records,
+        'court_records': check.court_records,
+        'fssp_records': check.fssp_records,
+        'bankruptcy_records': check.bankruptcy_records,
+        'sanctions_results': check.sanctions_results,
+        'social_media_profiles': check.social_media_profiles,
+        'contact_discoveries': check.contact_discoveries,
+    }
+
+    json_str = json.dumps(dossier, ensure_ascii=False, indent=2, default=str)
+    response = make_response(json_str)
+    response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@candidate_bp.route('/export/<check_id>/pdf')
+def export_pdf(check_id):
+    """Export dossier as PDF via Playwright (Chromium)."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        return jsonify({
+            'error': 'PDF-генерация недоступна (Playwright не установлен). '
+                     'Используйте кнопку "Печать" для сохранения в PDF через браузер.'
+        }), 501
+
+    check = CandidateCheck.query.get(check_id)
+    if not check:
+        return jsonify({'error': 'Проверка не найдена'}), 404
+
+    # Build filename
+    parts = check.full_name.strip().split()
+    if len(parts) >= 3:
+        name_slug = f"{parts[0]}_{''.join(p[0] for p in parts[1:])}"
+    elif len(parts) == 2:
+        name_slug = f"{parts[0]}_{parts[1][0]}"
+    else:
+        name_slug = parts[0] if parts else 'candidate'
+
+    date_str = datetime.utcnow().strftime('%Y-%m-%d')
+    filename = f"dossier_{name_slug}_{date_str}.pdf"
+
+    # Format duration
+    duration_display = ''
+    if check.check_duration_seconds:
+        secs = check.check_duration_seconds
+        if secs >= 60:
+            mins = int(secs // 60)
+            remaining = int(secs % 60)
+            duration_display = f'{mins}м {remaining}с'
+        else:
+            duration_display = f'{secs:.0f}с'
+
+    html_str = render_template(
+        'candidate_dossier_pdf.html',
+        check=check,
+        duration_display=duration_display,
+        business_records=check.business_records,
+        court_records=check.court_records,
+        fssp_records=check.fssp_records,
+        bankruptcy_records=check.bankruptcy_records,
+        sanctions=check.sanctions_results,
+        social_profiles=check.social_media_profiles,
+        contacts=check.contact_discoveries,
+        red_flags=check.red_flags,
+        generated_date=datetime.utcnow().strftime('%d.%m.%Y %H:%M'),
+    )
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.set_content(html_str, wait_until='networkidle')
+            pdf_bytes = page.pdf(
+                format='A4',
+                margin={'top': '1.5cm', 'bottom': '2cm', 'left': '1.5cm', 'right': '1.5cm'},
+                print_background=True,
+            )
+            browser.close()
+    except Exception as e:
+        logger.error(f"PDF generation failed for check {check_id}: {e}")
+        return jsonify({'error': 'Ошибка генерации PDF. Используйте кнопку "Печать".'}), 500
+
+    response = make_response(pdf_bytes)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
 
 
 def _error(message: str, status_code: int):
