@@ -70,8 +70,8 @@ def start_check():
 
     # --- Optional fields ---
     inn = (data.get('inn') or '').strip()[:12]
-    if inn and not re.match(r'^\d{12}$', inn):
-        return _error('ИНН должен содержать 12 цифр', 400)
+    if inn and not re.match(r'^\d{10}(\d{2})?$', inn):
+        return _error('ИНН должен содержать 10 или 12 цифр', 400)
 
     passport_raw = (data.get('passport') or '').strip()
     passport_series = None

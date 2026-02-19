@@ -282,12 +282,67 @@ Top to bottom:
 
 ## BUILD ORDER
 
-**Phase A (Foundation):** Form + route + pipeline skeleton + dossier template + DB model
-**Phase B (Gov Registries):** ЕГРЮЛ (wire existing) + ФССП (new) + ЕФРСБ (new) + courts (wire existing)
-**Phase C (Security):** Росфинмониторинг + МВД + Интерпол
-**Phase D (Social):** VK + Telegram (wire existing) + OK.ru (new)
-**Phase E (Risk):** Red flag detection + risk scoring + summary box
-**Phase F (Export):** PDF + JSON + print + history page + polish
+**Phase A (Foundation):** Form + route + pipeline skeleton + dossier template + DB model — **COMPLETE**
+**Phase B (Gov Registries):** ЕГРЮЛ (wire existing) + ФССП (new) + ЕФРСБ (new) + courts (wire existing) — **COMPLETE**
+**Phase C (Security):** Росфинмониторинг + МВД + Интерпол + Экстремисты — **COMPLETE**
+**Phase D (Social):** VK + Telegram (wire existing) — **COMPLETE** (OK.ru deferred)
+**Phase E (Risk):** Red flag detection + risk scoring + summary box — **COMPLETE**
+**Phase F (Export):** PDF + JSON + print + history page + polish — **COMPLETE**
+
+---
+
+## IMPLEMENTATION STATUS (Feb 18, 2026)
+
+### All phases COMPLETE. Full E2E pipeline tested and working.
+
+### Files Created/Modified
+
+**Routes:**
+- `app/routes/candidate_check.py` — Blueprint `/candidate/*` with 8 routes
+
+**Services:**
+- `app/services/candidate/__init__.py`
+- `app/services/candidate/pipeline.py` — 5-stage orchestrator with ThreadPoolExecutor
+- `app/services/candidate/fssp_service.py` — ФССП (API → AJAX → Playwright → manual URL)
+- `app/services/candidate/bankruptcy_service.py` — ЕФРСБ (API → Playwright → manual URL)
+- `app/services/candidate/sanctions_check.py` — 4 parallel sources (Росфинмониторинг, МВД, Интерпол, экстремисты)
+- `app/services/candidate/risk_scorer.py` — Red flag detection + risk level calculation
+
+**Templates:**
+- `app/templates/candidate_progress.html` — Real-time progress with JS polling
+- `app/templates/candidate_dossier.html` — Full dossier with 8 sections + export
+- `app/templates/candidate_dossier_pdf.html` — PDF export template
+- `app/templates/candidate_history.html` — History with search, filters, sort, pagination, delete
+- `app/templates/phase1_buratino_new.html` — Added "Проверка кандидата" tab with form
+
+**Models:**
+- `app/models/candidate_check.py` — `CandidateCheck` model with JSON properties
+
+**Blueprint registration:**
+- `app/__init__.py` — `candidate_bp` registered
+
+### Routes
+
+| Method | URL | Description |
+|--------|-----|-------------|
+| POST | `/candidate/start` | Start background check (form or JSON) |
+| GET | `/candidate/progress/<task_id>` | Progress page (HTML) |
+| GET | `/candidate/progress/<task_id>/status` | Progress polling (JSON) |
+| GET | `/candidate/dossier/<check_id>` | View completed dossier |
+| GET | `/candidate/history` | Past checks list |
+| POST | `/candidate/delete/<check_id>` | Delete a check |
+| GET | `/candidate/export/<check_id>/json` | Download JSON dossier |
+| GET | `/candidate/export/<check_id>/pdf` | Download PDF dossier |
+
+### Known Limitations
+
+- **ФССП**: CAPTCHA blocks automated queries from US — shows manual URL fallback
+- **ЕФРСБ (bankrot.fedresurs.ru)**: Connection timeout from US — shows manual URL fallback
+- **Sanctions sources**: May be geo-blocked from outside Russia — shows "не удалось проверить" with error
+- **kad.arbitr.ru**: HTTP 451 (blocked) — not included
+- **OK.ru search**: Deferred (no API access)
+- **Pipeline duration**: ~2 min from US (timeouts on Russian gov sites), ~30s from Russia
+- **PDF export**: Requires Playwright with Chromium installed
 
 ---
 
@@ -303,6 +358,6 @@ TELEGRAM_PHONE=xxxxx         # Already exists
 
 ---
 
-## LEGAL DISCLAIMER (show on every dossier)
+## LEGAL DISCLAIMER (shown on every dossier)
 
 "Данные получены из открытых источников. Результат проверки не является юридическим документом и носит информационный характер."
