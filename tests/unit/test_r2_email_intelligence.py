@@ -517,11 +517,13 @@ class TestCandidateGeneration:
         candidates = svc._generate_candidates("john", "smith", [])
         assert any("john" in c for c in candidates)
 
-    def test_username_prefix_stripped_in_candidate(self, svc):
+    def test_username_prefix_stripped_in_candidate(self):
         """id12345 -> 12345, and if len>=3 it appears in candidates."""
+        svc = EmailDiscoveryService(max_candidates=100)
         candidates = svc._generate_candidates("ivan", "petrov", ["id12345"])
         emails_str = " ".join(candidates)
         assert "12345" in emails_str
+        svc.close()
 
     def test_many_usernames_capped_at_10(self, svc):
         """Only first 10 usernames are used."""

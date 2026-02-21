@@ -227,12 +227,14 @@ class TestPhoneToEmailChain:
         finally:
             svc.close()
 
-    def test_phone_digits_in_multiple_positions(self, email_svc):
+    def test_phone_digits_in_multiple_positions(self):
         """Phone digits can be prefix in email local part: 916test@mail.ru not generated,
         but pure phone usernames should work."""
-        candidates = email_svc._generate_candidates('Тест', 'Тестов', ['916test'])
+        svc = EmailDiscoveryService(max_candidates=100)
+        candidates = svc._generate_candidates('Тест', 'Тестов', ['916test'])
         # _clean_username keeps '916test' as-is (alpha+digit)
         assert any('916test' in c for c in candidates)
+        svc.close()
 
     def test_empty_usernames_no_crash(self, email_svc):
         """Empty username list should not crash, still generate name-based candidates."""

@@ -389,9 +389,9 @@ class TestNameCandidates:
         ("Наталья", "Новикова", "natalya.novikova"),
         ("Сергей", "Морозов", "sergey.morozov"),
     ])
-    def test_common_russian_names_dot_pattern(self, svc, first, last, expected_local):
+    def test_common_russian_names_dot_pattern(self, uncapped_svc, first, last, expected_local):
         """Common Russian names generate correct dot-separated local part."""
-        result = locals_set(svc, first, last)
+        result = locals_set(uncapped_svc, first, last)
         assert expected_local in result
 
     def test_latin_name_passthrough(self, svc):
@@ -666,9 +666,9 @@ class TestCombinedScenarios:
         assert "ivan.ivanov" in result
         assert "cool_ivan" in result
 
-    def test_name_and_multiple_usernames(self, svc):
+    def test_name_and_multiple_usernames(self, uncapped_svc):
         """Name + multiple usernames all contribute."""
-        result = locals_set(svc, "Иван", "Иванов", ["cool_ivan", "ivan2023"])
+        result = locals_set(uncapped_svc, "Иван", "Иванов", ["cool_ivan", "ivan2023"])
         assert "ivan.ivanov" in result
         assert "cool_ivan" in result
         assert "ivan2023" in result
@@ -723,10 +723,10 @@ class TestCombinedScenarios:
             local = email.split("@")[0]
             assert local == "myhandle"
 
-    def test_complex_scenario_full_pipeline(self, svc):
+    def test_complex_scenario_full_pipeline(self, uncapped_svc):
         """Full scenario: name + varied usernames."""
         result = locals_set(
-            svc, "Дмитрий", "Козлов",
+            uncapped_svc, "Дмитрий", "Козлов",
             ["dimka_koz", "id98765", "dk2023"]
         )
         # Name patterns
