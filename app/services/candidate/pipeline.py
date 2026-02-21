@@ -498,29 +498,46 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             # ══════════════════════════════════════════════
             # STAGE 4: CONTACT ENRICHMENT (~85%)
             # ══════════════════════════════════════════════
-            contacts = {'phones': [], 'emails': []}
-            if check.phone or check.email:
-                task.update('contacts', 'Обогащение контактных данных...', 75)
+            task.update('contacts', 'Поиск контактных данных...', 75)
 
-                if check.phone:
-                    contacts['phones'].append({
-                        'number': check.phone,
-                        'source': 'input',
-                        'verified': False,
-                    })
-                    task.add_message(f'Телефон {check.phone}: добавлен из формы', 'info')
+            try:
+                from app.services.candidate.contact_discovery import ContactDiscoveryService
 
-                if check.email:
-                    contacts['emails'].append({
-                        'address': check.email,
-                        'source': 'input',
-                        'verified': False,
-                    })
-                    task.add_message(f'Email {check.email}: добавлен из формы', 'info')
+                def _run_contact_discovery():
+                    discovery = ContactDiscoveryService()
+                    return discovery.discover(check)
 
+                # Run with 120s timeout
+                with ThreadPoolExecutor(max_workers=1) as cd_pool:
+                    cd_future = cd_pool.submit(_run_contact_discovery)
+                    try:
+                        contacts = cd_future.result(timeout=120)
+                    except Exception as e:
+                        logger.warning(f"Contact discovery timeout/error: {e}")
+                        contacts = {'phones': [], 'emails': []}
+
+                phones = contacts.get('phones', [])
+                emails = contacts.get('emails', [])
+
+                if phones or emails:
+                    task.add_message(
+                        f'Контакты: найдено {len(phones)} тел., {len(emails)} email',
+                        'success',
+                    )
+                    sources_with_results += 1
+                else:
+                    task.add_message('Контакты: дополнительных данных не найдено', 'info')
                 sources_checked += 1
-            else:
-                task.update('contacts', 'Контакты не указаны, пропуск...', 80)
+                task.update(
+                    'contacts',
+                    f'Найдено {len(phones)} тел., {len(emails)} email',
+                    85,
+                )
+            except Exception as e:
+                logger.error(f"Contact discovery error: {e}", exc_info=True)
+                contacts = {'phones': [], 'emails': []}
+                task.add_message('Контакты: ошибка поиска', 'warning')
+                task.update('contacts', 'Ошибка поиска контактов', 85)
 
             check.contact_discoveries = contacts
             db.session.commit()

@@ -716,10 +716,12 @@
     <section id="sec-contacts" class="mb-10">
         <div class="section-header">
             <h2>&#x1F4E7; Обнаруженные контакты</h2>
+            {% set phones = contacts.get('phones', []) if contacts else [] %}
+            {% set emails = contacts.get('emails', []) if contacts else [] %}
+            {% if phones or emails %}
+                <span class="section-count">{{ phones|length }} тел., {{ emails|length }} email</span>
+            {% endif %}
         </div>
-
-        {% set phones = contacts.get('phones', []) if contacts else [] %}
-        {% set emails = contacts.get('emails', []) if contacts else [] %}
 
         {% if not phones and not emails %}
             <div class="empty-state">Дополнительных контактов не обнаружено</div>
@@ -728,9 +730,24 @@
                 <div class="mb-4">
                     <h3 class="text-sm font-medium text-gray-400 mb-2">Телефоны</h3>
                     {% for ph in phones %}
-                        <div class="dossier-card flex items-center justify-between py-3">
-                            <span class="text-sm text-white font-mono">{{ ph.get('number', '') }}</span>
-                            <span class="text-xs text-gray-600">{{ ph.get('source', '') }}</span>
+                        <div class="dossier-card flex items-center justify-between py-3 gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="text-sm text-white font-mono">{{ ph.get('number', '') }}</span>
+                                {% if ph.get('profile_name') %}
+                                    <span class="text-xs text-gray-600 truncate">{{ ph.profile_name }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                {% set pconf = ph.get('confidence', '') %}
+                                {% if pconf == 'высокая' %}
+                                    <span class="status-badge badge-green">высокая</span>
+                                {% elif pconf == 'средняя' %}
+                                    <span class="status-badge badge-yellow">средняя</span>
+                                {% elif pconf == 'низкая' %}
+                                    <span class="status-badge badge-gray">низкая</span>
+                                {% endif %}
+                                <span class="text-xs text-gray-600">{{ ph.get('source', '') }}</span>
+                            </div>
                         </div>
                     {% endfor %}
                 </div>
@@ -739,9 +756,27 @@
                 <div>
                     <h3 class="text-sm font-medium text-gray-400 mb-2">Email</h3>
                     {% for em in emails %}
-                        <div class="dossier-card flex items-center justify-between py-3">
-                            <span class="text-sm text-white font-mono">{{ em.get('address', '') }}</span>
-                            <span class="text-xs text-gray-600">{{ em.get('source', '') }}</span>
+                        <div class="dossier-card flex items-center justify-between py-3 gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="text-sm text-white font-mono truncate">{{ em.get('email', em.get('address', '')) }}</span>
+                                {% if em.get('verified') %}
+                                    <span class="status-badge badge-green">&#x2713; Подтверждён</span>
+                                {% endif %}
+                                {% if em.get('profile_name') and em.get('profile_name') != 'Holehe' %}
+                                    <span class="text-xs text-gray-600 truncate">{{ em.profile_name }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                {% set econf = em.get('confidence', '') %}
+                                {% if econf == 'высокая' %}
+                                    <span class="status-badge badge-green">высокая</span>
+                                {% elif econf == 'средняя' %}
+                                    <span class="status-badge badge-yellow">средняя</span>
+                                {% elif econf == 'низкая' %}
+                                    <span class="status-badge badge-gray">низкая</span>
+                                {% endif %}
+                                <span class="text-xs text-gray-600">{{ em.get('source', '') }}</span>
+                            </div>
                         </div>
                     {% endfor %}
                 </div>
