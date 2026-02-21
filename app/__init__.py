@@ -126,7 +126,7 @@ def create_app(config_name=None):
     @app.errorhandler(500)
     def server_error(e):
         logger.error(f"500 error: {e}", exc_info=True)
-        return render_template('errors/500.html', error=str(e)), 500
+        return render_template('errors/500.html'), 500
 
     # Create database tables
     with app.app_context():

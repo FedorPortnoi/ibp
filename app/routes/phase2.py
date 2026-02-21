@@ -143,8 +143,8 @@ def run_phase2_task(task_id: str, target_photo_path: str = None, fast_mode: bool
         task.add_message(f'Found {len(results.phones)} phones, {len(results.emails)} emails', 'success')
 
     except Exception as e:
-        task.error = str(e)
-        task.add_message(f'Error: {str(e)}', 'error')
+        task.error = 'Внутренняя ошибка сервера'
+        task.add_message('Произошла ошибка при выполнении Phase 2', 'error')
         logger.error(f"Phase 2 task error: {e}", exc_info=True)
 
 
@@ -731,7 +731,7 @@ def start_buratino_analysis(investigation_id):
 
                 except Exception as e:
                     logger.warning(f"VK extraction error: {e}")
-                    task.add_message(f'Ошибка VK API: {str(e)[:50]}', 'warning')
+                    task.add_message('Ошибка VK API', 'warning')
 
                 # ===== STEP 1.5: Demo Mode Contact Generation =====
                 is_demo = not os.environ.get('VK_SERVICE_TOKEN')
@@ -1045,7 +1045,7 @@ def start_buratino_analysis(investigation_id):
 
                 except Exception as e:
                     logger.warning(f"Holehe verification error: {e}")
-                    task.add_message(f'Holehe error: {str(e)[:60]}', 'warning')
+                    task.add_message('Ошибка проверки Holehe', 'warning')
 
                 # ===== STEP 5: Gravatar Check on Verified Emails =====
                 task.add_message('Checking Gravatar profiles...', 'info')
@@ -1218,7 +1218,7 @@ def start_buratino_analysis(investigation_id):
 
                 except Exception as e:
                     logger.warning(f"SourceManager error: {e}", exc_info=True)
-                    task.add_message(f'Breach source error: {str(e)[:80]}', 'warning')
+                    task.add_message('Ошибка поиска по утечкам', 'warning')
 
                 # ===== STEP 5.5: Phone Discovery Service =====
                 task.add_message('Running phone discovery service...', 'info')
@@ -1289,7 +1289,7 @@ def start_buratino_analysis(investigation_id):
 
                 except Exception as e:
                     logger.warning(f"Phone discovery error: {e}")
-                    task.add_message(f'Phone discovery error: {str(e)[:80]}', 'warning')
+                    task.add_message('Ошибка поиска телефонов', 'warning')
 
                 # ===== STEP 6: Extract Friends =====
                 if task.cancelled:
@@ -1377,7 +1377,7 @@ def start_buratino_analysis(investigation_id):
 
             except Exception as e:
                 logger.error(f"Phase 2 analysis error: {e}", exc_info=True)
-                phase2_tasks[task_id].error = str(e)
+                phase2_tasks[task_id].error = 'Внутренняя ошибка сервера'
 
     # Cleanup old completed tasks before adding new ones
     _cleanup_old_tasks(phase2_tasks)

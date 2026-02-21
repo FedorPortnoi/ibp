@@ -254,7 +254,7 @@ def generate():
 
     except Exception as e:
         logger.error(f"Report generation error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @report_bp.route('/download/html', methods=['POST'])
@@ -279,8 +279,8 @@ def download_html():
         )
 
     except Exception as e:
-        logger.error(f"HTML download error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"HTML download error: {e}", exc_info=True)
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @report_bp.route('/download/pdf', methods=['POST'])
@@ -308,8 +308,8 @@ def download_pdf():
         )
 
     except Exception as e:
-        logger.error(f"PDF download error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"PDF download error: {e}", exc_info=True)
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @report_bp.route('/download/json', methods=['POST'])
@@ -354,5 +354,5 @@ def download_json():
         )
 
     except Exception as e:
-        logger.error(f"JSON download error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"JSON download error: {e}", exc_info=True)
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500

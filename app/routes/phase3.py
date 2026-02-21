@@ -132,8 +132,8 @@ def run_phase3_task(task_id: str):
         task.add_message(f'Phase 3 deep investigation complete in {elapsed:.1f}s', 'success')
 
     except Exception as e:
-        task.error = str(e)
-        task.add_message(f'Error: {str(e)}', 'error')
+        task.error = 'Внутренняя ошибка сервера'
+        task.add_message('Произошла ошибка при выполнении Phase 3', 'error')
         logger.error(f"Phase 3 task error: {e}", exc_info=True)
 
 
@@ -471,8 +471,8 @@ def start_buratino_investigation(investigation_id):
 
             except Exception as e:
                 logger.error(f"Buratino Phase 3 error: {e}", exc_info=True)
-                phase3_tasks[task_id].error = str(e)
-                phase3_tasks[task_id].add_message(f'Error: {str(e)}', 'error')
+                phase3_tasks[task_id].error = 'Внутренняя ошибка сервера'
+                phase3_tasks[task_id].add_message('Произошла ошибка при выполнении Phase 3', 'error')
 
     # Cleanup old completed tasks before adding new ones
     _cleanup_old_tasks(phase3_tasks)
