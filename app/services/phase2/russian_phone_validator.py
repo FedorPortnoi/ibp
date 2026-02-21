@@ -143,26 +143,8 @@ class RussianPhoneValidator:
         Returns:
             Normalized phone or original if can't normalize
         """
-        if not phone:
-            return ''
-
-        # Remove all non-digits
-        digits = re.sub(r'\D', '', phone)
-
-        # Handle different formats
-        if len(digits) == 11:
-            if digits.startswith('8'):
-                return '+7' + digits[1:]
-            elif digits.startswith('7'):
-                return '+' + digits
-        elif len(digits) == 10:
-            # Assume Russian mobile starting with 9
-            if digits.startswith('9'):
-                return '+7' + digits
-            else:
-                return '+7' + digits
-
-        return phone  # Return original if can't normalize
+        from app.utils.phone import normalize_phone as _canonical
+        return _canonical(phone)
 
     @staticmethod
     def format_display(phone: str) -> str:
@@ -326,4 +308,5 @@ def extract_phones_from_text(text: str) -> List[PhoneInfo]:
 
 def normalize_phone(phone: str) -> str:
     """Convenience function to normalize a phone."""
-    return RussianPhoneValidator.normalize(phone)
+    from app.utils.phone import normalize_phone as _canonical
+    return _canonical(phone)

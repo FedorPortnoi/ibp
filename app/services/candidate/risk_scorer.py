@@ -235,7 +235,7 @@ class RiskScorer:
             ))
 
         # Total active debt
-        total_active_debt = sum((r.get('amount') or 0) for r in active)
+        total_active_debt = sum(self._safe_number(r.get('amount')) for r in active)
 
         # large_debt vs medium_debt
         if total_active_debt > 500_000:
@@ -398,6 +398,18 @@ class RiskScorer:
         if details:
             flag['details'] = details
         return flag
+
+    @staticmethod
+    def _safe_number(value):
+        """Safely coerce a value to a number for summation. Returns 0 for non-numeric."""
+        if value is None:
+            return 0
+        if isinstance(value, (int, float)):
+            return value
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return 0
 
     @staticmethod
     def _parse_date(date_str):

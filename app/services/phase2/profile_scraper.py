@@ -326,26 +326,8 @@ def scrape_profile(url: str, platform: str) -> ExtractedContacts:
 
 def normalize_phone(phone: str) -> str:
     """Normalize phone number to +7XXXXXXXXXX format."""
-    if not phone:
-        return ""
-
-    # Remove all non-digit characters
-    digits = re.sub(r'\D', '', phone)
-
-    # Handle Russian numbers
-    if len(digits) == 11:
-        if digits.startswith('8'):
-            return '+7' + digits[1:]
-        elif digits.startswith('7'):
-            return '+' + digits
-    elif len(digits) == 10:
-        return '+7' + digits
-
-    # Return with + prefix for international
-    if digits and not phone.startswith('+'):
-        return '+' + digits
-
-    return phone.strip()
+    from app.utils.phone import normalize_phone as _canonical
+    return _canonical(phone)
 
 
 def get_domain(platform: str) -> str:

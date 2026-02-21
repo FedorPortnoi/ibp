@@ -309,13 +309,16 @@ class BuratinoVKSearch:
             pass
 
         # CRITICAL: If first name doesn't match at all, cap the total score.
-        # This prevents "Maxim Kozlov" from matching "Артём Козлов" at 75%.
-        # Threshold 0.45 blocks coincidental overlap (Максим/Артём ≈ 0.36-0.40)
-        # while allowing legitimate variants caught by diminutive check above.
-        if first_score < 0.45:
+        # This prevents false positives like "Максим Козлов" matching "Марк Козлов"
+        # or "Сергей Сидоров" matching "Андрей Сидоров".
+        # Threshold 0.65 blocks coincidental SequenceMatcher overlap:
+        #   Максим/Марк ≈ 0.60, Сергей/Андрей ≈ 0.50, Николай/Никита ≈ 0.62
+        # Legitimate variants are safe: Ё/Е pairs score 1.0 via Latin transliteration,
+        # and diminutive matches are already boosted to 0.90 above.
+        if first_score < 0.65:
             return min(last_score * 50, 45)  # Last-name-only → max 45%
 
-        if last_score < 0.45:
+        if last_score < 0.65:
             return min(first_score * 50, 40)  # First-name-only → max 40%
 
         # Both names match: weighted combination (50/50)

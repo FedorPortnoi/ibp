@@ -414,28 +414,9 @@ class DiscoveredPhone:
 
 
 def normalize_phone(phone: str) -> str:
-    """
-    Normalize phone number to standard format for comparison.
-    Converts various formats to +7XXXXXXXXXX.
-    """
-    # Remove all non-digits
-    digits = re.sub(r'\D', '', phone)
-
-    # Handle different formats
-    if len(digits) == 11:
-        # Russian format: 8XXXXXXXXXX or 7XXXXXXXXXX
-        if digits.startswith('8'):
-            digits = '7' + digits[1:]
-        return '+' + digits
-    elif len(digits) == 10:
-        # Missing country code, assume Russia
-        return '+7' + digits
-    elif len(digits) == 12 and digits.startswith('7'):
-        # Already has +7
-        return '+' + digits
-
-    # Return as-is if we can't normalize
-    return '+' + digits if not phone.startswith('+') else phone
+    """Normalize phone number to standard format for comparison."""
+    from app.utils.phone import normalize_phone as _canonical
+    return _canonical(phone)
 
 
 class PhoneDeduplicator:

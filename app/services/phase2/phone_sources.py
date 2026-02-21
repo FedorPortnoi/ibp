@@ -49,17 +49,8 @@ class PhoneSourceResult:
 
 def normalize_phone(phone: str) -> str:
     """Normalize phone number to E.164 format."""
-    digits = re.sub(r'\D', '', phone)
-
-    if len(digits) == 11 and digits.startswith('8'):
-        digits = '7' + digits[1:]
-    elif len(digits) == 10 and digits.startswith('9'):
-        digits = '7' + digits
-
-    if len(digits) == 11 and digits.startswith('7'):
-        return '+' + digits
-
-    return phone  # Return original if can't normalize
+    from app.utils.phone import normalize_phone as _canonical
+    return _canonical(phone)
 
 
 class GetContactChecker:

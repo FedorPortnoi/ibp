@@ -139,6 +139,10 @@ RUSSIAN_DIMINUTIVES = {
 }
 
 # Transliteration map (Cyrillic to Latin)
+# NOTE: This is a single-output transliteration for email generation.
+# For multi-variant transliteration, see app.services.phase1.transliteration.
+# These maps differ from the canonical module (e.g. ё→'e' here vs ё→'yo' primary there),
+# so they are kept separate to preserve email generation behavior.
 TRANSLIT_MAP = {
     'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd',
     'е': 'e', 'ё': 'e', 'ж': 'zh', 'з': 'z', 'и': 'i',
@@ -164,7 +168,11 @@ TRANSLIT_ALT = {
 
 def transliterate(text: str, use_alt: bool = False) -> str:
     """
-    Convert Cyrillic text to Latin.
+    Convert Cyrillic text to Latin (single-output, for email generation).
+
+    This is a simplified transliteration producing a single deterministic string.
+    For multi-variant transliteration (GOST, BGN/PCGN, passport systems), use
+    ``app.services.phase1.transliteration.transliterate_name_part()``.
 
     Args:
         text: Text to transliterate
