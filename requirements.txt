@@ -48,5 +48,9 @@ bcrypt==4.3.0
 # === Environment & Config ===
 python-dotenv==1.2.1
 
+# === Browser Automation ===
+playwright>=1.40.0
+
 # === Testing ===
 pytest==8.3.5
+pytest-playwright>=0.4.0
