@@ -36,12 +36,19 @@ def investigations_list():
 
     investigations = Investigation.query.order_by(Investigation.created_at.desc()).all()
 
-    # Enhance with confirmed profile data
+    # Enhance with confirmed profile data (single query instead of N+1)
+    inv_ids = [inv.id for inv in investigations]
+    confirmed_profiles = {}
+    if inv_ids:
+        profiles = SocialProfile.query.filter(
+            SocialProfile.investigation_id.in_(inv_ids),
+            SocialProfile.is_confirmed == True
+        ).all()
+        for p in profiles:
+            if p.investigation_id not in confirmed_profiles:
+                confirmed_profiles[p.investigation_id] = p
     for inv in investigations:
-        inv.confirmed_profile_obj = SocialProfile.query.filter_by(
-            investigation_id=inv.id,
-            is_confirmed=True
-        ).first()
+        inv.confirmed_profile_obj = confirmed_profiles.get(inv.id)
 
     return render_template('investigations_list.html', investigations=investigations)
 

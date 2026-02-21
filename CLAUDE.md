@@ -11,6 +11,37 @@ IBP (Identity-Based Profiler) is a multi-phase OSINT investigation platform buil
 3. **Phase 3** (basic structure): Business registry (Rusprofile.ru scraping), court records search (sudact.ru, arbitr.ru), text analysis. Services exist but need VPN for Russian sources.
 4. **Report** (working): HTML identity card generation with confidence scoring, PDF/JSON export routes.
 
+## Platform Constraints
+- This project runs on Windows. NEVER use WeasyPrint, GTK, or Cairo-dependent libraries.
+- For PDF generation: use Playwright (already installed) or reportlab. Never try WeasyPrint or xhtml2pdf.
+- Always verify native dependency compatibility before suggesting any new library.
+- PowerShell escaping differs from bash — test commands before running.
+
+## Web Scraping Strategy
+- Russian government sites (ФССП, ЕФРСБ, Росфинмониторинг, МВД) use aggressive anti-bot measures and geo-blocking.
+- Default to API/AJAX approaches FIRST, not Playwright/browser scraping.
+- If browser scraping is unavoidable, implement CAPTCHA detection with graceful manual-fallback from the start.
+- VK uses SPA rendering — intercept API calls rather than parsing DOM HTML.
+- Assume CAPTCHA will appear. Build the fallback chain upfront: API → AJAX → Playwright → Manual link.
+
+## Git Workflow
+- After completing implementation work, always commit and push unless explicitly told otherwise.
+- Use descriptive commit messages in English with conventional prefixes: feat:, fix:, chore:, docs:.
+
+## Testing
+- Always run the full test suite after making changes.
+- If tests use a database, ensure test isolation — never corrupt the main dev database.
+- After E2E/Playwright tests, verify the dev server still works.
+
+## File Targeting
+- Before editing any template or file, confirm you have the correct filename by checking the route handler or import that references it.
+- This project has multiple similar template files. Never assume — verify first.
+
+## Phone/Name Parsing (Russian)
+- Russian phone numbers come in many formats: +7 (916) 123-45-67, 8-916-123-45-67, +7 916 1234567. Always handle parenthesized area codes.
+- Russian names require bidirectional diminutive matching (Александр ↔ Саша ↔ Шура). Check both directions.
+- Test regex patterns against these edge cases before committing.
+
 ## Commands
 
 ```bash
