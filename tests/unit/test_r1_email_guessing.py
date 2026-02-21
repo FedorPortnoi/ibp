@@ -418,15 +418,15 @@ class TestDomainCoverage:
     """Verify all 9 domains appear in candidates."""
 
     @pytest.mark.parametrize("domain", ALL_DOMAINS)
-    def test_domain_present_for_common_name(self, svc, domain):
+    def test_domain_present_for_common_name(self, uncapped_svc, domain):
         """Each domain appears in candidates for 'Ivan' 'Ivanov'."""
-        result = emails_set(svc, "Иван", "Иванов")
+        result = emails_set(uncapped_svc, "Иван", "Иванов")
         domain_emails = [e for e in result if e.endswith(f"@{domain}")]
         assert len(domain_emails) > 0, f"No candidates for domain {domain}"
 
-    def test_all_9_domains_covered(self, svc):
+    def test_all_9_domains_covered(self, uncapped_svc):
         """All 9 configured domains appear in candidate set."""
-        result = candidates(svc, "Иван", "Иванов")
+        result = candidates(uncapped_svc, "Иван", "Иванов")
         domains_found = {e.split("@")[1] for e in result}
         for domain in ALL_DOMAINS:
             assert domain in domains_found
