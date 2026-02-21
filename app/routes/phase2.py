@@ -22,6 +22,17 @@ logger = logging.getLogger(__name__)
 phase2_tasks = {}
 
 
+def _cleanup_old_tasks(task_store, max_age_seconds=3600):
+    """Remove completed tasks older than max_age_seconds."""
+    now = datetime.now()
+    expired = [
+        task_id for task_id, task in task_store.items()
+        if task.completed_at and (now - task.completed_at).total_seconds() > max_age_seconds
+    ]
+    for task_id in expired:
+        del task_store[task_id]
+
+
 class Phase2TaskStatus:
     """Holds the status of a Phase 2 investigation task."""
 
@@ -193,6 +204,9 @@ def start_investigation():
             elif os.path.exists(target_photo_path):
                 actual_photo_path = target_photo_path
 
+        # Cleanup old completed tasks before adding new ones
+        _cleanup_old_tasks(phase2_tasks)
+
         # Create task
         task_id = uuid.uuid4().hex
         task = Phase2TaskStatus(task_id, target_name, selected_profiles)
@@ -213,7 +227,7 @@ def start_investigation():
 
     except Exception as e:
         logger.error(f"Phase 2 start error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @phase2_bp.route('/progress/<task_id>')
@@ -441,7 +455,7 @@ def investigate_sync():
 
     except Exception as e:
         logger.error(f"Phase 2 investigation error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @phase2_bp.route('/status')
@@ -1365,6 +1379,9 @@ def start_buratino_analysis(investigation_id):
                 logger.error(f"Phase 2 analysis error: {e}", exc_info=True)
                 phase2_tasks[task_id].error = str(e)
 
+    # Cleanup old completed tasks before adding new ones
+    _cleanup_old_tasks(phase2_tasks)
+
     # Create task status
     task = Phase2TaskStatus(task_id, input_name, [])
     task.add_message('Starting Phase 2 analysis...', 'info')
@@ -1411,7 +1428,7 @@ def get_sources_status():
         })
     except Exception as e:
         logger.error(f"Source status error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @phase2_bp.route('/api/telegram/status')
@@ -1438,7 +1455,8 @@ def get_telegram_status():
             },
         })
     except Exception as e:
+        logger.error(f"Telegram status error: {e}", exc_info=True)
         return jsonify({
             'status': 'error',
-            'error': str(e),
+            'error': 'Внутренняя ошибка сервера',
         }), 500

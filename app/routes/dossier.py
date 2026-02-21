@@ -49,7 +49,7 @@ def export_json(investigation_id):
         )
     except Exception as e:
         logger.error(f"Dossier JSON export error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @dossier_bp.route('/<investigation_id>/pdf')

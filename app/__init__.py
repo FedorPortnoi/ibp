@@ -32,7 +32,13 @@ def create_app(config_name=None):
     app = Flask(__name__)
 
     # Load configuration
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production'))
+    secret_key = os.environ.get('SECRET_KEY') or os.environ.get('FLASK_SECRET_KEY')
+    if not secret_key:
+        raise RuntimeError(
+            "SECRET_KEY environment variable is not set. "
+            "Set it in your .env file or environment before running the app."
+        )
+    app.config['SECRET_KEY'] = secret_key
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///ibp.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')

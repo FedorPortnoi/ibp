@@ -50,7 +50,7 @@ def analyze_connections():
         return jsonify(results)
     except Exception as e:
         logger.error(f"Connection analysis error: {e}", exc_info=True)
-        return jsonify({'error': f'Ошибка анализа: {str(e)}'}), 500
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @connections_bp.route('/api/connections/graph-data')
@@ -77,4 +77,4 @@ def graph_data():
         })
     except Exception as e:
         logger.error(f"Graph data error: {e}", exc_info=True)
-        return jsonify({'error': f'Ошибка: {str(e)}'}), 500
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500

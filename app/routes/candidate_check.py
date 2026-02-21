@@ -15,7 +15,7 @@ from flask import Blueprint, render_template, request, jsonify, redirect, url_fo
 
 from app import db
 from app.models.candidate_check import CandidateCheck
-from app.services.candidate.pipeline import candidate_tasks, CandidateTaskStatus, run_candidate_pipeline
+from app.services.candidate.pipeline import candidate_tasks, CandidateTaskStatus, run_candidate_pipeline, cleanup_old_tasks
 
 candidate_bp = Blueprint('candidate', __name__, url_prefix='/candidate')
 logger = logging.getLogger(__name__)
@@ -111,6 +111,9 @@ def start_check():
     db.session.commit()
 
     # --- Start background pipeline ---
+    # Cleanup old completed tasks before adding new ones
+    cleanup_old_tasks(candidate_tasks)
+
     task_id = uuid.uuid4().hex
     task = CandidateTaskStatus(task_id, check_id, full_name)
     candidate_tasks[task_id] = task

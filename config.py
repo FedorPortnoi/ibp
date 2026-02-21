@@ -15,7 +15,12 @@ class Config:
     """Base configuration class."""
     
     # Flask Settings
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'ibp-dev-secret-key-change-in-production'
+    SECRET_KEY = os.environ.get('SECRET_KEY') or os.environ.get('FLASK_SECRET_KEY')
+    if not SECRET_KEY:
+        raise RuntimeError(
+            "SECRET_KEY environment variable is not set. "
+            "Set it in your .env file or environment before running the app."
+        )
     
     # Database Settings
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
@@ -75,8 +80,6 @@ class ProductionConfig(Config):
     """Production configuration."""
     DEBUG = False
     TESTING = False
-    # In production, always use environment variable for secret key
-    SECRET_KEY = os.environ.get('SECRET_KEY')
     SESSION_COOKIE_SECURE = False  # Render handles HTTPS at edge
 
 

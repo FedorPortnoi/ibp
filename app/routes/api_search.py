@@ -92,7 +92,7 @@ def search_vk():
             'status': 'error',
             'count': 0,
             'profiles': [],
-            'errors': [f'Ошибка поиска VK: {str(e)}'],
+            'errors': ['Ошибка поиска VK'],
         })
 
 
@@ -155,7 +155,7 @@ def search_telegram():
             'status': 'error',
             'count': 0,
             'profiles': [],
-            'errors': [f'Ошибка поиска Telegram: {str(e)}'],
+            'errors': ['Ошибка поиска Telegram'],
         })
 
 
@@ -242,4 +242,4 @@ def save_selection():
 
     except Exception as e:
         logger.error(f"Save selection error: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({'success': False, 'error': 'Внутренняя ошибка сервера'})

@@ -2,8 +2,11 @@
 Phase 4 routes: Graph visualization, People search, Connection analysis.
 Agent 6 - Frontend/Database
 """
+import logging
 from flask import Blueprint, render_template, jsonify, request
 from app import db
+
+logger = logging.getLogger(__name__)
 
 phase4_bp = Blueprint('phase4', __name__)
 
@@ -63,9 +66,9 @@ def api_people_search():
         })
     except Exception as e:
         import traceback
+        logger.error(f"People search error: {traceback.format_exc()}")
         return jsonify({
-            'error': str(e),
-            'traceback': traceback.format_exc(),
+            'error': 'Внутренняя ошибка сервера',
             'profiles': [],
             'stats': {
                 'total_found': 0,
@@ -95,12 +98,13 @@ def show_graph(investigation_id):
             '''.format(investigation_id), 404
         return render_template('graph.html', investigation=investigation)
     except Exception as e:
+        logger.error(f"Graph load error for investigation {investigation_id}: {e}", exc_info=True)
         return f'''
         <html>
         <head><title>Ошибка</title></head>
         <body style="background:#1a1a2e;color:#eee;font-family:sans-serif;padding:40px;">
             <h1>Ошибка загрузки графа</h1>
-            <p>{e}</p>
+            <p>Внутренняя ошибка сервера</p>
             <a href="/search/people" style="color:#e94560;">Назад к поиску</a>
         </body>
         </html>
@@ -163,8 +167,9 @@ def get_graph_data(investigation_id):
         })
 
     except Exception as e:
+        logger.error(f"Graph data error for investigation {investigation_id}: {e}", exc_info=True)
         return jsonify({
-            'error': str(e),
+            'error': 'Внутренняя ошибка сервера',
             'nodes': [],
             'edges': []
         }), 500
@@ -182,7 +187,8 @@ def get_connections(investigation_id):
             'count': len(connections)
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Get connections error: {e}", exc_info=True)
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @phase4_bp.route('/api/investigation/<investigation_id>/connections', methods=['POST'])
@@ -233,7 +239,8 @@ def add_connection(investigation_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Add connection error: {e}", exc_info=True)
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @phase4_bp.route('/api/connections/<int:connection_id>', methods=['DELETE'])
@@ -249,4 +256,5 @@ def delete_connection(connection_id):
         return jsonify({'success': True, 'deleted_id': connection_id})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Delete connection error: {e}", exc_info=True)
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500

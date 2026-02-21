@@ -21,6 +21,17 @@ logger = logging.getLogger(__name__)
 phase3_tasks = {}
 
 
+def _cleanup_old_tasks(task_store, max_age_seconds=3600):
+    """Remove completed tasks older than max_age_seconds."""
+    now = datetime.now()
+    expired = [
+        task_id for task_id, task in task_store.items()
+        if task.completed_at and (now - task.completed_at).total_seconds() > max_age_seconds
+    ]
+    for task_id in expired:
+        del task_store[task_id]
+
+
 class Phase3TaskStatus:
     """Holds the status of a Phase 3 investigation task."""
 
@@ -144,6 +155,9 @@ def start_investigation():
         if not target_name:
             return jsonify({'error': 'Имя объекта обязательно'}), 400
 
+        # Cleanup old completed tasks before adding new ones
+        _cleanup_old_tasks(phase3_tasks)
+
         # Create task
         task_id = uuid.uuid4().hex
         task = Phase3TaskStatus(task_id, data)
@@ -161,7 +175,7 @@ def start_investigation():
 
     except Exception as e:
         logger.error(f"Phase 3 start error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @phase3_bp.route('/progress/<task_id>')
@@ -216,8 +230,8 @@ def api_business_search():
         })
 
     except Exception as e:
-        logger.error(f"Business search API error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Business search API error: {e}", exc_info=True)
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @phase3_bp.route('/api/court-search', methods=['POST'])
@@ -240,8 +254,8 @@ def api_court_search():
         })
 
     except Exception as e:
-        logger.error(f"Court search API error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Court search API error: {e}", exc_info=True)
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @phase3_bp.route('/api/geo-extract', methods=['POST'])
@@ -265,8 +279,8 @@ def api_geo_extract():
         })
 
     except Exception as e:
-        logger.error(f"Geo extraction API error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Geo extraction API error: {e}", exc_info=True)
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @phase3_bp.route('/api/text-analyze', methods=['POST'])
@@ -292,8 +306,8 @@ def api_text_analyze():
         })
 
     except Exception as e:
-        logger.error(f"Text analysis API error: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Text analysis API error: {e}", exc_info=True)
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 
 # ============================================
@@ -459,6 +473,9 @@ def start_buratino_investigation(investigation_id):
                 logger.error(f"Buratino Phase 3 error: {e}", exc_info=True)
                 phase3_tasks[task_id].error = str(e)
                 phase3_tasks[task_id].add_message(f'Error: {str(e)}', 'error')
+
+    # Cleanup old completed tasks before adding new ones
+    _cleanup_old_tasks(phase3_tasks)
 
     # Create task
     task = Phase3TaskStatus(task_id, {
