@@ -15,6 +15,8 @@ import re
 import logging
 import time
 
+from app.services.phase1.transliteration import transliterate
+
 logger = logging.getLogger(__name__)
 
 # Russian email domains (ordered by popularity)
@@ -137,61 +139,6 @@ RUSSIAN_DIMINUTIVES = {
     'viktoriya': ['vika', 'vikochka', 'vic'],
     'yuliya': ['yulya', 'yulechka', 'julia'],
 }
-
-# Transliteration map (Cyrillic to Latin)
-# NOTE: This is a single-output transliteration for email generation.
-# For multi-variant transliteration, see app.services.phase1.transliteration.
-# These maps differ from the canonical module (e.g. ё→'e' here vs ё→'yo' primary there),
-# so they are kept separate to preserve email generation behavior.
-TRANSLIT_MAP = {
-    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd',
-    'е': 'e', 'ё': 'e', 'ж': 'zh', 'з': 'z', 'и': 'i',
-    'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n',
-    'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't',
-    'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch',
-    'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '',
-    'э': 'e', 'ю': 'yu', 'я': 'ya'
-}
-
-# Alternative transliteration for common variations
-TRANSLIT_ALT = {
-    'ж': 'j',
-    'х': 'h',
-    'ц': 'c',
-    'ч': 'tch',
-    'ш': 'sch',
-    'щ': 'sh',
-    'ю': 'iu',
-    'я': 'ia'
-}
-
-
-def transliterate(text: str, use_alt: bool = False) -> str:
-    """
-    Convert Cyrillic text to Latin (single-output, for email generation).
-
-    This is a simplified transliteration producing a single deterministic string.
-    For multi-variant transliteration (GOST, BGN/PCGN, passport systems), use
-    ``app.services.phase1.transliteration.transliterate_name_part()``.
-
-    Args:
-        text: Text to transliterate
-        use_alt: Use alternative transliteration rules
-
-    Returns:
-        Transliterated text
-    """
-    translit_map = TRANSLIT_ALT if use_alt else TRANSLIT_MAP
-    result = ''
-    for char in text.lower():
-        if char in translit_map:
-            result += translit_map[char]
-        elif char in TRANSLIT_MAP:
-            result += TRANSLIT_MAP[char]
-        else:
-            result += char
-    return result
-
 
 def is_cyrillic(text: str) -> bool:
     """Check if text contains Cyrillic characters."""

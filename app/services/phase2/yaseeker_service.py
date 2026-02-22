@@ -410,7 +410,7 @@ def search_yandex_by_name(first_name: str, last_name: str) -> List[YandexAccount
     Returns:
         List of found YandexAccount objects
     """
-    from .email_generator import transliterate
+    from app.services.phase1.transliteration import transliterate
 
     found_accounts = []
     service = YaSeekerService()

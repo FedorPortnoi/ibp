@@ -186,6 +186,58 @@ def _transliterate_word(word: str) -> List[str]:
     return variants if variants else [word.lower()]
 
 
+# ── Single-output transliteration (for email generation) ──────────
+# Deterministic char→char mapping, no multi-variant expansion.
+
+_SIMPLE_MAP = {
+    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd',
+    'е': 'e', 'ё': 'e', 'ж': 'zh', 'з': 'z', 'и': 'i',
+    'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n',
+    'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't',
+    'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch',
+    'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '',
+    'э': 'e', 'ю': 'yu', 'я': 'ya'
+}
+
+_SIMPLE_ALT = {
+    'ж': 'j',
+    'х': 'h',
+    'ц': 'c',
+    'ч': 'tch',
+    'ш': 'sch',
+    'щ': 'sh',
+    'ю': 'iu',
+    'я': 'ia'
+}
+
+
+def transliterate(text: str, use_alt: bool = False) -> str:
+    """
+    Convert Cyrillic text to Latin (single-output, for email generation).
+
+    This is a simplified transliteration producing a single deterministic string.
+    For multi-variant transliteration (GOST, BGN/PCGN, passport systems), use
+    ``transliterate_name_part()`` or ``transliterate_russian()``.
+
+    Args:
+        text: Text to transliterate
+        use_alt: Use alternative transliteration rules
+
+    Returns:
+        Transliterated text
+    """
+    translit_map = _SIMPLE_ALT if use_alt else _SIMPLE_MAP
+    result = ''
+    for char in text.lower():
+        if char in translit_map:
+            result += translit_map[char]
+        elif char in _SIMPLE_MAP:
+            result += _SIMPLE_MAP[char]
+        else:
+            result += char
+    return result
+
+
 def generate_username_patterns(first_lat: str, last_lat: str) -> List[str]:
     """
     Generate common VK/social media username patterns from transliterated name parts.

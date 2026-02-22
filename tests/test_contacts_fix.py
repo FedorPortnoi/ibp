@@ -970,7 +970,7 @@ class TestEmailGeneration:
 
     def test_cyrillic_transliteration(self):
         """Cyrillic names should be transliterated to Latin."""
-        from app.services.phase2.email_generator import transliterate
+        from app.services.phase1.transliteration import transliterate
 
         assert transliterate('даниил') == 'daniil'
         assert transliterate('глазков') == 'glazkov'

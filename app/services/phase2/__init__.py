@@ -9,7 +9,8 @@ NEW in v2.0:
 - VK API Extractor: API-based contact extraction from VK
 """
 
-from .email_generator import generate_email_candidates, transliterate, generate_from_username
+from app.services.phase1.transliteration import transliterate
+from .email_generator import generate_email_candidates, generate_from_username
 from .profile_scraper import scrape_profile, ExtractedContacts
 from .gravatar_lookup import check_gravatar, GravatarProfile
 from .holehe_service import check_email_sync, HoleheResults, EmailRegistration
