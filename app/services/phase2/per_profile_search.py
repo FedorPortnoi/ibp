@@ -44,6 +44,7 @@ from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
 
+from app.utils.phone import normalize_phone
 from .russian_phone_validator import RussianPhoneValidator, PhoneInfo
 from .profile_scraper import scrape_profile
 from .phone_discovery import PhoneDiscoveryService
@@ -411,12 +412,6 @@ class DiscoveredPhone:
 
         self.confidence_score = max(0.0, min(1.0, base_score))
         return self.confidence_score
-
-
-def normalize_phone(phone: str) -> str:
-    """Normalize phone number to standard format for comparison."""
-    from app.utils.phone import normalize_phone as _canonical
-    return _canonical(phone)
 
 
 class PhoneDeduplicator:

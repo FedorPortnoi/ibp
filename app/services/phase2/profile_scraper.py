@@ -12,6 +12,7 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 import logging
 
+from app.utils.phone import normalize_phone
 from .url_validator import (
     is_valid_profile_url,
     is_reserved_username,
@@ -322,12 +323,6 @@ def scrape_profile(url: str, platform: str) -> ExtractedContacts:
     logger.info(f"Profile scrape complete for {url}: {len(result.phones)} phones, {len(result.emails)} emails, {len(result.other_socials)} socials")
 
     return result
-
-
-def normalize_phone(phone: str) -> str:
-    """Normalize phone number to +7XXXXXXXXXX format."""
-    from app.utils.phone import normalize_phone as _canonical
-    return _canonical(phone)
 
 
 def get_domain(platform: str) -> str:

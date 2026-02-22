@@ -28,6 +28,8 @@ import base64
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 import requests
+
+from app.utils.phone import normalize_phone
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
@@ -45,12 +47,6 @@ class PhoneSourceResult:
     confidence: float = 0.0
     details: Dict = field(default_factory=dict)
     error: Optional[str] = None
-
-
-def normalize_phone(phone: str) -> str:
-    """Normalize phone number to E.164 format."""
-    from app.utils.phone import normalize_phone as _canonical
-    return _canonical(phone)
 
 
 class GetContactChecker:

@@ -29,12 +29,12 @@ from .url_validator import (
 )
 
 # NEW: Enhanced services from Phase 2 research
+from app.utils.phone import normalize_phone
 from .russian_phone_validator import (
     RussianPhoneValidator,
     PhoneInfo,
     validate_phone,
     extract_phones_from_text,
-    normalize_phone,
 )
 from .mailcat_discovery import (
     MailcatEmailDiscovery,

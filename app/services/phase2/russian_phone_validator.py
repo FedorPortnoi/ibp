@@ -12,6 +12,8 @@ import re
 from typing import Dict, Optional, List, Tuple
 from dataclasses import dataclass
 
+from app.utils.phone import normalize_phone
+
 
 @dataclass
 class PhoneInfo:
@@ -143,8 +145,7 @@ class RussianPhoneValidator:
         Returns:
             Normalized phone or original if can't normalize
         """
-        from app.utils.phone import normalize_phone as _canonical
-        return _canonical(phone)
+        return normalize_phone(phone)
 
     @staticmethod
     def format_display(phone: str) -> str:
@@ -306,7 +307,3 @@ def extract_phones_from_text(text: str) -> List[PhoneInfo]:
     return validator.extract_phones(text)
 
 
-def normalize_phone(phone: str) -> str:
-    """Convenience function to normalize a phone."""
-    from app.utils.phone import normalize_phone as _canonical
-    return _canonical(phone)

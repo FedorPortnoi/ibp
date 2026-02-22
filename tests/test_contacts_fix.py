@@ -580,7 +580,7 @@ class TestPhoneRegexPatterns:
 
     def test_normalize_function(self):
         """Test standalone normalize function."""
-        from app.services.phase2.russian_phone_validator import normalize_phone
+        from app.utils.phone import normalize_phone
 
         assert normalize_phone('89991234567') == '+79991234567'
         assert normalize_phone('+79991234567') == '+79991234567'
