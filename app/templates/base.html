@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}IBP - Профайлер личности{% endblock %}</title>
 
     <!-- Google Fonts -->
@@ -68,6 +69,31 @@
     </script>
 
     {% block head %}{% endblock %}
+
+    <!-- CSRF protection for all AJAX requests -->
+    <script>
+    (function() {
+        const origFetch = window.fetch;
+        window.fetch = function(url, options) {
+            options = options || {};
+            const method = (options.method || 'GET').toUpperCase();
+            if (method !== 'GET' && method !== 'HEAD') {
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                if (csrfMeta) {
+                    options.headers = options.headers || {};
+                    if (options.headers instanceof Headers) {
+                        if (!options.headers.has('X-CSRFToken')) {
+                            options.headers.set('X-CSRFToken', csrfMeta.getAttribute('content'));
+                        }
+                    } else {
+                        options.headers['X-CSRFToken'] = options.headers['X-CSRFToken'] || csrfMeta.getAttribute('content');
+                    }
+                }
+            }
+            return origFetch.call(this, url, options);
+        };
+    })();
+    </script>
 </head>
 <body class="min-h-screen">
     <!-- Navigation -->

@@ -461,6 +461,7 @@
         <div class="flex gap-3 justify-end">
             <button onclick="closeDeleteModal()" class="filter-btn">Отмена</button>
             <form id="delete-form" method="POST" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <button type="submit" class="filter-btn" style="background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.3); color:#f87171;">
                     Удалить
                 </button>

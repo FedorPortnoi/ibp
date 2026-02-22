@@ -382,6 +382,7 @@
 
             <!-- Candidate Form -->
             <form id="candidate-form" action="/candidate/start" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="search-card">
                     <!-- Row 1: Name + DOB -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">

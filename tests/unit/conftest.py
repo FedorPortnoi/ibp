@@ -16,4 +16,5 @@ def app():
     from app import create_app
     app = create_app()
     app.config['TESTING'] = True
+    app.config['WTF_CSRF_ENABLED'] = False
     yield app

@@ -9,6 +9,7 @@ import logging
 from flask import Flask, render_template, session, redirect, url_for, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_wtf.csrf import CSRFProtect
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -17,6 +18,7 @@ load_dotenv()
 # Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
+csrf = CSRFProtect()
 
 logger = logging.getLogger('ibp')
 
@@ -56,12 +58,17 @@ def create_app(config_name=None):
         app.config['DEBUG'] = False
         app.config['TESTING'] = False
         app.config['SESSION_COOKIE_SECURE'] = False  # Render handles HTTPS at edge
+    elif config_name == 'testing':
+        app.config['DEBUG'] = True
+        app.config['TESTING'] = True
+        app.config['WTF_CSRF_ENABLED'] = False
     else:
         app.config['DEBUG'] = True
 
     # Initialize extensions with app
     db.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
 
     # Create required directories
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
