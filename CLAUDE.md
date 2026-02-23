@@ -1,41 +1,184 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this repository.
 
 ## Project Overview
 
-IBP (Identity-Based Profiler) is a multi-phase OSINT investigation platform built with Flask, optimized for Russian social networks. It follows a "Buratino-style" person-first workflow with 16 route blueprints, 60+ endpoints, 35+ service classes, and 27 templates.
+IBP (Identity-Based Profiler) is a unified OSINT investigation platform for Russian-speaking targets. The core feature is a **single 8-stage Candidate Check pipeline** that runs background checks by searching government registries, social networks, breach databases, and behavioral signals.
+
+- **Primary flow**: Candidate Check (`/candidate/start`) — 8-stage automated pipeline
+- **Legacy flow**: People Search (Buratino) — 3-phase manual investigation (routes still work, deprecated)
+- **Stack**: Python Flask + SQLite + Playwright + VK API + Tailwind CSS
+- **Deployment**: Render free tier, Frankfurt region (ibp-osint.onrender.com)
+- **Branch**: `merge-buratino` = current work, `main` = stable
 
 ## Platform Constraints
-- This project runs on Windows. NEVER use WeasyPrint, GTK, or Cairo-dependent libraries.
-- For PDF generation: use Playwright (already installed) or reportlab. Never try WeasyPrint or xhtml2pdf.
+
+- This project runs on **Windows**. NEVER use WeasyPrint, GTK, or Cairo-dependent libraries.
+- For PDF generation: use **Playwright** (installed) or **reportlab**. Never try WeasyPrint or xhtml2pdf.
 - Always verify native dependency compatibility before suggesting any new library.
-- PowerShell escaping differs from bash — test commands before running.
 
-## Web Scraping Strategy
-- Russian government sites (ФССП, ЕФРСБ, Росфинмониторинг, МВД) use aggressive anti-bot measures and geo-blocking.
-- Default to API/AJAX approaches FIRST, not Playwright/browser scraping.
-- If browser scraping is unavoidable, implement CAPTCHA detection with graceful manual-fallback from the start.
-- VK uses SPA rendering — intercept API calls rather than parsing DOM HTML.
-- Assume CAPTCHA will appear. Build the fallback chain upfront: API → AJAX → Playwright → Manual link.
+## The 8-Stage Pipeline
 
-## Git Workflow
-- After completing implementation work, always commit and push unless explicitly told otherwise.
-- Use descriptive commit messages in English with conventional prefixes: feat:, fix:, chore:, docs:.
+The pipeline lives in `app/services/candidate/pipeline.py`:
 
-## Testing
-- Always run the full test suite after making changes.
-- If tests use a database, ensure test isolation — never corrupt the main dev database.
-- After E2E/Playwright tests, verify the dev server still works.
+| Stage | Name | % | Key Service | What It Does |
+|-------|------|---|-------------|-------------|
+| 1 | Government Registries | 0-15 | `bankruptcy_service.py`, `fssp_service.py` + phase3 services | EGRUL business registry, courts (sudact.ru), FSSP enforcement, EFRSB bankruptcy |
+| 2 | Security Checks | 15-25 | `sanctions_check.py` | Rosfinmonitoring, MVD wanted, Interpol, extremist list |
+| 3 | Social Media Discovery | 25-40 | `phase1/buratino_vk_search.py`, `phase1/telegram_discovery.py` | VK People Search (4 strategies), Telegram (3 methods). **Precise mode**: pauses here for profile confirmation |
+| 4 | Contact Discovery | 40-55 | `contact_discovery.py` | 9-step chain: VK extraction, Telegram cross-ref, email generation, Holehe, breach APIs (HudsonRock, LeakCheck, ProxyNova) |
+| 5 | Deep Social Analysis | 55-70 | `social_analysis.py` | Search4Faces (3 DBs), social graph (NetworkX + Louvain), Snoop (5,372 sites), YaSeeker. Feedback loop: new accounts re-enter Stage 4 |
+| 6 | Behavioral Intelligence | 70-82 | `behavioral_analysis.py` | VK wall text analysis (sentiment/keywords), geo extraction (100 Russian cities), activity timeline |
+| 7 | Risk Scoring | 82-92 | `risk_scorer.py` | 8-category dimensional scoring → CLEAN/LOW/MEDIUM/HIGH/CRITICAL |
+| 8 | Report Generation | 92-100 | `report_builder.py` | Compiles dossier with all stage data, identity card, social graph, geo map, PDF/JSON export |
 
-## File Targeting
-- Before editing any template or file, confirm you have the correct filename by checking the route handler or import that references it.
-- This project has multiple similar template files. Never assume — verify first.
+### Quick vs Precise Mode
 
-## Phone/Name Parsing (Russian)
-- Russian phone numbers come in many formats: +7 (916) 123-45-67, 8-916-123-45-67, +7 916 1234567. Always handle parenthesized area codes.
-- Russian names require bidirectional diminutive matching (Александр ↔ Саша ↔ Шура). Check both directions.
-- Test regex patterns against these edge cases before committing.
+- **Quick** (default): Runs all 8 stages without pausing. Uses all social profiles found.
+- **Precise**: Pauses after Stage 3. Shows found VK/Telegram profiles for user confirmation. Resumes with confirmed profiles only.
+
+### Demo Mode
+
+When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social graph returns 8 fake friends. All other services degrade gracefully (return empty results, not fake data). Currently VK_SERVICE_TOKEN **is set**, so real data flows.
+
+## Key Files (most important first)
+
+| File | Purpose |
+|------|---------|
+| `app/services/candidate/pipeline.py` | 8-stage orchestrator, CandidateTaskStatus, progress tracking |
+| `app/models/candidate_check.py` | Main model (~30 fields), JSON property getters/setters for all stages |
+| `app/routes/candidate_check.py` | All endpoints: /start, /progress, /confirm, /dossier, /export |
+| `app/services/candidate/social_analysis.py` | Stage 5: face search + social graph + Snoop + YaSeeker |
+| `app/services/candidate/behavioral_analysis.py` | Stage 6: text analysis + geo extraction + timeline |
+| `app/services/candidate/contact_discovery.py` | Stage 4: 9-step chain + supplementary discovery for feedback loop |
+| `app/services/candidate/risk_scorer.py` | Stage 7: 8 risk categories, severity levels, composite scoring |
+| `app/services/candidate/report_builder.py` | Stage 8: compiles all data into report structure |
+| `app/services/candidate/bankruptcy_service.py` | Stage 1: EFRSB API + Playwright fallback |
+| `app/services/candidate/sanctions_check.py` | Stage 2: 4 sanctions lists |
+| `app/services/candidate/fssp_service.py` | Stage 1: 4-tier fallback (API → AJAX → Playwright → manual URL) |
+| `app/services/phase1/buratino_vk_search.py` | VK search engine (4 strategies), used by Stage 3 |
+| `app/services/phase1/telegram_discovery.py` | Telegram search (3 methods), used by Stage 3 |
+| `config.py` | DevelopmentConfig / ProductionConfig / TestingConfig |
+| `run.py` | Flask server entry point |
+
+## Data Sources Status
+
+### Stage 1: Government Registries
+| Source | Status | Notes |
+|--------|--------|-------|
+| nalog.ru EGRUL | WORKS | Free government API, 2-step token flow, ~20 results/name |
+| sudact.ru courts | WORKS | Playwright scraping, 8-10 cases/name, ~5s |
+| FSSP enforcement | BROKEN | API has SSL errors; manual URL fallback works. Needs FSSP_API_TOKEN + Russian IP |
+| EFRSB bankruptcy | WORKS | bankrot.fedresurs.ru API + Playwright fallback |
+| Rusprofile.ru | WORKS | Fallback for EGRUL. Uses `type=fl` person search |
+| kad.arbitr.ru | GEO-BLOCKED | HTTP 451, manual URL only |
+
+### Stage 2: Security Checks
+| Source | Status | Notes |
+|--------|--------|-------|
+| Rosfinmonitoring | WORKS | Web scraping, needs Russian IP for best results |
+| MVD Wanted | WORKS | Web scraping |
+| Interpol | WORKS | REST API, works globally |
+| Extremist list | WORKS | Web scraping, needs Russian IP |
+
+### Stage 3: Social Media
+| Source | Status | Notes |
+|--------|--------|-------|
+| VK People Search | WORKS | 4 strategies via buratino_vk_search. Needs VK_SERVICE_TOKEN (set) |
+| Telegram | WORKS | 3 methods. Needs TELEGRAM_API_ID/HASH/PHONE (set) |
+| Yandex People | DEMO | Playwright + CAPTCHA detection. Called from pipeline but may timeout |
+
+### Stage 4: Contact Discovery
+| Source | Status | Notes |
+|--------|--------|-------|
+| VK profile extraction | WORKS | users.get API, needs VK token |
+| Email pattern generation | WORKS | Low confidence (0.30-0.40) |
+| Holehe verification | WORKS | 120+ services, ~25s per email. CPU-intensive |
+| HudsonRock Cavalier | WORKS | Free, no API key. Infostealer logs |
+| LeakCheck Public | WORKS | Free, no key. 12B+ records |
+| ProxyNova COMB | WORKS | Free, no key. 3.2B email:password pairs |
+| HIBP Pwned Passwords | WORKS | Free, k-anonymity |
+| Snusbase | STUB | Needs SNUSBASE_API_KEY ($5-16/mo) |
+| DeHashed | STUB | Needs DEHASHED_EMAIL + DEHASHED_API_KEY ($5.49/mo) |
+| GetContact | STUB | Needs rooted Android credentials |
+| NumBuster | STUB | Needs NUMBUSTER_API_KEY |
+| Local LeakDB | WORKS | SQLite at data/leaks/all_leaks.db, needs CSV import via scripts/load_leaks.py |
+
+### Stage 5: Social Analysis
+| Source | Status | Notes |
+|--------|--------|-------|
+| Search4Faces | WORKS | Free unlimited, 3 databases (vkok, vk01, vkokn) |
+| Social graph | WORKS | VK friends → NetworkX → Louvain → vis.js |
+| Snoop username search | WORKS | 5,372 sites, Russian-filtered. Subprocess at C:\Users\fedor\osint_tools\snoop |
+| YaSeeker | WORKS | Yandex Collections, Dzen, Music |
+
+### Stage 6: Behavioral Analysis
+| Source | Status | Notes |
+|--------|--------|-------|
+| Text analysis | WORKS | VK wall post sentiment/keywords/topics |
+| Geo extraction | WORKS | 100 hardcoded Russian cities + postal codes |
+| Activity timeline | WORKS | Post timestamps + check events |
+
+### Stage 7-8: Scoring & Reports
+| Component | Status |
+|-----------|--------|
+| 8-category risk scorer | WORKS |
+| HTML dossier | WORKS |
+| PDF export (Playwright) | WORKS |
+| JSON export | WORKS |
+
+## API Keys & Environment Variables
+
+```bash
+# === REQUIRED ===
+SECRET_KEY=...                  # Flask session secret (REQUIRED)
+
+# === VK API (enables real data in Stages 3-5) ===
+VK_SERVICE_TOKEN=...            # Primary VK token. Demo mode if unset. Currently SET.
+VK_APP_ID=...                   # For OAuth refresh flow. Currently SET.
+VK_TOKEN=...                    # User token (expires 24h), alternative to service token
+VK_LOGIN=...                    # VK web login (fallback for web search)
+VK_LOGIN_EMAIL=...              # VK email for auto-login
+VK_PASSWORD=...                 # VK password for auto-login
+
+# === TELEGRAM (enables Stage 3 Telegram search) ===
+TELEGRAM_API_ID=...             # From my.telegram.org/apps. Currently SET.
+TELEGRAM_API_HASH=...           # Currently SET.
+TELEGRAM_PHONE=...              # Currently SET.
+
+# === OPTIONAL ===
+FSSP_API_TOKEN=...              # FSSP enforcement API (Russian IP required). Manual fallback works without.
+IBP_PASSWORD=...                # App login password. App runs without auth if unset.
+IBP_PASSWORD_HASH=...           # bcrypt hash alternative. Takes precedence.
+IBP_SESSION_TIMEOUT=3600        # Session timeout seconds
+IBP_SESSION_REMEMBER=2592000    # "Remember me" timeout seconds
+
+# === PAID BREACH APIs (stubs ready) ===
+SNUSBASE_API_KEY=...            # $5-16/mo
+DEHASHED_EMAIL=...              # $5.49/mo
+DEHASHED_API_KEY=...
+LEAKCHECK_API_KEY=...
+
+# === PAID PHONE LOOKUP (stubs ready) ===
+GETCONTACT_TOKEN=...            # Needs rooted Android
+GETCONTACT_AES_KEY=...
+GETCONTACT_DEVICE_ID=...
+NUMBUSTER_API_KEY=...
+HIMERA_API_KEY=...
+
+# === PAID EMAIL APIs (stubs ready) ===
+HUNTER_API_KEY=...              # Free tier: 25/month
+EMAILREP_API_KEY=...
+SNOV_CLIENT_ID=...
+SNOV_CLIENT_SECRET=...
+
+# === OTHER ===
+GITHUB_TOKEN=...                # GitHub profile lookups
+INFOTRACKPEOPLE_API_KEY=...
+DATABASE_URL=...                # Default: sqlite:///ibp.db
+FLASK_ENV=development           # development / production / testing
+```
 
 ## Commands
 
@@ -46,356 +189,140 @@ python run.py
 # Install dependencies
 pip install -r requirements.txt
 
-# Run tests
-python -m pytest tests/ -v
+# Run tests (use -p no:faulthandler on Windows to avoid capture bugs)
+python -m pytest tests/ -v -p no:faulthandler
 
-# Load leak data
+# Run specific test file
+python -m pytest tests/test_candidate_unified.py -v -p no:faulthandler
+
+# Load leak data into local DB
 python scripts/load_leaks.py vk_2012 ./data/raw/vk_2012.csv
 python scripts/load_leaks.py getcontact ./data/raw/getcontact.jsonl --dedup
 python scripts/load_leaks.py telco ./data/raw/beeline.csv --carrier beeline
 ```
 
----
+## Test Infrastructure
 
-## Complete Feature Inventory
+- **61 test files**, **~2,814 test functions**, **36,410 lines** of test code
+- Located in `tests/` with subdirectories: `unit/`, `e2e/`, and root-level integration tests
+- E2E tests use Playwright browser automation
+- Unit tests mock external services
+- Stress tests in `test_r3_*.py` (API chaos, unicode attacks, extreme load, type attacks)
+- Integration tests for the full 8-stage pipeline in `test_candidate_unified.py`
 
-### Phase 1: People Search
+```bash
+# Run all tests
+python -m pytest tests/ -v -p no:faulthandler
 
-**VK People Search** (`app/services/phase1/buratino_vk_search.py`)
-- VK API `users.search` with city/age/education filters
-- Demo mode (3 fake profiles) when `VK_SERVICE_TOKEN` not set; real VK profiles when set
-- Fake-profile filtering via set intersection of formal name roots
+# Run just unit tests
+python -m pytest tests/unit/ -v -p no:faulthandler
 
-**Fuzzy Name Matching** (`app/services/phase1/fuzzy_matching.py`)
-- `verify_profile_name_matches_query()` — set intersection of formal roots
-- Confidence scoring based on similarity ratio
+# Run E2E (needs dev server running)
+python -m pytest tests/e2e/ -v -p no:faulthandler
+```
 
-**Russian Diminutives** (`app/services/phase1/russian_diminutives.py`)
-- 60+ bidirectional Russian name mappings (Александр ↔ Саша ↔ Шура)
-- Patronymic variation handling
-
-**Transliteration** (`app/services/phase1/transliteration.py`)
-- Multi-system Cyrillic/Latin: GOST 7.79-2000, GOST R 52290-2004, BGN/PCGN
-- Canonical single output used throughout Phase 1/2
-- Handles Ukrainian, Belarusian, Kazakh characters
-
-**Telegram Discovery** (`app/services/phase1/telegram_discovery.py`)
-- 3 methods: Direct Telegram API search, Bot web scraping, Telethon library
-- Returns TelegramProfile (username, display_name, bio, photo_url)
-- Requires TELEGRAM_API_ID/HASH/PHONE in `.env`
-
-**Yandex Search** (`app/services/phase1/yandex_search.py`)
-- Yandex People service search
-- CAPTCHA detection + graceful fallback to manual URL
-
-**Photo Investigation** (`app/services/photo_investigation.py`)
-- Face-first workflow: upload photo → facial recognition search → create investigation
-- Validates photo, runs Search4Faces, presents matches
-
-### Phase 2: Contact Discovery & Intelligence
-
-**Email Discovery** (`app/services/phase2/email_discovery.py`)
-- Holehe verification (120+ online services)
-- SMTP RCPT TO probing (blocks Russian domains that reject: mail.ru, yandex.ru, bk.ru)
-- Gravatar JSON profile lookup
-- MX record validation
-- Profile scraping for visible emails
-- Russian service checks (Yandex Collections)
-
-**Email Generation** (`app/services/phase2/email_generator.py`)
-- Smart candidate generation from name + usernames + diminutives
-- Yandex/Mail.ru domain prioritization for Russian targets
-- `generate_smart_email_candidates()` + `verify_email_candidates()`
-
-**Phone Discovery** (`app/services/phase2/phone_discovery.py`)
-- VK API extraction (`users.get` contacts field) — requires VK token
-- VK wall post regex scanning (last 100 posts)
-- Username/email pattern extraction (digits → phone candidates)
-- Telegram cross-reference (phone → Telegram username)
-- Russian phone validation (mobile prefix 9XX)
-
-**Phone Lookup Services** (`app/services/phase2/phone_sources.py`)
-- GetContactChecker — reverse phone lookup (requires rooted Android credentials)
-- NumBusterChecker — phone → name resolution
-- TrueCallerChecker — TrueCaller API
-- EyeconChecker — Ukrainian phone lookup
-- CallAppChecker — CallApp integration
-
-**Facial Recognition**:
-- **Search4Faces** (`app/services/phase2/search4faces_service.py`) — FREE unlimited face search across 3 databases: vkok (VK+OK avatars), vk01 (1.1B VK photos), vkokn (newest). Returns FaceMatch with profile_url, username, similarity_score.
-- **YaSeeker** (`app/services/phase2/yaseeker_service.py`) — Yandex service discovery. Checks Yandex Collections, Dzen, Yandex Music. Verification-based (confirms real profiles, no guessing).
-- **FaceCheck.ID** (`app/services/phase2/face_search_api.py`) — Stub class exists, no real implementation.
-
-**Social Graph** (`app/services/phase2/social_graph.py`)
-- Friends extraction from VK API (thousands possible)
-- NetworkX graph + Louvain community detection
-- Centrality score calculation
-- vis.js export (nodes + edges JSON)
-- Demo mode: 8 fake friends when no VK token
-
-**Username Intelligence** (`app/services/phase2/username_intelligence.py`)
-- Username pattern analysis, variations, diminutives
-- Cross-platform username matching
-
-**Telegram Cross-Reference** (`app/services/phase2/telegram_crossref.py`)
-- Phone → Telegram username resolution
-- Name matching validation
-
-### Phase 2: Source Plugin Architecture
-
-**Source Manager** (`app/services/phase2/source_manager.py`)
-- Auto-discovers all `BaseSource` subclasses in `sources/` directory
-- Runs all available sources in parallel (ThreadPoolExecutor, 8 workers)
-- Deduplication: same data from 2+ sources → merge + confidence boost
-- Cross-validation: breach + platform confirmation → verified flag
-- Groups results by data_type for consumption
-
-**Base Source** (`app/services/phase2/base_source.py`)
-- SourceResult dataclass: data_type, value, source_name, source_tier, confidence, verified, raw_data, metadata
-- SourceTier: S (Breach DB), A (Platform API), B (Verification), C (Pattern Generation)
-- SourceType: EMAIL, PHONE, BOTH, IDENTITY, PROFILE, VERIFICATION
-
-**Breach Database Sources** (`app/services/phase2/sources/breach_api.py`):
-
-| Source | Status | API Key | What it returns |
-|--------|--------|---------|----------------|
-| HudsonRock Cavalier | WORKING | None (free) | Cleartext passwords, URLs, usernames from infostealer logs |
-| LeakCheck Public | WORKING | None (free) | Breach source names from 12B+ records |
-| ProxyNova COMB | WORKING | None (free) | email:password pairs from 3.2B combo list |
-| HIBP Pwned Passwords | WORKING | None (free) | Password breach validation (k-anonymity) |
-| Snusbase | STUB | SNUSBASE_API_KEY | Not implemented |
-| DeHashed | STUB | DEHASHED_EMAIL + DEHASHED_API_KEY | Not implemented |
-
-**Local Leak Database Sources** (`app/services/phase2/sources/leak_sources.py`):
-
-| Source | Status | Backend |
-|--------|--------|---------|
-| VK 2012 Leak (100M records) | READY, needs CSV import | SQLite LeakDB (`data/leaks/all_leaks.db`) |
-| GetContact Leak (55M records) | READY, needs CSV import | Same SQLite DB |
-| Telco Leak (Beeline/MTS/Megafon) | READY, needs CSV import | Same SQLite DB |
-
-LeakDB: WAL mode, indexed by phone+email+name, in-memory LRU cache (50k queries), batch insert via `scripts/load_leaks.py` with auto encoding detection (CP1251/UTF-8) and delimiter sniffing.
-
-**Other Source Plugins** (`app/services/phase2/sources/`):
-
-| Plugin File | Source | Status |
-|-------------|--------|--------|
-| `vk_extract.py` | VK Profile API extraction | Working (needs VK token) |
-| `verification.py` / `smtp_verify.py` | SMTP verification | Working (blocks Russian domains) |
-| `holehe_check.py` | Holehe 120+ service check | Working (needs holehe library) |
-| `email_pattern.py` / `pattern_gen.py` | Email pattern generation | Working (low confidence 0.30-0.40) |
-| `telegram_bot.py` | Telegram OSINT bots (Himera, LeakOSINT) | STUB — returns [] |
-| `getcontact.py` | GetContact API lookup | STUB — needs Android credentials |
-| `platform_api.py` | NumBuster, GetContact, InfoTrackPeople | STUBS — need API keys |
-
-### Phase 3: Deep Investigation
-
-**Business Registry** (`app/services/phase3/business_registry.py`)
-- **PRIMARY**: nalog.ru EGRUL — official FNS 2-step token API. FREE, WORKING. Returns company_name, INN, OGRN, role, status, registration_date, address. ~20 results per name, 2-3s.
-- **FALLBACK**: Rusprofile.ru — scraping with `type=fl` person search → person profile page → company affiliations. WORKING (fixed Feb 2026, was returning 404).
-
-**Court Records** (`app/services/phase3/court_search.py`)
-- **PRIMARY**: sudact.ru — Playwright browser automation (JS-rendered). Selectors: `ul.results > li` + `a[href*="/doc/"]`. 8-10 cases per name, ~5s. WORKING.
-- **SECONDARY**: kad.arbitr.ru — BLOCKED (HTTP 451 geo-restriction, DDoS Guard). Manual URL fallback only.
-
-**FSSP Enforcement Proceedings** (`app/services/phase3/fssp_search.py`)
-- API: `api-ip.fssp.gov.ru` — SSL errors, unreliable. Requires FSSP_API_TOKEN.
-- Fallback: manual search URL generation (`fssp.gov.ru/iss/ip`). Always works.
-
-**Geo Extraction** (`app/services/phase3/geo_extractor.py`)
-- `extract_from_text()` — parses city/region/country from profile text
-- Generates map data for visualization
-
-**Text Analyzer** (`app/services/phase3/text_analyzer.py`)
-- `analyze()` — wall post analysis for personality traits, keywords, sentiment
-
-**Video Analyzer** (`app/services/phase3/video_analyzer.py`)
-- Video metadata extraction from VK wall (timestamps, captions, descriptions)
-
-**Combined Search Orchestrator** (`app/services/phase3/combined_search.py`)
-- 6-step pipeline: business_registry + court_search + fssp + geo_extractor + text_analyzer + risk assessment
-- Progress callbacks for UI updates
-- Returns Phase3Results with all records + manual_search_links
-
-### Candidate Background Check Pipeline
-
-**Pipeline** (`app/services/candidate/pipeline.py`)
-- 5-stage async orchestrator with progress tracking:
-
-| Stage | Service File | What it checks | Status |
-|-------|-------------|---------------|--------|
-| 1. Bankruptcy | `candidate/bankruptcy_service.py` | ЕФРСБ (bankrot.fedresurs.ru) | Working (API + Playwright fallback) |
-| 2. Sanctions | `candidate/sanctions_check.py` | Росфинмониторинг, МВД, Интерпол, Перечень экстремистов | Working (manual URL fallback for Interpol) |
-| 3. FSSP | `candidate/fssp_service.py` | Enforcement proceedings | Partial (API unreliable, manual URL) |
-| 4. Contacts | `candidate/contact_discovery.py` | Email/phone discovery + verification | Working |
-| 5. Risk Score | `candidate/risk_scorer.py` | Composite risk assessment | Working |
-
-### Risk Scoring & Intelligence
-
-**Risk Scoring** (`app/services/risk_scoring.py`)
-- `calculate_risk_score()` — composite 0-100 score
-- Dimensional breakdown: business risk, legal risk, social risk, financial risk
-- Radar chart data generation for UI
-
-**Connection Intelligence** (`app/services/connection_intelligence.py`)
-- Cross-investigation link analysis
-- Identifies shared contacts, profiles, emails, phones across investigations
-- vis.js graph visualization of connections
-
-**Snoop Search** (`app/services/snoop_search.py`)
-- Wrapper for Snoop tool (5,372 sites, 2,600+ Russian)
-- Executes `snoop.py` from `C:\Users\fedor\osint_tools\snoop`
-- Parses CSV results, filters to Russian/CIS platforms
-
-### Report & Export
-
-**Report Generator** (`app/services/report_generator.py`)
-- HTML identity card generation (Tailwind CSS)
-- PDF export via reportlab (Playwright fallback)
-- JSON data export
-- Confidence scoring (0-100)
-
-**Dossier Generator** (`app/services/dossier_generator.py`)
-- Professional investigation dossier
-- Includes all investigation phases + risk assessment
-- PDF/JSON export
-
----
+### Known pytest issue on Windows
+Use `-p no:faulthandler` flag to avoid "ValueError: I/O operation on closed file" capture bugs.
 
 ## Architecture
 
-### Entry Points
-- `run.py` — Flask server with startup validation checks
-- `config.py` — Environment configs (DevelopmentConfig, ProductionConfig, TestingConfig)
-- `app/__init__.py` — Application factory (`create_app()`) with error handlers and logging
+### Database Models (SQLAlchemy + SQLite)
 
-### Route Blueprints (16 total)
+| Model | File | Purpose |
+|-------|------|---------|
+| `CandidateCheck` | `app/models/candidate_check.py` | **Primary model** — 30+ fields for 8-stage pipeline, JSON properties |
+| `Investigation` | `app/models/investigation.py` | Legacy Buratino model, JSON-serialized fields |
+| `SocialProfile` | `app/models/social_profile.py` | VK/OK profiles linked to Investigation |
+| `Friend` | `app/models/friend.py` | Social graph connections with centrality_score |
+| `BusinessRecord` | `app/models/business_record.py` | EGRUL company affiliations |
+| `CourtRecord` | `app/models/court_record.py` | Court case records |
+| `Connection` | `app/models/connection.py` | Cross-investigation links |
 
-| Blueprint | File | Endpoints |
-|-----------|------|-----------|
-| `main_bp` | `app/routes/main.py` | `/`, `/health`, `/investigations`, `/vk/auth`, `/vk/callback`, `/api/vk/token-status`, `/api/investigations/<id>` DELETE |
-| `phase1_bp` | `app/routes/phase1.py` | `/new`, `/search/<id>`, `/confirm/<id>/<pid>`, `/reject/<id>/<pid>`, `/photo-search`, `/photo-select` |
-| `phase2_bp` | `app/routes/phase2.py` | `/start`, `/progress/<task_id>`, `/cancel/<task_id>`, `/analyze/<id>`, `/buratino/results/<id>`, `/api/graph/<id>`, `/api/sources/status` |
-| `phase3_bp` | `app/routes/phase3.py` | `/<id>`, `/start`, `/progress/<task_id>`, `/api/business-search`, `/api/court-search`, `/buratino/<id>`, `/buratino/results/<id>` |
-| `report_bp` | `app/routes/report.py` | `/<id>`, `/generate`, `/download/html`, `/download/pdf`, `/download/json` |
-| `candidate_bp` | `app/routes/candidate_check.py` | `/start`, `/progress/<check_id>`, `/results/<check_id>`, `/check/<check_id>` |
-| `connections_bp` | `app/routes/connections.py` | `/connections`, `/api/connections/analyze`, `/api/connections/graph-data` |
-| `scoring_bp` | `app/routes/scoring.py` | `/api/scoring/calculate`, `/api/scoring/breakdown/<id>`, `/risk-report/<id>` |
-| `dossier_bp` | `app/routes/dossier.py` | `/<id>`, `/<id>/json`, `/<id>/pdf` |
-| `api_search_bp` | `app/routes/api_search.py` | `/page`, `/vk`, `/telegram`, `/yandex` |
-| `auth_bp` | `app/routes/auth.py` | `/login`, `/logout`, `/set-password` |
-| `timeline_bp` | `app/routes/timeline.py` | `/timeline/<id>` |
-| `osint_knowledge_bp` | `app/routes/osint_knowledge.py` | `/api/osint/tools`, `/api/osint/techniques` |
-| `osint_knowledge_gaps_bp` | `app/routes/osint_knowledge_gaps.py` | `/api/gaps` |
+### Route Blueprints (13 active)
 
-### Database Models (8 total)
-
-SQLAlchemy with SQLite (`instance/ibp.db`):
-
-| Model | File | Key Fields |
-|-------|------|-----------|
-| `Investigation` | `app/models/investigation.py` | input_name, status, confirmed_profile, discovered_emails/phones/usernames, business_records, court_records, property_records, risk_indicators, social_graph, connections. JSON-serialized with property helpers. |
-| `SocialProfile` | `app/models/social_profile.py` | platform, platform_id, username, profile_url, first_name, last_name, city, confidence_score, face_match, face_similarity, is_confirmed, phone, email |
-| `Friend` | `app/models/friend.py` | platform_id, first_name, last_name, photo_url, city, centrality_score |
-| `BusinessRecord` | `app/models/business_record.py` | company_name, inn, ogrn, role, status, legal_address, registration_date, okved, source |
-| `CourtRecord` | `app/models/court_record.py` | case_number, court_name, case_type, date, role, category, decision_summary, result, source |
-| `Connection` | `app/models/connection.py` | Cross-investigation links, relationship type, confidence |
-| `CandidateCheck` | `app/models/candidate_check.py` | full_name, date_of_birth, inn, passport, phone, email, bankruptcy/sanctions/fssp_results, risk_score, status |
+| Blueprint | Prefix | Status |
+|-----------|--------|--------|
+| `candidate_bp` | `/candidate` | **PRIMARY** — 8-stage pipeline endpoints |
+| `main_bp` | `/` | Home, health check, VK auth |
+| `auth_bp` | `/` | Login/logout |
+| `report_bp` | `/report` | Report generation/download |
+| `dossier_bp` | `/dossier` | Dossier view/export |
+| `scoring_bp` | `/scoring` | Risk scoring API |
+| `connections_bp` | `/connections` | Cross-investigation analysis |
+| `timeline_bp` | `/timeline` | Activity timeline |
+| `api_search_bp` | `/api/search` | Search API endpoints |
+| `phase1_bp` | `/phase1` | **DEPRECATED** — VK/Telegram search |
+| `phase2_bp` | `/phase2` | **DEPRECATED** — Contact discovery |
+| `phase3_bp` | `/phase3` | **DEPRECATED** — Deep investigation |
+| `phase4_bp` | `/phase4` | **DEPRECATED** — Connection analysis |
 
 ### Async Task Pattern
-Phase 1, 2, 3 and candidate checks run in background threads:
-- `Phase2TaskStatus` / `CandidateTaskStatus` track progress with partial results
-- Frontend polls `/progress/<task_id>` for live updates
-- Cancel support via `/cancel/<task_id>`
-- Auto-cleanup of completed tasks (3600s retention)
-
-### Templates (27 HTML files)
-- `base.html` — Tailwind CSS + navbar layout
-- `people_search.html` — Phase 1 three-column search UI
-- `phase1_buratino_results.html`, `phase2_buratino_results.html`, `phase3_buratino_results.html` — Phase result pages
-- `identity_card.html`, `dossier.html`, `candidate_dossier.html` — Report views
-- `connections.html`, `graph.html`, `risk_report.html`, `timeline.html` — Intelligence views
-- `login.html`, `vk_callback.html` — Auth pages
-- `errors/404.html`, `errors/500.html` — Error pages
+All long-running operations (Stages 1-8) run in background threads:
+- `CandidateTaskStatus` in-memory object tracks progress
+- Frontend polls `GET /candidate/progress/<task_id>` for live updates
+- Cancel support via status flag
+- Auto-cleanup of completed tasks after 3600s
 
 ### Frontend Stack
-- Tailwind CSS via CDN (custom violet theme)
-- vis.js — social graph + connections visualization
-- Chart.js — risk report radar charts
-- Vanilla JS — AJAX polling for progress updates
+- Tailwind CSS via CDN (violet theme)
+- vis.js — social graph + connections
+- Chart.js — risk radar charts
+- Leaflet.js — geo heatmap
+- Vanilla JS — AJAX polling, form handling
 
----
+## Web Scraping Strategy
 
-## Key Technical Details
+- Russian government sites (FSSP, EFRSB, Rosfinmonitoring, MVD) use aggressive anti-bot measures and geo-blocking.
+- Default to API/AJAX approaches FIRST, not Playwright/browser scraping.
+- If browser scraping is unavoidable, implement CAPTCHA detection with graceful manual-fallback from the start.
+- VK uses SPA rendering — intercept API calls rather than parsing DOM HTML.
+- Assume CAPTCHA will appear. Build the fallback chain upfront: API -> AJAX -> Playwright -> Manual link.
 
-- **VK Token**: Expires every 24h. Refresh via `/vk/auth` OAuth flow or manual URL. Status indicator in navbar polls `/api/vk/token-status`. `VK_SERVICE_TOKEN` is currently set.
-- **Demo Mode**: Phase 1 VK search + social graph produce fake data when no VK token. All other services degrade gracefully (return empty, not fake).
-- **Phase 2 Source Architecture**: `base_source.py` → `source_manager.py` auto-discovers → `sources/*.py` plugins run in parallel
-- **Holehe Verification**: CPU/time-intensive (~25s per email). Uses tiered priority (Russian mail domains first) with 3 concurrent checks.
-- **Logging**: Structured logging to `logs/ibp_YYYYMMDD.log`. Sensitive data masked (tokens, phones, emails).
-- **Leak Data Loader**: `scripts/load_leaks.py` — auto-detects CP1251/UTF-8 encoding + CSV delimiter (comma/semicolon/pipe/tab). CLI flags: `--encoding`, `--delimiter`, `--dedup`, `--carrier`.
+## Phone/Name Parsing (Russian)
 
-## Environment Variables (`.env`)
+- Russian phone numbers: +7 (916) 123-45-67, 8-916-123-45-67, +7 916 1234567. Always handle parenthesized area codes.
+- Russian names require bidirectional diminutive matching (Aleksandr <-> Sasha <-> Shura). Check both directions.
+- Test regex patterns against edge cases before committing.
 
-```
-VK_SERVICE_TOKEN=...   # VK API service token (primary, currently set)
-VK_TOKEN=...           # VK API user token (expires 24h)
-VK_APP_ID=...          # VK app ID for OAuth refresh flow
-TELEGRAM_API_ID=...    # Telegram API credentials
-TELEGRAM_API_HASH=...
-TELEGRAM_PHONE=...
-FSSP_API_TOKEN=...     # FSSP bailiff service API token
-SNUSBASE_API_KEY=...   # Snusbase breach DB (paid, $5-16/mo)
-DEHASHED_EMAIL=...     # DeHashed breach DB (paid, $5.49/mo)
-DEHASHED_API_KEY=...
-GETCONTACT_TOKEN=...   # GetContact (requires rooted Android)
-GETCONTACT_AES_KEY=...
-GETCONTACT_DEVICE_ID=...
-SECRET_KEY=...         # Flask secret key
-```
+## Git Workflow
 
-## What Returns Real Data vs Stubs
+- After completing implementation work, always commit and push unless explicitly told otherwise.
+- Use descriptive commit messages in English with conventional prefixes: feat:, fix:, chore:, docs:.
+- `main` = stable release branch
+- `merge-buratino` = current development (8-stage unification work)
+- Feature branches off main for new work
 
-### Real data (working now, no extra keys):
-- HudsonRock, LeakCheck Public, ProxyNova COMB, HIBP (free breach APIs)
-- VK People Search + Social Graph + Phone Extraction (VK_SERVICE_TOKEN is set)
-- nalog.ru EGRUL business registry (free government API)
-- sudact.ru court records (Playwright)
-- Gravatar email lookup
-- SMTP email verification (non-Russian domains)
-- Search4Faces facial recognition (free, unlimited)
-- YaSeeker Yandex service discovery
-- Email/phone pattern generation (low confidence guesses)
+## Deprecated Code (still functional)
 
-### Stubs / not working:
-- Snusbase, DeHashed (need paid API keys)
-- Telegram OSINT bots — Himera, LeakOSINT (stub, returns [])
-- GetContact API lookup (stub, needs Android credentials)
-- NumBuster, InfoTrackPeople (stubs, need API keys)
-- FaceCheck.ID (stub class, no implementation)
-- FSSP API (SSL errors, manual URL fallback works)
-- kad.arbitr.ru (HTTP 451 geo-blocked, manual URL fallback)
-- LeakDB local sources (infrastructure ready, needs CSV data import)
+These routes and templates work but are superseded by the Candidate Check pipeline:
 
-## Test Suite
+**Routes**: `phase1_bp` (7 endpoints), `phase2_bp` (12 endpoints), `phase3_bp` (10 endpoints), `phase4_bp` (3 endpoints)
 
-57 test files, 15+ categories:
-- **E2E**: `test_e2e_smoke.py` (18+ smoke tests), `test_full_workflow.py`, `test_phase3_e2e.py` (3 targets)
-- **Unit** (49 files in `tests/unit/`): name matching, phone normalization, transliteration, email/phone intelligence, pipeline resilience, risk scoring, leak sources, connections, dossier
-- **Stress**: `test_r3_extreme_load.py`, `test_r3_api_chaos.py`, `test_r3_unicode_attacks.py`, `test_r3_type_attacks.py`
+**Templates**: `phase1_buratino_new.html`, `phase1_buratino_results.html`, `phase2_analyze.html`, `phase2_buratino_results.html`, `phase3_buratino.html`, `phase3_buratino_results.html`, `phase2.html`, `phase3.html`
 
-## Test Targets
+**Services**: The underlying phase1/phase2/phase3 services are NOT deprecated — they are imported and used by the candidate pipeline.
 
-Known test subjects: Тихон Портной, Ольга Ахтинас, Влада Кладко, Даниил Глазков (@etoglaz)
+## Known Issues
+
+1. **VK token loading**: `VK_SERVICE_TOKEN` only loads in DevelopmentConfig (Config base class). ProductionConfig inherits it, but watch for env var issues on Render.
+2. **pytest capture bug on Windows**: Use `-p no:faulthandler` to avoid I/O errors.
+3. **FSSP API SSL errors**: The API at api-ip.fssp.gov.ru has persistent SSL issues. Manual URL fallback always works.
+4. **kad.arbitr.ru geo-blocked**: HTTP 451 from outside Russia. Manual URL only.
+5. **Holehe slow**: ~25s per email check. Pipeline has 120s timeout for Stage 4.
+6. **pymorphy2 Python 3.12+ compat**: Uses `inspect.getfullargspec` shim (patched).
+7. **WeasyPrint forbidden on Windows**: Dossier PDF falls back to print-ready HTML or Playwright.
+8. **SocialProfile.full_name is a property**: Not a setter — use first_name/last_name/display_name.
 
 ## External Tools
 
 OSINT tools at `C:\Users\fedor\osint_tools\` (snoop, maigret, sherlock, etc.). Snoop integrated via `app/services/snoop_search.py`.
 
-## Research Workflow
+## File Targeting
 
-When investigating a new data source or API:
-1. **brave-search** → find current documentation and status
-2. **fetch** → test if the API/site responds from this location
-3. **playwright** → if fetch fails, try with full browser (handles JS, CAPTCHA detection)
-4. Write the integration code based on real responses, not guesses
+Before editing any template or file, confirm you have the correct filename by checking the route handler or import that references it. This project has multiple similar template files. Never assume — verify first.
+
+## Testing
+
+- Always run the full test suite after making changes.
+- If tests use a database, ensure test isolation — never corrupt the main dev database.
+- After E2E/Playwright tests, verify the dev server still works.

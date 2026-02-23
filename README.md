@@ -1,41 +1,30 @@
 # IBP - Identity-Based Profiler
 
-A comprehensive OSINT (Open Source Intelligence) investigation platform optimized for Russian social networks. IBP is a free, open-source alternative to commercial systems like ИАС "Буратино" (Byratino).
+A unified OSINT (Open Source Intelligence) investigation platform optimized for Russian social networks. IBP runs automated 8-stage background checks by searching government registries, social media, breach databases, and behavioral signals.
 
-## Features
+## 8-Stage Candidate Check Pipeline
 
-### Phase 1: Social Media Discovery
-- **VK Search** - Search VKontakte by username with profile photo matching
-- **Odnoklassniki (OK)** - Search OK.ru profiles by name and city
-- **Telegram** - Username search and profile verification
-- **Maigret Integration** - Search 2,500+ sites for usernames
-- **Sherlock Integration** - Additional username enumeration
-- **Russian Name Handling** - Diminutives (Александр → Саша), transliteration
+The core of IBP is a single automated pipeline that checks a person across multiple data sources:
 
-### Phase 2: Contact Discovery
-- **Email Generation** - Generate likely email patterns (mail.ru, yandex.ru, gmail.com)
-- **Holehe Verification** - Verify email usage across services
-- **Phone Validation** - Russian phone number validation
-- **Breach Checking** - Check emails against known data breaches (HIBP)
-- **YaSeeker Integration** - Yandex services lookup
+| Stage | Name | What It Checks |
+|-------|------|---------------|
+| 1 | Government Registries | EGRUL business registry, court records (sudact.ru), FSSP enforcement, EFRSB bankruptcy |
+| 2 | Security Checks | Rosfinmonitoring sanctions, MVD wanted list, Interpol, extremist list |
+| 3 | Social Media Discovery | VK People Search (4 strategies), Telegram (3 methods), Yandex People |
+| 4 | Contact Discovery | VK/Telegram extraction, email pattern generation, Holehe verification, breach APIs |
+| 5 | Deep Social Analysis | Search4Faces facial recognition, social graph (NetworkX/Louvain), Snoop (5,372 sites), YaSeeker |
+| 6 | Behavioral Intelligence | VK wall text analysis (sentiment/keywords), geo extraction, activity timeline |
+| 7 | Risk Scoring | 8-category dimensional assessment: business, courts, FSSP, bankruptcy, sanctions, social, behavioral |
+| 8 | Report Generation | Professional dossier with all findings, identity card, social graph, geo map, PDF/JSON export |
 
-### Phase 3: Deep Investigation
-- **Business Registry** - Search Rusprofile.ru and List-org.com for company affiliations
-- **Court Records** - Search sudact.ru and arbitration courts
-- **Geo-Information** - Extract location data from social media posts
-- **Text Analysis** - Russian NLP sentiment analysis and keyword extraction
-- **Video Analysis** - Extract frames and metadata from videos
+### Quick vs Precise Mode
 
-### Phase 4: Connection Analysis
-- **Entity Resolution** - Merge profiles across platforms
-- **Relationship Mapping** - Build social connection graph
-- **vis.js Visualization** - Interactive network graph
+- **Quick Mode** (default): Runs all 8 stages automatically. Uses all social profiles found.
+- **Precise Mode**: Pauses after Stage 3 for user to confirm which social profiles belong to the target. Resumes with confirmed profiles only — higher accuracy for common names.
 
-### Report Generation
-- **Identity Card** - Professional HTML identity card
-- **PDF Export** - Full investigation report
-- **JSON Export** - Machine-readable data
-- **Print Support** - Print-ready formatting
+### Demo Mode
+
+Runs without any API keys configured. VK search returns simulated profiles, social graph returns demo data. All other services degrade gracefully (return empty results, not fake data). Set `VK_SERVICE_TOKEN` in `.env` to enable real data.
 
 ## Installation
 
@@ -53,6 +42,10 @@ cd ibp
 # Install dependencies
 pip install -r requirements.txt
 
+# Copy and configure environment
+cp .env.example .env
+# Edit .env — at minimum set SECRET_KEY
+
 # Run the server
 python run.py
 ```
@@ -62,112 +55,134 @@ Open your browser to: http://127.0.0.1:5000
 ### Optional Dependencies
 
 ```bash
-# For face recognition (optional)
-pip install face_recognition
+# For browser automation (court scraping, CAPTCHA handling)
+pip install playwright && playwright install chromium
 
-# For OpenCV video analysis (optional)
-pip install opencv-python-headless
+# For email verification (120+ services)
+pip install holehe
 
-# For Russian NLP (optional)
+# For Telegram search
+pip install telethon
+
+# For Russian NLP
 pip install pymorphy2 pymorphy2-dicts-ru
 
-# For PDF generation (optional)
+# For PDF generation
 pip install reportlab
 ```
 
 ## Usage
 
-### Starting an Investigation
+### Running a Background Check
 
-1. **Enter Target Name** - Provide the full name in Russian (e.g., "Иван Иванов")
-2. **Optional Photo** - Upload a photo for face matching
-3. **Phase 1** - Social media profiles will be discovered
-4. **Phase 2** - Contact information will be gathered
-5. **Phase 3** - Business and court records will be searched
-6. **Phase 4** - Connections will be analyzed
-7. **Generate Report** - Export identity card
+1. Navigate to the home page
+2. Enter the target's **full name in Russian** (e.g., "Иванов Иван Иванович")
+3. Optionally provide: date of birth, INN, region, phone, email
+4. Choose **Quick** or **Precise** mode
+5. Click "Start Check" — the 8-stage pipeline runs automatically
+6. Monitor progress in real-time (each stage reports findings)
+7. If Precise mode: confirm social media profiles when prompted
+8. View the completed dossier with all findings and risk assessment
 
 ### API Endpoints
 
-#### Phase 1 - Social Discovery
-- `POST /phase1/start` - Start investigation
-- `GET /phase1/status/<task_id>` - Check progress
-- `GET /phase1/results` - View results
+#### Candidate Check (Primary)
+- `POST /candidate/start` — Start a new background check
+- `GET /candidate/progress/<task_id>` — Poll pipeline progress
+- `GET /candidate/check/<check_id>` — View check status
+- `GET /candidate/results/<check_id>` — View dossier
+- `GET /candidate/confirm/<check_id>` — Profile confirmation page (Precise mode)
+- `POST /candidate/confirm/<check_id>` — Submit confirmed profiles
+- `GET /candidate/api/social-graph/<check_id>` — Social graph data (vis.js)
+- `GET /candidate/api/geo-data/<check_id>` — Geo heatmap data
 
-#### Phase 2 - Contact Discovery
-- `POST /phase2/start` - Start contact search
-- `GET /phase2/status/<task_id>` - Check progress
-
-#### Phase 3 - Deep Investigation
-- `POST /phase3/start` - Start deep investigation
-- `GET /phase3/progress/<task_id>` - Check progress
-- `POST /phase3/api/business-search` - Search business records
-- `POST /phase3/api/court-search` - Search court records
-
-#### Report Generation
-- `POST /report/generate` - Generate identity card
-- `POST /report/download/html` - Download HTML
-- `POST /report/download/pdf` - Download PDF
-- `POST /report/download/json` - Download JSON
+#### Reports & Analysis
+- `POST /report/generate` — Generate identity card
+- `POST /report/download/pdf` — Download PDF
+- `POST /report/download/json` — Download JSON
+- `GET /dossier/<id>` — View investigation dossier
+- `GET /scoring/risk-report/<id>` — Risk assessment report
+- `GET /connections` — Cross-investigation link analysis
 
 ## Architecture
 
 ```
 ibp/
 ├── app/
-│   ├── __init__.py          # Flask app factory
-│   ├── models/              # Database models
-│   │   └── investigation.py
-│   ├── routes/              # API routes
-│   │   ├── phase1.py        # Social discovery
-│   │   ├── phase2.py        # Contact discovery
-│   │   ├── phase3.py        # Deep investigation
-│   │   ├── phase4.py        # Connection analysis
-│   │   └── report.py        # Report generation
-│   ├── services/            # Business logic
-│   │   ├── phase2/          # Phase 2 services
-│   │   ├── phase3/          # Phase 3 services
-│   │   │   ├── business_registry.py
-│   │   │   ├── court_search.py
-│   │   │   ├── geo_extractor.py
-│   │   │   ├── text_analyzer.py
-│   │   │   └── video_analyzer.py
-│   │   └── phase4/          # Phase 4 services
-│   ├── static/              # CSS, JS, images
-│   └── templates/           # HTML templates
-├── config.py                # Configuration
-├── run.py                   # Entry point
-└── requirements.txt         # Dependencies
+│   ├── __init__.py              # Flask app factory
+│   ├── models/
+│   │   ├── candidate_check.py   # Primary model (30+ fields)
+│   │   ├── investigation.py     # Legacy investigation model
+│   │   └── ...                  # 6 more models
+│   ├── routes/
+│   │   ├── candidate_check.py   # 8-stage pipeline endpoints
+│   │   └── ...                  # 15 more route files
+│   ├── services/
+│   │   ├── candidate/           # 8-stage pipeline services
+│   │   │   ├── pipeline.py      # Orchestrator
+│   │   │   ├── social_analysis.py
+│   │   │   ├── behavioral_analysis.py
+│   │   │   ├── contact_discovery.py
+│   │   │   ├── risk_scorer.py
+│   │   │   └── report_builder.py
+│   │   ├── phase1/              # VK/Telegram/Yandex search
+│   │   ├── phase2/              # Contact discovery + plugins
+│   │   ├── phase3/              # Business/courts/FSSP
+│   │   └── ...                  # Shared services
+│   └── templates/               # 37 HTML templates (Tailwind CSS)
+├── tests/                       # 61 test files, ~2,814 tests
+├── config.py                    # Flask configuration
+├── run.py                       # Entry point
+└── requirements.txt
 ```
 
 ## Data Sources
 
-### Russian Platforms
-- VKontakte (vk.com)
-- Odnoklassniki (ok.ru)
-- Telegram (t.me)
-- Mail.ru
-- Yandex
+### Government Registries (Russia)
+- nalog.ru EGRUL (business affiliations)
+- sudact.ru (court records)
+- FSSP (enforcement proceedings)
+- EFRSB (bankruptcy records)
+- Rosfinmonitoring (sanctions)
+- MVD (wanted persons)
 
-### Business Registries
-- Rusprofile.ru
-- List-org.com
-- egrul.nalog.ru
+### Social Networks
+- VKontakte (vk.com) — search, profile extraction, social graph, wall analysis
+- Telegram — username search, cross-reference
+- Yandex — People search, Collections, Dzen, Music
 
-### Court Systems
-- sudact.ru
-- kad.arbitr.ru
+### Breach & Intelligence
+- HudsonRock Cavalier (infostealer logs)
+- LeakCheck (12B+ breach records)
+- ProxyNova COMB (3.2B email:password pairs)
+- HIBP (password breach validation)
+- Search4Faces (facial recognition, 3 databases)
+- Snoop (5,372 site username search)
+
+## Testing
+
+```bash
+# Run all tests (use -p no:faulthandler on Windows)
+python -m pytest tests/ -v -p no:faulthandler
+
+# Run unit tests only
+python -m pytest tests/unit/ -v -p no:faulthandler
+```
+
+61 test files with ~2,814 test functions covering:
+- Pipeline integration (8-stage flow, quick + precise modes)
+- Contact discovery (2,603 tests across 3 rounds)
+- Name matching, transliteration, phone normalization
+- Risk scoring edge cases
+- API chaos simulation, unicode attacks, extreme load
 
 ## Security & Privacy
 
-- All data is processed locally
-- No data is sent to external servers (except for searches)
-- Investigation data stored in local SQLite database
-- Photos are processed and deleted immediately
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+- All data processed locally (SQLite database)
+- No data sent to external servers except for searches
+- Investigation data stored in local database
+- Photos processed and deleted after use
+- Optional password authentication
 
 ## License
 
@@ -185,11 +200,12 @@ This tool is intended for:
 
 ## Credits
 
-- [Maigret](https://github.com/soxoj/maigret) - Username search
-- [Sherlock](https://github.com/sherlock-project/sherlock) - Username enumeration
-- [Holehe](https://github.com/megadose/holehe) - Email verification
-- [vis.js](https://visjs.org/) - Graph visualization
-- [Leaflet](https://leafletjs.com/) - Map visualization
+- [Snoop](https://github.com/snooppr/snoop) — Username search (5,372 sites)
+- [Holehe](https://github.com/megadose/holehe) — Email verification
+- [Search4Faces](https://search4faces.com) — Facial recognition
+- [vis.js](https://visjs.org/) — Graph visualization
+- [Leaflet](https://leafletjs.com/) — Map visualization
+- [Chart.js](https://www.chartjs.org/) — Radar charts
 
 ---
 
