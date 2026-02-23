@@ -4,12 +4,13 @@ Breach Database API Sources
 Queries breach/leak database APIs for real data associated with
 email addresses, phone numbers, and usernames.
 
-Implemented:
-- HudsonRock Cavalier — FREE, no key needed, infostealer data
-- HIBP Pwned Passwords — FREE, no key needed, password validation
+FREE (no API key):
+- HudsonRock Cavalier — infostealer data (credentials, URLs)
+- HIBP Pwned Passwords — password validation (k-anonymity)
+- LeakCheck Public — breach source names per email/username
+- ProxyNova COMB — 3.2B email:password combos
 
 Placeholder (needs API keys):
-- LeakCheck.io (LEAKCHECK_API_KEY)
 - Snusbase (SNUSBASE_API_KEY)
 - DeHashed (DEHASHED_EMAIL, DEHASHED_API_KEY)
 
@@ -413,13 +414,14 @@ class HIBPSource(BaseSource):
 
 class LeakCheckSource(BaseSource):
     """
-    Query LeakCheck.io API for breach data.
+    Query LeakCheck.io Public API for breach data.
 
-    Free tier (public API): Returns breach names only, no key needed.
-    Pro tier ($9.99/mo): Returns actual data (emails, passwords, names).
+    Free public endpoint — NO API key needed.
+    Auto-detects query type (email, username, phone, hash).
+    Returns breach source names (free tier = names only, no passwords).
 
-    API Docs: https://wiki.leakcheck.io/en/api
-    Python SDK: pip install leakcheck
+    Endpoint: GET https://leakcheck.io/api/public?check={query}
+    Rate limit: ~3 req/s (429 on exceed)
     """
 
     name = "LeakCheck API"
@@ -427,6 +429,12 @@ class LeakCheckSource(BaseSource):
     source_tier = SourceTier.S
     requires_api_key = False
     rate_limit_per_minute = 180
+
+    PUBLIC_URL = "https://leakcheck.io/api/public"
+    REQUEST_TIMEOUT = 10
+    DELAY_BETWEEN_REQUESTS = 0.5
+    MAX_RETRIES = 2
+    RETRY_DELAY = 2.0
 
     def is_available(self) -> bool:
         return True
@@ -441,9 +449,141 @@ class LeakCheckSource(BaseSource):
         photo_path: Optional[str] = None,
         **kwargs
     ) -> List[SourceResult]:
-        # TODO: Implement when LeakCheck API key is available
-        self.logger.debug("LeakCheck source not yet implemented")
-        return []
+        results = []
+
+        # Collect emails to check
+        emails_to_check = []
+        if email:
+            if isinstance(email, list):
+                emails_to_check.extend(email)
+            else:
+                emails_to_check.append(email)
+
+        email_candidates = kwargs.get('email_candidates', [])
+        for candidate in email_candidates:
+            if isinstance(candidate, dict):
+                addr = candidate.get('email', '')
+            else:
+                addr = str(candidate)
+            if addr and addr not in emails_to_check:
+                emails_to_check.append(addr)
+
+        emails_to_check = emails_to_check[:5]
+
+        # Search by email (primary)
+        for email_addr in emails_to_check:
+            try:
+                email_results = self._search(email_addr, 'email')
+                results.extend(email_results)
+                if emails_to_check.index(email_addr) < len(emails_to_check) - 1:
+                    time.sleep(self.DELAY_BETWEEN_REQUESTS)
+            except Exception as e:
+                self.logger.warning(f"LeakCheck email search error for {email_addr}: {e}")
+
+        # Search by username (secondary)
+        if username:
+            usernames = [username] if isinstance(username, str) else list(username)
+            for uname in usernames[:2]:
+                try:
+                    time.sleep(self.DELAY_BETWEEN_REQUESTS)
+                    username_results = self._search(uname, 'username')
+                    results.extend(username_results)
+                except Exception as e:
+                    self.logger.warning(f"LeakCheck username search error for {uname}: {e}")
+
+        if results:
+            self.logger.info(f"LeakCheck found {len(results)} results")
+        return results
+
+    def _search(self, query: str, query_type: str) -> List[SourceResult]:
+        """Query LeakCheck public API with retry on 429."""
+        results = []
+        session = _get_session()
+
+        for attempt in range(self.MAX_RETRIES + 1):
+            try:
+                resp = session.get(
+                    self.PUBLIC_URL,
+                    params={"check": query},
+                    timeout=self.REQUEST_TIMEOUT,
+                )
+
+                if resp.status_code == 429:
+                    if attempt < self.MAX_RETRIES:
+                        self.logger.debug(f"LeakCheck rate limited, retrying in {self.RETRY_DELAY}s")
+                        time.sleep(self.RETRY_DELAY * (attempt + 1))
+                        continue
+                    self.logger.warning("LeakCheck rate limit exceeded, skipping")
+                    return results
+
+                if resp.status_code == 404:
+                    return results
+                if resp.status_code != 200:
+                    self.logger.debug(f"LeakCheck returned {resp.status_code} for {query}")
+                    return results
+
+                data = resp.json()
+
+                # Handle different response formats
+                if isinstance(data, dict):
+                    if data.get('success') is False or data.get('error'):
+                        return results
+                    # Public API may return {"found": N, "sources": [...]}
+                    found = data.get('found', 0)
+                    sources = data.get('sources', [])
+                    if not found and not sources:
+                        # Try treating response as a list of results
+                        if isinstance(data.get('result'), list):
+                            sources = data['result']
+                        else:
+                            return results
+                elif isinstance(data, list):
+                    sources = data
+                else:
+                    return results
+
+                if not sources:
+                    return results
+
+                # Extract breach source names
+                breach_names = []
+                for src in sources:
+                    if isinstance(src, str):
+                        breach_names.append(src)
+                    elif isinstance(src, dict):
+                        name = src.get('name') or src.get('source') or str(src)
+                        breach_names.append(name)
+
+                if breach_names:
+                    # Query confirmed in breaches
+                    results.append(SourceResult(
+                        data_type=query_type,
+                        value=query,
+                        source_name=self.name,
+                        source_tier=self.source_tier,
+                        confidence=0.90,
+                        verified=True,
+                        metadata={
+                            'breach_source': 'leakcheck_public',
+                            'breach_names': breach_names,
+                            'breach_count': len(breach_names),
+                            'verification': 'breach_confirmed',
+                        },
+                    ))
+
+                break  # Success, no retry needed
+
+            except requests.Timeout:
+                self.logger.warning(f"LeakCheck timeout for: {query}")
+                break
+            except requests.ConnectionError:
+                self.logger.warning("LeakCheck connection error (offline or blocked)")
+                break
+            except Exception as e:
+                self.logger.warning(f"LeakCheck search error: {e}")
+                break
+
+        return results
 
 
 class SnusbaseSource(BaseSource):
@@ -487,3 +627,172 @@ class DehashedSource(BaseSource):
     def query_impl(self, **kwargs) -> List[SourceResult]:
         self.logger.debug("DeHashed source not yet implemented")
         return []
+
+
+class ProxyNovaCOMBSource(BaseSource):
+    """
+    Query ProxyNova COMB (Combination of Many Breaches) API.
+
+    FREE, no auth needed. 3.2 billion email:password records.
+    Endpoint: GET https://api.proxynova.com/comb?query={email}&start=0&limit=100
+    Returns: {"count": N, "lines": ["email:password", ...]}
+    Rate limit: ~100 req/min, max 100 results per query
+    """
+
+    name = "ProxyNova COMB"
+    source_type = SourceType.IDENTITY
+    source_tier = SourceTier.S
+    requires_api_key = False
+    rate_limit_per_minute = 100
+
+    BASE_URL = "https://api.proxynova.com/comb"
+    REQUEST_TIMEOUT = 15
+    MAX_RESULTS = 100
+
+    def is_available(self) -> bool:
+        return True
+
+    def query_impl(
+        self,
+        name: Optional[str] = None,
+        phone: Optional[str] = None,
+        email: Optional[str] = None,
+        username: Optional[str] = None,
+        vk_id: Optional[str] = None,
+        photo_path: Optional[str] = None,
+        **kwargs
+    ) -> List[SourceResult]:
+        results = []
+
+        # Collect emails to search
+        emails_to_check = []
+        if email:
+            if isinstance(email, list):
+                emails_to_check.extend(email)
+            else:
+                emails_to_check.append(email)
+
+        email_candidates = kwargs.get('email_candidates', [])
+        for candidate in email_candidates:
+            if isinstance(candidate, dict):
+                addr = candidate.get('email', '')
+            else:
+                addr = str(candidate)
+            if addr and addr not in emails_to_check:
+                emails_to_check.append(addr)
+
+        emails_to_check = emails_to_check[:5]
+
+        for email_addr in emails_to_check:
+            try:
+                email_results = self._search_email(email_addr)
+                results.extend(email_results)
+            except Exception as e:
+                self.logger.warning(f"ProxyNova COMB search error for {email_addr}: {e}")
+
+        if results:
+            self.logger.info(f"ProxyNova COMB found {len(results)} results")
+        return results
+
+    def _search_email(self, email: str) -> List[SourceResult]:
+        """Search COMB database by email."""
+        results = []
+        session = _get_session()
+
+        try:
+            resp = session.get(
+                self.BASE_URL,
+                params={
+                    "query": email,
+                    "start": 0,
+                    "limit": self.MAX_RESULTS,
+                },
+                timeout=self.REQUEST_TIMEOUT,
+            )
+
+            if resp.status_code == 429:
+                self.logger.warning("ProxyNova COMB rate limited")
+                return results
+            if resp.status_code != 200:
+                self.logger.debug(f"ProxyNova COMB returned {resp.status_code} for {email}")
+                return results
+
+            data = resp.json()
+            count = data.get('count', 0)
+            lines = data.get('lines', [])
+
+            if not lines:
+                return results
+
+            # Email confirmed in COMB — high confidence
+            results.append(SourceResult(
+                data_type='email',
+                value=email,
+                source_name=self.name,
+                source_tier=self.source_tier,
+                confidence=0.92,
+                verified=True,
+                metadata={
+                    'breach_source': 'comb',
+                    'total_records': count,
+                    'verification': 'breach_confirmed',
+                },
+            ))
+
+            # Parse email:password lines
+            seen_passwords = set()
+            for line in lines:
+                if not isinstance(line, str):
+                    continue
+                # Format: "email:password" or "email;password"
+                sep_idx = line.find(':')
+                if sep_idx == -1:
+                    sep_idx = line.find(';')
+                if sep_idx == -1:
+                    continue
+
+                line_email = line[:sep_idx].strip()
+                line_password = line[sep_idx + 1:].strip()
+
+                if not line_password or line_password in seen_passwords:
+                    continue
+                seen_passwords.add(line_password)
+
+                results.append(SourceResult(
+                    data_type='credential',
+                    value=line_email,
+                    source_name=self.name,
+                    source_tier=self.source_tier,
+                    confidence=0.90,
+                    verified=True,
+                    raw_data={
+                        'password': line_password,
+                    },
+                    metadata={
+                        'breach_source': 'comb',
+                    },
+                ))
+
+                # Discover additional emails
+                if '@' in line_email and line_email.lower() != email.lower():
+                    results.append(SourceResult(
+                        data_type='email',
+                        value=line_email.lower(),
+                        source_name=self.name,
+                        source_tier=self.source_tier,
+                        confidence=0.85,
+                        verified=True,
+                        metadata={
+                            'breach_source': 'comb',
+                            'discovered_via': email,
+                        },
+                    ))
+
+        except requests.Timeout:
+            self.logger.warning(f"ProxyNova COMB timeout for: {email}")
+        except requests.ConnectionError:
+            self.logger.warning("ProxyNova COMB connection error")
+        except Exception as e:
+            self.logger.warning(f"ProxyNova COMB search error: {e}")
+
+        return results

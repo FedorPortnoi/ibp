@@ -25,6 +25,11 @@ import os
 import sys
 import time
 
+try:
+    from charset_normalizer import from_bytes as detect_encoding
+except ImportError:
+    detect_encoding = None
+
 # Add project root to path so we can import app modules
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, PROJECT_ROOT)
@@ -117,20 +122,106 @@ PARSERS = {
 
 
 # ---------------------------------------------------------------------------
+# Encoding & delimiter detection
+# ---------------------------------------------------------------------------
+
+def detect_file_encoding(path: str) -> str:
+    """
+    Auto-detect file encoding.
+    Reads first 64KB and uses charset-normalizer (if installed) to detect.
+    Falls back to trying common Russian encodings, then UTF-8.
+    """
+    with open(path, 'rb') as f:
+        raw = f.read(65536)
+
+    # Quick check: valid UTF-8?
+    try:
+        raw.decode('utf-8')
+        print("  Encoding detected: utf-8 (BOM/valid UTF-8)")
+        return 'utf-8'
+    except UnicodeDecodeError:
+        pass
+
+    # Try charset-normalizer if available
+    if detect_encoding is not None:
+        result = detect_encoding(raw)
+        best = result.best()
+        if best and best.encoding and best.coherence > 0.5:
+            detected = best.encoding
+            # Normalize common aliases
+            alias_map = {
+                'windows-1251': 'cp1251',
+                'iso-8859-5': 'cp1251',
+            }
+            detected = alias_map.get(detected.lower(), detected)
+            print(f"  Encoding detected: {detected} (confidence: {best.coherence:.0%})")
+            return detected
+
+    # Fallback: try common Russian encodings
+    for enc in ('cp1251', 'koi8-r', 'iso-8859-5'):
+        try:
+            raw.decode(enc)
+            print(f"  Encoding detected: {enc} (fallback heuristic)")
+            return enc
+        except (UnicodeDecodeError, LookupError):
+            continue
+
+    print("  Encoding: defaulting to utf-8")
+    return 'utf-8'
+
+
+def detect_delimiter(path: str, encoding: str) -> str:
+    """
+    Auto-detect CSV delimiter using csv.Sniffer on first few lines.
+    Falls back to comma.
+    """
+    try:
+        with open(path, 'r', encoding=encoding, errors='replace') as f:
+            sample = f.read(8192)
+
+        dialect = csv.Sniffer().sniff(sample, delimiters=',;\t|')
+        detected = dialect.delimiter
+        delim_names = {',': 'comma', ';': 'semicolon', '\t': 'tab', '|': 'pipe'}
+        print(f"  Delimiter detected: {delim_names.get(detected, repr(detected))}")
+        return detected
+    except csv.Error:
+        return ','
+
+
+# ---------------------------------------------------------------------------
 # File readers
 # ---------------------------------------------------------------------------
 
-def iter_csv(path: str):
-    """Stream CSV rows as dicts."""
-    with open(path, 'r', encoding='utf-8', errors='replace') as f:
-        reader = csv.DictReader(f)
+def iter_csv(path: str, encoding: str = 'utf-8', delimiter: str = ','):
+    """Stream CSV rows as dicts with configurable encoding and delimiter."""
+    with open(path, 'r', encoding=encoding, errors='replace') as f:
+        # Sniff if there's a header row
+        sample = f.read(4096)
+        f.seek(0)
+
+        has_header = True
+        try:
+            has_header = csv.Sniffer().has_header(sample)
+        except csv.Error:
+            pass
+
+        if has_header:
+            reader = csv.DictReader(f, delimiter=delimiter)
+        else:
+            # No header — generate column names col_0, col_1, ...
+            first_line = f.readline()
+            num_cols = len(first_line.split(delimiter))
+            f.seek(0)
+            fieldnames = [f'col_{i}' for i in range(num_cols)]
+            reader = csv.DictReader(f, fieldnames=fieldnames, delimiter=delimiter)
+
         for row in reader:
             yield row
 
 
-def iter_jsonl(path: str):
+def iter_jsonl(path: str, encoding: str = 'utf-8'):
     """Stream JSONL rows as dicts."""
-    with open(path, 'r', encoding='utf-8', errors='replace') as f:
+    with open(path, 'r', encoding=encoding, errors='replace') as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -141,12 +232,23 @@ def iter_jsonl(path: str):
                 continue
 
 
-def iter_file(path: str):
-    """Auto-detect CSV vs JSONL by extension."""
+def iter_file(path: str, encoding: str = None, delimiter: str = None):
+    """
+    Auto-detect file format, encoding, and delimiter.
+
+    Priority: user-specified → auto-detected → defaults (UTF-8, comma)
+    """
     ext = os.path.splitext(path)[1].lower()
+
+    # Resolve encoding
+    file_encoding = encoding or detect_file_encoding(path)
+
     if ext in ('.jsonl', '.json', '.ndjson'):
-        return iter_jsonl(path)
-    return iter_csv(path)
+        return iter_jsonl(path, encoding=file_encoding)
+
+    # Resolve delimiter for CSV
+    file_delimiter = delimiter or detect_delimiter(path, file_encoding)
+    return iter_csv(path, encoding=file_encoding, delimiter=file_delimiter)
 
 
 def count_lines(path: str) -> int:
@@ -169,6 +271,8 @@ def load_file(
     dedup: bool = False,
     carrier: str = 'unknown',
     batch_size: int = 5000,
+    encoding: str = None,
+    delimiter: str = None,
 ) -> dict:
     """
     Load a leak file into the database.
@@ -203,7 +307,7 @@ def load_file(
     if tqdm:
         total = count_lines(file_path)
 
-    rows = iter_file(file_path)
+    rows = iter_file(file_path, encoding=encoding, delimiter=delimiter)
     if tqdm and total:
         rows = tqdm(rows, total=total, desc=f"Loading {source_type}", unit=" rows")
 
@@ -287,12 +391,20 @@ Examples:
                         help='Carrier name for telco source (beeline, mts, megafon)')
     parser.add_argument('--batch-size', type=int, default=5000,
                         help='Insert batch size (default: 5000)')
+    parser.add_argument('--encoding', default=None,
+                        help='Force file encoding (e.g., cp1251, utf-8). Auto-detected if omitted.')
+    parser.add_argument('--delimiter', default=None,
+                        help='Force CSV delimiter (e.g., ";" or "|"). Auto-detected if omitted.')
 
     args = parser.parse_args()
 
     print(f"Loading {args.source} from {args.file}")
     if args.dedup:
         print("  Deduplication: ON")
+    if args.encoding:
+        print(f"  Encoding override: {args.encoding}")
+    if args.delimiter:
+        print(f"  Delimiter override: {repr(args.delimiter)}")
 
     load_file(
         source_type=args.source,
@@ -301,6 +413,8 @@ Examples:
         dedup=args.dedup,
         carrier=args.carrier,
         batch_size=args.batch_size,
+        encoding=args.encoding,
+        delimiter=args.delimiter,
     )
 
 
