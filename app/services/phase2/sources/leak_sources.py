@@ -14,6 +14,7 @@ Data is loaded via scripts/load_leaks.py CLI tool.
 Tier: S (Breach Database) — real data from confirmed leaks
 """
 
+import csv
 import json
 import logging
 import os
@@ -304,6 +305,57 @@ class LeakDB:
             total += len(batch)
         return total
 
+    def load_csv(
+        self,
+        path: str,
+        source: str,
+        row_parser,
+        batch_size: int = 5000,
+    ) -> Dict[str, int]:
+        """
+        Stream a CSV into the database using a source-specific row parser.
+
+        Args:
+            path:       Path to CSV file.
+            source:     Source tag (e.g. 'vk_2012', 'getcontact', 'telco').
+            row_parser: Callable(row_dict) -> Optional[record_dict].
+                        Return None to skip a row.
+            batch_size: Rows per INSERT transaction.
+
+        Returns:
+            {'inserted': int, 'skipped': int, 'errors': int}
+        """
+        inserted = skipped = errors = 0
+        batch: list = []
+
+        with open(path, 'r', encoding='utf-8', errors='replace') as fh:
+            reader = csv.DictReader(fh)
+            for raw_row in reader:
+                try:
+                    record = row_parser(raw_row)
+                    if record is None:
+                        skipped += 1
+                        continue
+                    record.setdefault('source', source)
+                    batch.append(record)
+                    if len(batch) >= batch_size:
+                        self.insert_batch(batch, batch_size=batch_size)
+                        inserted += len(batch)
+                        batch = []
+                except Exception:
+                    errors += 1
+
+        if batch:
+            self.insert_batch(batch, batch_size=batch_size)
+            inserted += len(batch)
+
+        _leak_cache.clear()
+        logger.info(
+            f"load_csv({source}): {inserted} inserted, "
+            f"{skipped} skipped, {errors} errors from {path}"
+        )
+        return {'inserted': inserted, 'skipped': skipped, 'errors': errors}
+
     def count(self, source: Optional[str] = None) -> int:
         conn = self._get_conn()
         if source:
@@ -416,6 +468,34 @@ class VK2012LeakSource(BaseSource):
         except Exception:
             return False
 
+    def load_csv(self, path: str, batch_size: int = 5000) -> Dict[str, int]:
+        """
+        Load VK 2012 CSV into LeakDB.
+
+        Expected columns: phone, email, username, first_name, last_name, password_hash
+        """
+        def _parse(row: dict) -> Optional[Dict[str, Any]]:
+            phone = normalize_phone(row.get('phone', ''))
+            if not phone.startswith('+7'):
+                phone = None
+            first = (row.get('first_name') or '').strip()
+            last = (row.get('last_name') or '').strip()
+            name = f"{first} {last}".strip() or None
+            email = (row.get('email') or '').strip() or None
+            if not phone and not email:
+                return None
+            return {
+                'phone': phone,
+                'email': email,
+                'name': name,
+                'username': (row.get('username') or '').strip() or None,
+                'password_hash': (row.get('password_hash') or row.get('password') or '').strip() or None,
+                'source': self.SOURCE_TAG,
+                'confidence': 0.85,
+            }
+
+        return self._db.load_csv(path, self.SOURCE_TAG, _parse, batch_size)
+
     def query_impl(
         self,
         name: Optional[str] = None,
@@ -493,6 +573,34 @@ class GetContactLeakSource(BaseSource):
             return self._db.exists and self._db.count(self.SOURCE_TAG) > 0
         except Exception:
             return False
+
+    def load_csv(self, path: str, batch_size: int = 5000) -> Dict[str, int]:
+        """
+        Load GetContact CSV/JSONL into LeakDB.
+
+        Expected columns: phone, name (or display_name), tags (comma-sep or JSON)
+        """
+        def _parse(row: dict) -> Optional[Dict[str, Any]]:
+            phone = normalize_phone(row.get('phone', ''))
+            if not phone.startswith('+7'):
+                return None
+            tags_raw = row.get('tags', '')
+            if isinstance(tags_raw, str):
+                try:
+                    tags = json.loads(tags_raw)
+                except (json.JSONDecodeError, TypeError):
+                    tags = [t.strip() for t in tags_raw.split(',') if t.strip()]
+            else:
+                tags = list(tags_raw) if tags_raw else []
+            return {
+                'phone': phone,
+                'name': (row.get('name') or row.get('display_name') or '').strip() or None,
+                'source': self.SOURCE_TAG,
+                'confidence': 0.80,
+                'extra': {'tags': tags} if tags else None,
+            }
+
+        return self._db.load_csv(path, self.SOURCE_TAG, _parse, batch_size)
 
     def query_impl(
         self,
@@ -593,6 +701,32 @@ class TelcoLeakSource(BaseSource):
         except Exception:
             return False
 
+    def load_csv(self, path: str, carrier: str = 'unknown',
+                 batch_size: int = 5000) -> Dict[str, int]:
+        """
+        Load telco subscriber CSV into LeakDB.
+
+        Expected columns: phone, passport, full_name, address, subscriber_since
+        """
+        def _parse(row: dict) -> Optional[Dict[str, Any]]:
+            phone = normalize_phone(row.get('phone', ''))
+            if not phone.startswith('+7'):
+                return None
+            return {
+                'phone': phone,
+                'name': (row.get('full_name') or row.get('name') or '').strip() or None,
+                'passport': (row.get('passport') or '').strip() or None,
+                'address': (row.get('address') or '').strip() or None,
+                'source': self.SOURCE_TAG,
+                'confidence': 0.95,
+                'extra': {
+                    'carrier': carrier,
+                    'subscriber_since': (row.get('subscriber_since') or '').strip() or None,
+                },
+            }
+
+        return self._db.load_csv(path, self.SOURCE_TAG, _parse, batch_size)
+
     def query_impl(
         self,
         name: Optional[str] = None,
@@ -657,3 +791,85 @@ def _parse_extra(hit: Dict[str, Any]) -> Dict[str, Any]:
         return json.loads(raw)
     except (json.JSONDecodeError, TypeError):
         return {}
+
+
+# ---------------------------------------------------------------------------
+# LeakSourceManager — unified facade, preloads on first access
+# ---------------------------------------------------------------------------
+
+class LeakSourceManager:
+    """
+    Singleton that holds all leak sources and provides a unified query API.
+
+    Usage::
+
+        mgr = LeakSourceManager.get_instance()
+        results = mgr.query_phone('+79161234567')   # fans out to all sources
+        status  = mgr.status()                       # per-source record counts
+
+    Sources are instantiated lazily on first ``get_instance()`` call.
+    """
+
+    _instance: Optional['LeakSourceManager'] = None
+    _lock = threading.Lock()
+
+    def __init__(self):
+        self._db = LeakDB.get_instance()
+        self.vk2012 = VK2012LeakSource()
+        self.getcontact = GetContactLeakSource()
+        self.telco = TelcoLeakSource()
+        self._sources = [self.vk2012, self.getcontact, self.telco]
+        logger.info(
+            "LeakSourceManager: preloaded %d sources (%s)",
+            len(self._sources),
+            ', '.join(f"{s.name}={'ON' if s.is_available() else 'OFF'}" for s in self._sources),
+        )
+
+    @classmethod
+    def get_instance(cls) -> 'LeakSourceManager':
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = cls()
+        return cls._instance
+
+    @classmethod
+    def reset_instance(cls) -> None:
+        with cls._lock:
+            cls._instance = None
+
+    # -- queries (fan-out to all available sources) ---------------------------
+
+    def query_phone(self, phone: str) -> List[SourceResult]:
+        """Query all available leak sources by phone. Returns merged results."""
+        results: List[SourceResult] = []
+        for src in self._sources:
+            if src.is_available():
+                results.extend(src.query(phone=phone))
+        return results
+
+    def query_all(self, **kwargs) -> List[SourceResult]:
+        """Query all available leak sources with arbitrary params."""
+        results: List[SourceResult] = []
+        for src in self._sources:
+            if src.is_available():
+                results.extend(src.query(**kwargs))
+        return results
+
+    # -- status ---------------------------------------------------------------
+
+    def status(self) -> List[Dict[str, Any]]:
+        """Per-source availability + record counts."""
+        info = []
+        for src in self._sources:
+            try:
+                count = self._db.count(src.SOURCE_TAG)
+            except Exception:
+                count = 0
+            info.append({
+                'name': src.name,
+                'source_tag': src.SOURCE_TAG,
+                'available': src.is_available(),
+                'records': count,
+            })
+        return info

@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from app.services.phase2.sources.leak_sources import (
     LeakDB,
     GetContactLeakSource,
+    LeakSourceManager,
     TelcoLeakSource,
     VK2012LeakSource,
     _leak_cache,
@@ -369,3 +370,146 @@ class TestBaseSourceInterface:
         assert 'name' in info
         assert 'tier' in info
         assert 'available' in info
+
+
+# ===========================================================================
+# load_csv() tests
+# ===========================================================================
+
+class TestLoadCSV:
+    """Test the load_csv() method on each source."""
+
+    def test_vk2012_load_csv(self, fresh_db: LeakDB, tmp_path):
+        csv_file = tmp_path / 'vk.csv'
+        csv_file.write_text(
+            'phone,email,username,first_name,last_name,password_hash\n'
+            '+79161111111,test@mail.ru,testuser,Иван,Петров,abc123hash\n'
+            '+79162222222,,user2,Мария,Сидорова,\n'
+            'invalid_phone,,,,,\n',
+            encoding='utf-8',
+        )
+        src = VK2012LeakSource()
+        stats = src.load_csv(str(csv_file))
+        assert stats['inserted'] == 2
+        assert stats['skipped'] == 1  # invalid phone, no email
+        # Verify data is queryable
+        results = src.query(phone='+79161111111')
+        names = [r.value for r in results if r.data_type == 'name']
+        assert 'Иван Петров' in names
+
+    def test_getcontact_load_csv(self, fresh_db: LeakDB, tmp_path):
+        csv_file = tmp_path / 'gc.csv'
+        csv_file.write_text(
+            'phone,name,tags\n'
+            '+79163333333,Ваня,"друг,коллега"\n'
+            '+79164444444,Маша,""\n',
+            encoding='utf-8',
+        )
+        src = GetContactLeakSource()
+        stats = src.load_csv(str(csv_file))
+        assert stats['inserted'] == 2
+        results = src.query(phone='+79163333333')
+        names = [r.value for r in results if r.data_type == 'name']
+        assert 'Ваня' in names
+        profiles = [r for r in results if r.data_type == 'profile']
+        assert len(profiles) == 1
+        assert 'друг' in profiles[0].raw_data['tags']
+
+    def test_telco_load_csv(self, fresh_db: LeakDB, tmp_path):
+        csv_file = tmp_path / 'telco.csv'
+        csv_file.write_text(
+            'phone,passport,full_name,address,subscriber_since\n'
+            '+79165555555,**** **** 45 999888,Козлов Дмитрий,Москва,2020-01-01\n',
+            encoding='utf-8',
+        )
+        src = TelcoLeakSource()
+        stats = src.load_csv(str(csv_file), carrier='mts')
+        assert stats['inserted'] == 1
+        results = src.query(phone='+79165555555')
+        passports = [r for r in results if r.data_type == 'passport']
+        assert len(passports) == 1
+        assert passports[0].verified is True
+
+    def test_load_csv_normalizes_phones(self, fresh_db: LeakDB, tmp_path):
+        csv_file = tmp_path / 'telco2.csv'
+        csv_file.write_text(
+            'phone,passport,full_name,address,subscriber_since\n'
+            '8(916)777-88-99,1234,Тест Тестов,Адрес,2021-01-01\n',
+            encoding='utf-8',
+        )
+        src = TelcoLeakSource()
+        src.load_csv(str(csv_file))
+        # Query with canonical format
+        results = src.query(phone='+79167778899')
+        assert len(results) > 0
+
+    def test_load_csv_skips_bad_rows(self, fresh_db: LeakDB, tmp_path):
+        csv_file = tmp_path / 'bad.csv'
+        csv_file.write_text(
+            'phone,email,username,first_name,last_name,password_hash\n'
+            ',,,,,\n'
+            'not_a_phone,,,,,\n',
+            encoding='utf-8',
+        )
+        src = VK2012LeakSource()
+        stats = src.load_csv(str(csv_file))
+        assert stats['inserted'] == 0
+        assert stats['skipped'] == 2
+
+
+# ===========================================================================
+# LeakSourceManager tests
+# ===========================================================================
+
+class TestLeakSourceManager:
+
+    def test_singleton(self, fresh_db: LeakDB):
+        LeakSourceManager.reset_instance()
+        mgr1 = LeakSourceManager.get_instance()
+        mgr2 = LeakSourceManager.get_instance()
+        assert mgr1 is mgr2
+        LeakSourceManager.reset_instance()
+
+    def test_has_all_sources(self, fresh_db: LeakDB):
+        LeakSourceManager.reset_instance()
+        mgr = LeakSourceManager.get_instance()
+        assert mgr.vk2012 is not None
+        assert mgr.getcontact is not None
+        assert mgr.telco is not None
+        LeakSourceManager.reset_instance()
+
+    def test_query_phone_fans_out(self, fresh_db: LeakDB):
+        _seed_vk2012(fresh_db)
+        _seed_getcontact(fresh_db)
+        _seed_telco(fresh_db)
+        LeakSourceManager.reset_instance()
+        mgr = LeakSourceManager.get_instance()
+        results = mgr.query_phone('+79161234567')
+        # Should have results from all three sources
+        source_names = {r.source_name for r in results}
+        assert 'VK 2012 Leak' in source_names
+        assert 'GetContact Leak DB' in source_names
+        assert 'Telco Leak DB' in source_names
+        LeakSourceManager.reset_instance()
+
+    def test_query_phone_empty_on_miss(self, fresh_db: LeakDB):
+        _seed_vk2012(fresh_db)
+        LeakSourceManager.reset_instance()
+        mgr = LeakSourceManager.get_instance()
+        results = mgr.query_phone('+79990000000')
+        assert results == []
+        LeakSourceManager.reset_instance()
+
+    def test_status(self, fresh_db: LeakDB):
+        _seed_telco(fresh_db)
+        LeakSourceManager.reset_instance()
+        mgr = LeakSourceManager.get_instance()
+        status = mgr.status()
+        assert len(status) == 3
+        telco_info = next(s for s in status if s['source_tag'] == 'telco')
+        assert telco_info['available'] is True
+        assert telco_info['records'] == 1
+        vk_info = next(s for s in status if s['source_tag'] == 'vk_2012')
+        assert vk_info['available'] is False
+        assert vk_info['records'] == 0
+        LeakSourceManager.reset_instance()
