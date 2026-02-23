@@ -1,0 +1,15 @@
+phone,email,username,first_name,last_name,password_hash
++79161111111,ivan@test.ru,ivanov,Иван,Иванов,5f4dcc3b5aa765d61d8327deb882cf99
++79162222222,maria@mail.ru,m_sidor,Мария,Сидорова,abc123hash
++79163333333,alex@yandex.ru,petrov_alex,Алексей,Петров,def456hash
++79164444444,olga@inbox.ru,olga_k,Ольга,Кузнецова,ghi789hash
++79165555555,dmitry@gmail.com,d_novikov,Дмитрий,Новиков,jkl012hash
++79166666666,anna@rambler.ru,anna_v,Анна,Волкова,mno345hash
++79167777777,sergey@bk.ru,s_lebedev,Сергей,Лебедев,pqr678hash
++79168888888,elena@list.ru,elena_m,Елена,Морозова,stu901hash
++79169999999,pavel@ya.ru,pavel_s,Павел,Смирнов,vwx234hash
++79170000001,tatiana@mail.ru,tanya_p,Татьяна,Попова,yza567hash
++79161239999,portnoj@vk.com,tikhon_p,Тихон,Портной,hash_tikhon
++79168880011,akhtinas_o@mail.ru,olga_akh,Ольга,Ахтинас,hash_olga
++79261110022,vlada_k@inbox.ru,vlada_kl,Влада,Кладко,hash_vlada
++79855554433,etoglaz@gmail.com,etoglaz,Даниил,Глазков,hash_daniil
