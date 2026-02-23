@@ -658,6 +658,52 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             _pause()
 
             # ══════════════════════════════════════════════
+            # STAGE 6: BEHAVIORAL INTELLIGENCE [70-82%]
+            # ══════════════════════════════════════════════
+            task.update('behavioral', 'Поведенческий анализ...', 72)
+
+            try:
+                from app.services.candidate.behavioral_analysis import run_behavioral_analysis
+
+                def stage6_callback(stage, msg, pct):
+                    task.update('behavioral', msg, pct or 72)
+
+                behavioral_results = run_behavioral_analysis(
+                    check, task_status_callback=stage6_callback,
+                )
+
+                check.text_analysis = behavioral_results.get('text_analysis', {})
+                check.geo_analysis = behavioral_results.get('geo_analysis', {})
+                check.activity_timeline = behavioral_results.get('activity_timeline', [])
+                db.session.commit()
+
+                has_text = bool(behavioral_results.get('text_analysis'))
+                has_geo = bool(behavioral_results.get('geo_analysis'))
+                has_timeline = bool(behavioral_results.get('activity_timeline'))
+                parts = []
+                if has_text:
+                    parts.append('текст')
+                if has_geo:
+                    parts.append('гео')
+                if has_timeline:
+                    parts.append('таймлайн')
+                if parts:
+                    task.add_message(
+                        f'Поведенческий анализ: {", ".join(parts)}',
+                        'success',
+                    )
+                    sources_with_results += 1
+                sources_checked += 1
+
+            except Exception as e:
+                logger.error(f"Stage 6 behavioral analysis error: {e}", exc_info=True)
+                task.add_message('Поведенческий анализ: ошибка (пропущен)', 'warning')
+                sources_checked += 1
+
+            task.update('behavioral', 'Поведенческий анализ завершён', 82)
+            _pause()
+
+            # ══════════════════════════════════════════════
             # STAGE 7: RISK SCORING [82-92%]
             # ══════════════════════════════════════════════
             task.update('risk', 'Анализ рисков...', 85)
