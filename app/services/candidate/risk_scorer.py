@@ -40,6 +40,8 @@ class RiskScorer:
         red_flags.extend(self._analyze_bankruptcy(check))
         red_flags.extend(self._analyze_sanctions(check))
         red_flags.extend(self._analyze_social(check))
+        red_flags.extend(self._analyze_social_behavior(check))
+        red_flags.extend(self._analyze_behavioral_patterns(check))
 
         risk_level = self._calculate_risk_level(red_flags)
 
@@ -361,6 +363,219 @@ class RiskScorer:
                 SEVERITY_MEDIUM, 'social', 'no_social_presence',
                 'Не обнаружено присутствие в соцсетях (необычно)',
             ))
+
+        return flags
+
+    # ── Social Behavior Red Flags (Stage 5) ──
+
+    def _analyze_social_behavior(self, check):
+        """Category 7: Social behavior analysis from Stage 5 data."""
+        flags = []
+
+        graph = getattr(check, 'social_graph_data', None)
+        if isinstance(graph, str):
+            try:
+                import json
+                graph = json.loads(graph)
+            except (json.JSONDecodeError, TypeError):
+                graph = {}
+        if not graph or not isinstance(graph, dict):
+            graph = {}
+
+        face_matches = getattr(check, 'face_matches', None)
+        if isinstance(face_matches, str):
+            try:
+                import json
+                face_matches = json.loads(face_matches)
+            except (json.JSONDecodeError, TypeError):
+                face_matches = []
+        if not face_matches or not isinstance(face_matches, list):
+            face_matches = []
+
+        username_accounts = getattr(check, 'username_accounts', None)
+        if isinstance(username_accounts, str):
+            try:
+                import json
+                username_accounts = json.loads(username_accounts)
+            except (json.JSONDecodeError, TypeError):
+                username_accounts = []
+        if not username_accounts or not isinstance(username_accounts, list):
+            username_accounts = []
+
+        # no_friends: social graph has 0 nodes (beyond center)
+        stats = graph.get('stats', {})
+        node_count = stats.get('node_count', 0)
+        if graph and node_count == 0:
+            flags.append(self._flag(
+                SEVERITY_LOW, 'social_behavior', 'no_friends',
+                'Социальный граф пуст — нет друзей в VK',
+            ))
+
+        # isolated_graph: graph exists but 0 edges
+        edge_count = stats.get('edge_count', 0)
+        if graph and node_count > 0 and edge_count == 0:
+            flags.append(self._flag(
+                SEVERITY_MEDIUM, 'social_behavior', 'isolated_graph',
+                'Изолированный граф — нет связей между контактами',
+            ))
+
+        # fake_profile_indicators: found on social but suspicious signs
+        profiles = getattr(check, 'social_media_profiles', None) or []
+        if isinstance(profiles, str):
+            try:
+                import json
+                profiles = json.loads(profiles)
+            except (json.JSONDecodeError, TypeError):
+                profiles = []
+        for p in profiles:
+            if isinstance(p, dict):
+                # Check for recent creation + no photos + no posts
+                has_no_photos = not p.get('photo_url') and not p.get('photo_100')
+                has_no_posts = p.get('post_count', -1) == 0
+                # If profile explicitly has 0 posts and no photo
+                if has_no_photos and has_no_posts:
+                    flags.append(self._flag(
+                        SEVERITY_MEDIUM, 'social_behavior', 'fake_profile_indicators',
+                        'Подозрительный профиль: нет фото и постов',
+                        details=p.get('username', ''),
+                    ))
+                    break
+
+        # established_identity: found on 5+ platforms (positive indicator)
+        platform_count = len(username_accounts)
+        if platform_count >= 5:
+            flags.append(self._flag(
+                SEVERITY_LOW, 'social_behavior', 'established_identity',
+                f'Установленная личность: найден на {platform_count} платформах',
+            ))
+
+        return flags
+
+    # ── Behavioral Patterns Red Flags (Stage 6) ──
+
+    def _analyze_behavioral_patterns(self, check):
+        """Category 8: Behavioral patterns from Stage 6 data."""
+        flags = []
+
+        text_analysis = getattr(check, 'text_analysis', None)
+        if isinstance(text_analysis, str):
+            try:
+                import json
+                text_analysis = json.loads(text_analysis)
+            except (json.JSONDecodeError, TypeError):
+                text_analysis = {}
+        if not text_analysis or not isinstance(text_analysis, dict):
+            text_analysis = {}
+
+        geo_analysis = getattr(check, 'geo_analysis', None)
+        if isinstance(geo_analysis, str):
+            try:
+                import json
+                geo_analysis = json.loads(geo_analysis)
+            except (json.JSONDecodeError, TypeError):
+                geo_analysis = {}
+        if not geo_analysis or not isinstance(geo_analysis, dict):
+            geo_analysis = {}
+
+        activity_timeline = getattr(check, 'activity_timeline', None)
+        if isinstance(activity_timeline, str):
+            try:
+                import json
+                activity_timeline = json.loads(activity_timeline)
+            except (json.JSONDecodeError, TypeError):
+                activity_timeline = []
+        if not activity_timeline or not isinstance(activity_timeline, list):
+            activity_timeline = []
+
+        # negative_sentiment: sentiment score < -0.3
+        sentiment = text_analysis.get('sentiment', {})
+        if isinstance(sentiment, dict):
+            score = sentiment.get('score', 0)
+            if isinstance(score, (int, float)) and score < -0.3:
+                flags.append(self._flag(
+                    SEVERITY_LOW, 'behavioral', 'negative_sentiment',
+                    'Преимущественно негативный тон публикаций',
+                    details=f'Sentiment score: {score:.2f}',
+                ))
+
+        # risk_keywords: posts contain risk-related words
+        risk_words = {'долг', 'суд', 'банкрот', 'розыск', 'кредит', 'мошенник'}
+        keywords = text_analysis.get('keywords', [])
+        found_risk_words = []
+        for kw_pair in keywords:
+            word = kw_pair[0] if isinstance(kw_pair, (list, tuple)) else str(kw_pair)
+            if word.lower() in risk_words:
+                found_risk_words.append(word)
+        if found_risk_words:
+            flags.append(self._flag(
+                SEVERITY_MEDIUM, 'behavioral', 'risk_keywords',
+                'Рисковые ключевые слова в публикациях',
+                details=', '.join(found_risk_words),
+            ))
+
+        # night_activity: >50% posts between 2-5 AM
+        posting_times = text_analysis.get('posting_times', [])
+        if posting_times and len(posting_times) >= 5:
+            night_count = sum(1 for h in posting_times if 2 <= h <= 5)
+            night_ratio = night_count / len(posting_times)
+            if night_ratio > 0.5:
+                flags.append(self._flag(
+                    SEVERITY_LOW, 'behavioral', 'night_activity',
+                    'Ночная активность: >50% постов между 2-5 утра',
+                    details=f'{night_ratio:.0%} ночных постов',
+                ))
+
+        # geo_discrepancy: claimed city differs from most frequent geo
+        profiles = getattr(check, 'social_media_profiles', None) or []
+        if isinstance(profiles, str):
+            try:
+                import json
+                profiles = json.loads(profiles)
+            except (json.JSONDecodeError, TypeError):
+                profiles = []
+
+        claimed_city = ''
+        for p in profiles:
+            if isinstance(p, dict) and p.get('city'):
+                claimed_city = p['city'].lower().strip()
+                break
+
+        home_location = geo_analysis.get('home_location')
+        if isinstance(home_location, dict):
+            geo_city = (home_location.get('city') or '').lower().strip()
+            if claimed_city and geo_city and claimed_city != geo_city:
+                # Check if they're really different (not substring)
+                if claimed_city not in geo_city and geo_city not in claimed_city:
+                    flags.append(self._flag(
+                        SEVERITY_MEDIUM, 'behavioral', 'geo_discrepancy',
+                        'Расхождение геолокации: заявленный город отличается от фактического',
+                        details=f'Профиль: {claimed_city}, Геолокация: {geo_city}',
+                    ))
+
+        # inactive_profile: no posts in 12+ months
+        if activity_timeline:
+            # Find most recent post event
+            post_events = [
+                e for e in activity_timeline
+                if isinstance(e, dict) and e.get('type') == 'post'
+            ]
+            if post_events:
+                try:
+                    from datetime import datetime
+                    newest = max(
+                        e.get('timestamp', '') for e in post_events
+                    )
+                    if newest:
+                        newest_dt = datetime.fromisoformat(newest.replace('Z', '+00:00'))
+                        days_since = (datetime.now() - newest_dt.replace(tzinfo=None)).days
+                        if days_since > 365:
+                            flags.append(self._flag(
+                                SEVERITY_LOW, 'behavioral', 'inactive_profile',
+                                'Неактивный профиль: нет постов более 12 месяцев',
+                                details=f'Последний пост: {days_since} дней назад',
+                            ))
+                except Exception:
+                    pass
 
         return flags
 
