@@ -2,16 +2,19 @@
 Contact Discovery Service (Stage 4)
 ====================================
 Extracts phones and emails from VK/Telegram profiles, business records,
-guesses emails from usernames, and verifies with Holehe.
+guesses emails from usernames, queries breach databases, and verifies
+with Holehe.
 
 Discovery chain (order matters — each step feeds the next):
 1. Extract from VK profiles (API)
 2. Extract from Telegram profiles (parse existing data)
 3. Extract from business/FSSP records
 4. Guess emails from usernames
-5. Verify emails with Holehe
-6. Cross-reference (future)
-7. Deduplicate and score
+5. LeakDB name lookup (local breach data)
+6. Breach API enrichment (HudsonRock, LeakCheck, ProxyNova COMB)
+7. LeakDB cross-reference (snowball: phone→email, email→phone)
+8. Verify emails with Holehe
+9. Deduplicate and score
 """
 
 import logging
@@ -145,17 +148,31 @@ class ContactDiscoveryService:
         except Exception as e:
             logger.warning(f"Email guessing error: {e}")
 
-        # Step 5: Holehe verification
+        # Step 5: LeakDB name lookup
+        try:
+            self._query_leakdb_by_name(check.full_name)
+        except Exception as e:
+            logger.warning(f"LeakDB name lookup error: {e}")
+
+        # Step 6: Breach API enrichment
+        try:
+            self._query_breach_apis(social_profiles)
+        except Exception as e:
+            logger.warning(f"Breach API query error: {e}")
+
+        # Step 7: LeakDB cross-reference (snowball)
+        try:
+            self._cross_lookup_leakdb()
+        except Exception as e:
+            logger.warning(f"LeakDB cross-lookup error: {e}")
+
+        # Step 8: Holehe verification
         try:
             self._verify_with_holehe()
         except Exception as e:
             logger.warning(f"Holehe verification error: {e}")
 
-        # Step 6: Cross-reference (future)
-        # TODO: Epieos-style phone-to-email lookup
-        # TODO: Reverse email lookup for additional social profiles
-
-        # Step 7: Deduplicate
+        # Step 9: Deduplicate
         self._deduplicate_contacts()
 
         return {
@@ -445,7 +462,152 @@ class ContactDiscoveryService:
                 except ImportError:
                     logger.debug("Transliteration module not available for email guessing")
 
-    # ── Step 5: Holehe Verification ──────────────────────────────────
+    # ── Step 5: LeakDB Name Lookup ────────────────────────────────────
+
+    def _query_leakdb_by_name(self, full_name: str):
+        """Query local LeakDB for records matching the candidate's name."""
+        if not full_name:
+            return
+
+        from app.services.phase2.sources.leak_sources import LeakDB
+
+        db = LeakDB.get_instance()
+        records = db.query_name(full_name)
+        logger.info(f"LeakDB name lookup: '{full_name}' → {len(records)} records")
+
+        for rec in records:
+            if rec.get('phone'):
+                normalized = normalize_phone(rec['phone'])
+                if normalized:
+                    self.found_phones.append(DiscoveredPhone(
+                        number=normalized,
+                        source='leak_db',
+                        confidence='средняя',
+                        profile_name=f"LeakDB ({rec.get('source', 'unknown')})",
+                        raw_value=rec['phone'],
+                    ))
+            if rec.get('email'):
+                self.found_emails.append(DiscoveredEmail(
+                    email=rec['email'].lower(),
+                    source='leak_db',
+                    confidence='средняя',
+                    verified=False,
+                    profile_name=f"LeakDB ({rec.get('source', 'unknown')})",
+                ))
+
+    # ── Step 6: Breach API Enrichment ──────────────────────────────────
+
+    def _query_breach_apis(self, social_profiles: list):
+        """Query free breach APIs with discovered emails and usernames."""
+        # Collect unique emails discovered so far
+        emails_to_check = list({e.email.lower() for e in self.found_emails})[:10]
+
+        # Collect usernames from social profiles
+        usernames = set()
+        for profile in social_profiles:
+            username = (profile.get('username') or '').strip()
+            if username and len(username) >= 3:
+                if not (username.startswith('id') and username[2:].isdigit()):
+                    usernames.add(username.lower())
+        usernames = list(usernames)[:5]
+
+        if not emails_to_check and not usernames:
+            return
+
+        logger.info(
+            f"Breach API enrichment: {len(emails_to_check)} emails, "
+            f"{len(usernames)} usernames"
+        )
+
+        from app.services.phase2.sources.breach_api import (
+            HudsonRockSource, LeakCheckSource, ProxyNovaCOMBSource,
+        )
+
+        sources = [HudsonRockSource(), LeakCheckSource(), ProxyNovaCOMBSource()]
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = []
+            for src in sources:
+                futures.append(executor.submit(
+                    src.query,
+                    email=emails_to_check[0] if emails_to_check else None,
+                    username=usernames[0] if usernames else None,
+                    email_candidates=[{'email': e} for e in emails_to_check[1:]],
+                ))
+
+            for future in as_completed(futures, timeout=30):
+                try:
+                    results = future.result(timeout=15)
+                    for r in (results or []):
+                        if r.data_type == 'email' and r.value:
+                            email_lower = r.value.lower()
+                            if not any(e.email == email_lower for e in self.found_emails):
+                                self.found_emails.append(DiscoveredEmail(
+                                    email=email_lower,
+                                    source='breach_api',
+                                    confidence='средняя' if r.confidence >= 0.8 else 'низкая',
+                                    verified=r.verified,
+                                    profile_name=r.source_name,
+                                ))
+                        elif r.data_type == 'phone' and r.value:
+                            normalized = normalize_phone(r.value)
+                            if normalized and not any(p.number == normalized for p in self.found_phones):
+                                self.found_phones.append(DiscoveredPhone(
+                                    number=normalized,
+                                    source='breach_api',
+                                    confidence='средняя',
+                                    profile_name=r.source_name,
+                                    raw_value=r.value,
+                                ))
+                except Exception as e:
+                    logger.warning(f"Breach API query error: {e}")
+
+    # ── Step 7: LeakDB Cross-Reference ─────────────────────────────────
+
+    def _cross_lookup_leakdb(self):
+        """Cross-reference discovered contacts against LeakDB for snowball discovery."""
+        from app.services.phase2.sources.leak_sources import LeakDB
+
+        db = LeakDB.get_instance()
+        new_emails = 0
+        new_phones = 0
+
+        # For each discovered phone, look up linked emails
+        for phone in list(self.found_phones):
+            records = db.query_phone(phone.number)
+            for rec in records:
+                if rec.get('email'):
+                    email_lower = rec['email'].lower()
+                    if not any(e.email == email_lower for e in self.found_emails):
+                        self.found_emails.append(DiscoveredEmail(
+                            email=email_lower,
+                            source='leak_db_xref',
+                            confidence='средняя',
+                            verified=False,
+                            profile_name=f"LeakDB \u2190 {phone.number}",
+                        ))
+                        new_emails += 1
+
+        # For each discovered email, look up linked phones
+        for email in list(self.found_emails):
+            records = db.query_email(email.email)
+            for rec in records:
+                if rec.get('phone'):
+                    normalized = normalize_phone(rec['phone'])
+                    if normalized and not any(p.number == normalized for p in self.found_phones):
+                        self.found_phones.append(DiscoveredPhone(
+                            number=normalized,
+                            source='leak_db_xref',
+                            confidence='средняя',
+                            profile_name=f"LeakDB \u2190 {email.email}",
+                            raw_value=rec['phone'],
+                        ))
+                        new_phones += 1
+
+        if new_emails or new_phones:
+            logger.info(f"LeakDB cross-ref: +{new_emails} emails, +{new_phones} phones")
+
+    # ── Step 8: Holehe Verification ──────────────────────────────────
 
     def _verify_with_holehe(self):
         """Verify discovered/guessed emails with Holehe."""
@@ -511,7 +673,7 @@ class ContactDiscoveryService:
                         services=services[:5],
                     ))
 
-    # ── Step 7: Deduplication ────────────────────────────────────────
+    # ── Step 9: Deduplication ────────────────────────────────────────
 
     def _deduplicate_contacts(self):
         """Remove duplicate phones/emails, keep highest confidence version."""

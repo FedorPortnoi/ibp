@@ -436,7 +436,10 @@ class TestEdgeCases:
 
         svc = ContactDiscoveryService()
         svc.vk_token = None
-        with patch.object(svc, '_verify_with_holehe'):
+        with patch.object(svc, '_verify_with_holehe'), \
+             patch.object(svc, '_query_leakdb_by_name'), \
+             patch.object(svc, '_query_breach_apis'), \
+             patch.object(svc, '_cross_lookup_leakdb'):
             result = svc.discover(check)
 
         assert result['phones'] == []
@@ -471,7 +474,10 @@ class TestEdgeCases:
 
         svc = ContactDiscoveryService()
         svc.vk_token = None
-        with patch.object(svc, '_verify_with_holehe'):
+        with patch.object(svc, '_verify_with_holehe'), \
+             patch.object(svc, '_query_leakdb_by_name'), \
+             patch.object(svc, '_query_breach_apis'), \
+             patch.object(svc, '_cross_lookup_leakdb'):
             result = svc.discover(check)
 
         assert result['phones'] == []
