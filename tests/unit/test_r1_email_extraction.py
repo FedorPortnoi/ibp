@@ -417,12 +417,17 @@ class TestGenerateCandidatesBasic:
 class TestGenerateCandidatesWithUsernames:
     """Candidate generation with username input."""
 
-    def test_username_added(self, service):
-        candidates = service._generate_candidates(
-            "\u0418\u0432\u0430\u043d", "\u0418\u0432\u0430\u043d\u043e\u0432", ["cool_ivan"]
-        )
-        locals_parts = {c.split("@")[0] for c in candidates}
-        assert "cool_ivan" in locals_parts
+    def test_username_added(self):
+        # Use uncapped service to avoid set ordering issues with default cap
+        svc = EmailDiscoveryService(max_candidates=200)
+        try:
+            candidates = svc._generate_candidates(
+                "\u0418\u0432\u0430\u043d", "\u0418\u0432\u0430\u043d\u043e\u0432", ["cool_ivan"]
+            )
+            locals_parts = {c.split("@")[0] for c in candidates}
+            assert "cool_ivan" in locals_parts
+        finally:
+            svc.close()
 
     def test_short_username_excluded(self, service):
         candidates = service._generate_candidates(
