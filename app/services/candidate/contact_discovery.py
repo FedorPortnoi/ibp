@@ -709,3 +709,150 @@ class ContactDiscoveryService:
         self.found_phones.sort(
             key=lambda p: -_confidence_rank(p.confidence),
         )
+
+    # ── Supplementary Discovery (Stage 5 feedback) ───────────────────
+
+    def discover_supplementary(self, new_accounts: list, existing_contacts: dict) -> dict:
+        """
+        Run mini contact discovery on newly discovered accounts from Stage 5.
+
+        When Snoop/YaSeeker/face search finds new social accounts, this method
+        extracts contacts from those accounts (email patterns, breach checks)
+        and returns only NEW discoveries not already in existing_contacts.
+
+        Args:
+            new_accounts: List of dicts with keys: url, username, platform, source
+            existing_contacts: Current check.contact_discoveries dict
+
+        Returns:
+            {"phones": [...], "emails": [...]} with only new discoveries
+        """
+        if not new_accounts:
+            return {'phones': [], 'emails': []}
+
+        # Check for demo data (accounts from demo response)
+        is_demo = any(
+            'demo' in (a.get('username') or '').lower()
+            for a in new_accounts
+        )
+        if is_demo:
+            return self._demo_supplementary()
+
+        new_phones = []
+        new_emails = []
+
+        # Collect existing contacts for dedup
+        existing_email_set = set()
+        existing_phone_set = set()
+        for email_item in (existing_contacts.get('emails') or []):
+            addr = email_item.get('email', '') if isinstance(email_item, dict) else str(email_item)
+            existing_email_set.add(addr.lower())
+        for phone_item in (existing_contacts.get('phones') or []):
+            num = phone_item.get('number', '') if isinstance(phone_item, dict) else str(phone_item)
+            existing_phone_set.add(num)
+
+        # Step 1: Extract usernames from new accounts
+        usernames = set()
+        for account in new_accounts:
+            username = (account.get('username') or '').strip()
+            if username and len(username) >= 3:
+                if not (username.startswith('id') and username[2:].isdigit()):
+                    usernames.add(username.lower())
+
+        # Step 2: Generate email patterns from usernames
+        generated_emails = []
+        for username in list(usernames)[:10]:
+            clean = re.sub(r'[^a-z0-9._-]', '', username)
+            if len(clean) < 3:
+                continue
+            for domain in GUESS_DOMAINS[:4]:  # Top 4 domains only for speed
+                email = f'{clean}@{domain}'
+                if email not in existing_email_set:
+                    generated_emails.append(email)
+                    existing_email_set.add(email)
+
+        # Step 3: Holehe verification on generated emails (max 10)
+        verified_emails = []
+        if generated_emails:
+            emails_to_check = generated_emails[:10]
+            try:
+                from app.services.phase2.email_discovery import verify_emails_with_holehe
+                logger.info(f"Supplementary: verifying {len(emails_to_check)} emails with Holehe")
+                results = verify_emails_with_holehe(emails_to_check, max_emails=10)
+                for r in results:
+                    if r.get('verified') and r.get('services'):
+                        verified_emails.append({
+                            'address': r['email'].lower(),
+                            'source': 'holehe_supplementary',
+                            'confidence': 'высокая',
+                            'services': r['services'][:3],
+                        })
+            except ImportError:
+                logger.debug("Holehe not available for supplementary verification")
+            except Exception as e:
+                logger.warning(f"Supplementary Holehe error: {e}")
+
+        # Also add unverified guesses with low confidence
+        for email in generated_emails[:5]:
+            if not any(v['address'] == email for v in verified_emails):
+                new_emails.append({
+                    'address': email,
+                    'source': 'email_guess_supplementary',
+                    'confidence': 'низкая',
+                })
+
+        new_emails = verified_emails + new_emails
+
+        # Step 4: Breach API check on new emails
+        if generated_emails:
+            try:
+                from app.services.phase2.sources.breach_api import (
+                    HudsonRockSource, LeakCheckSource,
+                )
+                for src_cls in [HudsonRockSource, LeakCheckSource]:
+                    try:
+                        src = src_cls()
+                        results = src.query(
+                            email=generated_emails[0] if generated_emails else None
+                        )
+                        for r in (results or []):
+                            if r.data_type == 'phone' and r.value:
+                                normalized = normalize_phone(r.value)
+                                if normalized and normalized not in existing_phone_set:
+                                    new_phones.append({
+                                        'number': normalized,
+                                        'source': f'breach_supplementary_{r.source_name}',
+                                        'confidence': 'средняя',
+                                    })
+                                    existing_phone_set.add(normalized)
+                            elif r.data_type == 'email' and r.value:
+                                email_lower = r.value.lower()
+                                if email_lower not in existing_email_set:
+                                    new_emails.append({
+                                        'address': email_lower,
+                                        'source': f'breach_supplementary_{r.source_name}',
+                                        'confidence': 'средняя',
+                                    })
+                                    existing_email_set.add(email_lower)
+                    except Exception as e:
+                        logger.warning(f"Supplementary breach query error: {e}")
+            except ImportError:
+                logger.debug("Breach API sources not available")
+
+        return {
+            'phones': new_phones,
+            'emails': new_emails,
+        }
+
+    @staticmethod
+    def _demo_supplementary() -> dict:
+        """Return demo supplementary discovery results."""
+        return {
+            'phones': [
+                {'number': '+79161234599', 'source': 'breach_supplementary_demo', 'confidence': 'средняя'},
+            ],
+            'emails': [
+                {'address': 'ivanov.demo@gmail.com', 'source': 'holehe_supplementary', 'confidence': 'высокая'},
+                {'address': 'ivanov.demo@mail.ru', 'source': 'email_guess_supplementary', 'confidence': 'низкая'},
+            ],
+        }
