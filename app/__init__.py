@@ -35,35 +35,26 @@ def create_app(config_name=None):
 
     app = Flask(__name__)
 
-    # Load configuration
-    secret_key = os.environ.get('SECRET_KEY') or os.environ.get('FLASK_SECRET_KEY')
-    if not secret_key:
+    # 1) Load static config from Config classes (DEBUG, TESTING, paths, etc.)
+    from config import config as config_map, load_env_config
+    app.config.from_object(config_map.get(config_name, config_map['default']))
+
+    # 2) Load ALL API keys fresh from os.environ (not frozen class attributes).
+    #    This is the fix for VK_SERVICE_TOKEN not loading in production:
+    #    class attributes are evaluated once at import time and cached by Python,
+    #    so they can miss env vars set later or differ between environments.
+    load_env_config(app)
+
+    # Validate SECRET_KEY is set
+    if not app.config.get('SECRET_KEY'):
         raise RuntimeError(
             "SECRET_KEY environment variable is not set. "
             "Set it in your .env file or environment before running the app."
         )
-    app.config['SECRET_KEY'] = secret_key
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///ibp.db')
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
 
-    # VK API configuration
-    app.config['VK_SERVICE_TOKEN'] = os.environ.get('VK_SERVICE_TOKEN')
-    app.config['VK_API_VERSION'] = os.environ.get('VK_API_VERSION', '5.199')
-
-    # Search4Faces API (optional)
-    app.config['SEARCH4FACES_API_KEY'] = os.environ.get('SEARCH4FACES_API_KEY')
-
-    if config_name == 'production':
-        app.config['DEBUG'] = False
-        app.config['TESTING'] = False
-        app.config['SESSION_COOKIE_SECURE'] = False  # Render handles HTTPS at edge
-    elif config_name == 'testing':
-        app.config['DEBUG'] = True
-        app.config['TESTING'] = True
+    # Testing overrides
+    if config_name == 'testing':
         app.config['WTF_CSRF_ENABLED'] = False
-    else:
-        app.config['DEBUG'] = True
 
     # Initialize extensions with app
     db.init_app(app)
