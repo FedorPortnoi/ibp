@@ -311,6 +311,31 @@
                 {% set contact_count = (contacts.get('phones', [])|length + contacts.get('emails', [])|length) if contacts else 0 %}
                 <span class="badge {% if contact_count %}badge-count{% else %}badge-empty{% endif %}">{{ contact_count if contact_count else '—' }}</span>
             </a>
+            {% if username_accounts %}
+            <a href="#sec-accounts" class="nav-pill">&#x1F465; Аккаунты
+                <span class="badge badge-count">{{ username_accounts|length }}</span>
+            </a>
+            {% endif %}
+            {% if social_graph_data and social_graph_data.get('nodes') %}
+            <a href="#sec-graph" class="nav-pill">&#x1F578; Граф
+                <span class="badge badge-count">{{ social_graph_data.get('nodes', [])|length }}</span>
+            </a>
+            {% endif %}
+            {% if geo_analysis and geo_analysis.get('locations') %}
+            <a href="#sec-geo" class="nav-pill">&#x1F4CD; Гео
+                <span class="badge badge-count">{{ geo_analysis.get('locations', [])|length }}</span>
+            </a>
+            {% endif %}
+            {% if text_analysis %}
+            <a href="#sec-behavioral" class="nav-pill">&#x1F4CA; Поведение
+                <span class="badge badge-count">1</span>
+            </a>
+            {% endif %}
+            {% if activity_timeline %}
+            <a href="#sec-timeline" class="nav-pill">&#x1F4C5; Хронология
+                <span class="badge badge-count">{{ activity_timeline|length }}</span>
+            </a>
+            {% endif %}
         </div>
     </div>
 
@@ -785,7 +810,273 @@
     </section>
 
     {# ================================================================
-       11. FOOTER
+       11. FOUND ACCOUNTS (Stage 5)
+       ================================================================ #}
+    {% if username_accounts or face_matches %}
+    <section id="sec-accounts" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F465; Найденные аккаунты</h2>
+            <span class="section-count">{{ username_accounts|length }} аккаунтов{% if face_matches %}, {{ face_matches|length }} совпадений лиц{% endif %}</span>
+        </div>
+
+        {% if face_matches %}
+        <div class="mb-4">
+            <h3 class="text-sm font-medium text-gray-400 mb-2">Распознавание лиц</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {% for fm in face_matches %}
+                <div class="dossier-card flex items-center gap-3 py-3">
+                    {% if fm.get('photo_url') or fm.get('thumbnail') %}
+                        <img src="{{ fm.get('photo_url', fm.get('thumbnail', '')) }}" alt=""
+                             class="social-avatar" onerror="this.style.display='none'">
+                    {% endif %}
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm text-white truncate">{{ fm.get('username', fm.get('name', '')) }}</div>
+                        {% if fm.get('profile_url') %}
+                            <a href="{{ fm.profile_url }}" target="_blank" rel="noopener"
+                               class="text-xs text-violet hover:text-violet-bright">{{ fm.get('source', 'Search4Faces') }} &#x2197;</a>
+                        {% endif %}
+                    </div>
+                    {% set sim = fm.get('similarity', fm.get('score', 0)) %}
+                    {% if sim %}
+                        <span class="text-sm font-mono {% if sim > 0.8 %}text-green-400{% elif sim > 0.5 %}text-yellow-400{% else %}text-gray-400{% endif %}">
+                            {{ '%.0f'|format(sim * 100) }}%
+                        </span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if username_accounts %}
+        <div>
+            <h3 class="text-sm font-medium text-gray-400 mb-2">Аккаунты на платформах</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {% for acct in username_accounts %}
+                <div class="dossier-card flex items-center gap-3 py-3">
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm text-white truncate">{{ acct.get('platform', acct.get('site', '')) }}</div>
+                        {% if acct.get('username') %}
+                            <div class="text-xs text-gray-500 truncate">@{{ acct.username }}</div>
+                        {% endif %}
+                    </div>
+                    {% if acct.get('url') %}
+                        <a href="{{ acct.url }}" target="_blank" rel="noopener"
+                           class="text-xs text-violet hover:text-violet-bright shrink-0">&#x2197;</a>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    {# ================================================================
+       12. SOCIAL GRAPH (Stage 5)
+       ================================================================ #}
+    {% if social_graph_data and social_graph_data.get('nodes') %}
+    <section id="sec-graph" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F578; Социальный граф</h2>
+            <span class="section-count">{{ social_graph_data.get('nodes', [])|length }} узлов, {{ social_graph_data.get('edges', [])|length }} связей</span>
+        </div>
+        <div class="dossier-card" style="padding: 0; overflow: hidden;">
+            <div id="social-graph-container" style="height: 500px; background: var(--bg-dark);"></div>
+        </div>
+        {% if social_graph_data.get('stats') %}
+        <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {% if social_graph_data.stats.get('node_count') is not none %}
+            <div class="text-center p-2 rounded-lg bg-bg-panel border border-violet-100">
+                <div class="text-lg font-bold text-violet">{{ social_graph_data.stats.node_count }}</div>
+                <div class="text-xs text-gray-500">Узлов</div>
+            </div>
+            {% endif %}
+            {% if social_graph_data.stats.get('edge_count') is not none %}
+            <div class="text-center p-2 rounded-lg bg-bg-panel border border-violet-100">
+                <div class="text-lg font-bold text-violet">{{ social_graph_data.stats.edge_count }}</div>
+                <div class="text-xs text-gray-500">Связей</div>
+            </div>
+            {% endif %}
+            {% if social_graph_data.stats.get('communities') is not none %}
+            <div class="text-center p-2 rounded-lg bg-bg-panel border border-violet-100">
+                <div class="text-lg font-bold text-violet">{{ social_graph_data.stats.communities }}</div>
+                <div class="text-xs text-gray-500">Сообществ</div>
+            </div>
+            {% endif %}
+            {% if social_graph_data.stats.get('density') is not none %}
+            <div class="text-center p-2 rounded-lg bg-bg-panel border border-violet-100">
+                <div class="text-lg font-bold text-violet">{{ '%.2f'|format(social_graph_data.stats.density) }}</div>
+                <div class="text-xs text-gray-500">Плотность</div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    {# ================================================================
+       13. GEOGRAPHY (Stage 6)
+       ================================================================ #}
+    {% if geo_analysis and geo_analysis.get('locations') %}
+    <section id="sec-geo" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F4CD; География</h2>
+            <span class="section-count">{{ geo_analysis.get('locations', [])|length }} локаций</span>
+        </div>
+        <div class="dossier-card" style="padding: 0; overflow: hidden;">
+            <div id="geo-map-container" style="height: 400px; background: var(--bg-dark);"></div>
+        </div>
+        <div class="mt-3">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs text-gray-500 border-b border-violet-100">
+                        <th class="pb-2">Город</th>
+                        <th class="pb-2">Частота</th>
+                        <th class="pb-2">Источник</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loc in geo_analysis.get('locations', []) %}
+                    <tr class="border-b border-violet-100/50">
+                        <td class="py-2 text-white">{{ loc.get('city', loc.get('name', '')) }}</td>
+                        <td class="py-2 text-gray-400">{{ loc.get('frequency', loc.get('count', 1)) }}</td>
+                        <td class="py-2 text-gray-500 text-xs">{{ loc.get('source', '') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if geo_analysis.get('home_location') %}
+        <div class="mt-3 px-3 py-2 rounded-lg bg-violet-50 border border-violet-200 text-sm">
+            <span class="text-gray-400">Предполагаемое место жительства:</span>
+            <span class="text-white font-medium">{{ geo_analysis.home_location }}</span>
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    {# ================================================================
+       14. BEHAVIORAL ANALYSIS (Stage 6)
+       ================================================================ #}
+    {% if text_analysis %}
+    <section id="sec-behavioral" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F4CA; Поведенческий анализ</h2>
+        </div>
+
+        {% if text_analysis.get('sentiment') %}
+        <div class="dossier-card mb-3">
+            <h3 class="text-sm font-medium text-gray-400 mb-2">Тональность</h3>
+            {% set sent = text_analysis.sentiment %}
+            {% set sent_label = sent if sent is string else sent.get('label', 'нейтральная') %}
+            {% set sent_score = 0 if sent is string else sent.get('score', 0) %}
+            <div class="flex items-center gap-3">
+                {% if 'положит' in (sent_label|lower) or 'positive' in (sent_label|lower) or sent_score > 0.3 %}
+                    <span class="text-2xl">&#x1F600;</span>
+                    <span class="text-green-400 font-medium">Положительная</span>
+                {% elif 'отрицат' in (sent_label|lower) or 'negative' in (sent_label|lower) or sent_score < -0.3 %}
+                    <span class="text-2xl">&#x1F61F;</span>
+                    <span class="text-red-400 font-medium">Отрицательная</span>
+                {% else %}
+                    <span class="text-2xl">&#x1F610;</span>
+                    <span class="text-gray-400 font-medium">Нейтральная</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if text_analysis.get('keywords') %}
+        <div class="dossier-card mb-3">
+            <h3 class="text-sm font-medium text-gray-400 mb-2">Ключевые слова</h3>
+            <div class="flex flex-wrap gap-2">
+                {% for kw in text_analysis.get('keywords', [])[:20] %}
+                    {% set kw_text = kw if kw is string else kw.get('word', kw.get('text', '')) %}
+                    {% if kw_text %}
+                    <span class="px-3 py-1 rounded-full text-xs bg-violet-50 border border-violet-200 text-gray-300">{{ kw_text }}</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if text_analysis.get('topics') %}
+        <div class="dossier-card mb-3">
+            <h3 class="text-sm font-medium text-gray-400 mb-2">Темы</h3>
+            <div class="space-y-1">
+                {% for topic in text_analysis.get('topics', [])[:10] %}
+                    {% set topic_text = topic if topic is string else topic.get('name', topic.get('text', '')) %}
+                    {% if topic_text %}
+                    <div class="text-sm text-gray-300">&bull; {{ topic_text }}</div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if text_analysis.get('posting_hours') or text_analysis.get('posting_pattern') %}
+        <div class="dossier-card">
+            <h3 class="text-sm font-medium text-gray-400 mb-2">Паттерн активности</h3>
+            {% set hours = text_analysis.get('posting_hours', text_analysis.get('posting_pattern', {})) %}
+            {% if hours is mapping %}
+            <div class="flex items-end gap-0.5 h-16">
+                {% for h in range(24) %}
+                    {% set val = hours.get(h|string, hours.get(h, 0)) %}
+                    {% set max_val = hours.values()|max if hours.values()|list else 1 %}
+                    {% set pct = (val / max_val * 100) if max_val > 0 else 0 %}
+                    <div class="flex-1 rounded-t" title="{{ h }}:00 — {{ val }}"
+                         style="height: {{ pct }}%; min-height: 2px; background: {% if h >= 2 and h <= 5 %}rgba(239,68,68,0.4){% else %}rgba(139,92,246,0.4){% endif %};"></div>
+                {% endfor %}
+            </div>
+            <div class="flex justify-between text-xs text-gray-600 mt-1">
+                <span>0:00</span><span>6:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    {# ================================================================
+       15. TIMELINE (Stage 6)
+       ================================================================ #}
+    {% if activity_timeline %}
+    <section id="sec-timeline" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F4C5; Хронология</h2>
+            <span class="section-count">{{ activity_timeline|length }} событий</span>
+        </div>
+        <div class="space-y-0">
+            {% for event in activity_timeline|sort(attribute='date', reverse=true) if event.get('date') %}
+            <div class="flex gap-3 py-3 border-b border-violet-100/30">
+                <div class="shrink-0 w-20 text-xs text-gray-500 font-mono pt-0.5">{{ event.date }}</div>
+                <div class="flex-1">
+                    {% set etype = event.get('type', '') %}
+                    {% if etype %}
+                        <span class="inline-block px-2 py-0.5 rounded text-xs font-medium mb-1
+                            {% if 'суд' in etype|lower or 'court' in etype|lower %}badge-yellow
+                            {% elif 'бизнес' in etype|lower or 'business' in etype|lower %}badge-blue
+                            {% elif 'соц' in etype|lower or 'social' in etype|lower %}badge-green
+                            {% else %}badge-gray{% endif %}">{{ etype }}</span>
+                    {% endif %}
+                    <div class="text-sm text-gray-300">{{ event.get('description', event.get('text', '')) }}</div>
+                </div>
+            </div>
+            {% endfor %}
+            {% for event in activity_timeline if not event.get('date') %}
+            <div class="flex gap-3 py-3 border-b border-violet-100/30">
+                <div class="shrink-0 w-20 text-xs text-gray-500 font-mono pt-0.5">—</div>
+                <div class="flex-1">
+                    <div class="text-sm text-gray-300">{{ event.get('description', event.get('text', '')) }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {# ================================================================
+       16. FOOTER
        ================================================================ #}
     <div class="export-wrap flex flex-wrap gap-3 mb-6 pt-4 border-t border-violet-100">
         <a href="/candidate/export/{{ check.id }}/json" class="export-btn">&#x1F4CB; Скачать JSON</a>
@@ -814,4 +1105,108 @@
     </div>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if social_graph_data and social_graph_data.get('nodes') %}
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<script>
+(function() {
+    var container = document.getElementById('social-graph-container');
+    if (!container) return;
+
+    fetch('/candidate/api/social-graph/{{ check.id }}')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.nodes || data.nodes.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Нет данных для графа</div>';
+                return;
+            }
+            var nodes = new vis.DataSet(data.nodes.map(function(n) {
+                return {
+                    id: n.id,
+                    label: n.label || n.name || '',
+                    shape: n.shape || 'dot',
+                    size: n.size || 12,
+                    color: n.color || '#8b5cf6',
+                    image: n.image || undefined,
+                    title: n.title || n.label || '',
+                };
+            }));
+            var edges = new vis.DataSet((data.edges || []).map(function(e) {
+                return {
+                    from: e.from,
+                    to: e.to,
+                    color: {color: 'rgba(139,92,246,0.3)', highlight: '#8b5cf6'},
+                };
+            }));
+            var options = {
+                nodes: {font: {color: '#e5e7eb', size: 11}},
+                edges: {smooth: {type: 'continuous'}},
+                physics: {stabilization: {iterations: 100}},
+                interaction: {hover: true},
+                layout: {improvedLayout: true},
+            };
+            new vis.Network(container, {nodes: nodes, edges: edges}, options);
+        })
+        .catch(function(err) {
+            container.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Ошибка загрузки графа</div>';
+        });
+})();
+</script>
+{% endif %}
+
+{% if geo_analysis and geo_analysis.get('locations') %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function() {
+    var container = document.getElementById('geo-map-container');
+    if (!container) return;
+
+    fetch('/candidate/api/geo-data/{{ check.id }}')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var locations = data.locations || [];
+            if (locations.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Нет геоданных</div>';
+                return;
+            }
+
+            var map = L.map(container, {zoomControl: true}).setView([55.75, 37.62], 5);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: 'CartoDB',
+                maxZoom: 19,
+            }).addTo(map);
+
+            var bounds = [];
+            locations.forEach(function(loc) {
+                var lat = loc.lat || loc.latitude;
+                var lng = loc.lon || loc.lng || loc.longitude;
+                if (lat && lng) {
+                    var name = loc.city || loc.name || '';
+                    var freq = loc.frequency || loc.count || 1;
+                    var marker = L.circleMarker([lat, lng], {
+                        radius: Math.min(6 + freq * 2, 20),
+                        color: '#8b5cf6',
+                        fillColor: '#a78bfa',
+                        fillOpacity: 0.6,
+                    }).addTo(map);
+                    marker.bindPopup('<b>' + name + '</b><br>Частота: ' + freq);
+                    bounds.push([lat, lng]);
+                }
+            });
+
+            if (bounds.length > 1) {
+                map.fitBounds(bounds, {padding: [30, 30]});
+            } else if (bounds.length === 1) {
+                map.setView(bounds[0], 10);
+            }
+        })
+        .catch(function() {
+            container.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Ошибка загрузки карты</div>';
+        });
+})();
+</script>
+{% endif %}
 {% endblock %}
