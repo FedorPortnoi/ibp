@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block title %}Подтверждение профиля — {{ check.full_name }} — IBP{% endblock %}
+
+{% block head %}
+<style>
+    .profile-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 16px;
+    }
+    .profile-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 16px;
+        transition: all 0.2s;
+        cursor: pointer;
+        position: relative;
+    }
+    .profile-card:hover {
+        border-color: rgba(139, 92, 246, 0.4);
+    }
+    .profile-card.checked {
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+        background: rgba(139, 92, 246, 0.06);
+    }
+    .profile-card .check-indicator {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        border: 2px solid var(--border-default);
+        background: var(--bg-dark);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+    .profile-card.checked .check-indicator {
+        border-color: #8b5cf6;
+        background: #8b5cf6;
+    }
+    .profile-avatar-lg {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid var(--border-default);
+        background: var(--bg-dark);
+    }
+    .avatar-placeholder-lg {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: rgba(139, 92, 246, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid var(--border-default);
+        font-size: 1.5rem;
+        color: var(--text-dim);
+    }
+    .confidence-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 4px;
+    }
+    .conf-high { background: #22c55e; }
+    .conf-medium { background: #eab308; }
+    .conf-low { background: #ef4444; }
+    .bottom-bar {
+        position: sticky;
+        bottom: 0;
+        background: rgba(10, 6, 24, 0.95);
+        border-top: 1px solid rgba(139, 92, 246, 0.2);
+        padding: 16px 0;
+        backdrop-filter: blur(10px);
+        z-index: 50;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-2xl font-bold text-white mb-2 font-display">Найденные профили</h1>
+        <p class="text-gray-400">
+            Выберите профили, принадлежащие кандидату
+            <span class="text-white font-medium">{{ check.full_name }}</span>
+        </p>
+    </div>
+
+    <!-- Auto-redirect notice -->
+    <div class="mb-6 px-4 py-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5 text-sm text-yellow-400 text-center">
+        Если не ответить в течение 30 минут, система продолжит автоматически
+    </div>
+
+    <form id="confirm-form" method="POST" action="/candidate/confirm/{{ check.id }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+        {% if profiles|length == 0 %}
+            <div class="text-center py-12 text-gray-500">
+                Профили не найдены. Нажмите кнопку ниже, чтобы продолжить без подтверждения.
+            </div>
+        {% else %}
+            <!-- Profile Grid -->
+            <div class="profile-grid mb-8">
+                {% for profile in profiles %}
+                <label class="profile-card" id="card-{{ loop.index0 }}" onclick="toggleCard(this)">
+                    <input type="checkbox" name="confirmed_profiles"
+                           value="{{ profile.url or profile.username or loop.index0 }}"
+                           class="hidden profile-checkbox">
+                    <div class="check-indicator">
+                        <svg class="w-4 h-4 text-white hidden check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+
+                    <div class="flex items-start gap-3 mb-3">
+                        {% set avatar = profile.avatar_url or profile.photo_url %}
+                        {% if avatar %}
+                            <img src="{{ avatar }}" alt="" class="profile-avatar-lg"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="avatar-placeholder-lg" style="display:none;">
+                                {% if profile.platform == 'telegram' %}&#x2708;{% elif profile.platform == 'vk' %}VK{% else %}&#x1F464;{% endif %}
+                            </div>
+                        {% else %}
+                            <div class="avatar-placeholder-lg">
+                                {% if profile.platform == 'telegram' %}&#x2708;{% elif profile.platform == 'vk' %}VK{% else %}&#x1F464;{% endif %}
+                            </div>
+                        {% endif %}
+
+                        <div class="flex-1 min-w-0">
+                            <div class="font-semibold text-white text-sm truncate">{{ profile.display_name or 'Без имени' }}</div>
+                            {% if profile.username %}
+                                <div class="text-xs text-gray-500 truncate">@{{ profile.username }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                        <!-- Platform badge -->
+                        {% if profile.platform == 'vk' %}
+                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold" style="background: rgba(0, 119, 255, 0.2); color: #4da6ff;">VK</span>
+                        {% elif profile.platform == 'telegram' %}
+                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold" style="background: rgba(38, 165, 228, 0.2); color: #26a5e4;">Telegram</span>
+                        {% elif profile.platform == 'yandex' %}
+                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold" style="background: rgba(255, 204, 0, 0.2); color: #ffcc00;">Яндекс</span>
+                        {% elif profile.platform %}
+                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold" style="background: rgba(100,116,139,0.15); color: #94a3b8;">{{ profile.platform }}</span>
+                        {% endif %}
+
+                        <!-- Confidence -->
+                        {% set conf_score = profile.confidence_score or 0 %}
+                        {% if conf_score > 0.8 or profile.confidence == 'высокая' %}
+                            <span class="text-xs text-green-400"><span class="confidence-dot conf-high"></span>высокая</span>
+                        {% elif conf_score > 0.5 or profile.confidence == 'средняя' %}
+                            <span class="text-xs text-yellow-400"><span class="confidence-dot conf-medium"></span>средняя</span>
+                        {% elif conf_score > 0 %}
+                            <span class="text-xs text-red-400"><span class="confidence-dot conf-low"></span>низкая</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="text-xs text-gray-500 space-y-0.5">
+                        {% if profile.city %}
+                            <div>{{ profile.city }}</div>
+                        {% endif %}
+                        {% if profile.source_method %}
+                            <div class="text-gray-600">{{ profile.source_method }}</div>
+                        {% endif %}
+                    </div>
+
+                    {% if profile.url %}
+                        <div class="mt-2">
+                            <a href="{{ profile.url }}" target="_blank" rel="noopener"
+                               class="text-xs text-violet hover:text-violet-bright transition"
+                               onclick="event.stopPropagation(); event.preventDefault(); window.open(this.href, '_blank');">
+                                Открыть профиль &#x2197;
+                            </a>
+                        </div>
+                    {% endif %}
+                </label>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Bottom action bar -->
+        <div class="bottom-bar">
+            <div class="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button type="submit" id="confirm-btn"
+                        class="px-8 py-3 bg-violet hover:bg-violet-dim text-white font-semibold rounded-lg transition">
+                    Подтвердить выбранные
+                </button>
+                <button type="submit" id="skip-btn"
+                        class="px-8 py-3 bg-transparent border border-gray-600 hover:border-gray-400 text-gray-400 hover:text-white font-medium rounded-lg transition"
+                        onclick="uncheckAll()">
+                    Ни один не подходит
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleCard(label) {
+    var cb = label.querySelector('.profile-checkbox');
+    var icon = label.querySelector('.check-icon');
+    // The label click already toggles the checkbox — we just update visuals
+    setTimeout(function() {
+        if (cb.checked) {
+            label.classList.add('checked');
+            icon.classList.remove('hidden');
+        } else {
+            label.classList.remove('checked');
+            icon.classList.add('hidden');
+        }
+        updateConfirmBtn();
+    }, 0);
+}
+
+function updateConfirmBtn() {
+    var count = document.querySelectorAll('.profile-checkbox:checked').length;
+    var btn = document.getElementById('confirm-btn');
+    if (count > 0) {
+        btn.textContent = 'Подтвердить выбранные (' + count + ')';
+    } else {
+        btn.textContent = 'Подтвердить выбранные';
+    }
+}
+
+function uncheckAll() {
+    document.querySelectorAll('.profile-checkbox').forEach(function(cb) {
+        cb.checked = false;
+    });
+    document.querySelectorAll('.profile-card').forEach(function(card) {
+        card.classList.remove('checked');
+        card.querySelector('.check-icon').classList.add('hidden');
+    });
+}
+</script>
+{% endblock %}
