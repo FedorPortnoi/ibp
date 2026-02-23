@@ -92,6 +92,11 @@ def start_check():
     if email and not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
         return _error('Неверный формат email', 400)
 
+    # --- Mode ---
+    check_mode = (data.get('check_mode') or 'quick').strip().lower()
+    if check_mode not in ('quick', 'precise'):
+        check_mode = 'quick'
+
     # --- Create DB record ---
     check_id = uuid.uuid4().hex
     check = CandidateCheck(
@@ -106,6 +111,7 @@ def start_check():
         phone=phone or None,
         email=email or None,
         status='pending',
+        check_mode=check_mode,
     )
     db.session.add(check)
     db.session.commit()
@@ -157,11 +163,89 @@ def progress_page(task_id):
 
 @candidate_bp.route('/progress/<task_id>/status')
 def progress_status(task_id):
-    """JSON polling endpoint for progress updates."""
+    """JSON polling endpoint for progress updates — 8 stages."""
     task = candidate_tasks.get(task_id)
     if not task:
         return jsonify({'error': 'Задача не найдена'}), 404
-    return jsonify(task.to_dict())
+
+    data = task.to_dict()
+
+    # Handle awaiting_confirmation status
+    check = CandidateCheck.query.get(task.check_id)
+    if check and check.status == 'awaiting_confirmation':
+        data['status'] = 'awaiting_confirmation'
+        data['confirmation_url'] = f'/candidate/confirm/{check.id}'
+
+    return jsonify(data)
+
+
+@candidate_bp.route('/confirm/<check_id>')
+def confirm_profiles(check_id):
+    """Show discovered profiles for user confirmation (Precise Mode)."""
+    check = CandidateCheck.query.filter_by(id=check_id).first_or_404()
+    if check.status != 'awaiting_confirmation':
+        # Already confirmed or not in precise mode — redirect to progress
+        for tid, t in candidate_tasks.items():
+            if t.check_id == check_id:
+                return redirect(f'/candidate/progress/{tid}')
+        return redirect(url_for('candidate.dossier_page', check_id=check.id))
+
+    profiles = check.social_media_profiles or []
+    return render_template('candidate_confirm_profiles.html',
+                           check=check, profiles=profiles)
+
+
+@candidate_bp.route('/confirm/<check_id>', methods=['POST'])
+def submit_confirmation(check_id):
+    """Process profile confirmation and resume pipeline."""
+    check = CandidateCheck.query.filter_by(id=check_id).first_or_404()
+    if check.status != 'awaiting_confirmation':
+        return redirect(url_for('candidate.dossier_page', check_id=check.id))
+
+    confirmed_ids = request.form.getlist('confirmed_profiles')
+
+    if confirmed_ids:
+        all_profiles = check.social_media_profiles or []
+        confirmed = [
+            p for p in all_profiles
+            if str(p.get('id', '')) in confirmed_ids
+            or p.get('url', '') in confirmed_ids
+            or p.get('username', '') in confirmed_ids
+        ]
+        check.confirmed_profiles = confirmed
+    else:
+        check.confirmed_profiles = []
+
+    check.status = 'running'
+    check.paused_at_stage = None
+    db.session.commit()
+
+    # Find active task to redirect to progress
+    for tid, t in candidate_tasks.items():
+        if t.check_id == check_id:
+            return redirect(f'/candidate/progress/{tid}')
+    return redirect(url_for('candidate.dossier_page', check_id=check.id))
+
+
+@candidate_bp.route('/api/social-graph/<check_id>')
+def api_social_graph(check_id):
+    """Return vis.js social graph data for dossier."""
+    check = CandidateCheck.query.filter_by(id=check_id).first_or_404()
+    return jsonify(check.social_graph_data or {})
+
+
+@candidate_bp.route('/api/geo-data/<check_id>')
+def api_geo_data(check_id):
+    """Return geo analysis data for dossier map."""
+    check = CandidateCheck.query.filter_by(id=check_id).first_or_404()
+    return jsonify(check.geo_analysis or {})
+
+
+@candidate_bp.route('/api/timeline/<check_id>')
+def api_timeline(check_id):
+    """Return activity timeline data."""
+    check = CandidateCheck.query.filter_by(id=check_id).first_or_404()
+    return jsonify(check.activity_timeline or [])
 
 
 @candidate_bp.route('/dossier/<check_id>')
@@ -172,12 +256,12 @@ def dossier_page(check_id):
         return render_template('errors/404.html'), 404
 
     # If still running, redirect to progress page
-    if check.status in ('pending', 'running'):
-        # Find active task for this check
+    if check.status in ('pending', 'running', 'awaiting_confirmation'):
         for tid, t in candidate_tasks.items():
             if t.check_id == check_id:
+                if check.status == 'awaiting_confirmation':
+                    return redirect(f'/candidate/confirm/{check_id}')
                 return redirect(f'/candidate/progress/{tid}')
-        # No task found — show dossier anyway (stale state)
 
     # Format duration
     duration_display = ''
@@ -202,6 +286,14 @@ def dossier_page(check_id):
         social_profiles=check.social_media_profiles,
         contacts=check.contact_discoveries,
         red_flags=check.red_flags,
+        social_graph_data=check.social_graph_data or {},
+        face_matches=check.face_matches or [],
+        username_accounts=check.username_accounts or [],
+        geo_analysis=check.geo_analysis or {},
+        text_analysis=check.text_analysis or {},
+        activity_timeline=check.activity_timeline or [],
+        risk_breakdown=check.risk_breakdown or {},
+        report_generated=check.report_generated,
     )
 
 
@@ -249,11 +341,13 @@ def export_json(check_id):
             'generated_at': datetime.utcnow().isoformat(),
             'ibp_version': '1.0',
             'check_id': check.id,
+            'check_mode': check.check_mode,
             'duration_seconds': check.check_duration_seconds,
             'check_level': check.check_level_display,
             'sources_checked': check.sources_checked,
             'sources_with_results': check.sources_with_results,
             'status': check.status,
+            'report_generated': check.report_generated,
         },
         'candidate': {
             'full_name': check.full_name,
@@ -266,8 +360,10 @@ def export_json(check_id):
         'risk_assessment': {
             'risk_level': check.risk_level,
             'risk_level_display': check.risk_level_display,
+            'risk_score_numeric': check.risk_score_numeric,
             'red_flag_count': check.red_flag_count,
             'red_flags': check.red_flags,
+            'risk_breakdown': check.risk_breakdown,
         },
         'business_records': check.business_records,
         'court_records': check.court_records,
@@ -275,7 +371,14 @@ def export_json(check_id):
         'bankruptcy_records': check.bankruptcy_records,
         'sanctions_results': check.sanctions_results,
         'social_media_profiles': check.social_media_profiles,
+        'confirmed_profiles': check.confirmed_profiles,
         'contact_discoveries': check.contact_discoveries,
+        'social_graph_data': check.social_graph_data,
+        'face_matches': check.face_matches,
+        'username_accounts': check.username_accounts,
+        'geo_analysis': check.geo_analysis,
+        'text_analysis': check.text_analysis,
+        'activity_timeline': check.activity_timeline,
     }
 
     json_str = json.dumps(dossier, ensure_ascii=False, indent=2, default=str)
@@ -336,6 +439,12 @@ def export_pdf(check_id):
         contacts=check.contact_discoveries,
         red_flags=check.red_flags,
         generated_date=datetime.utcnow().strftime('%d.%m.%Y %H:%M'),
+        face_matches=check.face_matches or [],
+        username_accounts=check.username_accounts or [],
+        geo_analysis=check.geo_analysis or {},
+        text_analysis=check.text_analysis or {},
+        activity_timeline=check.activity_timeline or [],
+        risk_breakdown=check.risk_breakdown or {},
     )
 
     try:
