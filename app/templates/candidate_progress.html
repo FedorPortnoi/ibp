@@ -7,10 +7,18 @@
     .stage-item.active { border-color: rgba(139, 92, 246, 0.5); background: rgba(139, 92, 246, 0.05); }
     .stage-item.done { border-color: rgba(34, 197, 94, 0.3); }
     .stage-item.done .stage-icon { color: #22c55e; }
+    .stage-item.paused { border-color: rgba(245, 158, 11, 0.5); background: rgba(245, 158, 11, 0.05); }
     .stage-item.active .stage-icon { animation: pulse-icon 1.5s infinite; }
     @keyframes pulse-icon { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     .log-entry { animation: fadeIn 0.2s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .confirmation-banner {
+        background: rgba(245, 158, 11, 0.08);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+    }
 </style>
 {% endblock %}
 
@@ -34,12 +42,24 @@
         </div>
     </div>
 
-    <!-- Stages -->
+    <!-- Awaiting Confirmation Banner (hidden by default) -->
+    <div id="confirmation-banner" class="hidden mb-6">
+        <div class="confirmation-banner">
+            <div class="text-yellow-400 font-semibold text-lg mb-2">Ожидание подтверждения профиля</div>
+            <p class="text-gray-400 text-sm mb-4">Обнаружены профили в социальных сетях. Подтвердите, какие из них принадлежат кандидату.</p>
+            <a id="confirm-link" href="#"
+               class="inline-block px-8 py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold rounded-lg transition">
+                Перейти к подтверждению
+            </a>
+        </div>
+    </div>
+
+    <!-- Stages (8 stages) -->
     <div class="space-y-3 mb-8">
         <div id="stage-gov" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
             <span class="stage-icon text-lg text-gray-500">&#x1F3DB;&#xFE0F;</span>
             <div class="flex-1">
-                <div class="text-sm font-medium text-gray-300">Государственные реестры</div>
+                <div class="text-sm font-medium text-gray-300">Реестры</div>
                 <div class="text-xs text-gray-500">ЕГРЮЛ, суды, ФССП, банкротство</div>
             </div>
             <span id="stage-gov-status" class="text-xs text-gray-600">ожидание</span>
@@ -47,7 +67,7 @@
         <div id="stage-security" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
             <span class="stage-icon text-lg text-gray-500">&#x1F6E1;&#xFE0F;</span>
             <div class="flex-1">
-                <div class="text-sm font-medium text-gray-300">Проверки безопасности</div>
+                <div class="text-sm font-medium text-gray-300">Безопасность</div>
                 <div class="text-xs text-gray-500">Санкции, розыск, экстремизм</div>
             </div>
             <span id="stage-security-status" class="text-xs text-gray-600">ожидание</span>
@@ -55,7 +75,7 @@
         <div id="stage-social" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
             <span class="stage-icon text-lg text-gray-500">&#x1F4F1;</span>
             <div class="flex-1">
-                <div class="text-sm font-medium text-gray-300">Социальные сети</div>
+                <div class="text-sm font-medium text-gray-300">Соцсети</div>
                 <div class="text-xs text-gray-500">ВКонтакте, Telegram</div>
             </div>
             <span id="stage-social-status" class="text-xs text-gray-600">ожидание</span>
@@ -63,18 +83,42 @@
         <div id="stage-contacts" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
             <span class="stage-icon text-lg text-gray-500">&#x1F4E7;</span>
             <div class="flex-1">
-                <div class="text-sm font-medium text-gray-300">Контактные данные</div>
+                <div class="text-sm font-medium text-gray-300">Контакты</div>
                 <div class="text-xs text-gray-500">Телефон, email, утечки</div>
             </div>
             <span id="stage-contacts-status" class="text-xs text-gray-600">ожидание</span>
         </div>
+        <div id="stage-deep" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
+            <span class="stage-icon text-lg text-gray-500">&#x1F50D;</span>
+            <div class="flex-1">
+                <div class="text-sm font-medium text-gray-300">Глубокий анализ</div>
+                <div class="text-xs text-gray-500">Распознавание лиц, граф связей, аккаунты</div>
+            </div>
+            <span id="stage-deep-status" class="text-xs text-gray-600">ожидание</span>
+        </div>
+        <div id="stage-behavioral" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
+            <span class="stage-icon text-lg text-gray-500">&#x1F4CA;</span>
+            <div class="flex-1">
+                <div class="text-sm font-medium text-gray-300">Поведение</div>
+                <div class="text-xs text-gray-500">Текст, география, хронология</div>
+            </div>
+            <span id="stage-behavioral-status" class="text-xs text-gray-600">ожидание</span>
+        </div>
         <div id="stage-risk" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
             <span class="stage-icon text-lg text-gray-500">&#x26A0;&#xFE0F;</span>
             <div class="flex-1">
-                <div class="text-sm font-medium text-gray-300">Анализ рисков</div>
+                <div class="text-sm font-medium text-gray-300">Риски</div>
                 <div class="text-xs text-gray-500">Красные флаги, оценка</div>
             </div>
             <span id="stage-risk-status" class="text-xs text-gray-600">ожидание</span>
+        </div>
+        <div id="stage-report" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
+            <span class="stage-icon text-lg text-gray-500">&#x1F4C4;</span>
+            <div class="flex-1">
+                <div class="text-sm font-medium text-gray-300">Отчёт</div>
+                <div class="text-xs text-gray-500">Генерация досье</div>
+            </div>
+            <span id="stage-report-status" class="text-xs text-gray-600">ожидание</span>
         </div>
     </div>
 
@@ -112,37 +156,47 @@ const TASK_ID = '{{ task_id }}';
 const CHECK_ID = '{{ check_id }}';
 let lastMessageCount = 0;
 let pollInterval = null;
+let isAwaitingConfirmation = false;
 
 const STAGE_MAP = {
     'gov_registries': 'gov',
     'security': 'security',
     'social': 'social',
     'contacts': 'contacts',
+    'social_analysis': 'deep',
+    'behavioral': 'behavioral',
     'risk': 'risk',
+    'report': 'report',
     'complete': null,
 };
 
-const STAGE_ORDER = ['gov', 'security', 'social', 'contacts', 'risk'];
+const STAGE_ORDER = ['gov', 'security', 'social', 'contacts', 'deep', 'behavioral', 'risk', 'report'];
 
 function updateStages(currentStage) {
-    const mapped = STAGE_MAP[currentStage];
-    let passedCurrent = false;
+    var mapped = STAGE_MAP[currentStage];
+    var passedCurrent = false;
 
     STAGE_ORDER.forEach(function(stageId) {
-        const el = document.getElementById('stage-' + stageId);
-        const statusEl = document.getElementById('stage-' + stageId + '-status');
+        var el = document.getElementById('stage-' + stageId);
+        var statusEl = document.getElementById('stage-' + stageId + '-status');
         if (!el) return;
 
-        el.classList.remove('active', 'done');
+        el.classList.remove('active', 'done', 'paused');
 
         if (currentStage === 'complete') {
             el.classList.add('done');
             statusEl.textContent = 'готово';
             statusEl.className = 'text-xs text-green-400';
         } else if (stageId === mapped) {
-            el.classList.add('active');
-            statusEl.textContent = 'выполняется...';
-            statusEl.className = 'text-xs text-violet';
+            if (isAwaitingConfirmation && stageId === 'social') {
+                el.classList.add('paused');
+                statusEl.textContent = 'ожидание';
+                statusEl.className = 'text-xs text-yellow-400';
+            } else {
+                el.classList.add('active');
+                statusEl.textContent = 'выполняется...';
+                statusEl.className = 'text-xs text-violet';
+            }
             passedCurrent = true;
         } else if (!passedCurrent) {
             el.classList.add('done');
@@ -153,15 +207,15 @@ function updateStages(currentStage) {
 }
 
 function appendLog(messages) {
-    const container = document.getElementById('log-container');
-    const newMessages = messages.slice(lastMessageCount);
+    var container = document.getElementById('log-container');
+    var newMessages = messages.slice(lastMessageCount);
     lastMessageCount = messages.length;
 
     newMessages.forEach(function(msg) {
-        const div = document.createElement('div');
+        var div = document.createElement('div');
         div.className = 'log-entry';
 
-        const colors = {
+        var colors = {
             'success': 'text-green-400',
             'warning': 'text-yellow-400',
             'error': 'text-red-400',
@@ -179,15 +233,37 @@ function poll() {
     fetch('/candidate/progress/' + TASK_ID + '/status')
         .then(function(r) { return r.json(); })
         .then(function(data) {
-            if (data.error) {
+            if (data.error && !data.status) {
                 showError(data.error);
                 return;
+            }
+
+            // Handle awaiting_confirmation
+            if (data.status === 'awaiting_confirmation') {
+                isAwaitingConfirmation = true;
+                var banner = document.getElementById('confirmation-banner');
+                banner.classList.remove('hidden');
+                document.getElementById('confirm-link').href = data.confirmation_url || ('/candidate/confirm/' + CHECK_ID);
+                document.getElementById('progress-label').textContent = 'Ожидание подтверждения профиля...';
+                // Slow down polling
+                clearInterval(pollInterval);
+                pollInterval = setInterval(poll, 5000);
+            } else {
+                if (isAwaitingConfirmation) {
+                    // Confirmation done — hide banner, resume normal polling
+                    isAwaitingConfirmation = false;
+                    document.getElementById('confirmation-banner').classList.add('hidden');
+                    clearInterval(pollInterval);
+                    pollInterval = setInterval(poll, 1500);
+                }
             }
 
             // Update progress bar
             document.getElementById('progress-bar').style.width = data.percent_complete + '%';
             document.getElementById('progress-pct').textContent = data.percent_complete + '%';
-            document.getElementById('progress-label').textContent = data.current_step || data.current_stage;
+            if (!isAwaitingConfirmation) {
+                document.getElementById('progress-label').textContent = data.current_step || data.current_stage;
+            }
 
             // Update stages
             updateStages(data.current_stage);
@@ -204,7 +280,6 @@ function poll() {
                 if (data.status === 'error') {
                     showError(data.error || 'Неизвестная ошибка');
                 } else {
-                    // Show completion message and auto-redirect
                     document.getElementById('progress-label').textContent = '\u2705 Проверка завершена! Переход к досье...';
                     document.getElementById('complete-actions').classList.remove('hidden');
                     document.getElementById('dossier-link').href = '/candidate/dossier/' + CHECK_ID;
