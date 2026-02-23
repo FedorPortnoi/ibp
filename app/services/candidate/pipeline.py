@@ -727,6 +727,30 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             check.risk_level = risk_level
             check.sources_checked = sources_checked
             check.sources_with_results = sources_with_results
+            db.session.commit()
+
+            task.update('risk', f'Риск: {check.risk_level_display}', 92)
+            task.add_message(
+                f'Оценка риска: {check.risk_level_display} '
+                f'({len(merged_flags)} факторов)',
+                'success',
+            )
+            _pause()
+
+            # ══════════════════════════════════════════════
+            # STAGE 8: REPORT GENERATION [92-100%]
+            # ══════════════════════════════════════════════
+            task.update('report', 'Генерация отчёта...', 94)
+
+            try:
+                from app.services.candidate.report_builder import build_report
+                report_data = build_report(check)
+                check.report_generated = True
+                db.session.commit()
+                task.add_message('Отчёт сгенерирован', 'success')
+            except Exception as e:
+                logger.error(f"Stage 8 report generation error: {e}", exc_info=True)
+                task.add_message('Генерация отчёта: ошибка (пропущен)', 'warning')
 
             # Complete
             check.status = 'complete'
