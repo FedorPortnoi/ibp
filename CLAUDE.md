@@ -304,7 +304,7 @@ These routes and templates work but are superseded by the Candidate Check pipeli
 
 ## Known Issues
 
-1. **VK token loading**: `VK_SERVICE_TOKEN` only loads in DevelopmentConfig (Config base class). ProductionConfig inherits it, but watch for env var issues on Render.
+1. **VK token loading**: FIXED — `load_env_config()` in config.py now reads all API keys fresh from `os.environ` at `create_app()` time, not as frozen class attributes.
 2. **pytest capture bug on Windows**: Use `-p no:faulthandler` to avoid I/O errors.
 3. **FSSP API SSL errors**: The API at api-ip.fssp.gov.ru has persistent SSL issues. Manual URL fallback always works.
 4. **kad.arbitr.ru geo-blocked**: HTTP 451 from outside Russia. Manual URL only.
