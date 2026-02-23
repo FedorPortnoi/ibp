@@ -499,6 +499,40 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             db.session.commit()
             _pause()
 
+            # --- Precise mode: pause for profile confirmation ---
+            if getattr(check, 'check_mode', 'quick') == 'precise' and social_profiles:
+                check.status = 'awaiting_confirmation'
+                check.paused_at_stage = 'awaiting_confirmation'
+                db.session.commit()
+                task.update('social', 'Ожидание подтверждения профиля', 40)
+                logger.info(f"Pipeline paused for profile confirmation (check {check_id})")
+
+                max_wait = 1800  # 30 minutes
+                waited = 0
+                while check.status == 'awaiting_confirmation' and waited < max_wait:
+                    if task.cancelled:
+                        check.status = 'error'
+                        db.session.commit()
+                        return
+                    time.sleep(2)
+                    waited += 2
+                    db.session.expire(check)
+                    db.session.refresh(check)
+
+                if check.status == 'awaiting_confirmation':
+                    # Timeout — auto-resume with best match
+                    logger.warning(f"Profile confirmation timeout after {max_wait}s, auto-resuming")
+                    check.status = 'running'
+                    check.paused_at_stage = None
+                    db.session.commit()
+
+                # If user confirmed, check.confirmed_profiles is now populated
+                # and check.status is back to 'running'
+                if check.status == 'running':
+                    check.paused_at_stage = None
+                    db.session.commit()
+                    task.update('social', 'Профиль подтверждён — продолжение', 40)
+
             # ══════════════════════════════════════════════
             # STAGE 4: CONTACT DISCOVERY [40-55%]
             # ══════════════════════════════════════════════
