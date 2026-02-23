@@ -318,67 +318,165 @@ class BusinessRegistrySearch:
         search_founders: bool,
         limit: int
     ) -> List[BusinessRecord]:
-        """Search Rusprofile.ru for person's company affiliations."""
+        """Search Rusprofile.ru for person's company affiliations.
+
+        Two-step process:
+        1. Search with type=fl to find matching physical persons
+        2. For the best match, fetch the person profile page and extract all companies
+
+        URL structure (current as of 2026):
+        - Person search: /search?query=NAME&type=fl
+        - Person profile: /person/SLUG-INN  (e.g. /person/kuznecov-iyu-183511206113)
+        - Company page:   /id/OGRN
+        - ИП page:        /ip/OGRNIP
+        """
         results = []
 
-        search_url = f"{self.RUSPROFILE_BASE}/search?query={quote(name)}&type=person"
+        # Step 1: Find matching person records
+        search_url = f"{self.RUSPROFILE_BASE}/search?query={quote(name)}&type=fl"
 
         try:
             response = self.session.get(search_url, timeout=self.timeout)
 
             if response.status_code != 200:
-                logger.warning(f"Rusprofile returned status {response.status_code}")
+                logger.warning(f"Rusprofile FL search returned status {response.status_code}")
                 return results
 
             soup = BeautifulSoup(response.text, 'lxml')
+            person_items = soup.select('.list-element')
 
-            person_cards = soup.select('.search-result-item, .company-item, .search-result')
+            if not person_items:
+                logger.debug("Rusprofile: no FL person items found in search")
+                return results
 
-            for card in person_cards[:limit]:
+            # Take the first matching person (best match by Rusprofile ranking)
+            # and fetch their profile page for full company list
+            first_item = person_items[0]
+            link = first_item.select_one('a.list-element__title')
+            if not link or not link.get('href'):
+                logger.debug("Rusprofile: no link found for first FL result")
+                return results
+
+            person_href = link.get('href')
+            person_url = f"{self.RUSPROFILE_BASE}{person_href}"
+            logger.debug(f"Rusprofile: fetching person page {person_url}")
+
+        except requests.RequestException as e:
+            logger.warning(f"Rusprofile FL search failed: {e}")
+            return results
+
+        # Step 2: Fetch the person's profile page and extract all companies
+        time.sleep(0.3)
+        try:
+            profile_resp = self.session.get(person_url, timeout=self.timeout)
+
+            if profile_resp.status_code != 200:
+                logger.warning(f"Rusprofile person page returned {profile_resp.status_code}")
+                return results
+
+            profile_soup = BeautifulSoup(profile_resp.text, 'lxml')
+            company_items = profile_soup.select('.list-element')
+
+            for item in company_items[:limit]:
                 try:
-                    record = self._parse_rusprofile_card(card)
+                    record = self._parse_rusprofile_person_company(item)
                     if record:
                         results.append(record)
                 except Exception as e:
-                    logger.debug(f"Failed to parse Rusprofile card: {e}")
+                    logger.debug(f"Failed to parse Rusprofile company item: {e}")
                     continue
 
         except requests.RequestException as e:
-            logger.warning(f"Rusprofile request failed: {e}")
+            logger.warning(f"Rusprofile person profile fetch failed: {e}")
 
+        logger.debug(f"Rusprofile: extracted {len(results)} records from {person_url}")
         return results
 
-    def _parse_rusprofile_card(self, card) -> Optional[BusinessRecord]:
-        """Parse a Rusprofile search result card."""
-        try:
-            name_elem = card.select_one('.company-name, .title, a.company-name')
-            company_name = name_elem.get_text(strip=True) if name_elem else ""
+    def _parse_rusprofile_person_company(self, item) -> Optional[BusinessRecord]:
+        """Parse a company list-element from a Rusprofile person profile page.
 
+        The item structure:
+        <div class="list-element">
+          <a class="list-element__title"
+             data-track-click="not_masked,fl_dash_ceo_company,to_ul,link"
+             href="/id/11417314"> ООО "Калинка Комфорт" </a>
+          <div class="list-element__text danger">Ликвидирован</div>  <!-- optional -->
+          <span class="list-element__text">OKVED description</span>
+          <div class="list-element__address">City/Region</div>
+          <div class="list-element__row-info">
+            <span>ИНН: 1831190000</span>
+            <span>ОГРН: 1181832009523</span>
+            <span>Дата регистрации: 20.04.2018</span>
+          </div>
+        </div>
+
+        Role is encoded in data-track-click:
+        - fl_dash_ceo_company  → Директор
+        - fl_dash_founder_company → Учредитель
+        - fl_dash_ip           → ИП
+        """
+        try:
+            link = item.select_one('a.list-element__title')
+            if not link:
+                return None
+
+            company_name = link.get_text(strip=True)
             if not company_name:
                 return None
 
-            inn_match = re.search(r'ИНН[:\s]*(\d{10,12})', card.get_text())
-            inn = inn_match.group(1) if inn_match else ""
+            href = link.get('href', '')
+            url = f"{self.RUSPROFILE_BASE}{href}" if href else ""
 
-            ogrn_match = re.search(r'ОГРН[:\s]*(\d{13,15})', card.get_text())
-            ogrn = ogrn_match.group(1) if ogrn_match else ""
-
-            status_elem = card.select_one('.status, .company-status')
-            status = status_elem.get_text(strip=True) if status_elem else "Действующее"
-
-            role_text = card.get_text().lower()
-            if 'руководитель' in role_text or 'директор' in role_text:
+            # Determine role from data-track-click attribute
+            track = link.get('data-track-click', '')
+            if 'fl_dash_ceo' in track or 'ceo_company' in track:
                 role = "Директор"
-            elif 'учредитель' in role_text or 'участник' in role_text:
+            elif 'fl_dash_founder' in track or 'founder_company' in track:
                 role = "Учредитель"
+            elif 'fl_dash_ip' in track or 'to_ip' in track:
+                role = "ИП"
             else:
                 role = "Связан"
 
-            link = card.select_one('a[href*="/id/"]')
-            url = f"{self.RUSPROFILE_BASE}{link['href']}" if link and link.get('href') else ""
+            # Status: look for danger-class text element (Ликвидирован, etc.)
+            status_danger = item.select_one('.list-element__text.danger')
+            if status_danger:
+                status_text = status_danger.get_text(strip=True)
+                if 'ликвидир' in status_text.lower():
+                    status = "Ликвидировано"
+                else:
+                    status = status_text
+            else:
+                status = "Действующее"
 
-            addr_elem = card.select_one('.address, .company-address')
+            # OKVED description (non-danger text element)
+            okved_name = ""
+            for span in item.select('.list-element__text, span.list-element__text'):
+                if 'danger' not in (span.get('class') or []):
+                    okved_name = span.get_text(strip=True)
+                    if okved_name:
+                        break
+
+            # Address
+            addr_elem = item.select_one('.list-element__address')
             address = addr_elem.get_text(strip=True) if addr_elem else ""
+
+            # INN, OGRN, registration date from row-info spans
+            row_info = item.select_one('.list-element__row-info')
+            inn = ""
+            ogrn = ""
+            reg_date = ""
+            if row_info:
+                info_text = row_info.get_text()
+                inn_m = re.search(r'ИНН[:\s]*(\d{10,12})', info_text)
+                inn = inn_m.group(1) if inn_m else ""
+                # ОГРН (13 digits for UL) or ОГРНИП (15 digits for ИП)
+                ogrn_m = re.search(r'ОГРН(?:ИП)?[:\s]*(\d{13,15})', info_text)
+                ogrn = ogrn_m.group(1) if ogrn_m else ""
+                date_m = re.search(r'Дата регистрации[:\s]*([\d.]+)', info_text)
+                reg_date = date_m.group(1) if date_m else ""
+
+            company_type = self._detect_company_type(company_name)
 
             return BusinessRecord(
                 company_name=company_name,
@@ -386,14 +484,17 @@ class BusinessRegistrySearch:
                 ogrn=ogrn,
                 role=role,
                 status=status,
+                registration_date=reg_date,
                 address=address,
                 source="Rusprofile.ru",
                 url=url,
-                confidence="medium"
+                confidence="medium",
+                company_type=company_type,
+                okved_name=okved_name,
             )
 
         except Exception as e:
-            logger.debug(f"Parse error: {e}")
+            logger.debug(f"Parse rusprofile company item error: {e}")
             return None
 
     # ===== INN Search =====
@@ -430,8 +531,8 @@ class BusinessRegistrySearch:
             },
             {
                 'name': 'Rusprofile.ru',
-                'url': f'https://www.rusprofile.ru/search?query={encoded}&type=person',
-                'description': 'Поиск компаний и руководителей'
+                'url': f'https://www.rusprofile.ru/search?query={encoded}&type=fl',
+                'description': 'Поиск физических лиц, руководителей и учредителей'
             },
             {
                 'name': 'List-org.com',
