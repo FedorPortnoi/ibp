@@ -463,6 +463,33 @@
                         </div>
                     </div>
 
+                    <!-- Mode Selector -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-400 mb-2">Режим проверки</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="check_mode" value="quick" checked
+                                       class="sr-only peer">
+                                <div class="p-3 rounded-lg border border-violet-200 bg-bg-dark
+                                            peer-checked:border-violet peer-checked:bg-violet-50
+                                            hover:border-violet/50 transition">
+                                    <div class="text-sm font-semibold text-white mb-0.5">&#x26A1; Быстрый</div>
+                                    <div class="text-xs text-gray-500">Автоматический выбор профиля</div>
+                                </div>
+                            </label>
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="check_mode" value="precise"
+                                       class="sr-only peer">
+                                <div class="p-3 rounded-lg border border-violet-200 bg-bg-dark
+                                            peer-checked:border-violet peer-checked:bg-violet-50
+                                            hover:border-violet/50 transition">
+                                    <div class="text-sm font-semibold text-white mb-0.5">&#x1F3AF; Точный</div>
+                                    <div class="text-xs text-gray-500">Вы подтверждаете профиль вручную</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
                     <!-- Quality Indicator -->
                     <div id="quality-indicator" class="mb-6 px-4 py-3 rounded-lg bg-bg-dark border border-violet-100 text-sm text-gray-500">
                         Заполните имя и дату рождения для начала проверки
