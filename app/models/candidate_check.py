@@ -43,6 +43,34 @@ class CandidateCheck(db.Model):
     _social_media_profiles = db.Column('social_media_profiles', db.Text, default='[]')
     _contact_discoveries = db.Column('contact_discoveries', db.Text, default='{}')
 
+    # --- Mode & Flow Control ---
+    check_mode = db.Column(db.String(20), default='quick')  # 'quick' or 'precise'
+    paused_at_stage = db.Column(db.String(50), nullable=True)  # 'awaiting_confirmation' or None
+
+    # --- Investigation Link ---
+    investigation_id = db.Column(db.String(36), db.ForeignKey('investigations.id'), nullable=True)
+
+    # --- Stage 3: Profile Confirmation ---
+    _confirmed_profiles = db.Column('confirmed_profiles', db.Text, default='[]')
+
+    # --- Stage 5: Deep Social Analysis ---
+    _social_graph_data = db.Column('social_graph_data', db.Text, default='{}')
+    _face_matches = db.Column('face_matches', db.Text, default='[]')
+    _username_accounts = db.Column('username_accounts', db.Text, default='[]')
+
+    # --- Stage 6: Behavioral Intelligence ---
+    _geo_analysis = db.Column('geo_analysis', db.Text, default='{}')
+    _text_analysis = db.Column('text_analysis', db.Text, default='{}')
+    _activity_timeline = db.Column('activity_timeline', db.Text, default='[]')
+
+    # --- Stage 7: Dimensional Risk ---
+    _risk_breakdown = db.Column('risk_breakdown', db.Text, default='{}')
+    risk_score_numeric = db.Column(db.Float, nullable=True)  # 0-100 composite
+
+    # --- Stage 8: Report ---
+    report_generated = db.Column(db.Boolean, default=False)
+    report_path = db.Column(db.String(500), nullable=True)
+
     # Risk
     risk_level = db.Column(db.String(20))  # low/medium/high/critical
     _red_flags = db.Column('red_flags', db.Text, default='[]')
@@ -137,6 +165,78 @@ class CandidateCheck(db.Model):
     @red_flags.setter
     def red_flags(self, value):
         self._red_flags = self._dump_json(value)
+
+    # confirmed_profiles
+    @property
+    def confirmed_profiles(self):
+        return self._load_json(self._confirmed_profiles, [])
+
+    @confirmed_profiles.setter
+    def confirmed_profiles(self, value):
+        self._confirmed_profiles = self._dump_json(value)
+
+    # social_graph_data
+    @property
+    def social_graph_data(self):
+        return self._load_json(self._social_graph_data, {})
+
+    @social_graph_data.setter
+    def social_graph_data(self, value):
+        self._social_graph_data = self._dump_json(value)
+
+    # face_matches
+    @property
+    def face_matches(self):
+        return self._load_json(self._face_matches, [])
+
+    @face_matches.setter
+    def face_matches(self, value):
+        self._face_matches = self._dump_json(value)
+
+    # username_accounts
+    @property
+    def username_accounts(self):
+        return self._load_json(self._username_accounts, [])
+
+    @username_accounts.setter
+    def username_accounts(self, value):
+        self._username_accounts = self._dump_json(value)
+
+    # geo_analysis
+    @property
+    def geo_analysis(self):
+        return self._load_json(self._geo_analysis, {})
+
+    @geo_analysis.setter
+    def geo_analysis(self, value):
+        self._geo_analysis = self._dump_json(value)
+
+    # text_analysis
+    @property
+    def text_analysis(self):
+        return self._load_json(self._text_analysis, {})
+
+    @text_analysis.setter
+    def text_analysis(self, value):
+        self._text_analysis = self._dump_json(value)
+
+    # activity_timeline
+    @property
+    def activity_timeline(self):
+        return self._load_json(self._activity_timeline, [])
+
+    @activity_timeline.setter
+    def activity_timeline(self, value):
+        self._activity_timeline = self._dump_json(value)
+
+    # risk_breakdown
+    @property
+    def risk_breakdown(self):
+        return self._load_json(self._risk_breakdown, {})
+
+    @risk_breakdown.setter
+    def risk_breakdown(self, value):
+        self._risk_breakdown = self._dump_json(value)
 
     # --- Computed properties ---
 
