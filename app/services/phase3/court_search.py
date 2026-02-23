@@ -5,7 +5,13 @@ Search sudact.ru and arbitration courts for case history.
 
 Source status (as of Feb 2026):
 - sudact.ru: JS-rendered, requires Playwright for results
-- kad.arbitr.ru: Blocks automated requests (451)
+- kad.arbitr.ru: Geo-blocked (HTTP 451) for non-Russian IPs.
+  The site uses DDoS Guard with IP-based geo-restriction.
+  Even Playwright with full browser sessions returns 451 on the
+  /Kad/SearchInstances POST endpoint from outside Russia.
+  Attempts made: session cookies, X-Requested-With, pr_fp cookie,
+  Playwright in-page fetch with credentials:include — all blocked.
+  Manual fallback URL is provided so users can open it directly.
 - Both provide manual search URL fallbacks
 """
 
@@ -14,7 +20,7 @@ import re
 import time
 from typing import List, Dict, Optional
 from dataclasses import dataclass
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 import requests
 from bs4 import BeautifulSoup
 
@@ -397,23 +403,48 @@ class CourtRecordSearch:
 
     @staticmethod
     def get_manual_search_urls(name: str) -> List[Dict[str, str]]:
-        """Generate manual court search URLs for the user."""
+        """
+        Generate manual court search URLs for the user.
+
+        Note on kad.arbitr.ru: The automated /Kad/SearchInstances endpoint
+        returns HTTP 451 (geo-blocked) for non-Russian IP addresses.
+        DDoS Guard IP-blocks the API even with full browser sessions.
+        The homepage itself loads fine, so we link directly to it and
+        instruct the user to search manually. If you have a Russian VPN,
+        you can re-enable automated search — the API accepts:
+            POST /Kad/SearchInstances
+            Content-Type: application/json
+            X-Requested-With: XMLHttpRequest
+            x-date-format: iso
+            Body: {"Sides":[{"Name":"<name>","Type":-1}],"Page":1,"Count":25,...}
+        """
         encoded = quote(name)
+        # kad.arbitr.ru: the SPA doesn't support name pre-fill in the URL,
+        # but we can pass the name as a fragment hint for user convenience.
+        kad_name_hint = quote(name, safe='')
         return [
             {
                 'name': 'Судебные акты (sudact.ru)',
                 'url': f'https://sudact.ru/regular/doc/?regular-txt={encoded}',
-                'description': 'Суды общей юрисдикции'
+                'description': 'Суды общей юрисдикции — введите имя в поле поиска'
             },
             {
                 'name': 'Арбитражные суды (kad.arbitr.ru)',
                 'url': f'https://kad.arbitr.ru/',
-                'description': 'Арбитражные (экономические) дела'
+                'description': (
+                    f'Арбитражные (экономические) дела — введите «{name}» в поле «Участники» и нажмите Найти. '
+                    'Автоматический поиск недоступен: сайт блокирует запросы с не-российских IP (HTTP 451).'
+                )
             },
             {
-                'name': 'Судебное делопроизводство (sudrf.ru)',
+                'name': 'Портал ГАС Правосудие (sudrf.ru)',
                 'url': f'https://bsr.sudrf.ru/bigs/portal.html',
-                'description': 'Портал ГАС Правосудие'
+                'description': 'Суды общей юрисдикции — полнотекстовый поиск по всем регионам'
+            },
+            {
+                'name': 'Апелляционные арбитражные суды (ras.arbitr.ru)',
+                'url': f'https://ras.arbitr.ru/',
+                'description': 'Апелляционные арбитражные суды — поиск по участникам дела'
             },
         ]
 
