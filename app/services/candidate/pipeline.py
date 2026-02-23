@@ -1,8 +1,17 @@
 """
 Candidate Check Pipeline
 ========================
-Orchestrates the 5-stage background check.
-Wires existing IBP services and stubs out future ones.
+Orchestrates the 8-stage unified background check.
+
+Stages:
+1. Government Registries (ЕГРЮЛ, courts, ФССП, ЕФРСБ)   [0-15%]
+2. Security Checks (sanctions)                             [15-25%]
+3. Social Media Discovery (VK, Telegram)                   [25-40%]
+4. Contact Discovery (VK/TG extraction + breach APIs)      [40-55%]
+5. Deep Social Analysis (face search, graph, Snoop)        [55-70%]
+6. Behavioral Intelligence (text, geo, timeline)           [70-82%]
+7. Risk Scoring (8-category red flags)                     [82-92%]
+8. Report Generation (dossier + identity card)             [92-100%]
 """
 
 import logging
@@ -86,12 +95,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
     """
     Background pipeline — runs inside a thread with app context.
 
-    Stages:
-    1. Government registries (ЕГРЮЛ, courts)
-    2. Security checks (sanctions, wanted — stubs)
-    3. Social media (VK, Telegram)
-    4. Contact enrichment (if phone/email given)
-    5. Risk analysis
+    8-stage unified pipeline. See module docstring for stage breakdown.
     """
     task = candidate_tasks.get(task_id)
     if not task:
@@ -117,7 +121,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             name_parts = check.name_parts
 
             # ══════════════════════════════════════════════
-            # STAGE 1: GOVERNMENT REGISTRIES (~30%)
+            # STAGE 1: GOVERNMENT REGISTRIES [0-15%]
             # ══════════════════════════════════════════════
             task.update('gov_registries', 'Проверка государственных реестров...', 5)
 
@@ -285,15 +289,15 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             check.court_records = court_records
             check.fssp_records = fssp_records
             check.bankruptcy_records = bankruptcy_records
-            task.update('gov_registries', 'Реестры проверены', 25)
+            task.update('gov_registries', 'Реестры проверены', 15)
             _pause()
 
             db.session.commit()
 
             # ══════════════════════════════════════════════
-            # STAGE 2: SECURITY CHECKS (~45%)
+            # STAGE 2: SECURITY CHECKS [15-25%]
             # ══════════════════════════════════════════════
-            task.update('security', 'Проверка санкционных списков...', 35)
+            task.update('security', 'Проверка санкционных списков...', 18)
 
             from app.services.candidate.sanctions_check import SanctionsService
             sanctions_svc = SanctionsService()
@@ -325,7 +329,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             task.update(
                 'security',
                 f'Санкции: проверено {sanctions_checked} источника',
-                45,
+                25,
             )
 
             check.sanctions_results = [sr.to_dict() for sr in sanctions_results]
@@ -333,15 +337,15 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             _pause()
 
             # ══════════════════════════════════════════════
-            # STAGE 3: SOCIAL MEDIA (~70%)
+            # STAGE 3: SOCIAL MEDIA DISCOVERY [25-40%]
             # ══════════════════════════════════════════════
-            task.update('social', 'Поиск в социальных сетях...', 50)
+            task.update('social', 'Поиск в социальных сетях...', 28)
 
             social_profiles = []
             vk_screen_names = []
 
             # 3.1 VK search — run first so Telegram can use screen_names
-            task.update('social', 'VK — поиск профилей...', 52)
+            task.update('social', 'VK — поиск профилей...', 30)
             try:
                 from app.services.phase1.buratino_vk_search import buratino_vk_search
 
@@ -417,7 +421,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             _pause()
 
             # 3.2 Telegram search — uses VK screen_names for cross-ref
-            task.update('social', 'Telegram — поиск профилей...', 62)
+            task.update('social', 'Telegram — поиск профилей...', 34)
             try:
                 from app.services.phase1.telegram_discovery import TelegramDiscoveryService
 
@@ -490,15 +494,15 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 task.add_message('Telegram: поиск недоступен', 'warning')
                 sources_checked += 1
 
-            task.update('social', f'Соцсети: найдено {len(social_profiles)} профилей', 70)
+            task.update('social', f'Соцсети: найдено {len(social_profiles)} профилей', 40)
             check.social_media_profiles = social_profiles
             db.session.commit()
             _pause()
 
             # ══════════════════════════════════════════════
-            # STAGE 4: CONTACT ENRICHMENT (~85%)
+            # STAGE 4: CONTACT DISCOVERY [40-55%]
             # ══════════════════════════════════════════════
-            task.update('contacts', 'Поиск контактных данных...', 75)
+            task.update('contacts', 'Поиск контактных данных...', 42)
 
             try:
                 from app.services.candidate.contact_discovery import ContactDiscoveryService
@@ -531,21 +535,21 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 task.update(
                     'contacts',
                     f'Найдено {len(phones)} тел., {len(emails)} email',
-                    85,
+                    55,
                 )
             except Exception as e:
                 logger.error(f"Contact discovery error: {e}", exc_info=True)
                 contacts = {'phones': [], 'emails': []}
                 task.add_message('Контакты: ошибка поиска', 'warning')
-                task.update('contacts', 'Ошибка поиска контактов', 85)
+                task.update('contacts', 'Ошибка поиска контактов', 55)
 
             check.contact_discoveries = contacts
             db.session.commit()
 
             # ══════════════════════════════════════════════
-            # STAGE 5: RISK ANALYSIS (~100%)
+            # STAGE 7: RISK SCORING [82-92%]
             # ══════════════════════════════════════════════
-            task.update('risk', 'Анализ рисков...', 90)
+            task.update('risk', 'Анализ рисков...', 85)
 
             from app.services.candidate.risk_scorer import RiskScorer
             scorer = RiskScorer()
