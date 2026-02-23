@@ -581,6 +581,83 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             db.session.commit()
 
             # ══════════════════════════════════════════════
+            # STAGE 5: DEEP SOCIAL ANALYSIS [55-70%]
+            # ══════════════════════════════════════════════
+            task.update('social_analysis', 'Глубокий анализ соцсетей...', 56)
+
+            try:
+                from app.services.candidate.social_analysis import run_social_analysis
+
+                def stage5_callback(stage, msg, pct):
+                    task.update('social_analysis', msg, pct or 56)
+
+                social_results = run_social_analysis(
+                    check, task_status_callback=stage5_callback,
+                )
+
+                # Save results to model
+                check.social_graph_data = social_results.get('social_graph', {})
+                check.face_matches = social_results.get('face_matches', [])
+                check.username_accounts = social_results.get('username_accounts', [])
+                db.session.commit()
+
+                face_count = len(social_results.get('face_matches', []))
+                acct_count = len(social_results.get('username_accounts', []))
+                if face_count or acct_count:
+                    task.add_message(
+                        f'Соц. анализ: {face_count} совпадений лиц, '
+                        f'{acct_count} аккаунтов',
+                        'success',
+                    )
+                    sources_with_results += 1
+                sources_checked += 1
+
+                # Stage 5e: Feedback loop — new accounts → supplementary contacts
+                new_accounts = social_results.get('new_accounts_for_enrichment', [])
+                if new_accounts:
+                    task.update('social_analysis', 'Дообогащение новых аккаунтов', 65)
+                    from app.services.candidate.contact_discovery import ContactDiscoveryService
+                    contact_service = ContactDiscoveryService()
+                    supplementary = contact_service.discover_supplementary(
+                        new_accounts=new_accounts,
+                        existing_contacts=check.contact_discoveries or {},
+                    )
+                    # Merge supplementary contacts into existing
+                    existing = check.contact_discoveries or {}
+                    for key in ['phones', 'emails']:
+                        existing_list = existing.get(key, [])
+                        new_list = supplementary.get(key, [])
+                        existing_values = set()
+                        for item in existing_list:
+                            val = item.get('number', item.get('address', item.get('email', '')))
+                            if val:
+                                existing_values.add(val)
+                        for item in new_list:
+                            val = item.get('number', item.get('address', item.get('email', '')))
+                            if val and val not in existing_values:
+                                existing_list.append(item)
+                                existing_values.add(val)
+                        existing[key] = existing_list
+                    check.contact_discoveries = existing
+                    db.session.commit()
+
+                    supp_phones = len(supplementary.get('phones', []))
+                    supp_emails = len(supplementary.get('emails', []))
+                    if supp_phones or supp_emails:
+                        task.add_message(
+                            f'Дообогащение: +{supp_phones} тел., +{supp_emails} email',
+                            'success',
+                        )
+
+            except Exception as e:
+                logger.error(f"Stage 5 social analysis error: {e}", exc_info=True)
+                task.add_message('Глубокий анализ соцсетей: ошибка (пропущен)', 'warning')
+                sources_checked += 1
+
+            task.update('social_analysis', 'Социальный анализ завершён', 70)
+            _pause()
+
+            # ══════════════════════════════════════════════
             # STAGE 7: RISK SCORING [82-92%]
             # ══════════════════════════════════════════════
             task.update('risk', 'Анализ рисков...', 85)
