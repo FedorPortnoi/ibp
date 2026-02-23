@@ -63,7 +63,7 @@ def verify_profile_name_matches_query(profile: dict, search_first: str, search_l
     Rules:
     1. Last name MUST fuzzy-match >= 0.7 (non-negotiable)
     2. First name MUST either:
-       - fuzzy-match >= 0.6, OR
+       - fuzzy-match >= 0.65, OR
        - be a known diminutive (Дмитрий↔Дима), OR
        - match via transliteration (Dmitry↔Дмитрий)
     3. If neither matches → REJECT immediately
@@ -116,7 +116,7 @@ def verify_profile_name_matches_query(profile: dict, search_first: str, search_l
         SequenceMatcher(None, search_first, _to_latin(profile_first)).ratio(),
     )
 
-    if first_sim >= 0.6:
+    if first_sim >= 0.65:
         return True
 
     # Check diminutive matching (Дмитрий↔Дима, Ольга↔Оля, etc.)
@@ -241,8 +241,8 @@ class VKWebSearch:
         if all_user_ids:
             verified_profiles = self._enrich_profiles(all_user_ids, query)
 
-        # Step 4: Screen name guessing — decide based on VERIFIED count, not raw IDs
-        if len(verified_profiles) < 10:
+        # Step 4: Screen name guessing — only if very few verified results
+        if len(verified_profiles) < 3:
             logger.info(
                 f"VKWebSearch: only {len(verified_profiles)} verified results from "
                 f"people/newsfeed ({len(seen_ids)} raw IDs), trying screen name guessing..."
