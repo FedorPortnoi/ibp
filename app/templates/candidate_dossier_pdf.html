@@ -382,6 +382,139 @@
     {% endif %}
 {% endif %}
 
+{# ================================================================ RISK BREAKDOWN #}
+{% if risk_breakdown %}
+<h2>Разбивка рисков
+    {% if check.risk_score_numeric is not none %}<span class="count">&mdash; {{ '%.0f'|format(check.risk_score_numeric) }}/100</span>{% endif %}
+</h2>
+<table class="stbl">
+    <tr style="font-weight:600;background:#f9fafb;"><td>Категория</td><td style="text-align:right;">Оценка</td><td style="text-align:right;">Факторы</td></tr>
+    {% for cat, info in risk_breakdown.items() if info is mapping %}
+    <tr>
+        <td>{{ info.get('label', cat) }}</td>
+        <td style="text-align:right;">{{ info.get('score', '—') }}</td>
+        <td style="text-align:right;">{{ info.get('flags', [])|length }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}
+
+{# ================================================================ SOCIAL ANALYSIS (Stage 5) #}
+{% if face_matches or username_accounts %}
+<h2>Глубокий социальный анализ
+    <span class="count">&mdash; {{ face_matches|length }} совпадений лиц, {{ username_accounts|length }} аккаунтов</span>
+</h2>
+
+{% if face_matches %}
+<div style="margin-bottom:8px;font-weight:600;">Распознавание лиц:</div>
+{% for fm in face_matches %}
+<div class="soc">
+    <span class="soc-name">{{ fm.get('username', fm.get('name', '')) }}</span>
+    <span class="soc-detail">{{ fm.get('source', '') }}</span>
+    {% set sim = fm.get('similarity', fm.get('score', 0)) %}
+    {% if sim %}<span class="badge {% if sim > 0.8 %}bg-green{% elif sim > 0.5 %}bg-yellow{% else %}bg-gray{% endif %}">{{ '%.0f'|format(sim * 100) }}%</span>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+{% if username_accounts %}
+<div style="margin: 8px 0 6px; font-weight: 600;">Найденные аккаунты ({{ username_accounts|length }}):</div>
+{% for acct in username_accounts[:20] %}
+<div style="font-size:10px;margin-bottom:2px;">{{ acct.get('platform', acct.get('site', '')) }}: {{ acct.get('username', '') }} {% if acct.get('url') %}<span class="lbl">({{ acct.url }})</span>{% endif %}</div>
+{% endfor %}
+{% if username_accounts|length > 20 %}
+<div style="font-size:9px;color:#9ca3af;">... и ещё {{ username_accounts|length - 20 }} аккаунтов</div>
+{% endif %}
+{% endif %}
+{% endif %}
+
+{# ================================================================ GEO ANALYSIS (Stage 6) #}
+{% if geo_analysis and geo_analysis.get('locations') %}
+<h2>География
+    <span class="count">&mdash; {{ geo_analysis.get('locations', [])|length }} локаций</span>
+</h2>
+<table class="stbl">
+    <tr style="font-weight:600;background:#f9fafb;"><td>Город</td><td style="text-align:right;">Частота</td><td>Источник</td></tr>
+    {% for loc in geo_analysis.get('locations', []) %}
+    <tr>
+        <td>{{ loc.get('city', loc.get('name', '')) }}</td>
+        <td style="text-align:right;">{{ loc.get('frequency', loc.get('count', 1)) }}</td>
+        <td>{{ loc.get('source', '') }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% if geo_analysis.get('home_location') %}
+<div style="margin-top:4px;font-size:11px;"><strong>Предполагаемое место жительства:</strong> {{ geo_analysis.home_location }}</div>
+{% endif %}
+{% endif %}
+
+{# ================================================================ BEHAVIORAL (Stage 6) #}
+{% if text_analysis %}
+<h2>Поведенческий анализ</h2>
+
+{% if text_analysis.get('sentiment') %}
+<div style="margin-bottom:6px;">
+    <span class="lbl">Тональность:</span>
+    {% set sent = text_analysis.sentiment %}
+    {% if sent is string %}{{ sent }}{% else %}{{ sent.get('label', 'нейтральная') }}{% endif %}
+</div>
+{% endif %}
+
+{% if text_analysis.get('keywords') %}
+<div style="margin-bottom:6px;">
+    <span class="lbl">Ключевые слова:</span>
+    {% for kw in text_analysis.get('keywords', [])[:15] %}
+        {% set kw_text = kw if kw is string else kw.get('word', kw.get('text', '')) %}
+        {% if kw_text %}{{ kw_text }}{% if not loop.last %}, {% endif %}{% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if text_analysis.get('topics') %}
+<div style="margin-bottom:6px;">
+    <span class="lbl">Темы:</span>
+    {% for topic in text_analysis.get('topics', [])[:5] %}
+        {% set t = topic if topic is string else topic.get('name', topic.get('text', '')) %}
+        {% if t %}{{ t }}{% if not loop.last %}; {% endif %}{% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if text_analysis.get('posting_hours') or text_analysis.get('posting_pattern') %}
+<div>
+    <span class="lbl">Паттерн активности:</span>
+    {% set hours = text_analysis.get('posting_hours', text_analysis.get('posting_pattern', {})) %}
+    {% if hours is mapping %}
+        {% set peak_hours = [] %}
+        {% for h, v in hours.items() if v|int > 0 %}
+            {% if v|int >= (hours.values()|max|int * 0.7) %}{{ h }}:00{% if not loop.last %}, {% endif %}{% endif %}
+        {% endfor %}
+        (пики активности)
+    {% endif %}
+</div>
+{% endif %}
+{% endif %}
+
+{# ================================================================ TIMELINE (Stage 6) #}
+{% if activity_timeline %}
+<h2>Хронология
+    <span class="count">&mdash; последние {{ [activity_timeline|length, 10]|min }} из {{ activity_timeline|length }} событий</span>
+</h2>
+<table class="stbl">
+    <tr style="font-weight:600;background:#f9fafb;"><td>Дата</td><td>Тип</td><td>Описание</td></tr>
+    {% for event in activity_timeline[:10] %}
+    <tr>
+        <td>{{ event.get('date', '—') }}</td>
+        <td>{{ event.get('type', '') }}</td>
+        <td>{{ event.get('description', event.get('text', ''))[:80] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% if activity_timeline|length > 10 %}
+<div style="font-size:9px;color:#9ca3af;margin-top:2px;">... и ещё {{ activity_timeline|length - 10 }} событий</div>
+{% endif %}
+{% endif %}
+
 {# ================================================================ FOOTER #}
 <div class="footer">
     Данные получены из открытых источников.
