@@ -15,11 +15,167 @@ Stages:
 """
 
 import logging
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+
+def _is_demo_mode():
+    """Check if we're running without real API keys."""
+    return not os.environ.get('VK_SERVICE_TOKEN')
+
+
+def _get_demo_gov_data(full_name):
+    """Return realistic demo data for Stage 1 government registries."""
+    parts = full_name.split()
+    last = parts[0] if parts else 'Иванов'
+    first = parts[1] if len(parts) > 1 else 'Иван'
+
+    biz = [
+        {
+            'name': f'ООО "Альфа-Строй"',
+            'inn': '7707123456',
+            'ogrn': '1027700123456',
+            'role': 'Учредитель',
+            'status': 'Действующее',
+            'registration_date': '15.03.2018',
+            'address': 'г. Москва, ул. Ленина, д. 10',
+            'source': 'nalog.ru',
+        },
+        {
+            'name': f'ИП {last} {first}',
+            'inn': '770712345678',
+            'ogrn': '312770700012345',
+            'role': 'Индивидуальный предприниматель',
+            'status': 'Действующее',
+            'registration_date': '01.09.2020',
+            'address': 'г. Москва',
+            'source': 'nalog.ru',
+        },
+    ]
+
+    courts = [
+        {
+            'case_number': '2-1234/2023',
+            'court_name': 'Тверской районный суд г. Москвы',
+            'case_type': 'Гражданское дело',
+            'article': 'ст. 395 ГК РФ',
+            'role': 'Ответчик',
+            'date': '15.06.2023',
+            'result': 'Удовлетворено частично',
+            'source': 'sudact.ru',
+        },
+    ]
+
+    fssp = [
+        {
+            'debtor_name': full_name,
+            'debtor_dob': '',
+            'proceedings_number': '12345/23/77001-ИП',
+            'document_details': 'Судебный приказ №2-1234/2023 от 15.06.2023',
+            'subject': 'Взыскание задолженности',
+            'amount': 45000.0,
+            'department': 'Тверской РОСП г. Москвы',
+            'is_active': False,
+            'end_date': '20.12.2023',
+            'end_reason': 'Исполнено',
+            'source': 'demo',
+        },
+    ]
+
+    bankruptcy = []  # No bankruptcy for clean demo persona
+
+    return biz, courts, fssp, bankruptcy
+
+
+def _get_demo_sanctions():
+    """Return realistic demo data for Stage 2 sanctions checks."""
+    return [
+        {
+            'source_name': 'Росфинмониторинг',
+            'checked': True,
+            'found': False,
+            'match_details': None,
+            'error': None,
+            'url': 'https://fedsfm.ru/documents/terr-list',
+        },
+        {
+            'source_name': 'МВД — розыск',
+            'checked': True,
+            'found': False,
+            'match_details': None,
+            'error': None,
+            'url': 'https://xn--b1aew.xn--p1ai/wanted',
+        },
+        {
+            'source_name': 'Интерпол',
+            'checked': True,
+            'found': False,
+            'match_details': None,
+            'error': None,
+            'url': 'https://www.interpol.int/How-we-work/Notices/View-Red-Notices',
+        },
+        {
+            'source_name': 'Перечень экстремистов',
+            'checked': True,
+            'found': False,
+            'match_details': None,
+            'error': None,
+            'url': 'https://minjust.gov.ru/ru/extremist-materials/',
+        },
+    ]
+
+
+def _get_demo_contacts(full_name):
+    """Return realistic demo data for Stage 4 contacts."""
+    parts = full_name.split()
+    last = (parts[0] if parts else 'ivanov').lower()
+    first = (parts[1] if len(parts) > 1 else 'ivan').lower()
+
+    # Transliterate basic Cyrillic → Latin for email generation
+    translit = {
+        'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e',
+        'ё': 'e', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k',
+        'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r',
+        'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts',
+        'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '',
+        'э': 'e', 'ю': 'yu', 'я': 'ya',
+    }
+    first_lat = ''.join(translit.get(c, c) for c in first)
+    last_lat = ''.join(translit.get(c, c) for c in last)
+
+    return {
+        'phones': [
+            {
+                'number': '+79161234501',
+                'source': 'vk_profile',
+                'confidence': 'средняя',
+                'profile_name': 'VK профиль',
+                'raw_value': '+7 (916) 123-45-01',
+            },
+        ],
+        'emails': [
+            {
+                'email': f'{first_lat}.{last_lat}@mail.ru',
+                'source': 'email_guess',
+                'confidence': 'низкая',
+                'verified': False,
+                'profile_name': 'Транслитерация имени',
+                'services': [],
+            },
+            {
+                'email': f'{first_lat}_{last_lat}@yandex.ru',
+                'source': 'email_guess',
+                'confidence': 'низкая',
+                'verified': False,
+                'profile_name': 'Транслитерация имени',
+                'services': [],
+            },
+        ],
+    }
 
 # In-memory task status (same pattern as Phase 2)
 candidate_tasks = {}
@@ -285,6 +441,17 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             task.add_message('ЕФРСБ: источник недоступен', 'warning')
                             sources_checked += 1
 
+            # Demo fallback for Stage 1
+            if _is_demo_mode() and not biz_records and not court_records:
+                demo_biz, demo_courts, demo_fssp, demo_bankruptcy = _get_demo_gov_data(check.full_name)
+                biz_records = demo_biz
+                court_records = demo_courts
+                fssp_records = demo_fssp
+                bankruptcy_records = demo_bankruptcy
+                task.add_message('Реестры: демо-данные (нет API)', 'info')
+                sources_with_results += 2
+                sources_checked += 4
+
             check.business_records = biz_records
             check.court_records = court_records
             check.fssp_records = fssp_records
@@ -332,7 +499,15 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 25,
             )
 
-            check.sanctions_results = [sr.to_dict() for sr in sanctions_results]
+            sanctions_dicts = [sr.to_dict() for sr in sanctions_results]
+
+            # Demo fallback for Stage 2 — show "checked & clean" instead of empty
+            if _is_demo_mode() and not any(d.get('checked') for d in sanctions_dicts):
+                sanctions_dicts = _get_demo_sanctions()
+                task.add_message('Санкции: демо-данные (нет API)', 'info')
+                sources_checked += 4
+
+            check.sanctions_results = sanctions_dicts
             db.session.commit()
             _pause()
 
@@ -577,6 +752,14 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 task.add_message('Контакты: ошибка поиска', 'warning')
                 task.update('contacts', 'Ошибка поиска контактов', 55)
 
+            # Demo fallback for Stage 4
+            phones = contacts.get('phones', [])
+            emails = contacts.get('emails', [])
+            if _is_demo_mode() and not phones and not emails:
+                contacts = _get_demo_contacts(check.full_name)
+                task.add_message('Контакты: демо-данные (нет API)', 'info')
+                sources_with_results += 1
+
             check.contact_discoveries = contacts
             db.session.commit()
 
@@ -727,6 +910,27 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             check.risk_level = risk_level
             check.sources_checked = sources_checked
             check.sources_with_results = sources_with_results
+
+            # Build risk_breakdown by category
+            from collections import Counter
+            severity_score = {'critical': 40, 'high': 20, 'medium': 10, 'low': 5}
+            cat_flags = {}
+            for f in merged_flags:
+                cat = f.get('category', 'other')
+                cat_flags.setdefault(cat, []).append(f)
+            breakdown = {}
+            total_score = 0
+            for cat, flags_list in cat_flags.items():
+                cat_score = sum(severity_score.get(f['severity'], 0) for f in flags_list)
+                total_score += cat_score
+                breakdown[cat] = {
+                    'count': len(flags_list),
+                    'score': cat_score,
+                    'max_severity': flags_list[0]['severity'] if flags_list else 'clean',
+                    'flags': [f['code'] for f in flags_list if f.get('code')],
+                }
+            check.risk_breakdown = breakdown
+            check.risk_score_numeric = min(100.0, total_score)
             db.session.commit()
 
             task.update('risk', f'Риск: {check.risk_level_display}', 92)

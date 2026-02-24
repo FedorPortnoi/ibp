@@ -39,7 +39,7 @@ class CandidateCheck(db.Model):
     _court_records = db.Column('court_records', db.Text, default='[]')
     _fssp_records = db.Column('fssp_records', db.Text, default='[]')
     _bankruptcy_records = db.Column('bankruptcy_records', db.Text, default='[]')
-    _sanctions_results = db.Column('sanctions_results', db.Text, default='{}')
+    _sanctions_results = db.Column('sanctions_results', db.Text, default='[]')
     _social_media_profiles = db.Column('social_media_profiles', db.Text, default='[]')
     _contact_discoveries = db.Column('contact_discoveries', db.Text, default='{}')
 
@@ -133,7 +133,7 @@ class CandidateCheck(db.Model):
     # sanctions_results
     @property
     def sanctions_results(self):
-        return self._load_json(self._sanctions_results, {})
+        return self._load_json(self._sanctions_results, [])
 
     @sanctions_results.setter
     def sanctions_results(self, value):
