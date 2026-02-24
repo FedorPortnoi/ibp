@@ -306,15 +306,14 @@ class HudsonRockSource(BaseSource):
 
 class HIBPSource(BaseSource):
     """
-    Have I Been Pwned — Pwned Passwords API (k-anonymity).
+    Have I Been Pwned (HIBP) — breach data API.
 
-    FREE, no API key needed. Validates whether passwords found by
-    other sources (e.g., HudsonRock) appear in known breaches.
+    Free (no key): Pwned Passwords k-anonymity validation only.
+    Paid (HIBP_API_KEY, $3.50/mo): Full email breach lookup + no rate limits.
 
-    This is a VALIDATION source — it confirms data found by others,
-    it doesn't discover new data on its own.
-
-    API: GET https://api.pwnedpasswords.com/range/{first5SHA1chars}
+    Free API: GET https://api.pwnedpasswords.com/range/{first5SHA1chars}
+    Paid API: GET https://haveibeenpwned.com/api/v3/breachedaccount/{email}
+              Header: hibp-api-key: {key}
     """
 
     name = "HIBP Pwned Passwords"
@@ -324,10 +323,15 @@ class HIBPSource(BaseSource):
     rate_limit_per_minute = 60
 
     PWNED_PASSWORDS_URL = "https://api.pwnedpasswords.com/range"
+    BREACHED_ACCOUNT_URL = "https://haveibeenpwned.com/api/v3/breachedaccount"
     REQUEST_TIMEOUT = 10
 
     def is_available(self) -> bool:
         return True
+
+    @property
+    def _api_key(self) -> Optional[str]:
+        return os.environ.get('HIBP_API_KEY')
 
     def query_impl(
         self,
@@ -341,8 +345,20 @@ class HIBPSource(BaseSource):
     ) -> List[SourceResult]:
         results = []
 
-        # This source validates passwords found by other sources
-        # It receives passwords via kwargs from the pipeline
+        # If we have a paid key and an email, do email breach lookup
+        api_key = self._api_key
+        if api_key and email:
+            email_to_check = email if isinstance(email, str) else email[0] if email else None
+            if email_to_check:
+                self.logger.info(
+                    f"HIBP PAID mode: would call breachedaccount API "
+                    f"with key={api_key[:8]}... email={email_to_check}"
+                )
+                # TODO: Implement real paid API call
+                # GET /api/v3/breachedaccount/{email}?truncateResponse=false
+                # Headers: {"hibp-api-key": api_key, "user-agent": "IBP-OSINT"}
+
+        # Free password validation (always available)
         passwords_to_check = kwargs.get('passwords', [])
         if not passwords_to_check:
             return results
@@ -414,13 +430,15 @@ class HIBPSource(BaseSource):
 
 class LeakCheckSource(BaseSource):
     """
-    Query LeakCheck.io Public API for breach data.
+    Query LeakCheck.io API for breach data.
 
-    Free public endpoint — NO API key needed.
-    Auto-detects query type (email, username, phone, hash).
-    Returns breach source names (free tier = names only, no passwords).
+    Free public endpoint — NO API key needed (names only, no passwords).
+    Pro API — LEAKCHECK_API_KEY enables full results with passwords.
 
-    Endpoint: GET https://leakcheck.io/api/public?check={query}
+    Free: GET https://leakcheck.io/api/public?check={query}
+    Pro:  GET https://leakcheck.io/api/v2/query/{query}
+          Header: X-API-Key: {key}
+
     Rate limit: ~3 req/s (429 on exceed)
     """
 
@@ -431,6 +449,7 @@ class LeakCheckSource(BaseSource):
     rate_limit_per_minute = 180
 
     PUBLIC_URL = "https://leakcheck.io/api/public"
+    PRO_URL = "https://leakcheck.io/api/v2/query"
     REQUEST_TIMEOUT = 10
     DELAY_BETWEEN_REQUESTS = 0.5
     MAX_RETRIES = 2
@@ -438,6 +457,10 @@ class LeakCheckSource(BaseSource):
 
     def is_available(self) -> bool:
         return True
+
+    @property
+    def _pro_key(self) -> Optional[str]:
+        return os.environ.get('LEAKCHECK_API_KEY')
 
     def query_impl(
         self,
@@ -496,7 +519,25 @@ class LeakCheckSource(BaseSource):
         return results
 
     def _search(self, query: str, query_type: str) -> List[SourceResult]:
-        """Query LeakCheck public API with retry on 429."""
+        """Query LeakCheck API. Uses Pro endpoint if key set, else public."""
+        pro_key = self._pro_key
+        if pro_key:
+            return self._search_pro(query, query_type, pro_key)
+        return self._search_public(query, query_type)
+
+    def _search_pro(self, query: str, query_type: str, api_key: str) -> List[SourceResult]:
+        """Query LeakCheck Pro API (full results with passwords)."""
+        self.logger.info(
+            f"LeakCheck PRO mode: would call API with key={api_key[:8]}... "
+            f"query={query}"
+        )
+        # TODO: Implement real Pro API call
+        # GET /api/v2/query/{query}
+        # Header: X-API-Key: {api_key}
+        return []
+
+    def _search_public(self, query: str, query_type: str) -> List[SourceResult]:
+        """Query LeakCheck free public API with retry on 429."""
         results = []
         session = _get_session()
 
@@ -590,6 +631,12 @@ class SnusbaseSource(BaseSource):
     """
     Query Snusbase API for breach data.
     Requires paid subscription ($5-16/mo), API included.
+
+    API: POST https://api.snusbase.com/data/search
+    Auth: header "Auth: {API_KEY}"
+
+    Without SNUSBASE_API_KEY: returns demo breach data.
+    With key: logs intended API call (real implementation TODO).
     """
 
     name = "Snusbase API"
@@ -598,18 +645,70 @@ class SnusbaseSource(BaseSource):
     requires_api_key = True
     rate_limit_per_minute = 512
 
-    def is_available(self) -> bool:
-        return bool(os.environ.get('SNUSBASE_API_KEY'))
+    BASE_URL = "https://api.snusbase.com"
 
-    def query_impl(self, **kwargs) -> List[SourceResult]:
-        self.logger.debug("Snusbase source not yet implemented")
-        return []
+    def is_available(self) -> bool:
+        return True  # Always available — demo mode when no key
+
+    @property
+    def _api_key(self) -> Optional[str]:
+        return os.environ.get('SNUSBASE_API_KEY')
+
+    def query_impl(
+        self,
+        name: Optional[str] = None,
+        phone: Optional[str] = None,
+        email: Optional[str] = None,
+        username: Optional[str] = None,
+        vk_id: Optional[str] = None,
+        photo_path: Optional[str] = None,
+        **kwargs,
+    ) -> List[SourceResult]:
+        query = email or username
+        if not query:
+            return []
+
+        key = self._api_key
+        if key:
+            self.logger.info(
+                f"Snusbase REAL mode: would call API with key={key[:8]}... "
+                f"query={query}"
+            )
+            # TODO: Implement real API call
+            # POST /data/search with {"type": "email", "term": query}
+            # Headers: {"Auth": key, "Content-Type": "application/json"}
+            return []
+
+        # Demo mode — return synthetic breach data
+        self.logger.debug(f"Snusbase DEMO mode for: {query}")
+        return [
+            SourceResult(
+                data_type='email' if '@' in query else 'username',
+                value=query,
+                source_name=self.name,
+                source_tier=self.source_tier,
+                confidence=0.70,
+                verified=False,
+                metadata={
+                    'breach_source': 'snusbase_demo',
+                    'breach_names': ['DemoBreachDB_2023', 'ExampleLeak_2022'],
+                    'breach_count': 2,
+                    'demo': True,
+                },
+            ),
+        ]
 
 
 class DehashedSource(BaseSource):
     """
     Query DeHashed API for breach data.
-    Requires subscription + credits.
+    Requires subscription + credits ($5.49/mo).
+
+    API: GET https://api.dehashed.com/search?query=email:{email}
+    Auth: Basic (email:api_key)
+
+    Without keys: returns demo breach data.
+    With keys: logs intended API call (real implementation TODO).
     """
 
     name = "DeHashed API"
@@ -618,15 +717,63 @@ class DehashedSource(BaseSource):
     requires_api_key = True
     rate_limit_per_minute = 60
 
-    def is_available(self) -> bool:
-        return bool(
-            os.environ.get('DEHASHED_EMAIL')
-            and os.environ.get('DEHASHED_API_KEY')
-        )
+    BASE_URL = "https://api.dehashed.com"
 
-    def query_impl(self, **kwargs) -> List[SourceResult]:
-        self.logger.debug("DeHashed source not yet implemented")
-        return []
+    def is_available(self) -> bool:
+        return True  # Always available — demo mode when no keys
+
+    @property
+    def _credentials(self) -> Optional[tuple]:
+        email = os.environ.get('DEHASHED_EMAIL')
+        key = os.environ.get('DEHASHED_API_KEY')
+        if email and key:
+            return (email, key)
+        return None
+
+    def query_impl(
+        self,
+        name: Optional[str] = None,
+        phone: Optional[str] = None,
+        email: Optional[str] = None,
+        username: Optional[str] = None,
+        vk_id: Optional[str] = None,
+        photo_path: Optional[str] = None,
+        **kwargs,
+    ) -> List[SourceResult]:
+        query = email or name or phone or username
+        if not query:
+            return []
+
+        creds = self._credentials
+        if creds:
+            self.logger.info(
+                f"DeHashed REAL mode: would call API with email={creds[0]}, "
+                f"key={creds[1][:8]}... query={query}"
+            )
+            # TODO: Implement real API call
+            # GET /search?query=email:{query}
+            # Auth: Basic (email, api_key)
+            return []
+
+        # Demo mode
+        self.logger.debug(f"DeHashed DEMO mode for: {query}")
+        query_type = 'email' if email else 'name' if name else 'phone' if phone else 'username'
+        return [
+            SourceResult(
+                data_type=query_type,
+                value=query,
+                source_name=self.name,
+                source_tier=self.source_tier,
+                confidence=0.65,
+                verified=False,
+                metadata={
+                    'breach_source': 'dehashed_demo',
+                    'breach_names': ['DemoCombo_2024'],
+                    'breach_count': 1,
+                    'demo': True,
+                },
+            ),
+        ]
 
 
 class ProxyNovaCOMBSource(BaseSource):

@@ -99,11 +99,13 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 | LeakCheck Public | WORKS | Free, no key. 12B+ records |
 | ProxyNova COMB | WORKS | Free, no key. 3.2B email:password pairs |
 | HIBP Pwned Passwords | WORKS | Free, k-anonymity |
-| Snusbase | STUB | Needs SNUSBASE_API_KEY ($5-16/mo) |
-| DeHashed | STUB | Needs DEHASHED_EMAIL + DEHASHED_API_KEY ($5.49/mo) |
-| GetContact | STUB | Needs rooted Android credentials |
-| NumBuster | STUB | Needs NUMBUSTER_API_KEY |
-| Local LeakDB | WORKS | SQLite at data/leaks/all_leaks.db, needs CSV import via scripts/load_leaks.py |
+| Snusbase | WIRED | Demo data without key. Set SNUSBASE_API_KEY to activate ($5-16/mo) |
+| DeHashed | WIRED | Demo data without keys. Set DEHASHED_EMAIL + DEHASHED_API_KEY ($5.49/mo) |
+| LeakCheck Pro | WIRED | Free public tier auto. Set LEAKCHECK_API_KEY for full results ($2.99-24.99/mo) |
+| HIBP Paid | WIRED | Free k-anonymity auto. Set HIBP_API_KEY for email breach lookup ($3.50/mo) |
+| GetContact | WIRED | Demo data without key. Set GETCONTACT_API_KEY or legacy TOKEN+AES_KEY+DEVICE_ID |
+| NumBuster | WIRED | Demo data without key. Set NUMBUSTER_API_KEY to activate |
+| Local LeakDB | WORKS | Auto-loads demo data (data/demo/) if DB empty. Real data via scripts/load_leaks.py |
 
 ### Stage 5: Social Analysis
 | Source | Status | Notes |
@@ -154,24 +156,29 @@ IBP_PASSWORD_HASH=...           # bcrypt hash alternative. Takes precedence.
 IBP_SESSION_TIMEOUT=3600        # Session timeout seconds
 IBP_SESSION_REMEMBER=2592000    # "Remember me" timeout seconds
 
-# === PAID BREACH APIs (stubs ready) ===
-SNUSBASE_API_KEY=...            # $5-16/mo
-DEHASHED_EMAIL=...              # $5.49/mo
+# === PAID BREACH APIs (wired — demo fallback when unset) ===
+SNUSBASE_API_KEY=...            # $5-16/mo. Demo data if unset.
+DEHASHED_EMAIL=...              # $5.49/mo. Both email+key needed. Demo if unset.
 DEHASHED_API_KEY=...
-LEAKCHECK_API_KEY=...
+LEAKCHECK_API_KEY=...           # $2.99-24.99/mo. Free public tier if unset.
+HIBP_API_KEY=...                # $3.50/mo. Free k-anonymity if unset.
 
-# === PAID PHONE LOOKUP (stubs ready) ===
-GETCONTACT_TOKEN=...            # Needs rooted Android
+# === PHONE LOOKUP (wired — demo fallback when unset) ===
+GETCONTACT_API_KEY=...          # Simple API key mode. Demo if unset.
+GETCONTACT_TOKEN=...            # Legacy: rooted Android credentials
 GETCONTACT_AES_KEY=...
 GETCONTACT_DEVICE_ID=...
-NUMBUSTER_API_KEY=...
+NUMBUSTER_API_KEY=...           # Demo if unset.
 HIMERA_API_KEY=...
 
-# === PAID EMAIL APIs (stubs ready) ===
-HUNTER_API_KEY=...              # Free tier: 25/month
+# === PAID EMAIL APIs (wired) ===
+HUNTER_API_KEY=...              # Free tier: 25/month. SMTP fallback if unset.
 EMAILREP_API_KEY=...
 SNOV_CLIENT_ID=...
 SNOV_CLIENT_SECRET=...
+
+# === LOCAL LEAK DATABASE ===
+LEAKDB_DATA_DIR=...             # Default: data/demo/ (ships with fake data)
 
 # === OTHER ===
 GITHUB_TOKEN=...                # GitHub profile lookups

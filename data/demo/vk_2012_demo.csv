@@ -1,0 +1,11 @@
+phone,email,username,first_name,last_name,password_hash
++79161234501,ivanov.ivan@mail.ru,ivanov_ivan,Иван,Иванов,5f4dcc3b5aa765d61d8327deb882cf99
++79161234502,petrov.petr@yandex.ru,petrov_p,Пётр,Петров,e99a18c428cb38d5f260853678922e03
++79161234503,sidorova.anna@gmail.com,annasid,Анна,Сидорова,d8578edf8458ce06fbc5bb76a58c5ca4
++79161234504,kuznetsov.dm@inbox.ru,dkuznetsov,Дмитрий,Кузнецов,25d55ad283aa400af464c76d713c07ad
++79161234505,morozova.elena@bk.ru,morozova_el,Елена,Морозова,827ccb0eea8a706c4c34a16891f84e7b
++79161234506,novikov.alex@list.ru,alex_novikov,Алексей,Новиков,e10adc3949ba59abbe56e057f20f883e
++79161234507,volkova.maria@rambler.ru,mvolkova,Мария,Волкова,0192023a7bbd73250516f069df18b500
++79161234508,fedorov.sergey@mail.ru,sfedorov,Сергей,Фёдоров,098f6bcd4621d373cade4e832627b4f6
++79161234509,kozlova.olga@yandex.ru,olgakoz,Ольга,Козлова,5ebe2294ecd0e0f08eab7690d2a6ee69
++79161234510,lebedev.andrey@gmail.com,alebedev,Андрей,Лебедев,e99a18c428cb38d5f260853678922e03

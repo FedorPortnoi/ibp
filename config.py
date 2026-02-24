@@ -46,6 +46,7 @@ _ENV_KEYS = {
     'DEHASHED_API_KEY': ('DEHASHED_API_KEY', None),
 
     # GetContact
+    'GETCONTACT_API_KEY': ('GETCONTACT_API_KEY', None),
     'GETCONTACT_TOKEN': ('GETCONTACT_TOKEN', None),
     'GETCONTACT_AES_KEY': ('GETCONTACT_AES_KEY', None),
     'GETCONTACT_DEVICE_ID': ('GETCONTACT_DEVICE_ID', None),
@@ -60,12 +61,18 @@ _ENV_KEYS = {
     'SNOV_CLIENT_ID': ('SNOV_CLIENT_ID', None),
     'SNOV_CLIENT_SECRET': ('SNOV_CLIENT_SECRET', None),
 
+    # HIBP
+    'HIBP_API_KEY': ('HIBP_API_KEY', None),
+
     # Government
     'FSSP_API_TOKEN': ('FSSP_API_TOKEN', None),
 
     # Other
     'GITHUB_TOKEN': ('GITHUB_TOKEN', None),
     'INFOTRACKPEOPLE_API_KEY': ('INFOTRACKPEOPLE_API_KEY', None),
+
+    # LeakDB
+    'LEAKDB_DATA_DIR': ('LEAKDB_DATA_DIR', None),
 
     # Auth
     'IBP_PASSWORD': ('IBP_PASSWORD', None),

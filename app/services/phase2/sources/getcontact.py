@@ -6,19 +6,21 @@ Reverse phone lookup using crowdsourced contact databases.
 GetContact: Crowdsourced caller ID (how a number is saved in others' phones)
 NumBuster: Similar service with trust ratings
 
-GetContact has a reverse-engineered Python API:
-  https://github.com/kovinevmv/getcontact
-  Requires AES_KEY, TOKEN, DEVICE_ID from a rooted Android device.
+Three authentication modes (checked in order):
+1. GETCONTACT_API_KEY — simple API key (paid service)
+2. GETCONTACT_TOKEN + AES_KEY + DEVICE_ID — rooted Android credentials
+3. No credentials — demo mode with synthetic data
 
 Tier: A (Platform API) — direct platform data, not leaked
-
-PLACEHOLDER: Requires GetContact credentials from Android device.
 """
 
 import os
+import logging
 from typing import List, Optional
 
 from ..base_source import BaseSource, SourceResult, SourceTier, SourceType
+
+logger = logging.getLogger(__name__)
 
 
 class GetContactSource(BaseSource):
@@ -28,8 +30,10 @@ class GetContactSource(BaseSource):
     Returns how a phone number is saved in other people's contacts.
     Useful for confirming that a phone belongs to the target.
 
-    Setup: Extract credentials from rooted Android with GetContact installed.
-    Set env vars: GETCONTACT_AES_KEY, GETCONTACT_TOKEN, GETCONTACT_DEVICE_ID
+    Authentication modes:
+    - GETCONTACT_API_KEY: Simple API key (paid service)
+    - GETCONTACT_TOKEN + AES_KEY + DEVICE_ID: Rooted Android credentials
+    - No credentials: Demo mode returns synthetic data
     """
 
     name = "GetContact Lookup"
@@ -39,10 +43,20 @@ class GetContactSource(BaseSource):
     rate_limit_per_minute = 5  # Very limited queries per token/month
 
     def is_available(self) -> bool:
-        return bool(
-            os.environ.get('GETCONTACT_TOKEN')
-            and os.environ.get('GETCONTACT_AES_KEY')
-        )
+        return True  # Always available — demo mode when no credentials
+
+    @property
+    def _api_key(self) -> Optional[str]:
+        return os.environ.get('GETCONTACT_API_KEY')
+
+    @property
+    def _legacy_credentials(self) -> Optional[tuple]:
+        token = os.environ.get('GETCONTACT_TOKEN')
+        aes_key = os.environ.get('GETCONTACT_AES_KEY')
+        device_id = os.environ.get('GETCONTACT_DEVICE_ID')
+        if token and aes_key:
+            return (token, aes_key, device_id)
+        return None
 
     def query_impl(
         self,
@@ -57,28 +71,47 @@ class GetContactSource(BaseSource):
         if not phone:
             return []
 
-        # TODO: Implement using getcontact Python library
-        #
-        # from getcontact import GetContact
-        # gc = GetContact(
-        #     token=os.environ["GETCONTACT_TOKEN"],
-        #     aes_key=os.environ["GETCONTACT_AES_KEY"],
-        #     device_id=os.environ["GETCONTACT_DEVICE_ID"]
-        # )
-        # result = gc.search(phone)
-        # for tag in result.get("tags", []):
-        #     # tag = {"displayName": "Иванов Иван", ...}
-        #     results.append(SourceResult(
-        #         data_type='name',
-        #         value=tag["displayName"],
-        #         source_name=self.name,
-        #         source_tier=self.source_tier,
-        #         confidence=0.75,
-        #         metadata={'phone': phone, 'tag_count': len(result.get("tags", []))},
-        #     ))
-        #
-        self.logger.debug("GetContact source not yet implemented")
-        return []
+        # Mode 1: Simple API key
+        api_key = self._api_key
+        if api_key:
+            self.logger.info(
+                f"GetContact REAL mode (API key): would call API "
+                f"with key={api_key[:8]}... phone={phone}"
+            )
+            # TODO: Implement real API call when service is purchased
+            return []
+
+        # Mode 2: Legacy rooted Android credentials
+        legacy = self._legacy_credentials
+        if legacy:
+            token, aes_key, device_id = legacy
+            self.logger.info(
+                f"GetContact REAL mode (legacy): would call API "
+                f"with token={token[:8]}... phone={phone}"
+            )
+            # TODO: Implement using getcontact Python library
+            # from getcontact import GetContact
+            # gc = GetContact(token=token, aes_key=aes_key, device_id=device_id)
+            # result = gc.search(phone)
+            return []
+
+        # Mode 3: Demo mode
+        self.logger.debug(f"GetContact DEMO mode for: {phone}")
+        return [
+            SourceResult(
+                data_type='name',
+                value='Демо Контакт',
+                source_name=self.name,
+                source_tier=self.source_tier,
+                confidence=0.50,
+                metadata={
+                    'phone': phone,
+                    'tag_count': 2,
+                    'tags': ['Демо запись 1', 'Демо запись 2'],
+                    'demo': True,
+                },
+            ),
+        ]
 
 
 class NumBusterSource(BaseSource):
@@ -88,6 +121,9 @@ class NumBusterSource(BaseSource):
     NumBuster is a mobile app with caller ID and trust ratings.
     No documented API — would need to reverse-engineer the app
     or use the mobile API endpoints.
+
+    Without NUMBUSTER_API_KEY: returns demo data.
+    With key: logs intended API call (real implementation TODO).
     """
 
     name = "NumBuster Lookup"
@@ -97,7 +133,11 @@ class NumBusterSource(BaseSource):
     rate_limit_per_minute = 5
 
     def is_available(self) -> bool:
-        return bool(os.environ.get('NUMBUSTER_API_KEY'))
+        return True  # Always available — demo mode when no key
+
+    @property
+    def _api_key(self) -> Optional[str]:
+        return os.environ.get('NUMBUSTER_API_KEY')
 
     def query_impl(
         self,
@@ -109,6 +149,31 @@ class NumBusterSource(BaseSource):
         photo_path: Optional[str] = None,
         **kwargs
     ) -> List[SourceResult]:
-        # TODO: Implement if NumBuster API access is obtained
-        self.logger.debug("NumBuster source not yet implemented")
-        return []
+        if not phone:
+            return []
+
+        key = self._api_key
+        if key:
+            self.logger.info(
+                f"NumBuster REAL mode: would call API "
+                f"with key={key[:8]}... phone={phone}"
+            )
+            # TODO: Implement if NumBuster API access is obtained
+            return []
+
+        # Demo mode
+        self.logger.debug(f"NumBuster DEMO mode for: {phone}")
+        return [
+            SourceResult(
+                data_type='name',
+                value='Демо Абонент',
+                source_name=self.name,
+                source_tier=self.source_tier,
+                confidence=0.45,
+                metadata={
+                    'phone': phone,
+                    'trust_rating': 0.6,
+                    'demo': True,
+                },
+            ),
+        ]

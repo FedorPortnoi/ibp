@@ -34,6 +34,7 @@ _PROJECT_ROOT = os.path.normpath(
     os.path.join(os.path.dirname(__file__), '..', '..', '..', '..')
 )
 DEFAULT_DB_PATH = os.path.join(_PROJECT_ROOT, 'data', 'leaks', 'all_leaks.db')
+DEFAULT_DEMO_DIR = os.path.join(_PROJECT_ROOT, 'data', 'demo')
 
 
 # ---------------------------------------------------------------------------
@@ -313,10 +314,12 @@ class LeakDB:
         batch_size: int = 5000,
     ) -> Dict[str, int]:
         """
-        Stream a CSV into the database using a source-specific row parser.
+        Stream a CSV or JSONL file into the database using a source-specific row parser.
+
+        Auto-detects JSONL vs CSV by file extension (.jsonl, .json, .ndjson → JSONL).
 
         Args:
-            path:       Path to CSV file.
+            path:       Path to CSV or JSONL file.
             source:     Source tag (e.g. 'vk_2012', 'getcontact', 'telco').
             row_parser: Callable(row_dict) -> Optional[record_dict].
                         Return None to skip a row.
@@ -328,9 +331,16 @@ class LeakDB:
         inserted = skipped = errors = 0
         batch: list = []
 
+        ext = os.path.splitext(path)[1].lower()
+        is_jsonl = ext in ('.jsonl', '.json', '.ndjson')
+
         with open(path, 'r', encoding='utf-8', errors='replace') as fh:
-            reader = csv.DictReader(fh)
-            for raw_row in reader:
+            if is_jsonl:
+                rows = self._iter_jsonl(fh)
+            else:
+                rows = csv.DictReader(fh)
+
+            for raw_row in rows:
                 try:
                     record = row_parser(raw_row)
                     if record is None:
@@ -355,6 +365,18 @@ class LeakDB:
             f"{skipped} skipped, {errors} errors from {path}"
         )
         return {'inserted': inserted, 'skipped': skipped, 'errors': errors}
+
+    @staticmethod
+    def _iter_jsonl(fh):
+        """Yield dicts from a JSONL file handle."""
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                yield json.loads(line)
+            except (json.JSONDecodeError, TypeError):
+                continue
 
     def count(self, source: Optional[str] = None) -> int:
         conn = self._get_conn()
@@ -808,6 +830,8 @@ class LeakSourceManager:
         status  = mgr.status()                       # per-source record counts
 
     Sources are instantiated lazily on first ``get_instance()`` call.
+    If the database is empty, auto-loads demo data from LEAKDB_DATA_DIR
+    (default: data/demo/).
     """
 
     _instance: Optional['LeakSourceManager'] = None
@@ -819,11 +843,49 @@ class LeakSourceManager:
         self.getcontact = GetContactLeakSource()
         self.telco = TelcoLeakSource()
         self._sources = [self.vk2012, self.getcontact, self.telco]
+
+        # Auto-load demo data if DB is empty
+        if not self._db.exists:
+            self._load_demo_data()
+
         logger.info(
             "LeakSourceManager: preloaded %d sources (%s)",
             len(self._sources),
             ', '.join(f"{s.name}={'ON' if s.is_available() else 'OFF'}" for s in self._sources),
         )
+
+    def _load_demo_data(self):
+        """Load demo CSV/JSONL files into LeakDB if it's empty."""
+        data_dir = os.environ.get('LEAKDB_DATA_DIR') or DEFAULT_DEMO_DIR
+        if not os.path.isdir(data_dir):
+            logger.debug(f"LeakDB demo dir not found: {data_dir}")
+            return
+
+        demo_files = {
+            'vk_2012': ('vk_2012_demo.csv', self.vk2012),
+            'getcontact': ('getcontact_demo.jsonl', self.getcontact),
+            'telco': ('telco_demo.csv', self.telco),
+        }
+
+        loaded_any = False
+        for source_tag, (filename, source_obj) in demo_files.items():
+            filepath = os.path.join(data_dir, filename)
+            if not os.path.isfile(filepath):
+                continue
+            if self._db.count(source_tag) > 0:
+                continue  # Already has data for this source
+            try:
+                if source_tag == 'telco':
+                    stats = source_obj.load_csv(filepath, carrier='demo')
+                else:
+                    stats = source_obj.load_csv(filepath)
+                logger.info(f"LeakDB demo loaded {source_tag}: {stats}")
+                loaded_any = True
+            except Exception as e:
+                logger.warning(f"Failed to load demo {source_tag}: {e}")
+
+        if loaded_any:
+            logger.info("LeakDB demo data loaded successfully")
 
     @classmethod
     def get_instance(cls) -> 'LeakSourceManager':
