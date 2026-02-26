@@ -2,6 +2,15 @@
 VK Token Manager
 ================
 Manages VK OAuth token lifecycle: validation, save, refresh URL generation.
+
+Dual-token architecture:
+  VK_SERVICE_TOKEN — permanent app token for search (users.search, users.get)
+  VK_USER_TOKEN    — user OAuth token for private data (wall.get, friends.get,
+                     photos.getAll, market.get). Requires explicit scopes:
+                     friends, photos, wall, groups, offline.
+  VK_TOKEN         — legacy fallback (treated as user token if VK_USER_TOKEN unset)
+
+Helper: get_vk_token(method_type) returns the right token for each use case.
 """
 
 import os
@@ -111,3 +120,47 @@ def get_oauth_url():
         f'&response_type=token'
         f'&v=5.199'
     ), None
+
+
+def get_vk_user_token() -> str:
+    """Get VK user token for private-data API methods.
+
+    Priority: VK_USER_TOKEN → VK_TOKEN → None
+    These methods require user OAuth token with explicit scopes:
+      wall.get, friends.get, photos.getAll, photos.getComments,
+      wall.getComments, newsfeed.getMentions, market.get
+    """
+    return (
+        os.environ.get('VK_USER_TOKEN', '').strip()
+        or os.environ.get('VK_TOKEN', '').strip()
+        or None
+    )
+
+
+def get_vk_service_token() -> str:
+    """Get VK service token for public API methods.
+
+    Priority: VK_SERVICE_TOKEN → VK_USER_TOKEN → VK_TOKEN → None
+    These methods work with service tokens:
+      users.search, users.get, newsfeed.search, utils.resolveScreenName
+    """
+    return (
+        os.environ.get('VK_SERVICE_TOKEN', '').strip()
+        or os.environ.get('VK_USER_TOKEN', '').strip()
+        or os.environ.get('VK_TOKEN', '').strip()
+        or None
+    )
+
+
+def get_vk_token(method_type: str = 'search') -> str:
+    """Get the right VK token for a given method type.
+
+    Args:
+        method_type: 'search' for public methods, 'private' for user-data methods
+
+    Returns:
+        Token string or None if unavailable
+    """
+    if method_type == 'private':
+        return get_vk_user_token()
+    return get_vk_service_token()

@@ -87,28 +87,53 @@ def check_database():
 
 
 def check_vk_token():
-    """Check VK token validity."""
+    """Check VK token validity (service + user tokens)."""
     from app.utils.logger import mask_token
-    token = os.environ.get('VK_SERVICE_TOKEN') or os.environ.get('VK_TOKEN')
-    if not token:
-        return 'warn', 'VK Token: Not set -- set VK_SERVICE_TOKEN or VK_TOKEN in .env'
+    service_token = os.environ.get('VK_SERVICE_TOKEN', '').strip()
+    user_token = os.environ.get('VK_USER_TOKEN', '').strip() or os.environ.get('VK_TOKEN', '').strip()
 
+    if not service_token and not user_token:
+        return 'warn', 'VK Token: Not set -- set VK_SERVICE_TOKEN in .env'
+
+    parts = []
+
+    # Check service token
+    if service_token:
+        status = _check_vk_token_validity(service_token)
+        parts.append(f'Service: {status}')
+    else:
+        parts.append('Service: not set')
+
+    # Check user token (for wall/friends/photos)
+    if user_token:
+        status = _check_vk_token_validity(user_token)
+        parts.append(f'User: {status}')
+    else:
+        parts.append('User: not set (wall/friends/photos disabled)')
+
+    has_valid = 'Valid' in ' '.join(parts)
+    has_fail = 'Invalid' in ' '.join(parts)
+    level = 'ok' if has_valid and not has_fail else ('fail' if has_fail else 'warn')
+    return level, f'VK Tokens: {" | ".join(parts)}'
+
+
+def _check_vk_token_validity(token: str) -> str:
+    """Test a single VK token against the API."""
+    from app.utils.logger import mask_token
     try:
-        import requests
-        resp = requests.get(
+        import requests as req
+        resp = req.get(
             'https://api.vk.com/method/users.get',
             params={'user_ids': '1', 'access_token': token, 'v': '5.199'},
             timeout=5
         )
         data = resp.json()
         if 'error' in data:
-            error_msg = data['error'].get('error_msg', 'Unknown error')
-            return 'fail', f'VK Token: Invalid ({mask_token(token)}) -- {error_msg}'
-        return 'ok', f'VK Token: Valid ({mask_token(token)})'
-    except requests.Timeout:
-        return 'warn', f'VK Token: Set ({mask_token(token)}) -- API timeout (VK may be blocked)'
+            error_msg = data['error'].get('error_msg', 'Unknown')
+            return f'Invalid ({mask_token(token)}) -- {error_msg}'
+        return f'Valid ({mask_token(token)})'
     except Exception as e:
-        return 'warn', f'VK Token: Set ({mask_token(token)}) -- Check failed: {e}'
+        return f'Set ({mask_token(token)}) -- {e}'
 
 
 def check_playwright():

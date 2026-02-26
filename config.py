@@ -24,6 +24,7 @@ _ENV_KEYS = {
 
     # VK API
     'VK_SERVICE_TOKEN': ('VK_SERVICE_TOKEN', None),
+    'VK_USER_TOKEN': ('VK_USER_TOKEN', None),
     'VK_API_VERSION': ('VK_API_VERSION', '5.199'),
     'VK_APP_ID': ('VK_APP_ID', None),
     'VK_TOKEN': ('VK_TOKEN', None),

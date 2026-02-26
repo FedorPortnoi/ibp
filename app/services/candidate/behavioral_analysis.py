@@ -227,7 +227,9 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
             except Exception:
                 pass
 
-    vk_token = os.environ.get('VK_SERVICE_TOKEN') or os.environ.get('VK_TOKEN')
+    from app.utils.vk_token_manager import get_vk_token
+    # wall.get requires user token (private data)
+    vk_token = get_vk_token('private') or get_vk_token('search')
     vk_profiles = _get_vk_profiles(check)
     all_profiles = check.confirmed_profiles or check.social_media_profiles or []
 

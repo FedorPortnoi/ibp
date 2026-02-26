@@ -150,7 +150,10 @@ class ContactDiscoveryService:
     """Discovers phones and emails from existing check data."""
 
     def __init__(self):
-        self.vk_token = os.environ.get('VK_SERVICE_TOKEN') or os.environ.get('VK_TOKEN')
+        from app.utils.vk_token_manager import get_vk_user_token, get_vk_service_token
+        # User token for private methods (wall.get, etc.), service token for search
+        self.vk_user_token = get_vk_user_token()
+        self.vk_token = self.vk_user_token or get_vk_service_token()
         self.found_phones: List[DiscoveredPhone] = []
         self.found_emails: List[DiscoveredEmail] = []
         self._oracle_results: list = []  # raw forgot-password oracle results for cross-ref
@@ -422,7 +425,9 @@ class ContactDiscoveryService:
             logger.debug("VKWallExtractor not available")
             return
 
-        extractor = VKWallExtractor(access_token=self.vk_token)
+        # wall.get requires user token (not service token)
+        wall_token = self.vk_user_token or self.vk_token
+        extractor = VKWallExtractor(access_token=wall_token)
 
         for profile in vk_profiles[:2]:  # max 2 profiles to limit API calls
             url = profile.get('url', '')

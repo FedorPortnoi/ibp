@@ -306,7 +306,8 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
     if not confirmed:
         logger.info("No profiles found for social analysis")
         # Check if we should use demo mode
-        vk_token = os.environ.get('VK_SERVICE_TOKEN') or os.environ.get('VK_TOKEN')
+        from app.utils.vk_token_manager import get_vk_token
+        vk_token = get_vk_token('search')
         if not vk_token:
             _update('Демо-режим: нет VK токена', 70)
             return _demo_response()
@@ -379,7 +380,10 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
         _update('Построение социального графа', 64)
         try:
             from app.services.phase2.social_graph import SocialGraphBuilder
-            builder = SocialGraphBuilder()
+            from app.utils.vk_token_manager import get_vk_token
+            # friends.get requires user token (private data)
+            user_token = get_vk_token('private')
+            builder = SocialGraphBuilder(service_token=user_token)
 
             if builder.is_demo_mode:
                 name = check.full_name or 'Неизвестный'
@@ -396,8 +400,8 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
                     'city': {'title': center_profile.get('city', '')} if center_profile.get('city') else None,
                 }
 
-                # Fetch friends via VK API
-                friends = _fetch_vk_friends(vk_id, builder.token)
+                # Fetch friends via VK API (user token required for friends.get)
+                friends = _fetch_vk_friends(vk_id, user_token or builder.token)
                 graph = builder.build_from_friends(vk_id, center_data, friends)
 
             results['social_graph'] = builder.export_visjs(graph)

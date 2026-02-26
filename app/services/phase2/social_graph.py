@@ -109,7 +109,15 @@ class SocialGraphBuilder:
     ]
 
     def __init__(self, service_token: Optional[str] = None):
-        self.token = service_token or os.environ.get("VK_SERVICE_TOKEN")
+        # friends.get requires user token; fall back to service token for demo check
+        if service_token:
+            self.token = service_token
+        else:
+            try:
+                from app.utils.vk_token_manager import get_vk_user_token, get_vk_service_token
+                self.token = get_vk_user_token() or get_vk_service_token()
+            except ImportError:
+                self.token = os.environ.get("VK_USER_TOKEN") or os.environ.get("VK_SERVICE_TOKEN")
         self._demo_mode = not self.token
 
         self.nodes: Dict[str, GraphNode] = {}
@@ -499,5 +507,14 @@ def get_demo_social_graph(name: str = "Иван Иванов") -> Dict[str, Any]
     return builder.export_visjs(graph)
 
 
-# Singleton
-social_graph_builder = SocialGraphBuilder()
+# Lazy singleton — created on demand to pick up env vars at runtime
+_social_graph_builder = None
+
+def get_social_graph_builder():
+    global _social_graph_builder
+    if _social_graph_builder is None:
+        _social_graph_builder = SocialGraphBuilder()
+    return _social_graph_builder
+
+# Backward-compat alias (reads token at import time — prefer get_social_graph_builder())
+social_graph_builder = None  # Initialized lazily
