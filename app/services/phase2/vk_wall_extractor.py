@@ -1,11 +1,13 @@
 """
 VK Wall Post Contact Extractor
 ==============================
-Extract contact information from VK wall posts.
-Searches for phone numbers, emails, and contact mentions in:
-- User's own wall posts
-- Comments on posts
-- Bio/status updates
+Extract contact information from VK wall posts, comments, photos, and profile fields.
+Searches for phone numbers, emails, Telegram links, and contact mentions in:
+- User's own wall posts (up to 1000)
+- Comments on the user's posts
+- Photo descriptions and album descriptions
+- Bio/status/about fields
+- Posts the user is tagged in
 
 Based on: OSINT techniques for VK contact discovery
 """
@@ -17,6 +19,7 @@ from dataclasses import dataclass, field
 import logging
 from bs4 import BeautifulSoup
 import time
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -43,21 +46,24 @@ class WallExtractionResult:
     instagram_usernames: List[str] = field(default_factory=list)
     other_contacts: List[Dict] = field(default_factory=list)
     posts_analyzed: int = 0
+    comments_analyzed: int = 0
+    photos_analyzed: int = 0
     errors: List[str] = field(default_factory=list)
 
 
 class VKWallExtractor:
     """
-    Extract contacts from VK wall posts.
+    Extract contacts from VK wall posts, comments, photos, and profile fields.
 
-    Searches public posts for:
-    - Phone numbers in various formats
+    Searches public content for:
+    - Phone numbers in various Russian formats
     - Email addresses
-    - Telegram/WhatsApp usernames
-    - Contact mentions
+    - Telegram usernames and t.me links
+    - WhatsApp contacts
+    - Instagram handles
     """
 
-    # Russian phone patterns (more comprehensive)
+    # Russian phone patterns (comprehensive)
     PHONE_PATTERNS = [
         # International format with country code
         r'\+7\s*[\(\-]?\s*(\d{3})\s*[\)\-]?\s*(\d{3})\s*[\-]?\s*(\d{2})\s*[\-]?\s*(\d{2})',
@@ -77,19 +83,35 @@ class VKWallExtractor:
         r'(?:почта|email|e-mail|mail)[\s:]*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})',
     ]
 
-    # Telegram patterns
+    # Telegram patterns (extended for Russian VK posts)
     TELEGRAM_PATTERNS = [
-        r't\.me/([a-zA-Z0-9_]{5,32})',
-        r'telegram\.me/([a-zA-Z0-9_]{5,32})',
-        r'(?:telegram|тг|tg)[\s:]*@?([a-zA-Z0-9_]{5,32})',
-        r'@([a-zA-Z][a-zA-Z0-9_]{4,31})',  # Generic @username
+        r'(?:https?://)?t\.me/([a-zA-Z0-9_]{5,32})',
+        r'(?:https?://)?telegram\.me/([a-zA-Z0-9_]{5,32})',
+        # Russian context markers for Telegram
+        r'(?:telegram|тг|тел[её]га|телеграм|тележка|tg)[\s:]*@?([a-zA-Z0-9_]{5,32})',
+        # "Пишите в тг" / "мой тг" / "тг канал" patterns
+        r'(?:пиши(?:те)?|мой|наш|канал|чат|бот)\s+(?:в\s+)?(?:тг|телеграм[ме]?)[\s:]*@?([a-zA-Z0-9_]{5,32})',
+        # @username pattern (last — most generic, needs filtering)
+        r'@([a-zA-Z][a-zA-Z0-9_]{4,31})',
     ]
 
     # WhatsApp patterns
     WHATSAPP_PATTERNS = [
-        r'(?:whatsapp|wa|вотсап|вацап)[\s:]*(\+?[78][\d\s\-\(\)]{10,15})',
+        r'(?:whatsapp|wa|вотсап|вацап|ватсап)[\s:]*(\+?[78][\d\s\-\(\)]{10,15})',
         r'wa\.me/(\d+)',
     ]
+
+    # Instagram patterns
+    INSTAGRAM_PATTERNS = [
+        r'(?:https?://)?(?:www\.)?instagram\.com/([a-zA-Z0-9_.]{3,30})',
+        r'(?:инст[аы]?|inst[aа]?|ig)[\s:]*@?([a-zA-Z0-9_.]{3,30})',
+    ]
+
+    # Telegram link exclusions — common VK/service paths that aren't usernames
+    _TG_EXCLUDE = {
+        'share', 'joinchat', 'addstickers', 'login', 'proxy', 'socks',
+        'setlanguage', 'addtheme', 'confirmphone', 'iv', 'embed',
+    }
 
     HEADERS = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -152,12 +174,68 @@ class VKWallExtractor:
                 return match.group(1)
         return None
 
+    def _resolve_user_id(self, user_id: str) -> Optional[int]:
+        """Resolve screen name to numeric user ID via VK API."""
+        if user_id.isdigit():
+            return int(user_id)
+
+        if not self.access_token:
+            return None
+
+        try:
+            resp = self.session.get(
+                'https://api.vk.com/method/utils.resolveScreenName',
+                params={
+                    'screen_name': user_id,
+                    'access_token': self.access_token,
+                    'v': '5.199',
+                },
+                timeout=10,
+            )
+            data = resp.json()
+            obj = data.get('response', {})
+            if obj and obj.get('type') == 'user':
+                return obj.get('object_id')
+        except Exception as e:
+            logger.debug(f"resolveScreenName error: {e}")
+
+        return None
+
+    def _vk_api_call(self, method: str, params: dict) -> Optional[dict]:
+        """Generic VK API call helper with error handling."""
+        if not self.access_token:
+            return None
+
+        params.setdefault('access_token', self.access_token)
+        params.setdefault('v', '5.199')
+
+        try:
+            resp = self.session.get(
+                f'https://api.vk.com/method/{method}',
+                params={k: v for k, v in params.items() if v is not None},
+                timeout=15,
+            )
+            data = resp.json()
+            if 'error' in data:
+                error_msg = data['error'].get('error_msg', 'Unknown')
+                error_code = data['error'].get('error_code', 0)
+                # 15 = access denied (private profile), 30 = profile is private
+                if error_code in (15, 30):
+                    logger.debug(f"VK API access denied for {method}: {error_msg}")
+                else:
+                    logger.warning(f"VK API error in {method}: [{error_code}] {error_msg}")
+                return None
+            return data.get('response')
+        except Exception as e:
+            logger.error(f"VK API call {method} error: {e}")
+            return None
+
     def _extract_via_api(
         self,
         user_id: str,
         max_posts: int
     ) -> Optional[WallExtractionResult]:
-        """Extract wall posts via VK API."""
+        """Extract wall posts, comments, photos via VK API."""
         if not self.access_token:
             return None
 
@@ -165,35 +243,80 @@ class VKWallExtractor:
             profile_url=f"https://vk.com/{user_id}"
         )
 
-        try:
-            # Get wall posts
+        numeric_id = self._resolve_user_id(user_id)
+
+        # ----- 1. Wall posts (paginated, up to max_posts capped at 1000) -----
+        effective_max = min(max_posts, 1000)
+        self._scan_wall_posts(user_id, numeric_id, effective_max, result)
+
+        # ----- 2. Comments on own posts (top posts only) -----
+        if numeric_id:
+            self._scan_post_comments(numeric_id, result)
+
+        # ----- 3. Photo descriptions -----
+        if numeric_id:
+            self._scan_photos(numeric_id, result)
+
+        # ----- 4. Profile info fields (about, status, activities, interests, site) -----
+        self._scan_profile_fields(user_id, result)
+
+        # ----- 5. Posts where user is tagged/mentioned -----
+        if numeric_id:
+            self._scan_mentions(numeric_id, result)
+
+        return result
+
+    def _scan_wall_posts(
+        self,
+        user_id: str,
+        numeric_id: Optional[int],
+        max_posts: int,
+        result: WallExtractionResult,
+    ):
+        """Scan wall posts with pagination (up to max_posts, max 1000)."""
+        fetched = 0
+        offset = 0
+        batch_size = 100  # VK API max per request
+
+        while fetched < max_posts:
+            count = min(batch_size, max_posts - fetched)
             params = {
-                'owner_id': user_id if user_id.isdigit() else None,
-                'domain': user_id if not user_id.isdigit() else None,
-                'count': min(max_posts, 100),
-                'access_token': self.access_token,
-                'v': '5.199',
+                'count': count,
+                'offset': offset,
             }
+            if user_id.isdigit():
+                params['owner_id'] = user_id
+            else:
+                params['domain'] = user_id
 
-            response = self.session.get(
-                'https://api.vk.com/method/wall.get',
-                params={k: v for k, v in params.items() if v},
-                timeout=15
-            )
+            response = self._vk_api_call('wall.get', params)
+            if not response:
+                break
 
-            data = response.json()
-            if 'response' not in data:
-                return None
+            posts = response.get('items', [])
+            if not posts:
+                break
 
-            posts = data['response'].get('items', [])
-            result.posts_analyzed = len(posts)
-
-            # Analyze each post
             for post in posts:
                 text = post.get('text', '')
+
+                # Also extract text from attachments (links, notes)
+                for attach in post.get('attachments', []):
+                    if attach.get('type') == 'link':
+                        link = attach.get('link', {})
+                        text += ' ' + link.get('title', '') + ' ' + link.get('description', '')
+                    elif attach.get('type') == 'note':
+                        note = attach.get('note', {})
+                        text += ' ' + note.get('title', '') + ' ' + note.get('text', '')
+
+                # Check copy_history (reposts) — the subject may repost their own contact info
+                for repost in post.get('copy_history', []):
+                    text += ' ' + repost.get('text', '')
+
                 post_id = post.get('id')
+                owner_id = post.get('owner_id')
                 post_date = post.get('date')
-                post_url = f"https://vk.com/wall{post.get('owner_id')}_{post_id}"
+                post_url = f"https://vk.com/wall{owner_id}_{post_id}" if owner_id and post_id else None
 
                 self._extract_contacts_from_text(
                     text, result,
@@ -202,11 +325,200 @@ class VKWallExtractor:
                     post_date=str(post_date) if post_date else None
                 )
 
-            return result
+            fetched += len(posts)
+            offset += len(posts)
+            result.posts_analyzed = fetched
 
-        except Exception as e:
-            logger.error(f"VK API extraction error: {e}")
-            return None
+            # If we got fewer than requested, we've reached the end
+            if len(posts) < count:
+                break
+
+            # Rate limiting between pages
+            if fetched < max_posts:
+                time.sleep(0.35)
+
+    def _scan_post_comments(self, owner_id: int, result: WallExtractionResult):
+        """Scan comments on recent wall posts for contact info."""
+        # Get the most recent 20 posts to scan comments on
+        response = self._vk_api_call('wall.get', {
+            'owner_id': owner_id,
+            'count': 20,
+        })
+        if not response:
+            return
+
+        posts = response.get('items', [])
+        comments_found = 0
+        max_comments_total = 200  # cap to avoid excessive API calls
+
+        for post in posts:
+            post_id = post.get('id')
+            comment_count = post.get('comments', {}).get('count', 0)
+            if not post_id or comment_count == 0:
+                continue
+
+            # Fetch comments for this post
+            comments_resp = self._vk_api_call('wall.getComments', {
+                'owner_id': owner_id,
+                'post_id': post_id,
+                'count': min(100, max_comments_total - comments_found),
+                'sort': 'asc',
+                'need_likes': 0,
+            })
+
+            if not comments_resp:
+                continue
+
+            comments = comments_resp.get('items', [])
+            for comment in comments:
+                text = comment.get('text', '')
+                if text:
+                    post_url = f"https://vk.com/wall{owner_id}_{post_id}?reply={comment.get('id', '')}"
+                    comment_date = comment.get('date')
+                    self._extract_contacts_from_text(
+                        text, result,
+                        source='VK post comment',
+                        post_url=post_url,
+                        post_date=str(comment_date) if comment_date else None,
+                    )
+
+            comments_found += len(comments)
+            result.comments_analyzed += len(comments)
+
+            if comments_found >= max_comments_total:
+                break
+
+            time.sleep(0.35)  # Rate limiting
+
+    def _scan_photos(self, owner_id: int, result: WallExtractionResult):
+        """Scan photo descriptions and album descriptions for contacts."""
+        # Get all photos (paginated)
+        photos_resp = self._vk_api_call('photos.getAll', {
+            'owner_id': owner_id,
+            'count': 200,
+            'photo_sizes': 0,
+            'no_service_albums': 0,
+        })
+
+        if not photos_resp:
+            return
+
+        photos = photos_resp.get('items', [])
+        for photo in photos:
+            text = photo.get('text', '')
+            if text:
+                self._extract_contacts_from_text(
+                    text, result,
+                    source='VK photo description',
+                    post_url=None,
+                    post_date=str(photo.get('date')) if photo.get('date') else None,
+                )
+
+        result.photos_analyzed = len(photos)
+
+        # Also scan album descriptions
+        albums_resp = self._vk_api_call('photos.getAlbums', {
+            'owner_id': owner_id,
+            'need_system': 1,
+        })
+
+        if albums_resp:
+            albums = albums_resp.get('items', []) if isinstance(albums_resp, dict) else albums_resp
+            for album in albums:
+                desc = album.get('description', '')
+                title = album.get('title', '')
+                text = f"{title} {desc}"
+                if text.strip():
+                    self._extract_contacts_from_text(
+                        text, result,
+                        source='VK album description',
+                    )
+
+    def _scan_profile_fields(self, user_id: str, result: WallExtractionResult):
+        """Extract contacts from profile info fields (about, status, site, etc.)."""
+        fields = [
+            'about', 'status', 'activities', 'interests', 'books', 'games',
+            'movies', 'music', 'tv', 'site', 'contacts', 'connections',
+            'mobile_phone', 'home_phone', 'personal',
+        ]
+
+        response = self._vk_api_call('users.get', {
+            'user_ids': user_id,
+            'fields': ','.join(fields),
+        })
+
+        if not response or not isinstance(response, list) or not response:
+            return
+
+        user = response[0]
+
+        # Gather all text fields
+        text_parts = []
+        for f in ['about', 'status', 'activities', 'interests', 'books',
+                   'games', 'movies', 'music', 'tv']:
+            val = user.get(f, '')
+            if val:
+                text_parts.append(val)
+
+        # Site field
+        site = user.get('site', '')
+        if site:
+            text_parts.append(site)
+
+        # Personal section (political, religion, etc. — may contain contacts)
+        personal = user.get('personal', {})
+        if isinstance(personal, dict):
+            for key in ('religion', 'inspired_by', 'people_main', 'life_main'):
+                val = personal.get(key, '')
+                if isinstance(val, str) and val:
+                    text_parts.append(val)
+
+        combined = ' '.join(text_parts)
+        if combined.strip():
+            self._extract_contacts_from_text(
+                combined, result,
+                source='VK profile fields',
+            )
+
+        # Direct phone fields
+        for phone_field in ('mobile_phone', 'home_phone'):
+            phone = user.get(phone_field, '')
+            if phone and len(phone) > 5:
+                digits = re.sub(r'\D', '', phone)
+                if len(digits) >= 10:
+                    contact = ExtractedContact(
+                        value=self._normalize_phone(digits),
+                        contact_type='phone',
+                        source='VK profile contacts',
+                        context=f'{phone_field}: {phone}',
+                        confidence='high',
+                    )
+                    if not any(p.value == contact.value for p in result.phones):
+                        result.phones.append(contact)
+
+    def _scan_mentions(self, user_id: int, result: WallExtractionResult):
+        """Scan posts where the user is tagged/mentioned via newsfeed.getMentions."""
+        response = self._vk_api_call('newsfeed.getMentions', {
+            'owner_id': user_id,
+            'count': 50,
+        })
+
+        if not response:
+            return
+
+        items = response.get('items', [])
+        for item in items:
+            text = item.get('text', '')
+            if text:
+                post_id = item.get('id')
+                owner = item.get('owner_id') or item.get('from_id')
+                post_url = f"https://vk.com/wall{owner}_{post_id}" if owner and post_id else None
+                self._extract_contacts_from_text(
+                    text, result,
+                    source='VK mention/tag',
+                    post_url=post_url,
+                    post_date=str(item.get('date')) if item.get('date') else None,
+                )
 
     def _extract_via_scraping(
         self,
@@ -340,19 +652,41 @@ class VKWallExtractor:
                 username = match.group(1) if match.lastindex else match.group()
                 username = username.lstrip('@').lower()
 
-                if len(username) >= 5 and username not in result.telegram_usernames:
+                # Filter out service paths and too-short names
+                if len(username) < 5:
+                    continue
+                if username in self._TG_EXCLUDE:
+                    continue
+                # Filter obvious non-usernames (all digits, common words)
+                if username.isdigit():
+                    continue
+
+                if username not in result.telegram_usernames:
                     result.telegram_usernames.append(username)
+
+        # Extract Instagram usernames
+        for pattern in self.INSTAGRAM_PATTERNS:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                username = match.group(1).lower().rstrip('/')
+                if len(username) >= 3 and username not in result.instagram_usernames:
+                    result.instagram_usernames.append(username)
 
         # Extract WhatsApp mentions
         for pattern in self.WHATSAPP_PATTERNS:
             matches = re.finditer(pattern, text, re.IGNORECASE)
             for match in matches:
                 wa_contact = match.group(1) if match.lastindex else match.group()
-                result.other_contacts.append({
-                    'type': 'whatsapp',
-                    'value': wa_contact,
-                    'source': source
-                })
+                # Deduplicate
+                if not any(
+                    c.get('type') == 'whatsapp' and c.get('value') == wa_contact
+                    for c in result.other_contacts
+                ):
+                    result.other_contacts.append({
+                        'type': 'whatsapp',
+                        'value': wa_contact,
+                        'source': source
+                    })
 
     def _normalize_phone(self, digits: str) -> str:
         """Normalize phone to +7 (XXX) XXX-XX-XX format."""

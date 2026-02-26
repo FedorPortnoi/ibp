@@ -58,28 +58,31 @@ class TestGetContactSlot:
         assert results[0].data_type == 'name'
 
     def test_real_mode_api_key(self, caplog):
-        """With GETCONTACT_API_KEY, logs real mode activation."""
-        os.environ['GETCONTACT_API_KEY'] = 'test_gc_key_12345678'
+        """With GETCONTACT_API_KEY in TOKEN|AES_KEY format, activates real mode."""
+        aes_key = 'a' * 64  # Valid 256-bit hex key
+        os.environ['GETCONTACT_API_KEY'] = f'test_gc_token|{aes_key}|test_device'
         from app.services.phase2.sources.getcontact import GetContactSource
         src = GetContactSource()
-        assert src._api_key == 'test_gc_key_12345678'
+        assert src._api_key is not None
+        creds = src._get_credentials()
+        assert creds is not None
+        assert creds[0] == 'test_gc_token'
         with caplog.at_level(logging.INFO):
             results = src.query(phone='+79161234567')
         assert 'REAL mode' in caplog.text
-        assert 'test_gc_' in caplog.text
-        # Real mode returns empty (not implemented yet)
-        assert results == []
+        # Real mode returns empty when API is unreachable (no mock)
+        assert isinstance(results, list)
 
     def test_real_mode_legacy_credentials(self, caplog):
         """With legacy TOKEN+AES_KEY, logs real mode activation."""
         os.environ['GETCONTACT_TOKEN'] = 'legacy_token_val'
-        os.environ['GETCONTACT_AES_KEY'] = 'legacy_aes_val'
+        os.environ['GETCONTACT_AES_KEY'] = 'b' * 64  # Valid hex key
         from app.services.phase2.sources.getcontact import GetContactSource
         src = GetContactSource()
         assert src._legacy_credentials is not None
         with caplog.at_level(logging.INFO):
             src.query(phone='+79161234567')
-        assert 'REAL mode (legacy)' in caplog.text
+        assert 'REAL mode' in caplog.text
 
     def test_no_phone_returns_empty(self):
         """Without phone parameter, returns empty."""

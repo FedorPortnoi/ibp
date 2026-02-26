@@ -580,7 +580,7 @@ class Phase2CombinedSearch:
                 if not vk_url:
                     continue
 
-                wall_result = self.vk_wall_extractor.extract_from_profile(vk_url, max_posts=30)
+                wall_result = self.vk_wall_extractor.extract_from_profile(vk_url, max_posts=300)
 
                 # Add discovered phones
                 for phone_contact in wall_result.phones:
