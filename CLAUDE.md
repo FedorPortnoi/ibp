@@ -10,7 +10,7 @@ IBP (Identity-Based Profiler) is a unified OSINT investigation platform for Russ
 - **Legacy flow**: People Search (Buratino) — 3-phase manual investigation (routes still work, deprecated)
 - **Stack**: Python Flask + SQLite + Playwright + VK API + Tailwind CSS
 - **Deployment**: Render free tier, Frankfurt region (ibp-osint.onrender.com)
-- **Branch**: `merge-buratino` = current work, `main` = stable
+- **Branch**: `main` = production-ready
 
 ## Platform Constraints
 
@@ -24,23 +24,48 @@ The pipeline lives in `app/services/candidate/pipeline.py`:
 
 | Stage | Name | % | Key Service | What It Does |
 |-------|------|---|-------------|-------------|
-| 1 | Government Registries | 0-15 | `bankruptcy_service.py`, `fssp_service.py` + phase3 services | EGRUL business registry, courts (sudact.ru), FSSP enforcement, EFRSB bankruptcy |
+| 1 | Government Registries | 0-15 | `bankruptcy_service.py`, `fssp_service.py` + phase3 services | EGRUL business registry, courts (sudact.ru), FSSP enforcement (2-attempt Playwright retry), EFRSB bankruptcy |
 | 2 | Security Checks | 15-25 | `sanctions_check.py` | Rosfinmonitoring, MVD wanted, Interpol, extremist list |
-| 3 | Social Media Discovery | 25-40 | `phase1/buratino_vk_search.py`, `phase1/telegram_discovery.py` | VK People Search (4 strategies), Telegram (3 methods). **Precise mode**: pauses here for profile confirmation |
-| 4 | Contact Discovery | 40-55 | `contact_discovery.py` | 9-step chain: VK extraction, Telegram cross-ref, email generation, Holehe, breach APIs (HudsonRock, LeakCheck, ProxyNova) |
+| 3 | Social Media Discovery | 25-40 | `phase1/buratino_vk_search.py`, `phase1/telegram_discovery.py`, `phase1/ok_search_integration.py` | VK People Search (4 strategies), Telegram (3 methods), OK.ru search. **Precise mode**: pauses here for profile confirmation |
+| 4 | Contact Discovery | 40-55 | `contact_discovery.py` | 11-step chain: VK extraction, Telegram, business/FSSP, email guessing, LeakDB, breach APIs, LeakDB cross-ref, forgot-password oracle (8 services), marketplace mining (6 platforms), Holehe, dedup with cross-source boost |
 | 5 | Deep Social Analysis | 55-70 | `social_analysis.py` | Search4Faces (3 DBs), social graph (NetworkX + Louvain), Snoop (5,372 sites), YaSeeker. Feedback loop: new accounts re-enter Stage 4 |
 | 6 | Behavioral Intelligence | 70-82 | `behavioral_analysis.py` | VK wall text analysis (sentiment/keywords), geo extraction (100 Russian cities), activity timeline |
 | 7 | Risk Scoring | 82-92 | `risk_scorer.py` | 8-category dimensional scoring → CLEAN/LOW/MEDIUM/HIGH/CRITICAL |
 | 8 | Report Generation | 92-100 | `report_builder.py` | Compiles dossier with all stage data, identity card, social graph, geo map, PDF/JSON export |
 
+### Contact Discovery 11-Step Chain (Stage 4)
+
+| Step | What | Confidence |
+|------|------|------------|
+| 1 | VK profile contacts (mobile_phone, site, about, status) | 0.95 |
+| 2 | Telegram profile data | 0.85 |
+| 3 | Business (EGRUL) / FSSP records | 0.50 / 0.45 |
+| 4 | Email guessing (username + name transliteration + corporate patterns) | 0.40 |
+| 5 | LeakDB name lookup (local breach data) | 0.65 |
+| 6 | Breach API enrichment (HudsonRock, LeakCheck, ProxyNova) | 0.60 |
+| 7 | LeakDB cross-reference (snowball: phone→email, email→phone) | 0.55 |
+| 8 | Forgot-password oracle (VK, Mail.ru, Yandex, OK, Gosuslugi, TG, Avito, Sberbank) | 0.78-0.90 |
+| 9 | Marketplace mining (Avito, Youla, CIAN, Auto.ru, Yandex, VK Market) | 0.90 |
+| 10 | Holehe email verification (120+ services) | 0.80 |
+| 11 | Deduplicate + merge sources + cross-source boost (+0.15 for 3+ sources, max 0.98) | — |
+
+### Confidence Scoring
+
+Numeric scores 0.0-1.0 stored in `CONFIDENCE_SCORES` dict. Each contact has:
+- `confidence_score`: numeric value
+- `confidence`: Russian label (`высокая` >=0.75, `средняя` >=0.50, `низкая` <0.50)
+- `sources`: list of all sources that independently found this contact
+
+Helper functions: `_score_to_label()`, `_label_to_score()`, `_get_score(source_key)`
+
 ### Quick vs Precise Mode
 
 - **Quick** (default): Runs all 8 stages without pausing. Uses all social profiles found.
-- **Precise**: Pauses after Stage 3. Shows found VK/Telegram profiles for user confirmation. Resumes with confirmed profiles only.
+- **Precise**: Pauses after Stage 3. Shows found VK/Telegram/OK profiles for user confirmation. Resumes with confirmed profiles only.
 
 ### Demo Mode
 
-When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social graph returns 8 fake friends. All other services degrade gracefully (return empty results, not fake data). Currently VK_SERVICE_TOKEN **is set**, so real data flows.
+When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social graph returns 8 fake friends. OK.ru returns 3 demo profiles when `OK_SESSION_TOKEN` is unset. All paid services return **empty lists** when their keys are not set (no fake data). Currently VK_SERVICE_TOKEN **is set**, so real data flows.
 
 ## Key Files (most important first)
 
@@ -51,14 +76,19 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 | `app/routes/candidate_check.py` | All endpoints: /start, /progress, /confirm, /dossier, /export |
 | `app/services/candidate/social_analysis.py` | Stage 5: face search + social graph + Snoop + YaSeeker |
 | `app/services/candidate/behavioral_analysis.py` | Stage 6: text analysis + geo extraction + timeline |
-| `app/services/candidate/contact_discovery.py` | Stage 4: 9-step chain + supplementary discovery for feedback loop |
+| `app/services/candidate/contact_discovery.py` | Stage 4: 11-step chain + supplementary discovery for feedback loop |
 | `app/services/candidate/risk_scorer.py` | Stage 7: 8 risk categories, severity levels, composite scoring |
 | `app/services/candidate/report_builder.py` | Stage 8: compiles all data into report structure |
 | `app/services/candidate/bankruptcy_service.py` | Stage 1: EFRSB API + Playwright fallback |
 | `app/services/candidate/sanctions_check.py` | Stage 2: 4 sanctions lists |
-| `app/services/candidate/fssp_service.py` | Stage 1: 4-tier fallback (API → AJAX → Playwright → manual URL) |
+| `app/services/candidate/fssp_service.py` | Stage 1: 4-tier fallback (API → AJAX → Playwright with 2-attempt retry → manual URL) |
+| `app/services/phase2/forgot_password_oracle.py` | Stage 4 Step 8: password recovery hints from 8 Russian services |
+| `app/services/phase2/marketplace_scanner.py` | Stage 4 Step 9: mining 6 Russian marketplace platforms |
 | `app/services/phase1/buratino_vk_search.py` | VK search engine (4 strategies), used by Stage 3 |
 | `app/services/phase1/telegram_discovery.py` | Telegram search (3 methods), used by Stage 3 |
+| `app/services/phase1/ok_search_integration.py` | OK.ru search with demo fallback, used by Stage 3 and Phase 1 route |
+| `app/services/phase2/vk_wall_extractor.py` | Deep VK wall mining: posts, comments, tagged posts, photo comments, social fields |
+| `app/services/phase2/email_generator.py` | Email patterns: username, transliteration, corporate, Skype-to-email |
 | `config.py` | DevelopmentConfig / ProductionConfig / TestingConfig |
 | `run.py` | Flask server entry point |
 
@@ -69,9 +99,9 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 |--------|--------|-------|
 | nalog.ru EGRUL | WORKS | Free government API, 2-step token flow, ~20 results/name |
 | sudact.ru courts | WORKS | Playwright scraping, 8-10 cases/name, ~5s |
-| FSSP enforcement | BROKEN | API has SSL errors; manual URL fallback works. Needs FSSP_API_TOKEN + Russian IP |
+| FSSP enforcement | RETRY | API has SSL errors; Playwright retry (2 attempts, 3s delay); manual URL fallback. Needs FSSP_API_TOKEN + Russian IP |
 | EFRSB bankruptcy | WORKS | bankrot.fedresurs.ru API + Playwright fallback |
-| Rusprofile.ru | WORKS | Fallback for EGRUL. Uses `type=fl` person search |
+| Rusprofile.ru | WORKS | Fallback for EGRUL. Uses `type=fl` person search. Graceful 403/404/429 handling |
 | kad.arbitr.ru | GEO-BLOCKED | HTTP 451, manual URL only |
 
 ### Stage 2: Security Checks
@@ -87,24 +117,28 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 |--------|--------|-------|
 | VK People Search | WORKS | 4 strategies via buratino_vk_search. Needs VK_SERVICE_TOKEN (set) |
 | Telegram | WORKS | 3 methods. Needs TELEGRAM_API_ID/HASH/PHONE (set) |
+| OK.ru (Odnoklassniki) | WORKS | Web scraping + demo mode. Set OK_SESSION_TOKEN for real search |
 | Yandex People | DEMO | Playwright + CAPTCHA detection. Called from pipeline but may timeout |
 
 ### Stage 4: Contact Discovery
 | Source | Status | Notes |
 |--------|--------|-------|
-| VK profile extraction | WORKS | users.get API, needs VK token |
-| Email pattern generation | WORKS | Low confidence (0.30-0.40) |
+| VK profile extraction | WORKS | users.get API with expanded fields (Instagram, Skype, career, etc.) |
+| VK wall mining | WORKS | Posts, comments, tagged posts (filter=others), photo comments |
+| Email pattern generation | WORKS | Username + transliteration + corporate + Skype-to-email (confidence 0.40) |
 | Holehe verification | WORKS | 120+ services, ~25s per email. CPU-intensive |
 | HudsonRock Cavalier | WORKS | Free, no API key. Infostealer logs |
 | LeakCheck Public | WORKS | Free, no key. 12B+ records |
 | ProxyNova COMB | WORKS | Free, no key. 3.2B email:password pairs |
 | HIBP Pwned Passwords | WORKS | Free, k-anonymity |
-| Snusbase | WIRED | Demo data without key. Set SNUSBASE_API_KEY to activate ($5-16/mo) |
-| DeHashed | WIRED | Demo data without keys. Set DEHASHED_EMAIL + DEHASHED_API_KEY ($5.49/mo) |
+| Forgot-password oracle | WORKS | 8 services (VK, Mail.ru, Yandex, OK, Gosuslugi, TG, Avito, Sberbank). Some geo-blocked |
+| Marketplace scanner | WORKS | 6 platforms (Avito, Youla, CIAN, Auto.ru, Yandex, VK Market) |
+| Snusbase | WIRED | Returns empty without key. Set SNUSBASE_API_KEY to activate ($5-16/mo) |
+| DeHashed | WIRED | Returns empty without keys. Set DEHASHED_EMAIL + DEHASHED_API_KEY ($5.49/mo) |
 | LeakCheck Pro | WIRED | Free public tier auto. Set LEAKCHECK_API_KEY for full results ($2.99-24.99/mo) |
 | HIBP Paid | WIRED | Free k-anonymity auto. Set HIBP_API_KEY for email breach lookup ($3.50/mo) |
-| GetContact | WIRED | Demo data without key. Set GETCONTACT_API_KEY or legacy TOKEN+AES_KEY+DEVICE_ID |
-| NumBuster | WIRED | Demo data without key. Set NUMBUSTER_API_KEY to activate |
+| GetContact | WIRED | Returns empty without key. Set GETCONTACT_API_KEY or legacy TOKEN+AES_KEY+DEVICE_ID |
+| NumBuster | WIRED | Returns empty without key. Set NUMBUSTER_API_KEY to activate |
 | Local LeakDB | WORKS | Auto-loads demo data (data/demo/) if DB empty. Real data via scripts/load_leaks.py |
 
 ### Stage 5: Social Analysis
@@ -149,26 +183,29 @@ TELEGRAM_API_ID=...             # From my.telegram.org/apps. Currently SET.
 TELEGRAM_API_HASH=...           # Currently SET.
 TELEGRAM_PHONE=...              # Currently SET.
 
+# === OK.RU (enables real OK.ru search in Stage 3) ===
+OK_SESSION_TOKEN=...            # OK.ru session cookie. Demo mode (3 fake profiles) if unset.
+
 # === OPTIONAL ===
-FSSP_API_TOKEN=...              # FSSP enforcement API (Russian IP required). Manual fallback works without.
+FSSP_API_TOKEN=...              # FSSP enforcement API (Russian IP required). Playwright retry + manual fallback without.
 IBP_PASSWORD=...                # App login password. App runs without auth if unset.
 IBP_PASSWORD_HASH=...           # bcrypt hash alternative. Takes precedence.
 IBP_SESSION_TIMEOUT=3600        # Session timeout seconds
 IBP_SESSION_REMEMBER=2592000    # "Remember me" timeout seconds
 
-# === PAID BREACH APIs (wired — demo fallback when unset) ===
-SNUSBASE_API_KEY=...            # $5-16/mo. Demo data if unset.
-DEHASHED_EMAIL=...              # $5.49/mo. Both email+key needed. Demo if unset.
+# === PAID BREACH APIs (return empty without keys) ===
+SNUSBASE_API_KEY=...            # $5-16/mo. Empty results if unset.
+DEHASHED_EMAIL=...              # $5.49/mo. Both email+key needed. Empty if unset.
 DEHASHED_API_KEY=...
 LEAKCHECK_API_KEY=...           # $2.99-24.99/mo. Free public tier if unset.
 HIBP_API_KEY=...                # $3.50/mo. Free k-anonymity if unset.
 
-# === PHONE LOOKUP (wired — demo fallback when unset) ===
-GETCONTACT_API_KEY=...          # Simple API key mode. Demo if unset.
+# === PHONE LOOKUP (return empty without keys) ===
+GETCONTACT_API_KEY=...          # Simple API key mode. Empty if unset.
 GETCONTACT_TOKEN=...            # Legacy: rooted Android credentials
 GETCONTACT_AES_KEY=...
 GETCONTACT_DEVICE_ID=...
-NUMBUSTER_API_KEY=...           # Demo if unset.
+NUMBUSTER_API_KEY=...           # Empty if unset.
 HIMERA_API_KEY=...
 
 # === PAID EMAIL APIs (wired) ===
@@ -210,12 +247,14 @@ python scripts/load_leaks.py telco ./data/raw/beeline.csv --carrier beeline
 
 ## Test Infrastructure
 
-- **61 test files**, **~2,814 test functions**, **36,410 lines** of test code
+- **67 test files**, **~2,980 test functions**, **37,899 lines** of test code
+- **3,756 tests pass**, 0 failures, 0 errors
 - Located in `tests/` with subdirectories: `unit/`, `e2e/`, and root-level integration tests
 - E2E tests use Playwright browser automation
-- Unit tests mock external services
+- Unit tests mock external services (autouse fixtures for network-heavy steps)
 - Stress tests in `test_r3_*.py` (API chaos, unicode attacks, extreme load, type attacks)
 - Integration tests for the full 8-stage pipeline in `test_candidate_unified.py`
+- Demo E2E tests in `test_demo_e2e.py` (20 tests, all pass)
 
 ```bash
 # Run all tests
@@ -224,12 +263,15 @@ python -m pytest tests/ -v -p no:faulthandler
 # Run just unit tests
 python -m pytest tests/unit/ -v -p no:faulthandler
 
+# Run demo E2E tests
+python -m pytest tests/test_demo_e2e.py -v -p no:faulthandler
+
 # Run E2E (needs dev server running)
 python -m pytest tests/e2e/ -v -p no:faulthandler
 ```
 
 ### Known pytest issue on Windows
-Use `-p no:faulthandler` flag to avoid "ValueError: I/O operation on closed file" capture bugs.
+Use `-p no:faulthandler` flag to avoid "ValueError: I/O operation on closed file" capture bugs. When running the full suite at once, a pytest I/O error may kill output — run test files individually if needed.
 
 ## Architecture
 
@@ -258,7 +300,7 @@ Use `-p no:faulthandler` flag to avoid "ValueError: I/O operation on closed file
 | `connections_bp` | `/connections` | Cross-investigation analysis |
 | `timeline_bp` | `/timeline` | Activity timeline |
 | `api_search_bp` | `/api/search` | Search API endpoints |
-| `phase1_bp` | `/phase1` | **DEPRECATED** — VK/Telegram search |
+| `phase1_bp` | `/phase1` | **DEPRECATED** — VK/Telegram/OK search |
 | `phase2_bp` | `/phase2` | **DEPRECATED** — Contact discovery |
 | `phase3_bp` | `/phase3` | **DEPRECATED** — Deep investigation |
 | `phase4_bp` | `/phase4` | **DEPRECATED** — Connection analysis |
@@ -284,6 +326,8 @@ All long-running operations (Stages 1-8) run in background threads:
 - If browser scraping is unavoidable, implement CAPTCHA detection with graceful manual-fallback from the start.
 - VK uses SPA rendering — intercept API calls rather than parsing DOM HTML.
 - Assume CAPTCHA will appear. Build the fallback chain upfront: API -> AJAX -> Playwright -> Manual link.
+- FSSP: 2-attempt Playwright retry with 3s delay between attempts.
+- Rusprofile: graceful handling for 403 (anti-bot), 404 (URL change), 429 (rate limit).
 
 ## Phone/Name Parsing (Russian)
 
@@ -295,15 +339,14 @@ All long-running operations (Stages 1-8) run in background threads:
 
 - After completing implementation work, always commit and push unless explicitly told otherwise.
 - Use descriptive commit messages in English with conventional prefixes: feat:, fix:, chore:, docs:.
-- `main` = stable release branch
-- `merge-buratino` = current development (8-stage unification work)
+- `main` = production-ready branch
 - Feature branches off main for new work
 
 ## Deprecated Code (still functional)
 
 These routes and templates work but are superseded by the Candidate Check pipeline:
 
-**Routes**: `phase1_bp` (7 endpoints), `phase2_bp` (12 endpoints), `phase3_bp` (10 endpoints), `phase4_bp` (3 endpoints)
+**Routes**: `phase1_bp` (7 endpoints, now includes OK search), `phase2_bp` (12 endpoints), `phase3_bp` (10 endpoints), `phase4_bp` (3 endpoints)
 
 **Templates**: `phase1_buratino_new.html`, `phase1_buratino_results.html`, `phase2_analyze.html`, `phase2_buratino_results.html`, `phase3_buratino.html`, `phase3_buratino_results.html`, `phase2.html`, `phase3.html`
 
@@ -312,13 +355,15 @@ These routes and templates work but are superseded by the Candidate Check pipeli
 ## Known Issues
 
 1. **VK token loading**: FIXED — `load_env_config()` in config.py now reads all API keys fresh from `os.environ` at `create_app()` time, not as frozen class attributes.
-2. **pytest capture bug on Windows**: Use `-p no:faulthandler` to avoid I/O errors.
-3. **FSSP API SSL errors**: The API at api-ip.fssp.gov.ru has persistent SSL issues. Manual URL fallback always works.
+2. **pytest capture bug on Windows**: Use `-p no:faulthandler` to avoid I/O errors. Full suite may crash stdout — run files individually.
+3. **FSSP API SSL errors**: The API at api-ip.fssp.gov.ru has persistent SSL issues. Playwright retry (2 attempts, 3s delay) + manual URL fallback.
 4. **kad.arbitr.ru geo-blocked**: HTTP 451 from outside Russia. Manual URL only.
 5. **Holehe slow**: ~25s per email check. Pipeline has 120s timeout for Stage 4.
 6. **pymorphy2 Python 3.12+ compat**: Uses `inspect.getfullargspec` shim (patched).
 7. **WeasyPrint forbidden on Windows**: Dossier PDF falls back to print-ready HTML or Playwright.
 8. **SocialProfile.full_name is a property**: Not a setter — use first_name/last_name/display_name.
+9. **Rusprofile anti-bot**: Returns 403/429 under load. Handled gracefully, falls through to nalog.ru EGRUL.
+10. **Forgot-password oracle geo-blocking**: Gosuslugi and Sberbank checkers only work from Russian IP.
 
 ## External Tools
 
@@ -333,3 +378,4 @@ Before editing any template or file, confirm you have the correct filename by ch
 - Always run the full test suite after making changes.
 - If tests use a database, ensure test isolation — never corrupt the main dev database.
 - After E2E/Playwright tests, verify the dev server still works.
+- Contact discovery tests use an autouse fixture to mock network-heavy steps (forgot-password oracle, marketplace scanner, breach APIs, Holehe, LeakDB). Override with `TestHolehe._real_verify` pattern if testing those steps directly.
