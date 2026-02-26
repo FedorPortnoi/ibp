@@ -430,7 +430,7 @@ class BuratinoVKSearch:
         try:
             from app.services.phase1.vk_web_search import VKWebSearch
             web_searcher = VKWebSearch(service_token=self.token)
-            raw_profiles, _ = web_searcher.search(query, count=count)
+            raw_profiles, _ = web_searcher.search(query)
             for item in raw_profiles:
                 vk_id = item.get('id')
                 if vk_id and vk_id not in all_profiles_by_id:

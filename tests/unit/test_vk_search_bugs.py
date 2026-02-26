@@ -193,3 +193,47 @@ class TestNameFilterThreshold:
 
         profile = {'first_name': 'Андрей', 'last_name': 'Сидоров'}
         assert not verify_profile_name_matches_query(profile, 'сергей', 'сидоров')
+
+
+# ── BUG 3: VKWebSearch.search() count argument mismatch ──────────
+
+
+class TestVKWebSearchCountArgFix:
+    """VKWebSearch.search() must be called without count= keyword argument.
+
+    buratino_vk_search.py previously passed count=count to VKWebSearch.search(),
+    but that method only accepts query as a positional argument.
+    """
+
+    def test_vk_web_search_called_without_count(self):
+        """Verify buratino calls VKWebSearch.search(query) without count kwarg."""
+        from app.services.phase1.buratino_vk_search import BuratinoVKSearch
+
+        searcher = BuratinoVKSearch(service_token='fake_token')
+
+        mock_web_search_instance = MagicMock()
+        mock_web_search_instance.search.return_value = ([], 0)
+
+        mock_cls = MagicMock(return_value=mock_web_search_instance)
+        with patch('app.services.phase1.vk_web_search.VKWebSearch', mock_cls):
+            with patch.dict('sys.modules', {}):
+                # Patch at the import target since buratino does a local import
+                import app.services.phase1.vk_web_search as vk_mod
+                original_cls = vk_mod.VKWebSearch
+                vk_mod.VKWebSearch = mock_cls
+                try:
+                    searcher.search('Иван Иванов')
+                finally:
+                    vk_mod.VKWebSearch = original_cls
+
+        mock_web_search_instance.search.assert_called_once_with('Иван Иванов')
+
+    def test_vk_web_search_signature_no_count_param(self):
+        """VKWebSearch.search() signature must not accept count parameter."""
+        import inspect
+        from app.services.phase1.vk_web_search import VKWebSearch
+
+        sig = inspect.signature(VKWebSearch.search)
+        params = list(sig.parameters.keys())
+        assert 'count' not in params, \
+            f"VKWebSearch.search() should not have 'count' param, got: {params}"
