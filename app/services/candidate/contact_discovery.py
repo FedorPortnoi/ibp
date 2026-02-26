@@ -14,6 +14,7 @@ Discovery chain (order matters — each step feeds the next):
  6. Breach API enrichment (HudsonRock, LeakCheck, ProxyNova COMB)
  7. LeakDB cross-reference (snowball: phone→email, email→phone)
  8. Forgot-password oracle (VK, Mail.ru, Yandex, OK, Gosuslugi, TG, Avito, Sberbank)
+ 8.5. Cross-reference partial phones (breach DB + GetContact completion)
  9. Marketplace mining (Avito, Youla, CIAN, Auto.ru, Yandex, VK Market)
 10. Verify emails with Holehe
 11. Deduplicate, merge sources, and score
@@ -78,6 +79,8 @@ CONFIDENCE_SCORES = {
     'fssp':                     0.45,  # FSSP enforcement records
     'email_guess':              0.40,  # pattern-generated (unverified)
     'leak_db_xref':             0.55,  # cross-referenced from leak DB
+    'partial_phone_breach':     0.95,  # partial phone completed via breach DB match
+    'partial_phone_getcontact': 0.90,  # partial phone completed via GetContact name match
 }
 
 # Cross-source boost: if same contact found in 3+ independent sources
@@ -149,6 +152,7 @@ class ContactDiscoveryService:
         self.vk_token = os.environ.get('VK_SERVICE_TOKEN') or os.environ.get('VK_TOKEN')
         self.found_phones: List[DiscoveredPhone] = []
         self.found_emails: List[DiscoveredEmail] = []
+        self._oracle_results: list = []  # raw forgot-password oracle results for cross-ref
 
     def discover(self, check) -> dict:
         """
@@ -234,6 +238,12 @@ class ContactDiscoveryService:
             self._run_forgot_password_oracle(check)
         except Exception as e:
             logger.warning(f"Forgot-password oracle error: {e}")
+
+        # Step 8.5: Cross-reference partial phones from oracle
+        try:
+            self._cross_reference_partial_phones(check)
+        except Exception as e:
+            logger.warning(f"Partial phone cross-reference error: {e}")
 
         # Step 9: Marketplace mining
         try:
@@ -810,6 +820,7 @@ class ContactDiscoveryService:
         if vk_usernames:
             try:
                 vk_results = oracle.check_vk_usernames(vk_usernames)
+                self._oracle_results.extend(vk_results)
                 for result in vk_results:
                     if not result.get('exists') or not result.get('masked_hint'):
                         continue
@@ -887,6 +898,8 @@ class ContactDiscoveryService:
             except Exception as e:
                 logger.warning(f"Oracle phone check error for {phone}: {e}")
 
+        self._oracle_results.extend(all_results)
+
         # Count how many services confirmed existence
         confirmed_services = sum(1 for r in all_results if r.get('exists'))
         score_key = 'forgot_password_multi' if confirmed_services >= 2 else 'forgot_password_single'
@@ -932,6 +945,334 @@ class ContactDiscoveryService:
                 f"Forgot-password oracle: {len(all_results)} results, "
                 f"{confirmed_services} services confirmed existence"
             )
+
+    # ── Step 8.5: Cross-Reference Partial Phones ─────────────────────
+
+    def _cross_reference_partial_phones(self, check):
+        """
+        Attempt to complete partial/masked phones from the forgot-password oracle
+        by cross-referencing against breach data and GetContact.
+
+        Masked phone hints like "+7 916 ***-**-67" contain a prefix (area code)
+        and suffix (last digits). We try to find the full number by:
+        1. Querying LeakDB for records linked to the subject's known emails,
+           then filtering for phones that match the visible pattern.
+        2. Querying GetContact (if configured) with candidate phones to check
+           if the returned name matches the subject.
+        """
+        if not self._oracle_results:
+            return
+
+        # Collect masked phone hints from oracle results
+        partial_hints = []
+        for result in self._oracle_results:
+            if (result.get('exists') and
+                    result.get('hint_type') == 'phone' and
+                    result.get('masked_hint') and
+                    '*' in result.get('masked_hint', '')):
+                partial_hints.append(result['masked_hint'])
+
+        if not partial_hints:
+            return
+
+        # Merge hints to get the best partial reconstruction
+        try:
+            from app.services.phase2.forgot_password_oracle import (
+                cross_correlate_hints, _count_known_digits,
+            )
+        except ImportError:
+            logger.debug("cross_correlate_hints not available")
+            return
+
+        correlated = cross_correlate_hints(self._oracle_results)
+        merged_phone = correlated.get('merged_phone')
+        known_digits = correlated.get('known_digits', 0)
+
+        if not merged_phone:
+            return
+
+        if '*' not in merged_phone or known_digits >= 11:
+            # All digits known — just normalize and add
+            full = normalize_phone(merged_phone)
+            if full and full.startswith('+7') and len(re.sub(r'\D', '', full)) == 11:
+                self._add_completed_phone(
+                    full, merged_phone, 'partial_phone_breach',
+                    'Восстановление (объединение масок)',
+                )
+            return
+
+        logger.info(
+            f"Partial phone cross-ref: merged={merged_phone}, "
+            f"known_digits={known_digits}/11, trying breach DB + GetContact"
+        )
+
+        # Build a regex pattern from the merged masked phone
+        pattern = self._build_phone_pattern(merged_phone)
+        if not pattern:
+            return
+
+        # ── 1. Breach DB cross-reference ──
+        # Query LeakDB by email for linked phone records that match the pattern
+        completed_phone = self._breach_db_phone_match(check, pattern, merged_phone)
+
+        # ── 2. GetContact cross-reference (if no breach match) ──
+        if not completed_phone:
+            completed_phone = self._getcontact_phone_match(
+                check, pattern, merged_phone,
+            )
+
+        # ── 3. Store partial if still unresolved ──
+        if not completed_phone:
+            # Keep the best merged partial — already added by oracle step,
+            # but log that cross-ref didn't resolve it
+            logger.info(
+                f"Partial phone cross-ref: could not complete {merged_phone}, "
+                f"storing as partial (requires verification)"
+            )
+
+    @staticmethod
+    def _build_phone_pattern(merged_phone: str) -> Optional[re.Pattern]:
+        """
+        Build a regex pattern from a merged masked phone string.
+
+        E.g., "+7 916 ***-45-67" → regex matching +7916XXXX4567
+        where X is any digit.
+        """
+        # Extract digit/star sequence
+        chars = []
+        for ch in merged_phone:
+            if ch.isdigit():
+                chars.append(ch)
+            elif ch == '*':
+                chars.append(r'\d')
+        if len(chars) < 7:
+            return None
+
+        # Pad to 11 digits if shorter (left-pad with \d)
+        while len(chars) < 11:
+            chars.insert(0, r'\d')
+
+        regex_str = r'^\+?' + ''.join(chars) + '$'
+        try:
+            return re.compile(regex_str)
+        except re.error:
+            return None
+
+    def _breach_db_phone_match(
+        self, check, pattern: re.Pattern, merged_phone: str,
+    ) -> Optional[str]:
+        """Query LeakDB by subject's known emails; filter linked phones by pattern."""
+        from app.services.phase2.sources.leak_sources import LeakDB
+
+        db = LeakDB.get_instance()
+
+        # Collect known emails (high-confidence only)
+        emails_to_check = list({
+            e.email for e in self.found_emails
+            if e.confidence_score >= 0.50 and '@' in e.email and '*' not in e.email
+        })[:10]
+
+        # Also try subject's name in LeakDB
+        candidates: list = []
+        for email in emails_to_check:
+            for rec in db.query_email(email):
+                phone = rec.get('phone', '')
+                if phone:
+                    normalized = normalize_phone(phone)
+                    if normalized and pattern.match(re.sub(r'\D', '', normalized)):
+                        candidates.append(normalized)
+
+        # Name-based lookup as well
+        if check.full_name:
+            for rec in db.query_name(check.full_name):
+                phone = rec.get('phone', '')
+                if phone:
+                    normalized = normalize_phone(phone)
+                    if normalized and pattern.match(re.sub(r'\D', '', normalized)):
+                        candidates.append(normalized)
+
+        # Deduplicate
+        candidates = list(dict.fromkeys(candidates))
+
+        if candidates:
+            # Use the first match (breach DB is authoritative)
+            completed = candidates[0]
+            logger.info(
+                f"Partial phone completed via breach DB: "
+                f"{merged_phone} → {completed}"
+            )
+            self._add_completed_phone(
+                completed, merged_phone, 'partial_phone_breach',
+                f"LeakDB ({len(candidates)} совпадений)",
+            )
+            return completed
+
+        return None
+
+    def _getcontact_phone_match(
+        self, check, pattern: re.Pattern, merged_phone: str,
+    ) -> Optional[str]:
+        """
+        Try completing a partial phone via GetContact reverse lookup.
+
+        Strategy: generate candidate full phone numbers from the pattern,
+        query GetContact for each, and check if the returned name matches
+        the investigation subject.
+        """
+        try:
+            from app.services.phase2.sources.getcontact import GetContactSource
+        except ImportError:
+            return None
+
+        gc = GetContactSource()
+        credentials = gc._get_credentials()
+        if not credentials:
+            logger.debug("GetContact not configured — skipping partial phone cross-ref")
+            return None
+
+        # Generate candidate phone numbers from the masked pattern
+        # Only feasible if few digits are unknown (≤3 unknowns → max 1000 combos)
+        candidates = self._generate_phone_candidates(merged_phone, max_candidates=50)
+        if not candidates:
+            logger.debug(
+                f"Too many unknown digits in {merged_phone} for GetContact brute-force"
+            )
+            return None
+
+        subject_name = (check.full_name or '').lower().strip()
+        if not subject_name:
+            return None
+        subject_parts = set(subject_name.split())
+
+        logger.info(
+            f"GetContact cross-ref: trying {len(candidates)} candidate phones "
+            f"for pattern {merged_phone}"
+        )
+
+        from app.services.phase2.sources.getcontact import GetContactAPI
+
+        token, aes_key, device_id = credentials
+        try:
+            api = GetContactAPI(token=token, aes_key=aes_key, device_id=device_id or '14130e29cebe9c39')
+        except Exception:
+            return None
+
+        for candidate in candidates:
+            try:
+                result = api.search_phone(candidate)
+                if not result:
+                    continue
+
+                profile = result.get('result', {}).get('profile', {})
+                if not profile:
+                    profile = result.get('profile', {})
+                display_name = (profile.get('displayName') or '').lower().strip()
+
+                if not display_name:
+                    continue
+
+                # Check name overlap: at least one word from the subject name
+                # matches a word in the GetContact display name
+                gc_parts = set(display_name.split())
+                overlap = subject_parts & gc_parts
+                if overlap:
+                    logger.info(
+                        f"GetContact confirmed: {candidate} → "
+                        f"'{display_name}' (matched: {overlap})"
+                    )
+                    self._add_completed_phone(
+                        candidate, merged_phone, 'partial_phone_getcontact',
+                        f"GetContact ({display_name})",
+                    )
+                    return candidate
+
+            except Exception as e:
+                logger.debug(f"GetContact query error for {candidate}: {e}")
+                continue
+
+        return None
+
+    @staticmethod
+    def _generate_phone_candidates(merged_phone: str, max_candidates: int = 50) -> list:
+        """
+        Generate all possible full phone numbers from a masked pattern.
+
+        Only feasible when the number of unknown digits is small (≤2).
+        Returns empty list if too many unknowns.
+        """
+        # Extract digit/star sequence
+        chars = []
+        for ch in merged_phone:
+            if ch.isdigit():
+                chars.append(ch)
+            elif ch == '*':
+                chars.append('*')
+
+        # Pad to 11 if needed
+        while len(chars) < 11:
+            chars.insert(0, '*')
+
+        unknown_positions = [i for i, c in enumerate(chars) if c == '*']
+        num_unknowns = len(unknown_positions)
+
+        # Only brute-force if ≤2 unknowns (max 100 candidates)
+        if num_unknowns > 2 or num_unknowns == 0:
+            return []
+
+        candidates = []
+
+        def _recurse(pos_idx: int, current: list):
+            if len(candidates) >= max_candidates:
+                return
+            if pos_idx >= len(unknown_positions):
+                phone = '+' + ''.join(current)
+                candidates.append(phone)
+                return
+            p = unknown_positions[pos_idx]
+            for d in '0123456789':
+                current[p] = d
+                _recurse(pos_idx + 1, current)
+            current[p] = '*'  # restore
+
+        _recurse(0, list(chars))
+        return candidates
+
+    def _add_completed_phone(
+        self,
+        full_number: str,
+        original_hint: str,
+        source_key: str,
+        profile_name: str,
+    ):
+        """Add a completed phone number, avoiding duplicates."""
+        normalized = normalize_phone(full_number)
+        if not normalized or not normalized.startswith('+7'):
+            return
+
+        # Check if already known
+        if any(p.number == normalized for p in self.found_phones):
+            # Upgrade existing entry's confidence if our source is better
+            for p in self.found_phones:
+                if p.number == normalized:
+                    new_score = _get_score(source_key)
+                    if new_score > p.confidence_score:
+                        p.confidence_score = new_score
+                        p.confidence = _score_to_label(new_score)
+                    if source_key not in p.sources:
+                        p.sources.append(source_key)
+                    break
+            return
+
+        score = _get_score(source_key)
+        self.found_phones.append(DiscoveredPhone(
+            number=normalized,
+            source=source_key,
+            confidence=_score_to_label(score),
+            profile_name=profile_name,
+            raw_value=original_hint,
+            confidence_score=score,
+            sources=[source_key],
+        ))
 
     # ── Step 9: Marketplace Mining ────────────────────────────────────
 
