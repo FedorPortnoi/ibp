@@ -303,52 +303,76 @@ except ImportError:
 
 class VKUsernameForgotChecker:
     """
-    VK forgot-password via Playwright: submit screen_name to recovery form.
-    Returns masked phone/email linked to the account.
+    VK forgot-password via Playwright: submit screen_name to VK ID recovery.
+    Confirms account existence and extracts masked phone/email if available.
 
-    Unlike VKChecker (which takes email/phone via HTTP POST), this checker
-    takes a VK username (screen_name) and uses Playwright to interact with
-    the VK restore page, which accepts usernames directly.
+    Uses the new VK ID restore flow at id.vk.com/restore:
+    1. Navigate to id.vk.com/restore
+    2. Click "Я не помню" (I don't remember my number)
+    3. Enter username/link in the link input field
+    4. Click "Продолжить" (Continue)
+    5. Parse result: account exists (recoverable or not), not found, or masked hints
+
+    Response types from VK ID:
+    - "Невозможно восстановить" — account exists but no recovery (no photos)
+    - "Укажите номер телефона для привязки" — account exists + phone recovery
+    - "Такой аккаунт не найден" — account not found
+    - Masked phone/email hints (if VK shows them)
     """
 
     SERVICE_NAME = "vk_forgot_password"
 
     USER_AGENTS = [
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-        '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-        '(KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) '
-        'Gecko/20100101 Firefox/123.0',
+        '(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) '
+        'Gecko/20100101 Firefox/132.0',
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
-        '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
     ]
 
-    RESTORE_URL = "https://vk.com/restore"
+    RESTORE_URL = "https://id.vk.com/restore"
 
-    # VK "not found" markers
+    # VK ID "not found" markers (new id.vk.com flow)
     NOT_FOUND_MARKERS = [
-        'Неверный логин',
-        'не зарегистрирован',
-        'Пользователь не найден',
-        'page_not_found',
-        'Неверный адрес',
+        'Такой аккаунт не найден',
+        'аккаунт не найден',
+        'не найден',
     ]
 
-    # CAPTCHA markers
+    # Account exists but cannot restore (no photos for identity verification)
+    CANNOT_RESTORE_MARKERS = [
+        'Невозможно восстановить доступ',
+        'нет фото по которым можно установить',
+    ]
+
+    # Account exists + phone recovery available
+    ASK_PHONE_MARKERS = [
+        'Укажите номер телефона для привязки',
+        'номер телефона для привязки',
+        'Укажите доступный номер',
+        'на него придёт SMS для входа',
+        'на него придет SMS для входа',
+    ]
+
+    # CAPTCHA / bot detection markers
     CAPTCHA_MARKERS = [
         'captcha',
         'Captcha',
         'recaptcha',
-        'капча',
+        'что вы не робот',
         'введите код',
     ]
 
     # Rate limit markers
     RATE_LIMIT_MARKERS = [
         'Слишком много запросов',
+        'Слишком много попыток',
         'too many requests',
         'Попробуйте позже',
+        'Попробуйте снова через',
         'try again later',
     ]
 
@@ -375,7 +399,8 @@ class VKUsernameForgotChecker:
     def _normalize_username(username: str) -> str:
         """Strip VK URL prefixes, return bare screen_name."""
         username = username.strip()
-        for prefix in ('https://vk.com/', 'http://vk.com/', 'vk.com/'):
+        for prefix in ('https://vk.com/', 'http://vk.com/', 'vk.com/',
+                       'https://id.vk.com/', 'http://id.vk.com/', 'id.vk.com/'):
             if username.lower().startswith(prefix):
                 username = username[len(prefix):]
                 break
@@ -405,7 +430,8 @@ class VKUsernameForgotChecker:
 
     def check_username(self, username: str) -> Optional[ForgotPasswordResult]:
         """
-        Submit VK username to forgot-password, extract masked phone/email.
+        Submit VK username to forgot-password, check account existence
+        and extract masked phone/email if available.
 
         Returns ForgotPasswordResult or None on unrecoverable error.
         """
@@ -421,7 +447,7 @@ class VKUsernameForgotChecker:
             return None
 
         # Random delay to mimic human
-        time.sleep(random.uniform(2.0, 5.0))
+        time.sleep(random.uniform(1.0, 3.0))
 
         try:
             return self._run_playwright(username)
@@ -433,11 +459,14 @@ class VKUsernameForgotChecker:
             )
 
     def _run_playwright(self, username: str, retry: bool = True) -> ForgotPasswordResult:
-        """Launch Playwright, navigate to VK restore, submit username."""
+        """Launch Playwright, navigate to VK ID restore, submit username."""
         result = ForgotPasswordResult(service=self.SERVICE_NAME)
 
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(
+                headless=True,
+                args=['--disable-blink-features=AutomationControlled'],
+            )
             try:
                 context = browser.new_context(
                     user_agent=random.choice(self.USER_AGENTS),
@@ -447,35 +476,67 @@ class VKUsernameForgotChecker:
                 page = context.new_page()
                 page.set_default_timeout(self.timeout * 1000)
 
-                # Navigate to restore page
-                page.goto(self.RESTORE_URL, wait_until='domcontentloaded')
-                time.sleep(random.uniform(0.5, 1.5))
+                # Anti-detection: remove webdriver flag
+                page.add_init_script(
+                    'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
+                )
 
-                # Fill the email/login field (VK calls it "email" but accepts screen_name)
-                email_input = page.locator('#email')
-                if email_input.count() == 0:
-                    # Fallback selectors
-                    email_input = page.locator('input[name="email"]')
-                if email_input.count() == 0:
-                    email_input = page.locator('input[type="text"]').first
-
-                email_input.fill(username)
-                time.sleep(random.uniform(0.3, 0.8))
-
-                # Click submit button
-                submit = page.locator('button[type="submit"]')
-                if submit.count() == 0:
-                    submit = page.locator('.flat_button, .FlatButton, [class*="submit"]').first
-                submit.click()
-
-                # Wait for navigation/response
-                page.wait_for_load_state('domcontentloaded', timeout=self.timeout * 1000)
+                # Navigate to VK ID restore page
+                page.goto(self.RESTORE_URL, wait_until='networkidle')
                 time.sleep(random.uniform(1.0, 2.0))
 
+                body_text = page.locator('body').inner_text()
+                body_text = body_text.replace('\xa0', ' ')
+
+                # Check for bot detection on initial load
+                if any(m.lower() in body_text.lower() for m in self.CAPTCHA_MARKERS):
+                    if retry:
+                        self.logger.info("VK bot detection — waiting 15s and retrying")
+                        browser.close()
+                        time.sleep(15)
+                        return self._run_playwright(username, retry=False)
+                    result.error = "captcha"
+                    self.logger.warning(f"VK bot detection for username {username}")
+                    return result
+
+                # Step 1: Click "Я не помню" (I don't remember) to get username input
+                forget_link = page.get_by_text('Я не помню')
+                if forget_link.count() == 0:
+                    # Fallback: try direct link input if already visible
+                    link_input = page.locator('input[name="link"]')
+                    if link_input.count() == 0:
+                        result.error = "ui_changed_no_forget_link"
+                        return result
+                else:
+                    forget_link.first.click()
+                    time.sleep(random.uniform(1.0, 2.0))
+
+                # Step 2: Fill username in the link input
+                link_input = page.locator('input[name="link"]')
+                if link_input.count() == 0:
+                    result.error = "ui_changed_no_link_input"
+                    return result
+
+                link_input.fill(username)
+                time.sleep(random.uniform(0.3, 0.8))
+
+                # Step 3: Click "Продолжить" (Continue)
+                continue_btn = page.get_by_text('Продолжить')
+                if continue_btn.count() == 0:
+                    result.error = "ui_changed_no_continue_btn"
+                    return result
+                continue_btn.first.click()
+
+                # Wait for response
+                time.sleep(random.uniform(3.0, 5.0))
+
+                body_text = page.locator('body').inner_text()
+                # Normalize non-breaking spaces (VK uses \xa0 extensively)
+                body_text = body_text.replace('\xa0', ' ')
                 html = page.content()
 
                 # Check for rate limiting
-                if any(m.lower() in html.lower() for m in self.RATE_LIMIT_MARKERS):
+                if any(m.lower() in body_text.lower() for m in self.RATE_LIMIT_MARKERS):
                     if retry:
                         self.logger.info("VK rate limited — waiting 30s and retrying")
                         browser.close()
@@ -485,32 +546,44 @@ class VKUsernameForgotChecker:
                     return result
 
                 # Check CAPTCHA
-                if any(m.lower() in html.lower() for m in self.CAPTCHA_MARKERS):
+                if any(m.lower() in body_text.lower() for m in self.CAPTCHA_MARKERS):
                     result.error = "captcha"
                     self.logger.warning(f"VK CAPTCHA detected for username {username}")
                     return result
 
-                # Check "not found"
-                if any(m in html for m in self.NOT_FOUND_MARKERS):
+                # Check "not found" — still on the same page with error message
+                if any(m in body_text for m in self.NOT_FOUND_MARKERS):
                     result.exists = False
-                    result.confidence = 0.80
+                    result.confidence = 0.85
                     return result
 
-                # Check for phone/email choice page — select phone if available
-                phone_option = page.locator(
-                    'text=SMS, text=телефон, text=Телефон, '
-                    '[data-type="phone"], [value="phone"]'
-                )
-                if phone_option.count() > 0:
-                    try:
-                        phone_option.first.click()
-                        page.wait_for_load_state('domcontentloaded', timeout=10000)
-                        time.sleep(random.uniform(0.5, 1.0))
-                        html = page.content()
-                    except Exception:
-                        pass  # proceed with current page content
+                # Check "cannot restore" — account exists but no recovery option
+                if any(m in body_text for m in self.CANNOT_RESTORE_MARKERS):
+                    result.exists = True
+                    result.confidence = 0.80
+                    result.hint_type = 'existence'
+                    result.masked_hint = 'account_exists_no_recovery'
+                    result.raw_data = {'username': username, 'recovery': False}
+                    self.logger.info(
+                        f"VK forgot password oracle: account exists (no recovery) "
+                        f"for user {username}"
+                    )
+                    return result
 
-                # Parse masked phone
+                # Check "ask phone" — account exists + phone recovery available
+                if any(m in body_text for m in self.ASK_PHONE_MARKERS):
+                    result.exists = True
+                    result.confidence = 0.90
+                    result.hint_type = 'existence'
+                    result.masked_hint = 'account_exists_phone_recovery'
+                    result.raw_data = {'username': username, 'recovery': True}
+                    self.logger.info(
+                        f"VK forgot password oracle: account exists (phone recovery) "
+                        f"for user {username}"
+                    )
+                    return result
+
+                # Check for masked phone hints (legacy or future VK behavior)
                 phone_match = self.PHONE_PATTERN.search(html)
                 if phone_match:
                     masked = phone_match.group().strip()
@@ -531,7 +604,7 @@ class VKUsernameForgotChecker:
                     )
                     return result
 
-                # Parse masked email
+                # Check for masked email hints
                 email_match = self.EMAIL_PATTERN.search(html)
                 if email_match:
                     masked = email_match.group().strip()
@@ -550,16 +623,14 @@ class VKUsernameForgotChecker:
                     )
                     return result
 
-                # Recovery page but couldn't parse hint
-                recovery_markers = [
-                    'restore_access', 'password_edit',
-                    'Восстановление доступа', 'Мы отправили',
-                ]
-                if any(m in html for m in recovery_markers):
-                    result.exists = True
-                    result.confidence = 0.60
-                    result.raw_data = {'username': username}
-                    return result
+                # Page loaded but unrecognized state
+                result.exists = True
+                result.confidence = 0.50
+                result.raw_data = {
+                    'username': username,
+                    'body_preview': body_text[:200],
+                }
+                return result
 
             finally:
                 browser.close()
