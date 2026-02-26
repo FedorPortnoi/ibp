@@ -12,21 +12,43 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Disable auth before importing app so is_auth_enabled() returns False
+_orig_pw = os.environ.get('IBP_PASSWORD')
+_orig_ph = os.environ.get('IBP_PASSWORD_HASH')
+os.environ['IBP_PASSWORD'] = ''
+os.environ['IBP_PASSWORD_HASH'] = ''
+
 from app import create_app, db
 
 
 @pytest.fixture(scope='module')
 def app():
-    """Create test app with in-memory database."""
-    app = create_app('development')
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-    app.config['TESTING'] = True
-    app.config['WTF_CSRF_ENABLED'] = False
+    """Create test app with in-memory database, auth disabled."""
+    application = create_app('testing')
+    application.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    application.config['TESTING'] = True
+    application.config['WTF_CSRF_ENABLED'] = False
 
-    with app.app_context():
+    # Remove global auth check so routes are accessible
+    application.before_request_funcs[None] = [
+        f for f in application.before_request_funcs.get(None, [])
+        if f.__name__ != 'check_auth'
+    ]
+
+    with application.app_context():
         db.create_all()
-        yield app
+        yield application
         db.drop_all()
+
+    # Restore original env vars
+    for key, orig_val in [
+        ('IBP_PASSWORD', _orig_pw),
+        ('IBP_PASSWORD_HASH', _orig_ph),
+    ]:
+        if orig_val:
+            os.environ[key] = orig_val
+        elif key in os.environ:
+            del os.environ[key]
 
 
 @pytest.fixture(scope='module')
