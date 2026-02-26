@@ -49,15 +49,17 @@
 | Step | What | Source Key | Confidence |
 |------|------|-----------|------------|
 | 1 | VK profile contacts | `vk_profile_contacts` | 0.95 |
+| 1b | Deep VK wall mining (posts, comments, tagged posts, photos, mentions) | `vk_wall_by_subject` / `vk_wall_by_others` | 0.85 / 0.70 |
 | 2 | Telegram profile data | `telegram` | 0.85 |
 | 3 | Business/FSSP records | `egrul` / `fssp` | 0.50 / 0.45 |
 | 4 | Email guessing (username + transliteration) | `email_guess` | 0.40 |
+| 4b | Hunter.io corporate email verification (if employer known) | `hunter_verified` | 0.80 |
 | 5 | LeakDB name lookup | `leak_db` | 0.65 |
 | 6 | Breach API enrichment (HudsonRock, LeakCheck, ProxyNova) | `breach_api` | 0.60 |
 | 7 | LeakDB cross-reference (phone->email, email->phone) | `leak_db_xref` | 0.55 |
 | 8 | Forgot-password oracle (6 global + 2 geo-restricted) | `forgot_password_*` | 0.78-0.90 |
 | 8a | VK username oracle (account existence only, Feb 2026) | `vk_forgot_password` | 0.80-0.90 |
-| 9 | Marketplace mining (6 platforms) | `marketplace` | 0.90 |
+| 9 | Marketplace mining (6 platforms, Avito Playwright phone extraction) | `marketplace` | 0.90 |
 | 10 | Holehe email verification | `holehe_verified` | 0.80 |
 | 11 | Deduplicate + merge sources + cross-source boost | -- | +0.15 boost |
 
@@ -162,10 +164,11 @@ These features work without any API keys configured:
 
 ### Contact Discovery Enhancements (Stage 4)
 - **Forgot-Password Oracle** (`app/services/phase2/forgot_password_oracle.py`) — 8 Russian service checkers (VK, Mail.ru, Yandex, OK, Gosuslugi, Telegram, Avito, Sberbank). VK username oracle is account-existence-only as of Feb 2026 (VK patched id.vk.com — no masked hints shown). Other 7 services still extract masked hints, cross-correlate across services.
-- **Marketplace Scanner** (`app/services/phase2/marketplace_scanner.py`) — 6 platforms (Avito, Youla, CIAN, Auto.ru, Yandex Search, VK Market). Searches by name and phone.
+- **Marketplace Scanner** (`app/services/phase2/marketplace_scanner.py`) — 6 platforms (Avito, Youla, CIAN, Auto.ru, Yandex Search, VK Market). Searches by name and phone. Avito: Playwright-based phone extraction (clicking "Показать номер"), city data for geo intelligence.
 - **OK.ru Search** (`app/services/phase1/ok_search_integration.py`) — Odnoklassniki people search with demo mode (3 fake profiles when `OK_SESSION_TOKEN` unset)
-- **Enhanced VK Wall Extractor** — Tagged posts, photo comments, expanded profile fields (Instagram, Skype, career, Facebook, Twitter, LiveJournal)
-- **Enhanced Email Generator** — Corporate patterns from VK career data, Skype-to-email, expanded domain list
+- **Enhanced VK Wall Extractor** — Tagged posts + tagged post comments, photo comments, expanded profile fields (Instagram, Skype, career, Facebook, Twitter, LiveJournal). Wired into Stage 4 Step 1b for deep mining with Telegram/Instagram enrichment hints.
+- **Enhanced Email Generator** — Corporate patterns from VK career data, Skype-to-email, expanded domain list. Hunter.io email verification + domain search integration.
+- **Hunter.io Integration** (`app/services/phase2/email_generator.py: hunter_verify_email, hunter_domain_search`) — Free tier: 25 verifications + 25 domain searches/month. Wired into Stage 4 Step 4b for corporate email discovery.
 
 ### Utilities
 - **Name Similarity** (`app/utils/name_similarity.py`) — Extracted from deleted per_profile_search.py
@@ -204,11 +207,12 @@ These features work without any API keys configured:
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| Unit tests (tests/unit/) | ~2,400 | All pass |
+| Unit tests (tests/unit/) | ~3,114 | All pass |
 | Integration tests (root-level test_*.py) | ~580 | All pass |
 | Demo E2E tests (test_demo_e2e.py) | 20 | All pass |
 | Candidate pipeline tests (test_candidate_unified.py) | 53 | All pass |
-| **Total** | **~3,756** | **0 failures, 0 errors** |
+| New service tests (oracle + marketplace + deep VK) | 172 | All pass |
+| **Total** | **~3,939** | **0 failures, 0 errors** |
 
 Excluded from count:
 - `tests/test_phase1.py`, `tests/test_phase3_e2e.py` — Playwright E2E requiring running server
@@ -262,12 +266,12 @@ Excluded from count:
 ## Recent Commit History
 
 ```
+cf5125f feat: deep VK mining improvements — tagged post comments, wall extraction in Stage 4, Hunter.io
+3ab0deb feat: enhance Avito marketplace scanner with Playwright phone extraction
+3a238a9 fix: mark VK forgot-password oracle as account_existence_only (Feb 2026)
+4337eba fix: VK oracle retry crash + add network interception for hint extraction
+fe3be3c feat: update VK forgot-password oracle for new id.vk.com restore flow + add live test
 cea8dc1 fix: test fixture auth race — pop env vars after create_app
-d041749 feat: replace geo-blocked sources with global alternatives, add deployment + tool integrations
-0a80c02 chore: remove dead code — per_profile_search, OSINT knowledge, WeasyPrint
-fad8ca8 feat: add security hardening — rate limiting, security headers, CSRF
-b77350b fix: remove unsupported count kwarg from VKWebSearch.search() call
-293e068 feat: production-ready overhaul — 9 new services, confidence scoring, mock removal
 ```
 
 ---
@@ -277,12 +281,14 @@ b77350b fix: remove unsupported count kwarg from VKWebSearch.search() call
 ```
 main (production-ready)
   ├── 8-stage pipeline fully wired
-  ├── 11-step contact discovery chain
+  ├── 14-step contact discovery chain (incl. 1b deep VK wall, 4b Hunter.io, 8a VK oracle)
   ├── Maigret + Sherlock + Snoop username search (parallel, Stage 5)
   ├── OpenSanctions + local MVD/extremist DBs (no geo-block)
   ├── checko.ru + casebook.ru (global FSSP/court alternatives)
-  ├── Forgot-password oracle (8 services)
-  ├── Marketplace scanner (6 platforms)
+  ├── Forgot-password oracle (8 services, VK account_existence_only)
+  ├── Marketplace scanner (6 platforms, Avito Playwright phone extraction)
+  ├── Deep VK wall mining (tagged post comments, Telegram/Instagram hints)
+  ├── Hunter.io email verification + domain search
   ├── OK.ru search integration
   ├── Numeric confidence scoring (0.0-1.0) with cross-source boost
   ├── Security hardening (rate limiting + CSRF + security headers)

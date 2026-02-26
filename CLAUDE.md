@@ -27,7 +27,7 @@ The pipeline lives in `app/services/candidate/pipeline.py`:
 | 1 | Government Registries | 0-15 | `bankruptcy_service.py`, `fssp_service.py` + phase3 services | EGRUL business registry, courts (sudact.ru), FSSP enforcement (2-attempt Playwright retry), EFRSB bankruptcy |
 | 2 | Security Checks | 15-25 | `sanctions_check.py` | Rosfinmonitoring, MVD wanted, Interpol, extremist list |
 | 3 | Social Media Discovery | 25-40 | `phase1/buratino_vk_search.py`, `phase1/telegram_discovery.py`, `phase1/ok_search_integration.py` | VK People Search (4 strategies), Telegram (3 methods), OK.ru search. **Precise mode**: pauses here for profile confirmation |
-| 4 | Contact Discovery | 40-55 | `contact_discovery.py` | 11-step chain: VK extraction, Telegram, business/FSSP, email guessing, LeakDB, breach APIs, LeakDB cross-ref, forgot-password oracle (8 services), marketplace mining (6 platforms), Holehe, dedup with cross-source boost |
+| 4 | Contact Discovery | 40-55 | `contact_discovery.py` | 14-step chain: VK extraction, deep VK wall mining, Telegram, business/FSSP, email guessing, Hunter.io corporate, LeakDB, breach APIs, LeakDB cross-ref, forgot-password oracle (8 services), marketplace mining (6 platforms, Avito Playwright phone extraction), Holehe, dedup with cross-source boost |
 | 5 | Deep Social Analysis | 55-70 | `social_analysis.py` | Search4Faces (3 DBs), social graph (NetworkX + Louvain), Snoop (5,372 sites), YaSeeker. Feedback loop: new accounts re-enter Stage 4 |
 | 6 | Behavioral Intelligence | 70-82 | `behavioral_analysis.py` | VK wall text analysis (sentiment/keywords), geo extraction (100 Russian cities), activity timeline |
 | 7 | Risk Scoring | 82-92 | `risk_scorer.py` | 8-category dimensional scoring → CLEAN/LOW/MEDIUM/HIGH/CRITICAL |
@@ -38,9 +38,11 @@ The pipeline lives in `app/services/candidate/pipeline.py`:
 | Step | What | Confidence |
 |------|------|------------|
 | 1 | VK profile contacts (mobile_phone, site, about, status) | 0.95 |
+| 1b | Deep VK wall mining (posts, comments, tagged posts + their comments, photo comments, mentions) | 0.85 / 0.70 |
 | 2 | Telegram profile data | 0.85 |
 | 3 | Business (EGRUL) / FSSP records | 0.50 / 0.45 |
 | 4 | Email guessing (username + name transliteration + corporate patterns) | 0.40 |
+| 4b | Hunter.io corporate email verification (if employer known from VK career) | 0.80 |
 | 5 | LeakDB name lookup (local breach data) | 0.65 |
 | 6 | Breach API enrichment (HudsonRock, LeakCheck, ProxyNova) | 0.60 |
 | 7 | LeakDB cross-reference (snowball: phone→email, email→phone) | 0.55 |
@@ -76,7 +78,7 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 | `app/routes/candidate_check.py` | All endpoints: /start, /progress, /confirm, /dossier, /export |
 | `app/services/candidate/social_analysis.py` | Stage 5: face search + social graph + Snoop + Maigret + Sherlock + YaSeeker |
 | `app/services/candidate/behavioral_analysis.py` | Stage 6: text analysis + geo extraction + timeline |
-| `app/services/candidate/contact_discovery.py` | Stage 4: 11-step chain + supplementary discovery for feedback loop |
+| `app/services/candidate/contact_discovery.py` | Stage 4: 14-step chain (incl. 1b deep VK wall, 4b Hunter.io) + supplementary discovery for feedback loop |
 | `app/services/candidate/risk_scorer.py` | Stage 7: 8 risk categories, severity levels, composite scoring |
 | `app/services/candidate/report_builder.py` | Stage 8: compiles all data into report structure |
 | `app/services/candidate/bankruptcy_service.py` | Stage 1: EFRSB API + Playwright fallback |
@@ -88,13 +90,13 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 | `app/services/phase3/casebook_service.py` | Stage 1: casebook.ru arbitration courts (global kad.arbitr.ru alternative) |
 | `app/services/maigret_search.py` | Stage 5: Maigret username search (3,000+ sites) |
 | `app/services/sherlock_search.py` | Stage 5: Sherlock username search (400+ sites) |
-| `app/services/phase2/forgot_password_oracle.py` | Stage 4 Step 8: password recovery hints from 8 Russian services |
-| `app/services/phase2/marketplace_scanner.py` | Stage 4 Step 9: mining 6 Russian marketplace platforms |
+| `app/services/phase2/forgot_password_oracle.py` | Stage 4 Step 8: password recovery hints from 8 Russian services (VK is account_existence_only) |
+| `app/services/phase2/marketplace_scanner.py` | Stage 4 Step 9: mining 6 Russian marketplace platforms (Avito: Playwright phone extraction) |
 | `app/services/phase1/buratino_vk_search.py` | VK search engine (4 strategies), used by Stage 3 |
 | `app/services/phase1/telegram_discovery.py` | Telegram search (3 methods), used by Stage 3 |
 | `app/services/phase1/ok_search_integration.py` | OK.ru search with demo fallback, used by Stage 3 and Phase 1 route |
-| `app/services/phase2/vk_wall_extractor.py` | Deep VK wall mining: posts, comments, tagged posts, photo comments, social fields |
-| `app/services/phase2/email_generator.py` | Email patterns: username, transliteration, corporate, Skype-to-email |
+| `app/services/phase2/vk_wall_extractor.py` | Deep VK wall mining: posts, comments, tagged posts + tagged post comments, photo comments, social fields. Wired into Stage 4 Step 1b |
+| `app/services/phase2/email_generator.py` | Email patterns: username, transliteration, corporate, Skype-to-email + Hunter.io verify/domain search |
 | `config.py` | DevelopmentConfig / ProductionConfig / TestingConfig |
 | `run.py` | Flask server entry point |
 
@@ -135,15 +137,16 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 | Source | Status | Notes |
 |--------|--------|-------|
 | VK profile extraction | WORKS | users.get API with expanded fields (Instagram, Skype, career, etc.) |
-| VK wall mining | WORKS | Posts, comments, tagged posts (filter=others), photo comments |
+| VK wall mining | WORKS | Posts, comments, tagged posts (filter=others) + their comments, photo comments. Wired into Stage 4 Step 1b |
 | Email pattern generation | WORKS | Username + transliteration + corporate + Skype-to-email (confidence 0.40) |
+| Hunter.io email verification | WIRED | Free tier: 25/month. Corporate email discovery from VK career data. Set HUNTER_API_KEY |
 | Holehe verification | WORKS | 120+ services, ~25s per email. CPU-intensive |
 | HudsonRock Cavalier | WORKS | Free, no API key. Infostealer logs |
 | LeakCheck Public | WORKS | Free, no key. 12B+ records |
 | ProxyNova COMB | WORKS | Free, no key. 3.2B email:password pairs |
 | HIBP Pwned Passwords | WORKS | Free, k-anonymity |
-| Forgot-password oracle | WORKS | 6 global (VK, Mail.ru, Yandex, OK, TG, Avito) + 2 geo-restricted (Gosuslugi, Sberbank, skip by default) |
-| Marketplace scanner | WORKS | 6 platforms (Avito, Youla, CIAN, Auto.ru, Yandex, VK Market) |
+| Forgot-password oracle | WORKS | 6 global (VK account_existence_only, Mail.ru, Yandex, OK, TG, Avito) + 2 geo-restricted (Gosuslugi, Sberbank, skip by default) |
+| Marketplace scanner | WORKS | 6 platforms (Avito, Youla, CIAN, Auto.ru, Yandex, VK Market). Avito: Playwright phone extraction + city data |
 | Snusbase | WIRED | Returns empty without key. Set SNUSBASE_API_KEY to activate ($5-16/mo) |
 | DeHashed | WIRED | Returns empty without keys. Set DEHASHED_EMAIL + DEHASHED_API_KEY ($5.49/mo) |
 | LeakCheck Pro | WIRED | Free public tier auto. Set LEAKCHECK_API_KEY for full results ($2.99-24.99/mo) |
