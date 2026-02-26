@@ -290,6 +290,284 @@ class VKChecker(ForgotPasswordChecker):
 
 
 # ---------------------------------------------------------------------------
+# VK Username Forgot Checker (Playwright-based)
+# ---------------------------------------------------------------------------
+
+# Optional: Playwright for VK username checker
+try:
+    from playwright.sync_api import sync_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
+
+
+class VKUsernameForgotChecker:
+    """
+    VK forgot-password via Playwright: submit screen_name to recovery form.
+    Returns masked phone/email linked to the account.
+
+    Unlike VKChecker (which takes email/phone via HTTP POST), this checker
+    takes a VK username (screen_name) and uses Playwright to interact with
+    the VK restore page, which accepts usernames directly.
+    """
+
+    SERVICE_NAME = "vk_forgot_password"
+
+    USER_AGENTS = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) '
+        'Gecko/20100101 Firefox/123.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    ]
+
+    RESTORE_URL = "https://vk.com/restore"
+
+    # VK "not found" markers
+    NOT_FOUND_MARKERS = [
+        'Неверный логин',
+        'не зарегистрирован',
+        'Пользователь не найден',
+        'page_not_found',
+        'Неверный адрес',
+    ]
+
+    # CAPTCHA markers
+    CAPTCHA_MARKERS = [
+        'captcha',
+        'Captcha',
+        'recaptcha',
+        'капча',
+        'введите код',
+    ]
+
+    # Rate limit markers
+    RATE_LIMIT_MARKERS = [
+        'Слишком много запросов',
+        'too many requests',
+        'Попробуйте позже',
+        'try again later',
+    ]
+
+    # Masked phone pattern: +7 916 ***-**-67, +7 9** ***-**-67, etc.
+    PHONE_PATTERN = re.compile(
+        r'\+7\s*[\d\*]{1,3}\s*[\d\*]{3}[-\s][\d\*]{2}[-\s][\d\*]{2}'
+    )
+
+    # Masked email pattern: iv***@mail.ru, a****v@gmail.com
+    EMAIL_PATTERN = re.compile(
+        r'[a-zA-Z0-9][a-zA-Z0-9\*]{1,30}@[a-zA-Z0-9]+\.[a-zA-Z]{2,}'
+    )
+
+    # Carrier code extraction: first 3 digits after +7
+    CARRIER_PATTERN = re.compile(r'\+7\s*(\d{3})')
+    # Last 2 digits extraction
+    LAST_DIGITS_PATTERN = re.compile(r'(\d{2})\s*$')
+
+    def __init__(self, timeout: int = 30):
+        self.timeout = timeout
+        self.logger = logging.getLogger(f"{__name__}.VKUsernameForgotChecker")
+
+    @staticmethod
+    def _normalize_username(username: str) -> str:
+        """Strip VK URL prefixes, return bare screen_name."""
+        username = username.strip()
+        for prefix in ('https://vk.com/', 'http://vk.com/', 'vk.com/'):
+            if username.lower().startswith(prefix):
+                username = username[len(prefix):]
+                break
+        # Strip trailing slashes / query params
+        username = username.split('?')[0].split('#')[0].rstrip('/')
+        return username
+
+    def _extract_partial_digits(self, masked: str) -> dict:
+        """Extract carrier code and last digits from masked phone."""
+        result = {}
+        carrier_match = self.CARRIER_PATTERN.search(masked)
+        if carrier_match:
+            result['carrier_code'] = carrier_match.group(1)
+        # Last 2 visible digits (skip stars)
+        digits_only = re.sub(r'[^\d\*]', '', masked)
+        if digits_only:
+            # Find last 2 actual digits at the end
+            trailing = re.search(r'(\d{2})[\*]*$', digits_only)
+            if trailing:
+                result['last_digits'] = trailing.group(1)
+            else:
+                # Look for any last digit pair
+                all_digits = re.findall(r'\d', masked)
+                if len(all_digits) >= 2:
+                    result['last_digits'] = ''.join(all_digits[-2:])
+        return result
+
+    def check_username(self, username: str) -> Optional[ForgotPasswordResult]:
+        """
+        Submit VK username to forgot-password, extract masked phone/email.
+
+        Returns ForgotPasswordResult or None on unrecoverable error.
+        """
+        if not PLAYWRIGHT_AVAILABLE:
+            self.logger.warning("Playwright not installed — skipping VK username oracle")
+            return ForgotPasswordResult(
+                service=self.SERVICE_NAME,
+                error="playwright_unavailable",
+            )
+
+        username = self._normalize_username(username)
+        if not username:
+            return None
+
+        # Random delay to mimic human
+        time.sleep(random.uniform(2.0, 5.0))
+
+        try:
+            return self._run_playwright(username)
+        except Exception as e:
+            self.logger.error(f"VK username oracle error for {username}: {e}", exc_info=True)
+            return ForgotPasswordResult(
+                service=self.SERVICE_NAME,
+                error=str(e),
+            )
+
+    def _run_playwright(self, username: str, retry: bool = True) -> ForgotPasswordResult:
+        """Launch Playwright, navigate to VK restore, submit username."""
+        result = ForgotPasswordResult(service=self.SERVICE_NAME)
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            try:
+                context = browser.new_context(
+                    user_agent=random.choice(self.USER_AGENTS),
+                    locale='ru-RU',
+                    viewport={'width': 1280, 'height': 720},
+                )
+                page = context.new_page()
+                page.set_default_timeout(self.timeout * 1000)
+
+                # Navigate to restore page
+                page.goto(self.RESTORE_URL, wait_until='domcontentloaded')
+                time.sleep(random.uniform(0.5, 1.5))
+
+                # Fill the email/login field (VK calls it "email" but accepts screen_name)
+                email_input = page.locator('#email')
+                if email_input.count() == 0:
+                    # Fallback selectors
+                    email_input = page.locator('input[name="email"]')
+                if email_input.count() == 0:
+                    email_input = page.locator('input[type="text"]').first
+
+                email_input.fill(username)
+                time.sleep(random.uniform(0.3, 0.8))
+
+                # Click submit button
+                submit = page.locator('button[type="submit"]')
+                if submit.count() == 0:
+                    submit = page.locator('.flat_button, .FlatButton, [class*="submit"]').first
+                submit.click()
+
+                # Wait for navigation/response
+                page.wait_for_load_state('domcontentloaded', timeout=self.timeout * 1000)
+                time.sleep(random.uniform(1.0, 2.0))
+
+                html = page.content()
+
+                # Check for rate limiting
+                if any(m.lower() in html.lower() for m in self.RATE_LIMIT_MARKERS):
+                    if retry:
+                        self.logger.info("VK rate limited — waiting 30s and retrying")
+                        browser.close()
+                        time.sleep(30)
+                        return self._run_playwright(username, retry=False)
+                    result.error = "rate_limited"
+                    return result
+
+                # Check CAPTCHA
+                if any(m.lower() in html.lower() for m in self.CAPTCHA_MARKERS):
+                    result.error = "captcha"
+                    self.logger.warning(f"VK CAPTCHA detected for username {username}")
+                    return result
+
+                # Check "not found"
+                if any(m in html for m in self.NOT_FOUND_MARKERS):
+                    result.exists = False
+                    result.confidence = 0.80
+                    return result
+
+                # Check for phone/email choice page — select phone if available
+                phone_option = page.locator(
+                    'text=SMS, text=телефон, text=Телефон, '
+                    '[data-type="phone"], [value="phone"]'
+                )
+                if phone_option.count() > 0:
+                    try:
+                        phone_option.first.click()
+                        page.wait_for_load_state('domcontentloaded', timeout=10000)
+                        time.sleep(random.uniform(0.5, 1.0))
+                        html = page.content()
+                    except Exception:
+                        pass  # proceed with current page content
+
+                # Parse masked phone
+                phone_match = self.PHONE_PATTERN.search(html)
+                if phone_match:
+                    masked = phone_match.group().strip()
+                    partial = self._extract_partial_digits(masked)
+                    result.exists = True
+                    result.masked_hint = masked
+                    result.hint_type = 'phone'
+                    result.confidence = 0.85
+                    result.raw_data = {
+                        'username': username,
+                        'hint_type': 'phone',
+                        'raw_masked': masked,
+                        **partial,
+                    }
+                    self.logger.info(
+                        f"VK forgot password oracle: found masked phone {masked} "
+                        f"for user {username}"
+                    )
+                    return result
+
+                # Parse masked email
+                email_match = self.EMAIL_PATTERN.search(html)
+                if email_match:
+                    masked = email_match.group().strip()
+                    result.exists = True
+                    result.masked_hint = masked
+                    result.hint_type = 'email'
+                    result.confidence = 0.75
+                    result.raw_data = {
+                        'username': username,
+                        'hint_type': 'email',
+                        'raw_masked': masked,
+                    }
+                    self.logger.info(
+                        f"VK forgot password oracle: found masked email {masked} "
+                        f"for user {username}"
+                    )
+                    return result
+
+                # Recovery page but couldn't parse hint
+                recovery_markers = [
+                    'restore_access', 'password_edit',
+                    'Восстановление доступа', 'Мы отправили',
+                ]
+                if any(m in html for m in recovery_markers):
+                    result.exists = True
+                    result.confidence = 0.60
+                    result.raw_data = {'username': username}
+                    return result
+
+            finally:
+                browser.close()
+
+        return result
+
+
+# ---------------------------------------------------------------------------
 # Mail.ru Checker
 # ---------------------------------------------------------------------------
 
@@ -1090,10 +1368,29 @@ class ForgotPasswordOracle:
 
         return results
 
+    def check_vk_usernames(self, usernames: List[str]) -> List[Dict[str, Any]]:
+        """
+        Run VK forgot-password oracle on each username via Playwright.
+
+        Args:
+            usernames: List of VK screen_names (e.g., ['ivan_petrov', 'durov'])
+
+        Returns:
+            List of result dicts from successful checks.
+        """
+        checker = VKUsernameForgotChecker(timeout=30)
+        results = []
+        for username in usernames:
+            result = checker.check_username(username)
+            if result is not None:
+                results.append(result.to_dict())
+        return results
+
     def demo_results(
         self,
         email: Optional[str] = None,
         phone: Optional[str] = None,
+        usernames: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Return realistic demo results without making any network requests.
@@ -1212,6 +1509,17 @@ class ForgotPasswordOracle:
                 'confidence': 0.0,
                 'error': 'geo_blocked',
             })
+
+        if usernames:
+            for uname in usernames:
+                demo.append({
+                    'service': 'vk_forgot_password',
+                    'exists': True,
+                    'masked_hint': '+7 916 ***-**-67',
+                    'hint_type': 'phone',
+                    'confidence': 0.85,
+                    'error': None,
+                })
 
         return demo
 

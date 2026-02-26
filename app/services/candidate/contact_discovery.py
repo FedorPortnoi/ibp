@@ -68,6 +68,8 @@ CONFIDENCE_SCORES = {
     'telegram':                 0.85,  # Telegram profile data
     'breach_telco':             0.82,  # breach data (telco/GetContact DB)
     'forgot_password_single':   0.78,  # 1 service confirms via password oracle
+    'vk_forgot_password':       0.85,  # VK recovery via username → masked phone
+    'vk_forgot_password_email': 0.75,  # VK recovery via username → masked email
     'holehe_verified':          0.80,  # Holehe confirms email exists
     'vk_wall_by_others':        0.70,  # VK wall post comment by others
     'leak_db':                  0.65,  # local leak database
@@ -799,6 +801,62 @@ class ContactDiscoveryService:
 
         oracle = ForgotPasswordOracle()
 
+        # Step 8a: VK username oracle (Playwright-based)
+        # Uses VK screen_names from Stage 3 — doesn't need prior discovered contacts
+        vk_profiles = [p for p in (check.social_media_profiles or [])
+                       if p.get('platform') == 'vk' and p.get('username')]
+        vk_usernames = [p['username'] for p in vk_profiles][:5]  # limit to 5
+
+        if vk_usernames:
+            try:
+                vk_results = oracle.check_vk_usernames(vk_usernames)
+                for result in vk_results:
+                    if not result.get('exists') or not result.get('masked_hint'):
+                        continue
+
+                    hint = result['masked_hint']
+                    hint_type = result.get('hint_type', '')
+
+                    if hint_type == 'phone':
+                        score = _get_score('vk_forgot_password')
+                        digits = re.sub(r'[^\d]', '', hint)
+                        # Masked phones have few visible digits (e.g., +7 916 ***-**-67 → 6 digits)
+                        # Accept if at least 4 visible digits (country code + some)
+                        if len(digits) >= 4:
+                            normalized = normalize_phone(hint)
+                            if normalized:
+                                self.found_phones.append(DiscoveredPhone(
+                                    number=normalized,
+                                    source='vk_forgot_password',
+                                    confidence=_score_to_label(score),
+                                    profile_name=f"VK восстановление ({result.get('service', 'vk')})",
+                                    raw_value=hint,
+                                    confidence_score=score,
+                                    sources=['vk_forgot_password'],
+                                ))
+                                logger.info(
+                                    f"VK forgot password oracle: found masked phone "
+                                    f"{hint} for user {vk_usernames}"
+                                )
+                    elif hint_type == 'email' and '@' in hint:
+                        score = _get_score('vk_forgot_password_email')
+                        self.found_emails.append(DiscoveredEmail(
+                            email=hint.lower(),
+                            source='vk_forgot_password',
+                            confidence=_score_to_label(score),
+                            verified=True,
+                            profile_name=f"VK восстановление ({result.get('service', 'vk')})",
+                            confidence_score=score,
+                            sources=['vk_forgot_password'],
+                        ))
+                        logger.info(
+                            f"VK forgot password oracle: found masked email "
+                            f"{hint} for user {vk_usernames}"
+                        )
+            except Exception as e:
+                logger.warning(f"VK username oracle error: {e}")
+
+        # Step 8b: Email/phone oracle (existing checkers)
         # Collect known emails and phones to check
         emails_to_check = list({e.email for e in self.found_emails
                                 if e.source in ('input', 'vk_profile', 'telegram')})[:3]
