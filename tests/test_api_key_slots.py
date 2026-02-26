@@ -302,7 +302,7 @@ class TestLeakDBDemoData:
             os.path.join(os.path.dirname(__file__), '..', 'data', 'demo', 'vk_2012_demo.csv')
         )
         rows = list(iter_file(demo_path))
-        assert len(rows) == 10
+        assert len(rows) == 100
         for row in rows:
             record = parse_vk2012_row(row)
             assert record['source'] == 'vk_2012'
@@ -316,7 +316,7 @@ class TestLeakDBDemoData:
             os.path.join(os.path.dirname(__file__), '..', 'data', 'demo', 'getcontact_demo.jsonl')
         )
         rows = list(iter_file(demo_path))
-        assert len(rows) == 10
+        assert len(rows) == 100
         for row in rows:
             record = parse_getcontact_row(row)
             assert record['source'] == 'getcontact'
@@ -330,7 +330,7 @@ class TestLeakDBDemoData:
             os.path.join(os.path.dirname(__file__), '..', 'data', 'demo', 'telco_demo.csv')
         )
         rows = list(iter_file(demo_path))
-        assert len(rows) == 10
+        assert len(rows) == 100
         for row in rows:
             record = parse_telco_row(row, carrier='demo')
             assert record['source'] == 'telco'
@@ -355,9 +355,9 @@ class TestLeakDBDemoData:
         try:
             mgr = LeakSourceManager()
             # Should have loaded demo data
-            assert db.count('vk_2012') == 10
-            assert db.count('getcontact') == 10
-            assert db.count('telco') == 10
+            assert db.count('vk_2012') == 100
+            assert db.count('getcontact') == 100
+            assert db.count('telco') == 100
 
             # Query should return results
             results = mgr.query_phone('+79161234501')

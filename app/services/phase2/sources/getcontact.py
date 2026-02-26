@@ -19,6 +19,7 @@ import logging
 from typing import List, Optional
 
 from ..base_source import BaseSource, SourceResult, SourceTier, SourceType
+from ...mock_data import _use_mock_apis, mock_getcontact, mock_numbuster
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,28 @@ class GetContactSource(BaseSource):
         if not phone:
             return []
 
+        # Mock mode — return realistic Russian contact tags
+        if _use_mock_apis():
+            self.logger.debug(f"GetContact MOCK mode for: {phone}")
+            mock_results = mock_getcontact(phone)
+            results = []
+            for record in mock_results:
+                results.append(SourceResult(
+                    data_type='name',
+                    value=record['name'],
+                    source_name=self.name,
+                    source_tier=self.source_tier,
+                    confidence=0.85,
+                    metadata={
+                        'phone': phone,
+                        'tag_count': record['tag_count'],
+                        'tags': record['tags'],
+                        'country': record.get('country', 'RU'),
+                        'mock': True,
+                    },
+                ))
+            return results
+
         # Mode 1: Simple API key
         api_key = self._api_key
         if api_key:
@@ -90,9 +113,6 @@ class GetContactSource(BaseSource):
                 f"with token={token[:8]}... phone={phone}"
             )
             # TODO: Implement using getcontact Python library
-            # from getcontact import GetContact
-            # gc = GetContact(token=token, aes_key=aes_key, device_id=device_id)
-            # result = gc.search(phone)
             return []
 
         # Mode 3: Demo mode
@@ -151,6 +171,28 @@ class NumBusterSource(BaseSource):
     ) -> List[SourceResult]:
         if not phone:
             return []
+
+        # Mock mode — return realistic Russian phone lookup
+        if _use_mock_apis():
+            self.logger.debug(f"NumBuster MOCK mode for: {phone}")
+            mock_results = mock_numbuster(phone)
+            results = []
+            for record in mock_results:
+                results.append(SourceResult(
+                    data_type='name',
+                    value=record['name'],
+                    source_name=self.name,
+                    source_tier=self.source_tier,
+                    confidence=0.80,
+                    metadata={
+                        'phone': phone,
+                        'trust_rating': record['trust_rating'],
+                        'spam_reports': record.get('spam_reports', 0),
+                        'views': record.get('views', 0),
+                        'mock': True,
+                    },
+                ))
+            return results
 
         key = self._api_key
         if key:

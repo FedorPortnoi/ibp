@@ -74,6 +74,9 @@ _ENV_KEYS = {
     # LeakDB
     'LEAKDB_DATA_DIR': ('LEAKDB_DATA_DIR', None),
 
+    # Mock APIs (set USE_MOCK_APIS=true to use mock data for all paid services)
+    'USE_MOCK_APIS': ('USE_MOCK_APIS', None),
+
     # Auth
     'IBP_PASSWORD': ('IBP_PASSWORD', None),
     'IBP_PASSWORD_HASH': ('IBP_PASSWORD_HASH', None),

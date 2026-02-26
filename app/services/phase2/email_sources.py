@@ -29,6 +29,8 @@ from dataclasses import dataclass, field
 import requests
 from bs4 import BeautifulSoup
 
+from ..mock_data import _use_mock_apis, mock_hunter_verify, mock_hunter_domain
+
 logger = logging.getLogger(__name__)
 
 
@@ -198,6 +200,31 @@ class HunterIOChecker:
             confidence=0.0
         )
 
+        # Mock mode — return realistic verification result
+        if _use_mock_apis():
+            logger.debug(f"Hunter.io MOCK mode for: {email}")
+            mock_resp = mock_hunter_verify(email)
+            data = mock_resp.get('data', {})
+            status = data.get('status', '')
+            score = data.get('score', 0)
+            result.exists = status in ['valid', 'accept_all']
+            result.confidence = score / 100.0 if score else 0.5
+            result.details = {
+                'status': status,
+                'score': score,
+                'regexp': data.get('regexp', False),
+                'gibberish': data.get('gibberish', False),
+                'disposable': data.get('disposable', False),
+                'webmail': data.get('webmail', False),
+                'mx_records': data.get('mx_records', False),
+                'smtp_server': data.get('smtp_server', False),
+                'smtp_check': data.get('smtp_check', False),
+                'accept_all': data.get('accept_all', False),
+                'sources': data.get('sources', []),
+                'mock': True,
+            }
+            return result
+
         if not self._has_valid_key:
             # Fallback: Use alternative verification
             return self._verify_email_fallback(email)
@@ -278,6 +305,10 @@ class HunterIOChecker:
         Search for emails at a domain (domain search).
         Useful for finding corporate emails.
         """
+        if _use_mock_apis():
+            logger.debug(f"Hunter.io MOCK domain search for: {domain}")
+            return mock_hunter_domain(domain)
+
         if not self._has_valid_key:
             return []
 
