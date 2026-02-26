@@ -71,6 +71,7 @@ CONFIDENCE_SCORES = {
     'forgot_password_single':   0.78,  # 1 service confirms via password oracle
     'vk_forgot_password':       0.85,  # VK recovery via username → masked phone
     'vk_forgot_password_email': 0.75,  # VK recovery via username → masked email
+    'hunter_verified':          0.80,  # Hunter.io confirms email deliverable
     'holehe_verified':          0.80,  # Holehe confirms email exists
     'vk_wall_by_others':        0.70,  # VK wall post comment by others
     'leak_db':                  0.65,  # local leak database
@@ -190,11 +191,17 @@ class ContactDiscoveryService:
 
         social_profiles = check.social_media_profiles or []
 
-        # Step 1: VK profiles
+        # Step 1: VK profiles (API contacts)
         try:
             self._extract_from_vk(social_profiles)
         except Exception as e:
             logger.warning(f"VK contact extraction error: {e}")
+
+        # Step 1b: Deep VK wall mining (posts, comments, tagged posts, photos)
+        try:
+            self._deep_vk_wall_extraction(social_profiles)
+        except Exception as e:
+            logger.warning(f"Deep VK wall extraction error: {e}")
 
         # Step 2: Telegram profiles
         try:
@@ -214,6 +221,12 @@ class ContactDiscoveryService:
             self._guess_emails(social_profiles, check.full_name)
         except Exception as e:
             logger.warning(f"Email guessing error: {e}")
+
+        # Step 4b: Hunter.io corporate email search (if employer known from VK career)
+        try:
+            self._hunter_corporate_search(social_profiles, check.full_name)
+        except Exception as e:
+            logger.warning(f"Hunter.io corporate search error: {e}")
 
         # Step 5: LeakDB name lookup
         try:
@@ -260,10 +273,18 @@ class ContactDiscoveryService:
         # Step 11: Deduplicate, merge sources, score
         self._deduplicate_contacts()
 
-        return {
+        result = {
             'phones': [p.to_dict() for p in self.found_phones],
             'emails': [e.to_dict() for e in self.found_emails],
         }
+
+        # Include enrichment hints from deep VK wall mining
+        if getattr(self, '_telegram_hints', None):
+            result['telegram_hints'] = self._telegram_hints
+        if getattr(self, '_instagram_hints', None):
+            result['instagram_hints'] = self._instagram_hints
+
+        return result
 
     # ── Step 1: VK Profiles ──────────────────────────────────────────
 
@@ -384,6 +405,107 @@ class ContactDiscoveryService:
         except Exception as e:
             logger.warning(f"VK API request failed for {vk_id}: {e}")
             return None
+
+    # ── Step 1b: Deep VK Wall Mining ────────────────────────────────
+
+    def _deep_vk_wall_extraction(self, social_profiles: list):
+        """Run VKWallExtractor for deep wall mining: posts, comments, tagged posts,
+        photo comments, mentions. Feeds discovered Telegram usernames back as
+        enrichment hints for later stages."""
+        vk_profiles = [p for p in social_profiles if p.get('platform') == 'vk']
+        if not vk_profiles or not self.vk_token:
+            return
+
+        try:
+            from app.services.phase2.vk_wall_extractor import VKWallExtractor
+        except ImportError:
+            logger.debug("VKWallExtractor not available")
+            return
+
+        extractor = VKWallExtractor(access_token=self.vk_token)
+
+        for profile in vk_profiles[:2]:  # max 2 profiles to limit API calls
+            url = profile.get('url', '')
+            if not url:
+                continue
+
+            display_name = profile.get('display_name', '')
+
+            try:
+                wall_result = extractor.extract_from_profile(url, max_posts=200)
+            except Exception as e:
+                logger.warning(f"VK wall extraction error for {url}: {e}")
+                continue
+
+            # Import phones found in wall posts/comments
+            for phone_contact in wall_result.phones:
+                normalized = normalize_phone(phone_contact.value)
+                if not normalized:
+                    continue
+                # Determine source confidence
+                source_key = 'vk_wall_by_subject'
+                if 'by others' in phone_contact.source or 'tagged' in phone_contact.source:
+                    source_key = 'vk_wall_by_others'
+                score = _get_score(source_key)
+                self.found_phones.append(DiscoveredPhone(
+                    number=normalized,
+                    source=source_key,
+                    confidence=_score_to_label(score),
+                    profile_name=display_name,
+                    raw_value=phone_contact.value,
+                    confidence_score=score,
+                    sources=[source_key],
+                ))
+
+            # Import emails found in wall posts/comments
+            for email_contact in wall_result.emails:
+                email = email_contact.value.lower()
+                source_key = 'vk_wall_by_subject'
+                if 'by others' in email_contact.source or 'tagged' in email_contact.source:
+                    source_key = 'vk_wall_by_others'
+                score = _get_score(source_key)
+                self.found_emails.append(DiscoveredEmail(
+                    email=email,
+                    source=source_key,
+                    confidence=_score_to_label(score),
+                    verified=False,
+                    profile_name=display_name,
+                    confidence_score=score,
+                    sources=[source_key],
+                ))
+
+            # Store Telegram usernames as enrichment hints for later processing
+            if wall_result.telegram_usernames:
+                if not hasattr(self, '_telegram_hints'):
+                    self._telegram_hints = []
+                for tg_user in wall_result.telegram_usernames:
+                    self._telegram_hints.append({
+                        'username': tg_user,
+                        'source': 'vk_wall_extraction',
+                        'profile_url': url,
+                    })
+                logger.info(
+                    f"VK wall extraction: found {len(wall_result.telegram_usernames)} "
+                    f"Telegram usernames from {url}"
+                )
+
+            # Store Instagram usernames as enrichment hints
+            if wall_result.instagram_usernames:
+                if not hasattr(self, '_instagram_hints'):
+                    self._instagram_hints = []
+                for ig_user in wall_result.instagram_usernames:
+                    self._instagram_hints.append({
+                        'username': ig_user,
+                        'source': 'vk_wall_extraction',
+                        'profile_url': url,
+                    })
+
+            logger.info(
+                f"Deep VK wall: {wall_result.posts_analyzed} posts, "
+                f"{wall_result.comments_analyzed} comments, "
+                f"{len(wall_result.phones)} phones, "
+                f"{len(wall_result.emails)} emails"
+            )
 
     # ── Step 2: Telegram Profiles ────────────────────────────────────
 
@@ -563,6 +685,75 @@ class ContactDiscoveryService:
                                     ))
                 except ImportError:
                     logger.debug("Transliteration module not available for email guessing")
+
+    # ── Step 4b: Hunter.io Corporate Email Search ──────────────────
+
+    def _hunter_corporate_search(self, social_profiles: list, full_name: str):
+        """Use Hunter.io to find corporate email if VK career employer is known.
+        Requires HUNTER_API_KEY env var (free tier: 25/month)."""
+        import os
+        if not os.environ.get('HUNTER_API_KEY'):
+            return
+
+        # Collect employer names from VK profile career data
+        employers = []
+        for profile in social_profiles:
+            if profile.get('platform') != 'vk':
+                continue
+            career = profile.get('career', [])
+            if isinstance(career, list):
+                for job in career:
+                    company = job.get('company', '')
+                    if company:
+                        employers.append(company)
+
+        # Also check other_contacts for employer hints from deep VK extraction
+        # (stored by VKWallExtractor's _scan_profile_fields as type='employer')
+        # These won't be in social_profiles directly, but we can check the hints
+
+        if not employers:
+            return
+
+        try:
+            from app.services.phase2.email_generator import (
+                hunter_verify_email, hunter_domain_search,
+                generate_corporate_emails, is_cyrillic,
+            )
+            from app.services.phase1.transliteration import transliterate
+        except ImportError:
+            logger.debug("Hunter.io/email_generator not available")
+            return
+
+        parts = (full_name or '').strip().split()
+        first_name = parts[1] if len(parts) > 1 else ''
+        last_name = parts[0] if parts else ''
+
+        for employer in employers[:2]:  # Max 2 employers
+            # Generate corporate email patterns
+            corp_emails = generate_corporate_emails(first_name, last_name, employer)
+            if not corp_emails:
+                continue
+
+            # Try Hunter.io verification on top corporate patterns
+            for candidate in corp_emails[:3]:
+                email = candidate.get('email', '')
+                if not email:
+                    continue
+
+                result = hunter_verify_email(email)
+                if result and result.get('result') == 'deliverable':
+                    score = 0.80  # Hunter.io verified corporate email
+                    self.found_emails.append(DiscoveredEmail(
+                        email=email,
+                        source='hunter_verified',
+                        confidence=_score_to_label(score),
+                        verified=True,
+                        profile_name=f'Hunter.io ({employer})',
+                        confidence_score=score,
+                        sources=['hunter_verified'],
+                    ))
+                    logger.info(f"Hunter.io verified: {email} for {employer}")
+                    break  # One verified is enough per employer
 
     # ── Step 5: LeakDB Name Lookup ────────────────────────────────────
 

@@ -11,9 +11,12 @@ Enhanced with:
 """
 
 from typing import List, Set, Dict, Optional, Any
+import os
 import re
 import logging
 import time
+
+import requests
 
 from app.services.phase1.transliteration import transliterate
 
@@ -707,3 +710,109 @@ def verify_email_candidates(
     logger.info(f"SMTP verification: {smtp_verified_count} verified, {checked} checked, {len(verified)} kept")
 
     return verified
+
+
+def hunter_verify_email(email: str, api_key: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """
+    Verify an email address using Hunter.io Email Verifier API.
+
+    Free tier: 25 verifications/month.
+    Returns verification result with status and score.
+
+    Args:
+        email: Email to verify
+        api_key: Hunter.io API key (reads HUNTER_API_KEY env var if not provided)
+
+    Returns:
+        Dict with 'result' (deliverable/undeliverable/risky/unknown), 'score', 'smtp_check', etc.
+        None if API key not set or request fails.
+    """
+    key = api_key or os.environ.get('HUNTER_API_KEY', '')
+    if not key:
+        return None
+
+    try:
+        resp = requests.get(
+            'https://api.hunter.io/v2/email-verifier',
+            params={'email': email, 'api_key': key},
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            data = resp.json().get('data', {})
+            return {
+                'email': email,
+                'result': data.get('result', 'unknown'),
+                'score': data.get('score', 0),
+                'smtp_check': data.get('smtp_check', False),
+                'mx_records': data.get('mx_records', False),
+                'disposable': data.get('disposable', False),
+                'webmail': data.get('webmail', False),
+                'source': 'hunter.io',
+            }
+        elif resp.status_code == 401:
+            logger.warning("Hunter.io: invalid API key")
+        elif resp.status_code == 429:
+            logger.warning("Hunter.io: rate limit exceeded (25/month free tier)")
+        else:
+            logger.debug(f"Hunter.io: HTTP {resp.status_code}")
+    except Exception as e:
+        logger.debug(f"Hunter.io verification error: {e}")
+
+    return None
+
+
+def hunter_domain_search(
+    domain: str,
+    api_key: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Search for email addresses at a company domain using Hunter.io Domain Search.
+
+    Free tier: 25 searches/month with up to 10 results each.
+    Useful when we know the employer domain from VK career data.
+
+    Args:
+        domain: Company domain (e.g., 'sberbank.ru')
+        api_key: Hunter.io API key (reads HUNTER_API_KEY env var if not provided)
+
+    Returns:
+        List of email dicts with address, type (personal/generic), confidence, sources.
+    """
+    key = api_key or os.environ.get('HUNTER_API_KEY', '')
+    if not key:
+        return []
+
+    try:
+        resp = requests.get(
+            'https://api.hunter.io/v2/domain-search',
+            params={'domain': domain, 'api_key': key, 'limit': 10},
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            data = resp.json().get('data', {})
+            results = []
+            for email_entry in data.get('emails', []):
+                results.append({
+                    'email': email_entry.get('value', ''),
+                    'type': email_entry.get('type', 'unknown'),
+                    'confidence': email_entry.get('confidence', 0),
+                    'first_name': email_entry.get('first_name', ''),
+                    'last_name': email_entry.get('last_name', ''),
+                    'source': 'hunter.io',
+                })
+            # Also capture the domain email pattern (e.g., {first}.{last}@domain.com)
+            pattern = data.get('pattern')
+            if pattern:
+                results.append({
+                    'email': '',
+                    'type': 'pattern',
+                    'pattern': pattern,
+                    'source': 'hunter.io',
+                })
+            return results
+        elif resp.status_code == 429:
+            logger.warning("Hunter.io domain search: rate limit exceeded")
+    except Exception as e:
+        logger.debug(f"Hunter.io domain search error: {e}")
+
+    return []

@@ -582,7 +582,8 @@ class VKWallExtractor:
         result: WallExtractionResult,
     ):
         """Scan posts written by OTHER people on the subject's wall (filter=others).
-        Friends often write messages like 'Саша, вот мой номер: 89161234567'."""
+        Friends often write messages like 'Саша, вот мой номер: 89161234567'.
+        Also scans comments on those posts — people often reply with contact info."""
         params = {
             'count': 100,
             'filter': 'others',
@@ -597,6 +598,9 @@ class VKWallExtractor:
             return
 
         posts = response.get('items', [])
+        # Collect post IDs with comments for comment scanning below
+        posts_with_comments = []
+
         for post in posts:
             text = post.get('text', '')
             for repost in post.get('copy_history', []):
@@ -613,6 +617,56 @@ class VKWallExtractor:
                 post_url=post_url,
                 post_date=str(post_date) if post_date else None,
             )
+
+            # Track posts with comments for deeper scanning
+            comment_count = post.get('comments', {}).get('count', 0)
+            if comment_count > 0 and post_id and owner_id:
+                posts_with_comments.append((owner_id, post_id))
+
+        # Scan comments on tagged/others posts (up to 200 comments total)
+        if posts_with_comments and numeric_id:
+            self._scan_others_post_comments(posts_with_comments, result)
+
+    def _scan_others_post_comments(
+        self,
+        posts: List[tuple],
+        result: WallExtractionResult,
+    ):
+        """Scan comments on posts by others (filter=others) for contact info.
+        Limited to 200 total comments across all tagged posts."""
+        comments_scanned = 0
+        max_comments = 200
+
+        for owner_id, post_id in posts[:20]:  # max 20 posts
+            if comments_scanned >= max_comments:
+                break
+
+            comments_resp = self._vk_api_call('wall.getComments', {
+                'owner_id': owner_id,
+                'post_id': post_id,
+                'count': min(30, max_comments - comments_scanned),
+                'sort': 'asc',
+                'need_likes': 0,
+            })
+            if not comments_resp:
+                continue
+
+            comments = comments_resp.get('items', [])
+            for comment in comments:
+                text = comment.get('text', '')
+                if text:
+                    comment_url = f"https://vk.com/wall{owner_id}_{post_id}?reply={comment.get('id', '')}"
+                    comment_date = comment.get('date')
+                    self._extract_contacts_from_text(
+                        text, result,
+                        source='VK tagged post comment',
+                        post_url=comment_url,
+                        post_date=str(comment_date) if comment_date else None,
+                    )
+
+            comments_scanned += len(comments)
+            result.comments_analyzed += len(comments)
+            time.sleep(0.35)
 
     def _scan_photo_comments(self, owner_id: int, result: WallExtractionResult):
         """Scan comments on photos for contact info."""
