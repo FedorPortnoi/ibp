@@ -1397,7 +1397,7 @@ class TestPhoneDiscoveryService:
         # Mock all external calls
         with patch.object(phone_service, '_extract_via_vk_api', return_value=[]), \
              patch.object(phone_service, '_extract_from_vk_wall', return_value=[]), \
-             patch.object(phone_service, '_check_telegram_usernames', return_value=[]):
+             patch.object(phone_service, '_cross_reference_telegram', return_value=([], [])):
 
             results = phone_service.discover_sync(
                 first_name='Тест',

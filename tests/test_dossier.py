@@ -30,8 +30,8 @@ from app.models import (
 @pytest.fixture(scope='module')
 def app():
     """Create application for testing with in-memory DB."""
-    os.environ.pop('IBP_PASSWORD', None)
-    os.environ.pop('IBP_PASSWORD_HASH', None)
+    os.environ['IBP_PASSWORD'] = ''
+    os.environ['IBP_PASSWORD_HASH'] = ''
     os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
 
     test_app = create_app('testing')
