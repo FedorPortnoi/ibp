@@ -158,7 +158,7 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 ### Stage 5: Social Analysis
 | Source | Status | Notes |
 |--------|--------|-------|
-| Search4Faces | WORKS | Free unlimited, 3 databases (vkok, vk01, vkokn) |
+| Search4Faces | WORKS | JSON-RPC API (paid, SEARCH4FACES_API_KEY) + Playwright browser fallback (free). 3 databases (vkok, vk01, vkokn) |
 | Social graph | WORKS | VK friends → NetworkX → Louvain → vis.js |
 | Snoop username search | WORKS | 5,372 sites, Russian-filtered. Uses `OSINT_TOOLS_DIR` env var for path |
 | Maigret username search | WIRED | 3,000+ sites. pip install or OSINT_TOOLS_DIR. Runs in parallel with Snoop |
@@ -186,10 +186,11 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 # === REQUIRED ===
 SECRET_KEY=...                  # Flask session secret (REQUIRED)
 
-# === VK API (enables real data in Stages 3-5) ===
-VK_SERVICE_TOKEN=...            # Primary VK token. Demo mode if unset. Currently SET.
-VK_APP_ID=...                   # For OAuth refresh flow. Currently SET.
-VK_TOKEN=...                    # User token (expires 24h), alternative to service token
+# === VK API (dual-token architecture) ===
+VK_SERVICE_TOKEN=...            # Permanent app token for search (users.search, users.get). Demo mode if unset. Currently SET.
+VK_USER_TOKEN=...               # User OAuth token for private data (wall.get, friends.get, photos.getAll). Get via: python scripts/auth_vk.py
+VK_APP_ID=...                   # For OAuth. Currently SET.
+VK_TOKEN=...                    # Legacy fallback (treated as user token if VK_USER_TOKEN unset)
 VK_LOGIN=...                    # VK web login (fallback for web search)
 VK_LOGIN_EMAIL=...              # VK email for auto-login
 VK_PASSWORD=...                 # VK password for auto-login
@@ -223,6 +224,9 @@ GETCONTACT_AES_KEY=...
 GETCONTACT_DEVICE_ID=...
 NUMBUSTER_API_KEY=...           # Empty if unset.
 HIMERA_API_KEY=...
+
+# === FACE SEARCH (optional paid tier) ===
+SEARCH4FACES_API_KEY=...        # $40+/mo JSON-RPC API. Playwright browser fallback if unset (free).
 
 # === PAID EMAIL APIs (wired) ===
 HUNTER_API_KEY=...              # Free tier: 25/month. SMTP fallback if unset.
@@ -373,6 +377,36 @@ These routes and templates work but are superseded by the Candidate Check pipeli
 **Templates**: `phase1_buratino_new.html`, `phase1_buratino_results.html`, `phase2_analyze.html`, `phase2_buratino_results.html`, `phase3_buratino.html`, `phase3_buratino_results.html`, `phase2.html`, `phase3.html`
 
 **Services**: The underlying phase1/phase2/phase3 services are NOT deprecated — they are imported and used by the candidate pipeline.
+
+## VK Dual-Token Architecture
+
+VK API methods require different token types:
+
+| Token | Variable | Methods | How to Get |
+|-------|----------|---------|------------|
+| **Service** | `VK_SERVICE_TOKEN` | `users.search`, `users.get`, `newsfeed.search` | VK app settings → Service token |
+| **User** | `VK_USER_TOKEN` | `wall.get`, `friends.get`, `photos.getAll`, `market.get` | `python scripts/auth_vk.py` |
+| **Legacy** | `VK_TOKEN` | Fallback for user token | VK OAuth (24h expiry) |
+
+Priority chain: `VK_USER_TOKEN` → `VK_TOKEN` → `VK_SERVICE_TOKEN` → demo mode
+
+Without a user token: wall posts, friend lists, and photos are inaccessible.
+The pipeline degrades gracefully — services skip private-data steps.
+
+Helper: `from app.utils.vk_token_manager import get_vk_token`
+- `get_vk_token('search')` — returns service token
+- `get_vk_token('private')` — returns user token
+
+## Authentication Scripts
+
+| Script | Purpose | Usage |
+|--------|---------|-------|
+| `scripts/auth_telegram.py` | Telethon session authentication | `python scripts/auth_telegram.py` (interactive) / `--check` (validate only) |
+| `scripts/auth_vk.py` | VK OAuth user token acquisition | `python scripts/auth_vk.py` (interactive) / `--check` (validate only) |
+
+Session files:
+- Telegram: `tg_session/ibp_session.session` (unified path)
+- VK user token: saved to `.env` as `VK_USER_TOKEN`
 
 ## Known Issues
 
