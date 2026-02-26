@@ -305,23 +305,36 @@ except ImportError:
 class VKUsernameForgotChecker:
     """
     VK forgot-password via Playwright: submit screen_name to VK ID recovery.
-    Confirms account existence and extracts masked phone/email if available.
+    Confirms account existence via id.vk.com/restore flow.
+
+    STATUS (Feb 2026): ACCOUNT EXISTENCE ONLY.
+    VK's new id.vk.com recovery flow does NOT show masked phone/email hints.
+    After submitting a username, VK shows one of:
+    - "Невозможно восстановить доступ" → account exists, no recovery path
+    - "Укажите номер телефона для привязки" → account exists, phone recovery
+    - "Такой аккаунт не найден" → account does not exist
+    VK no longer displays masked phones like "+7 916 ***-**-67" in this flow.
+    The hint extraction code (Priorities 1-3) is retained for forward compat
+    in case VK re-enables hints, but currently all results are existence-only.
 
     Uses the new VK ID restore flow at id.vk.com/restore:
     1. Navigate to id.vk.com/restore
     2. Click "Я не помню" (I don't remember my number)
     3. Enter username/link in the link input field
     4. Click "Продолжить" (Continue)
-    5. Parse result: account exists (recoverable or not), not found, or masked hints
+    5. Parse result: account exists or not found
 
     Response types from VK ID:
     - "Невозможно восстановить" — account exists but no recovery (no photos)
     - "Укажите номер телефона для привязки" — account exists + phone recovery
     - "Такой аккаунт не найден" — account not found
-    - Masked phone/email hints (if VK shows them)
     """
 
     SERVICE_NAME = "vk_forgot_password"
+
+    # VK patched the recovery flow in early 2026 — no masked hints shown.
+    # Only account existence can be confirmed.
+    MODE = "account_existence_only"
 
     USER_AGENTS = [
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '

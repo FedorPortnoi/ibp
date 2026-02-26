@@ -813,6 +813,10 @@ class ContactDiscoveryService:
 
         # Step 8a: VK username oracle (Playwright-based)
         # Uses VK screen_names from Stage 3 — doesn't need prior discovered contacts
+        #
+        # NOTE (Feb 2026): VK patched id.vk.com recovery — no masked phone/email
+        # hints are shown. Oracle now returns account_existence_only results.
+        # Hint extraction code is retained for forward compat if VK re-enables hints.
         vk_profiles = [p for p in (check.social_media_profiles or [])
                        if p.get('platform') == 'vk' and p.get('username')]
         vk_usernames = [p['username'] for p in vk_profiles][:5]  # limit to 5
@@ -822,12 +826,38 @@ class ContactDiscoveryService:
                 vk_results = oracle.check_vk_usernames(vk_usernames)
                 self._oracle_results.extend(vk_results)
                 for result in vk_results:
-                    if not result.get('exists') or not result.get('masked_hint'):
+                    if not result.get('exists'):
                         continue
 
-                    hint = result['masked_hint']
+                    hint = result.get('masked_hint', '')
                     hint_type = result.get('hint_type', '')
 
+                    # Existence-only results (VK's current behavior as of Feb 2026):
+                    # hint_type == 'existence' means VK confirmed the account exists
+                    # but did NOT show a masked phone/email hint.
+                    if hint_type == 'existence' or not hint:
+                        username = result.get('raw_data', {}).get('username', '')
+                        recovery = result.get('raw_data', {}).get('recovery', False)
+                        label = 'VK аккаунт подтверждён'
+                        if recovery:
+                            label += ' (привязан телефон)'
+                        logger.info(
+                            f"VK oracle: account exists for @{username} "
+                            f"(existence only, recovery={recovery})"
+                        )
+                        # Store as metadata on the check for dossier display
+                        # (no phone/email to add to found_phones/found_emails)
+                        self._oracle_results.append({
+                            'service': 'vk_forgot_password',
+                            'exists': True,
+                            'hint_type': 'existence',
+                            'masked_hint': label,
+                            'username': username,
+                            'recovery': recovery,
+                        })
+                        continue
+
+                    # If VK ever re-enables masked hints, extract them:
                     if hint_type == 'phone':
                         score = _get_score('vk_forgot_password')
                         digits = re.sub(r'[^\d]', '', hint)

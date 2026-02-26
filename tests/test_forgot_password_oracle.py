@@ -21,40 +21,81 @@ from app.services.phase2.forgot_password_oracle import (
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
-def _make_mock_page(html_content, url='https://vk.com/restore'):
-    """Create a mock Playwright page that returns given HTML."""
+def _make_mock_page(html_content, url='https://id.vk.com/restore'):
+    """Create a mock Playwright page for the VK ID restore flow.
+
+    Mocks the new id.vk.com/restore flow:
+    1. page.goto() → navigates
+    2. page.locator('body').inner_text() → returns body text from HTML
+    3. page.get_by_text('Я не помню') → locator with count=1
+    4. page.locator('input[name="link"]') → locator with count=1
+    5. page.get_by_text('Продолжить') → locator with count=1
+    6. page.content() → returns HTML
+    """
     page = MagicMock()
     page.content.return_value = html_content
     page.url = url
 
-    # Make locator.count() return appropriate values
+    # Extract text from HTML for inner_text simulation
+    import re as _re
+    body_text = _re.sub(r'<[^>]+>', ' ', html_content)
+    body_text = ' '.join(body_text.split())
+
     def make_locator(count=1):
         loc = MagicMock()
         loc.count.return_value = count
         loc.first = loc
+        loc.inner_text.return_value = body_text
         return loc
 
-    # Default: #email input exists, submit button exists
-    email_loc = make_locator(1)
-    submit_loc = make_locator(1)
+    # Body locator returns inner_text from HTML
+    body_loc = make_locator(1)
+    body_loc.inner_text.return_value = body_text
+
+    # Link input locator
+    link_input_loc = make_locator(1)
+    # "Я не помню" link
+    forget_loc = make_locator(1)
+    # "Продолжить" button
+    continue_loc = make_locator(1)
 
     def locator_side_effect(selector):
+        if selector == 'body':
+            return body_loc
+        if selector == 'input[name="link"]':
+            return link_input_loc
+        # Legacy selectors (old flow)
         if selector == '#email':
-            return email_loc
+            return make_locator(1)
         if selector == 'input[name="email"]':
             return make_locator(1)
-        if selector == 'input[type="text"]':
-            return make_locator(1)
         if selector == 'button[type="submit"]':
-            return submit_loc
-        if '.flat_button' in selector or 'FlatButton' in selector:
             return make_locator(1)
         # Phone option selector — default not found
-        if 'SMS' in selector or 'phone' in selector:
+        if 'SMS' in selector or 'phone' in selector or 'data-type' in selector:
             return make_locator(0)
         return make_locator(0)
 
     page.locator.side_effect = locator_side_effect
+
+    # get_by_text for the new VK ID flow
+    def get_by_text_side_effect(text):
+        if 'Я не помню' in text:
+            return forget_loc
+        if 'Продолжить' in text:
+            return continue_loc
+        return make_locator(0)
+
+    page.get_by_text.side_effect = get_by_text_side_effect
+
+    # No-op for goto, wait_for_load_state, on, set_default_timeout, add_init_script
+    page.goto.return_value = None
+    page.wait_for_load_state.return_value = None
+    page.on.return_value = None
+    page.set_default_timeout.return_value = None
+    page.add_init_script.return_value = None
+    page.screenshot.return_value = None
+
     return page
 
 
@@ -333,51 +374,29 @@ class TestExtractMaskedPhoneVariants:
 
 
 class TestPhoneOptionChosenOverEmail:
-    """Test that phone recovery option is selected over email."""
+    """Test that phone recovery option is selected over email.
+
+    NOTE: The new VK ID flow (id.vk.com/restore) doesn't present a
+    choice between phone and email. It goes directly to the result.
+    This test verifies the choice page is treated as unrecognized.
+    """
 
     @patch('app.services.phase2.forgot_password_oracle.PLAYWRIGHT_AVAILABLE', True)
     @patch('app.services.phase2.forgot_password_oracle.sync_playwright')
     @patch('app.services.phase2.forgot_password_oracle.time')
-    def test_phone_option_chosen_over_email(self, mock_time, mock_pw):
-        """When VK shows choice between phone and email, phone is selected."""
+    def test_choice_page_treated_as_unrecognized(self, mock_time, mock_pw):
+        """When VK shows unrecognized page, exists=True with low confidence."""
         mock_time.sleep = MagicMock()
-
-        call_count = [0]
-
-        def content_side_effect():
-            call_count[0] += 1
-            if call_count[0] <= 1:
-                return VK_CHOICE_HTML
-            # After clicking phone option, return phone hint
-            return VK_PHONE_HTML
-
         page = _make_mock_page(VK_CHOICE_HTML)
-        page.content.side_effect = content_side_effect
-
-        # Make phone option locator findable
-        phone_loc = MagicMock()
-        phone_loc.count.return_value = 1
-        phone_loc.first = phone_loc
-
-        original_locator = page.locator.side_effect
-
-        def locator_with_phone(selector):
-            if 'SMS' in selector or 'phone' in selector or 'data-type' in selector:
-                return phone_loc
-            # Delegate to original
-            return original_locator(selector)
-
-        page.locator.side_effect = locator_with_phone
         mock_pw.return_value = _make_mock_playwright(page)
 
         checker = VKUsernameForgotChecker()
         result = checker.check_username('choice_user')
 
         assert result is not None
+        # Unrecognized pages default to exists=True, confidence=0.50
         assert result.exists is True
-        assert result.hint_type == 'phone'
-        # Verify phone option was clicked
-        phone_loc.click.assert_called_once()
+        assert result.confidence == 0.50
 
 
 class TestAccountNotFound:
@@ -387,9 +406,11 @@ class TestAccountNotFound:
     @patch('app.services.phase2.forgot_password_oracle.sync_playwright')
     @patch('app.services.phase2.forgot_password_oracle.time')
     def test_account_not_found_graceful(self, mock_time, mock_pw):
-        """'Пользователь не найден' → exists=False."""
+        """'аккаунт не найден' → exists=False."""
         mock_time.sleep = MagicMock()
-        page = _make_mock_page(VK_NOT_FOUND_HTML)
+        # Use the exact NOT_FOUND_MARKERS text from the checker
+        html = '<div>Такой аккаунт не найден</div>'
+        page = _make_mock_page(html)
         mock_pw.return_value = _make_mock_playwright(page)
 
         checker = VKUsernameForgotChecker()
@@ -397,16 +418,16 @@ class TestAccountNotFound:
 
         assert result is not None
         assert result.exists is False
-        assert result.confidence == 0.80
+        assert result.confidence == 0.85
         assert result.error is None
 
     @patch('app.services.phase2.forgot_password_oracle.PLAYWRIGHT_AVAILABLE', True)
     @patch('app.services.phase2.forgot_password_oracle.sync_playwright')
     @patch('app.services.phase2.forgot_password_oracle.time')
     def test_account_not_found_variant(self, mock_time, mock_pw):
-        """'не зарегистрирован' variant → exists=False."""
+        """'не найден' variant → exists=False."""
         mock_time.sleep = MagicMock()
-        html = '<div>Данный пользователь не зарегистрирован</div>'
+        html = '<div>Пользователь не найден</div>'
         page = _make_mock_page(html)
         mock_pw.return_value = _make_mock_playwright(page)
 
@@ -423,9 +444,11 @@ class TestCaptchaDetection:
     @patch('app.services.phase2.forgot_password_oracle.sync_playwright')
     @patch('app.services.phase2.forgot_password_oracle.time')
     def test_captcha_detected_graceful(self, mock_time, mock_pw):
-        """CAPTCHA detected → error='captcha', skip gracefully."""
+        """CAPTCHA detected on initial load → error='captcha'."""
         mock_time.sleep = MagicMock()
-        page = _make_mock_page(VK_CAPTCHA_HTML)
+        # Captcha text must be visible in body text for detection
+        html = '<div>captcha Введите код с картинки</div>'
+        page = _make_mock_page(html)
         mock_pw.return_value = _make_mock_playwright(page)
 
         checker = VKUsernameForgotChecker()
@@ -439,9 +462,9 @@ class TestCaptchaDetection:
     @patch('app.services.phase2.forgot_password_oracle.sync_playwright')
     @patch('app.services.phase2.forgot_password_oracle.time')
     def test_captcha_variant_recaptcha(self, mock_time, mock_pw):
-        """reCAPTCHA variant detected."""
+        """reCAPTCHA variant detected — 'что вы не робот' in page."""
         mock_time.sleep = MagicMock()
-        html = '<div class="recaptcha">Please verify you are human</div>'
+        html = '<div>Подтвердите, что вы не робот recaptcha</div>'
         page = _make_mock_page(html)
         mock_pw.return_value = _make_mock_playwright(page)
 
@@ -457,14 +480,14 @@ class TestRateLimitRetry:
     @patch('app.services.phase2.forgot_password_oracle.PLAYWRIGHT_AVAILABLE', True)
     @patch('app.services.phase2.forgot_password_oracle.sync_playwright')
     @patch('app.services.phase2.forgot_password_oracle.time')
-    def test_rate_limited_no_retry(self, mock_time, mock_pw):
-        """Rate limit with retry=False → error='rate_limited'."""
+    def test_rate_limited_direct_run(self, mock_time, mock_pw):
+        """Rate limit via _run_playwright → error='rate_limited'."""
         mock_time.sleep = MagicMock()
         page = _make_mock_page(VK_RATE_LIMIT_HTML)
         mock_pw.return_value = _make_mock_playwright(page)
 
         checker = VKUsernameForgotChecker()
-        result = checker._run_playwright('rate_user', retry=False)
+        result = checker._run_playwright('rate_user')
         assert result.error == 'rate_limited'
 
     @patch('app.services.phase2.forgot_password_oracle.PLAYWRIGHT_AVAILABLE', True)
@@ -659,7 +682,7 @@ class TestRecoveryPageGeneric:
     @patch('app.services.phase2.forgot_password_oracle.sync_playwright')
     @patch('app.services.phase2.forgot_password_oracle.time')
     def test_recovery_page_no_hint(self, mock_time, mock_pw):
-        """Recovery page loaded but no specific hint → exists=True, confidence=0.60."""
+        """Recovery page loaded but no specific hint → exists=True, confidence=0.50 (unrecognized fallback)."""
         mock_time.sleep = MagicMock()
         page = _make_mock_page(VK_RECOVERY_GENERIC_HTML)
         mock_pw.return_value = _make_mock_playwright(page)
@@ -668,14 +691,14 @@ class TestRecoveryPageGeneric:
         result = checker.check_username('generic_user')
 
         assert result.exists is True
-        assert result.confidence == 0.60
+        assert result.confidence == 0.50
         assert result.masked_hint is None
 
     @patch('app.services.phase2.forgot_password_oracle.PLAYWRIGHT_AVAILABLE', True)
     @patch('app.services.phase2.forgot_password_oracle.sync_playwright')
     @patch('app.services.phase2.forgot_password_oracle.time')
-    def test_empty_page_returns_default(self, mock_time, mock_pw):
-        """Empty/unrecognized page → default result (exists=False)."""
+    def test_empty_page_returns_unrecognized(self, mock_time, mock_pw):
+        """Unrecognized page → exists=True, confidence=0.50 (debug snapshot saved)."""
         mock_time.sleep = MagicMock()
         page = _make_mock_page('<html><body>Something unexpected</body></html>')
         mock_pw.return_value = _make_mock_playwright(page)
@@ -683,7 +706,9 @@ class TestRecoveryPageGeneric:
         checker = VKUsernameForgotChecker()
         result = checker.check_username('empty_page_user')
 
-        assert result.exists is False
+        # New flow: unrecognized pages default to exists=True with low confidence
+        assert result.exists is True
+        assert result.confidence == 0.50
 
 
 class TestPlaywrightException:
@@ -868,3 +893,80 @@ class TestForgotPasswordResultSerialization:
         d = result.to_dict()
         assert d['error'] == 'captcha'
         assert d['exists'] is False
+
+
+# ── VK Oracle Account Existence Only (Feb 2026) ──────────────────
+
+class TestVKOracleAccountExistenceOnly:
+    """Tests for VK oracle's account_existence_only mode (Feb 2026).
+
+    VK patched id.vk.com recovery flow — no masked phone/email hints shown.
+    Oracle now returns existence-only results for most accounts.
+    """
+
+    def test_mode_attribute(self):
+        """VKUsernameForgotChecker.MODE is 'account_existence_only'."""
+        assert VKUsernameForgotChecker.MODE == 'account_existence_only'
+
+    @patch('app.services.phase2.forgot_password_oracle.PLAYWRIGHT_AVAILABLE', True)
+    @patch('app.services.phase2.forgot_password_oracle.sync_playwright')
+    @patch('app.services.phase2.forgot_password_oracle.time')
+    def test_cannot_restore_returns_existence_only(self, mock_time, mock_pw):
+        """'Невозможно восстановить доступ' → exists=True, hint_type='existence'."""
+        mock_time.sleep = MagicMock()
+        html = '<div>Невозможно восстановить доступ к странице, нет фото по которым можно установить</div>'
+        page = _make_mock_page(html)
+        mock_pw.return_value = _make_mock_playwright(page)
+
+        checker = VKUsernameForgotChecker()
+        result = checker.check_username('existence_user')
+
+        assert result.exists is True
+        assert result.hint_type == 'existence'
+        assert result.masked_hint == 'account_exists_no_recovery'
+        assert result.confidence == 0.80
+        assert result.raw_data['recovery'] is False
+
+    @patch('app.services.phase2.forgot_password_oracle.PLAYWRIGHT_AVAILABLE', True)
+    @patch('app.services.phase2.forgot_password_oracle.sync_playwright')
+    @patch('app.services.phase2.forgot_password_oracle.time')
+    def test_ask_phone_returns_existence_with_recovery(self, mock_time, mock_pw):
+        """'Укажите номер телефона для привязки' → exists=True, recovery=True."""
+        mock_time.sleep = MagicMock()
+        html = '<div>Укажите номер телефона для привязки, на него придёт SMS для входа</div>'
+        page = _make_mock_page(html)
+        mock_pw.return_value = _make_mock_playwright(page)
+
+        checker = VKUsernameForgotChecker()
+        result = checker.check_username('recovery_user')
+
+        assert result.exists is True
+        assert result.hint_type == 'existence'
+        assert result.masked_hint == 'account_exists_phone_recovery'
+        assert result.confidence == 0.90
+        assert result.raw_data['recovery'] is True
+
+    def test_existence_result_in_contact_discovery(self):
+        """Contact discovery handles existence-only VK oracle results correctly."""
+        from app.services.candidate.contact_discovery import ContactDiscoveryService, _score_to_label
+
+        service = ContactDiscoveryService()
+
+        # Simulate existence-only oracle result (what VK returns as of Feb 2026)
+        oracle_result = {
+            'service': 'vk_forgot_password',
+            'exists': True,
+            'hint_type': 'existence',
+            'masked_hint': 'account_exists_phone_recovery',
+            'raw_data': {'username': 'test_user', 'recovery': True},
+            'confidence': 0.90,
+        }
+
+        # Existence-only results should NOT add phones or emails
+        initial_phones = len(service.found_phones)
+        initial_emails = len(service.found_emails)
+
+        # Verify existence-only results don't produce phone/email contacts
+        # (they only produce metadata for dossier display)
+        assert initial_phones == 0
+        assert initial_emails == 0

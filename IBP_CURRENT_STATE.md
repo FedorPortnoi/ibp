@@ -56,6 +56,7 @@
 | 6 | Breach API enrichment (HudsonRock, LeakCheck, ProxyNova) | `breach_api` | 0.60 |
 | 7 | LeakDB cross-reference (phone->email, email->phone) | `leak_db_xref` | 0.55 |
 | 8 | Forgot-password oracle (6 global + 2 geo-restricted) | `forgot_password_*` | 0.78-0.90 |
+| 8a | VK username oracle (account existence only, Feb 2026) | `vk_forgot_password` | 0.80-0.90 |
 | 9 | Marketplace mining (6 platforms) | `marketplace` | 0.90 |
 | 10 | Holehe email verification | `holehe_verified` | 0.80 |
 | 11 | Deduplicate + merge sources + cross-source boost | -- | +0.15 boost |
@@ -160,7 +161,7 @@ These features work without any API keys configured:
 - Both run in parallel with Snoop via `ThreadPoolExecutor` in Stage 5
 
 ### Contact Discovery Enhancements (Stage 4)
-- **Forgot-Password Oracle** (`app/services/phase2/forgot_password_oracle.py`) — 8 Russian service checkers (VK, Mail.ru, Yandex, OK, Gosuslugi, Telegram, Avito, Sberbank). Extracts masked hints, cross-correlates across services.
+- **Forgot-Password Oracle** (`app/services/phase2/forgot_password_oracle.py`) — 8 Russian service checkers (VK, Mail.ru, Yandex, OK, Gosuslugi, Telegram, Avito, Sberbank). VK username oracle is account-existence-only as of Feb 2026 (VK patched id.vk.com — no masked hints shown). Other 7 services still extract masked hints, cross-correlate across services.
 - **Marketplace Scanner** (`app/services/phase2/marketplace_scanner.py`) — 6 platforms (Avito, Youla, CIAN, Auto.ru, Yandex Search, VK Market). Searches by name and phone.
 - **OK.ru Search** (`app/services/phase1/ok_search_integration.py`) — Odnoklassniki people search with demo mode (3 fake profiles when `OK_SESSION_TOKEN` unset)
 - **Enhanced VK Wall Extractor** — Tagged posts, photo comments, expanded profile fields (Instagram, Skype, career, Facebook, Twitter, LiveJournal)
