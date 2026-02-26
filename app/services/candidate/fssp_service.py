@@ -258,16 +258,19 @@ class FSSPService:
         except Exception as e:
             logger.warning(f"ФССП AJAX error: {e}")
 
-        # Strategy 3: Playwright web form scraper
+        # Strategy 3: Playwright web form scraper (with retry)
         if PLAYWRIGHT_AVAILABLE:
-            try:
-                records = self._search_playwright(
-                    last_name, first_name, patronymic, dob, region_code,
-                )
-                if records is not None:
-                    return records
-            except Exception as e:
-                logger.warning(f"ФССП Playwright error: {e}")
+            for attempt in range(1, 3):
+                try:
+                    records = self._search_playwright(
+                        last_name, first_name, patronymic, dob, region_code,
+                    )
+                    if records is not None:
+                        return records
+                except Exception as e:
+                    logger.warning(f"ФССП Playwright error (attempt {attempt}/2): {e}")
+                    if attempt < 2:
+                        time.sleep(3)
         else:
             logger.info("Playwright not available — skipping web form scraper")
 

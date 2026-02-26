@@ -338,6 +338,18 @@ class BusinessRegistrySearch:
         try:
             response = self.session.get(search_url, timeout=self.timeout)
 
+            if response.status_code in (403, 429):
+                logger.warning(
+                    f"Rusprofile blocked (HTTP {response.status_code}) — "
+                    "likely anti-bot protection. nalog.ru EGRUL is the primary source."
+                )
+                return results
+            if response.status_code == 404:
+                logger.warning(
+                    "Rusprofile returned 404 — URL structure may have changed. "
+                    "Falling back to nalog.ru EGRUL."
+                )
+                return results
             if response.status_code != 200:
                 logger.warning(f"Rusprofile FL search returned status {response.status_code}")
                 return results

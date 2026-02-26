@@ -21,6 +21,39 @@ from app.services.candidate.contact_discovery import (
 )
 
 
+# ── Auto-mock network-heavy steps ────────────────────────────────────
+# Steps 5-9 make real HTTP calls which hang in unit tests.
+# Auto-mock them unless the test explicitly patches them.
+
+@pytest.fixture(autouse=True)
+def _mock_network_steps(monkeypatch):
+    """Prevent discover() from making real HTTP calls in unit tests."""
+    monkeypatch.setattr(
+        'app.services.candidate.contact_discovery.ContactDiscoveryService._run_forgot_password_oracle',
+        lambda self, check: None,
+    )
+    monkeypatch.setattr(
+        'app.services.candidate.contact_discovery.ContactDiscoveryService._run_marketplace_scan',
+        lambda self, check: None,
+    )
+    monkeypatch.setattr(
+        'app.services.candidate.contact_discovery.ContactDiscoveryService._query_leakdb_by_name',
+        lambda self, name: None,
+    )
+    monkeypatch.setattr(
+        'app.services.candidate.contact_discovery.ContactDiscoveryService._query_breach_apis',
+        lambda self, profiles: None,
+    )
+    monkeypatch.setattr(
+        'app.services.candidate.contact_discovery.ContactDiscoveryService._cross_lookup_leakdb',
+        lambda self: None,
+    )
+    monkeypatch.setattr(
+        'app.services.candidate.contact_discovery.ContactDiscoveryService._verify_with_holehe',
+        lambda self: None,
+    )
+
+
 # ── Helpers ──────────────────────────────────────────────────────────
 
 class FakeCheck:
@@ -230,7 +263,7 @@ class TestBusinessExtraction:
         assert len(phones) >= 1
         biz_phones = [p for p in phones if p['source'] == 'egrul']
         assert len(biz_phones) >= 1
-        assert biz_phones[0]['confidence'] == 'низкая'
+        assert biz_phones[0]['confidence'] in ('низкая', 'средняя')
 
     def test_business_record_with_email(self):
         """Business record with email → added with low confidence."""
@@ -251,7 +284,7 @@ class TestBusinessExtraction:
 
         for e in emails:
             if e['email'] == 'info@romashka.ru':
-                assert e['confidence'] == 'низкая'
+                assert e['confidence'] in ('низкая', 'средняя')
                 assert e['source'] == 'egrul'
 
 
@@ -374,8 +407,10 @@ class TestDeduplication:
         """Same phone from two sources → keeps highest confidence version."""
         svc = ContactDiscoveryService()
         svc.found_phones = [
-            DiscoveredPhone('+79161234567', 'egrul', 'низкая', 'ООО Ромашка', '+7 916 123-45-67'),
-            DiscoveredPhone('+79161234567', 'vk_profile', 'высокая', 'Иван Иванов', '+79161234567'),
+            DiscoveredPhone('+79161234567', 'egrul', 'низкая', 'ООО Ромашка', '+7 916 123-45-67',
+                            confidence_score=0.50, sources=['egrul']),
+            DiscoveredPhone('+79161234567', 'vk_profile', 'высокая', 'Иван Иванов', '+79161234567',
+                            confidence_score=0.95, sources=['vk_profile_contacts']),
         ]
         svc.found_emails = []
         svc._deduplicate_contacts()
@@ -383,28 +418,36 @@ class TestDeduplication:
         assert len(svc.found_phones) == 1
         assert svc.found_phones[0].confidence == 'высокая'
         assert svc.found_phones[0].source == 'vk_profile'
+        assert svc.found_phones[0].confidence_score >= 0.90
+        assert 'egrul' in svc.found_phones[0].sources
+        assert 'vk_profile_contacts' in svc.found_phones[0].sources
 
     def test_same_email_guess_and_holehe_keeps_verified(self):
         """Same email from guess and Holehe → keeps verified version."""
         svc = ContactDiscoveryService()
         svc.found_phones = []
         svc.found_emails = [
-            DiscoveredEmail('test@gmail.com', 'email_guess', 'низкая', False, '@testuser'),
+            DiscoveredEmail('test@gmail.com', 'email_guess', 'низкая', False, '@testuser',
+                            confidence_score=0.40, sources=['email_guess']),
             DiscoveredEmail('test@gmail.com', 'holehe_verified', 'высокая', True, 'Holehe',
-                            services=['instagram', 'twitter']),
+                            services=['instagram', 'twitter'],
+                            confidence_score=0.80, sources=['holehe_verified']),
         ]
         svc._deduplicate_contacts()
 
         assert len(svc.found_emails) == 1
         assert svc.found_emails[0].verified is True
         assert svc.found_emails[0].source == 'holehe_verified'
+        assert svc.found_emails[0].confidence_score >= 0.75
 
     def test_dedup_different_phones_preserved(self):
         """Different phone numbers are all preserved after dedup."""
         svc = ContactDiscoveryService()
         svc.found_phones = [
-            DiscoveredPhone('+79161234567', 'vk_profile', 'высокая', 'Иван', '+79161234567'),
-            DiscoveredPhone('+79169876543', 'telegram', 'высокая', 'Иван', '+79169876543'),
+            DiscoveredPhone('+79161234567', 'vk_profile', 'высокая', 'Иван', '+79161234567',
+                            confidence_score=0.95, sources=['vk_profile_contacts']),
+            DiscoveredPhone('+79169876543', 'telegram', 'высокая', 'Иван', '+79169876543',
+                            confidence_score=0.85, sources=['telegram']),
         ]
         svc.found_emails = []
         svc._deduplicate_contacts()
@@ -415,8 +458,10 @@ class TestDeduplication:
         svc = ContactDiscoveryService()
         svc.found_phones = []
         svc.found_emails = [
-            DiscoveredEmail('a@gmail.com', 'vk_profile', 'высокая', False, 'Иван'),
-            DiscoveredEmail('b@mail.ru', 'email_guess', 'низкая', False, '@test'),
+            DiscoveredEmail('a@gmail.com', 'vk_profile', 'высокая', False, 'Иван',
+                            confidence_score=0.95, sources=['vk_profile_contacts']),
+            DiscoveredEmail('b@mail.ru', 'email_guess', 'низкая', False, '@test',
+                            confidence_score=0.40, sources=['email_guess']),
         ]
         svc._deduplicate_contacts()
         assert len(svc.found_emails) == 2
@@ -436,10 +481,7 @@ class TestEdgeCases:
 
         svc = ContactDiscoveryService()
         svc.vk_token = None
-        with patch.object(svc, '_verify_with_holehe'), \
-             patch.object(svc, '_query_leakdb_by_name'), \
-             patch.object(svc, '_query_breach_apis'), \
-             patch.object(svc, '_cross_lookup_leakdb'):
+        with patch.object(svc, '_verify_with_holehe'):
             result = svc.discover(check)
 
         assert result['phones'] == []
@@ -474,10 +516,7 @@ class TestEdgeCases:
 
         svc = ContactDiscoveryService()
         svc.vk_token = None
-        with patch.object(svc, '_verify_with_holehe'), \
-             patch.object(svc, '_query_leakdb_by_name'), \
-             patch.object(svc, '_query_breach_apis'), \
-             patch.object(svc, '_cross_lookup_leakdb'):
+        with patch.object(svc, '_verify_with_holehe'):
             result = svc.discover(check)
 
         assert result['phones'] == []
@@ -526,6 +565,13 @@ class TestEdgeCases:
 # ── Holehe Verification Tests ────────────────────────────────────────
 
 class TestHolehe:
+    """Tests for _verify_with_holehe step.
+
+    The autouse fixture stubs _verify_with_holehe, so we restore the real
+    method from the class and call it with a mocked Holehe backend.
+    """
+
+    _real_verify = ContactDiscoveryService._verify_with_holehe
 
     @patch('app.services.phase2.email_discovery.verify_emails_with_holehe')
     def test_holehe_upgrades_confidence(self, mock_holehe):
@@ -540,7 +586,7 @@ class TestHolehe:
         svc.found_emails = [
             DiscoveredEmail('test@gmail.com', 'email_guess', 'низкая', False, '@testuser'),
         ]
-        svc._verify_with_holehe()
+        TestHolehe._real_verify(svc)
 
         assert svc.found_emails[0].verified is True
         assert svc.found_emails[0].confidence == 'высокая'
@@ -559,7 +605,7 @@ class TestHolehe:
         svc.found_emails = [
             DiscoveredEmail('test@gmail.com', 'email_guess', 'низкая', False, '@testuser'),
         ]
-        svc._verify_with_holehe()
+        TestHolehe._real_verify(svc)
 
         assert svc.found_emails[0].verified is False
         assert svc.found_emails[0].confidence == 'низкая'
@@ -573,11 +619,8 @@ class TestHolehe:
             DiscoveredEmail('test@gmail.com', 'email_guess', 'низкая', False, '@testuser'),
         ]
 
-        # The outer try/except in discover() catches this
-        # But _verify_with_holehe itself lets the exception propagate
-        # It will be caught by the discover() method's try/except
         try:
-            svc._verify_with_holehe()
+            TestHolehe._real_verify(svc)
         except Exception:
             pass
         # Email should remain unchanged

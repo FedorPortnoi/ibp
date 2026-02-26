@@ -6,10 +6,9 @@ Reverse phone lookup using crowdsourced contact databases.
 GetContact: Crowdsourced caller ID (how a number is saved in others' phones)
 NumBuster: Similar service with trust ratings
 
-Three authentication modes (checked in order):
-1. GETCONTACT_API_KEY — compact format "TOKEN|AES_KEY|DEVICE_ID"
-2. GETCONTACT_TOKEN + AES_KEY + DEVICE_ID — rooted Android credentials
-3. No credentials — demo mode with synthetic data
+Two modes:
+1. Real mode: GETCONTACT_API_KEY or GETCONTACT_TOKEN + AES_KEY + DEVICE_ID — real API call
+2. Demo mode: no credentials — returns empty list with log message
 
 Tier: A (Platform API) — direct platform data, not leaked
 """
@@ -28,7 +27,6 @@ from typing import List, Optional, Dict, Any
 import requests
 
 from ..base_source import BaseSource, SourceResult, SourceTier, SourceType
-from ...mock_data import _use_mock_apis, mock_getcontact, mock_numbuster
 
 logger = logging.getLogger(__name__)
 
@@ -266,10 +264,9 @@ class GetContactSource(BaseSource):
     Returns how a phone number is saved in other people's contacts.
     Useful for confirming that a phone belongs to the target.
 
-    Authentication modes:
-    - GETCONTACT_API_KEY: Compact format "TOKEN|AES_KEY|DEVICE_ID" or "TOKEN|AES_KEY"
-    - GETCONTACT_TOKEN + AES_KEY + DEVICE_ID: Rooted Android credentials (individual env vars)
-    - No credentials: Demo mode returns synthetic data
+    Two modes:
+    - Real mode: GETCONTACT_API_KEY or legacy GETCONTACT_TOKEN + AES_KEY + DEVICE_ID
+    - Demo mode: no credentials — returns empty list
     """
 
     name = "GetContact Lookup"
@@ -279,7 +276,7 @@ class GetContactSource(BaseSource):
     rate_limit_per_minute = 5  # Very limited queries per token/month
 
     def is_available(self) -> bool:
-        return True  # Always available — demo mode when no credentials
+        return True  # Returns empty list when no credentials
 
     @property
     def _api_key(self) -> Optional[str]:
@@ -410,28 +407,6 @@ class GetContactSource(BaseSource):
         if not phone:
             return []
 
-        # Mock mode — return realistic Russian contact tags
-        if _use_mock_apis():
-            self.logger.debug(f"GetContact MOCK mode for: {phone}")
-            mock_results = mock_getcontact(phone)
-            results = []
-            for record in mock_results:
-                results.append(SourceResult(
-                    data_type='name',
-                    value=record['name'],
-                    source_name=self.name,
-                    source_tier=self.source_tier,
-                    confidence=0.85,
-                    metadata={
-                        'phone': phone,
-                        'tag_count': record['tag_count'],
-                        'tags': record['tags'],
-                        'country': record.get('country', 'RU'),
-                        'mock': True,
-                    },
-                ))
-            return results
-
         # Mode 1: API key (compact format) or Mode 2: Legacy credentials
         credentials = self._get_credentials()
         if credentials:
@@ -442,23 +417,9 @@ class GetContactSource(BaseSource):
             )
             return self._query_real_api(phone, token, aes_key, device_id or '14130e29cebe9c39')
 
-        # Mode 3: Demo mode
-        self.logger.debug(f"GetContact DEMO mode for: {phone}")
-        return [
-            SourceResult(
-                data_type='name',
-                value='Демо Контакт',
-                source_name=self.name,
-                source_tier=self.source_tier,
-                confidence=0.50,
-                metadata={
-                    'phone': phone,
-                    'tag_count': 2,
-                    'tags': ['Демо запись 1', 'Демо запись 2'],
-                    'demo': True,
-                },
-            ),
-        ]
+        # No credentials configured
+        self.logger.info("GetContact: no API key configured, returning empty")
+        return []
 
 
 class NumBusterSource(BaseSource):
@@ -469,8 +430,9 @@ class NumBusterSource(BaseSource):
     No documented API — would need to reverse-engineer the app
     or use the mobile API endpoints.
 
-    Without NUMBUSTER_API_KEY: returns demo data.
-    With key: logs intended API call (real implementation TODO).
+    Two modes:
+    - Real mode: NUMBUSTER_API_KEY set — real API call (TODO: implement)
+    - Demo mode: no key — returns empty list
     """
 
     name = "NumBuster Lookup"
@@ -480,7 +442,7 @@ class NumBusterSource(BaseSource):
     rate_limit_per_minute = 5
 
     def is_available(self) -> bool:
-        return True  # Always available — demo mode when no key
+        return True  # Returns empty list when no key
 
     @property
     def _api_key(self) -> Optional[str]:
@@ -499,28 +461,6 @@ class NumBusterSource(BaseSource):
         if not phone:
             return []
 
-        # Mock mode — return realistic Russian phone lookup
-        if _use_mock_apis():
-            self.logger.debug(f"NumBuster MOCK mode for: {phone}")
-            mock_results = mock_numbuster(phone)
-            results = []
-            for record in mock_results:
-                results.append(SourceResult(
-                    data_type='name',
-                    value=record['name'],
-                    source_name=self.name,
-                    source_tier=self.source_tier,
-                    confidence=0.80,
-                    metadata={
-                        'phone': phone,
-                        'trust_rating': record['trust_rating'],
-                        'spam_reports': record.get('spam_reports', 0),
-                        'views': record.get('views', 0),
-                        'mock': True,
-                    },
-                ))
-            return results
-
         key = self._api_key
         if key:
             self.logger.info(
@@ -530,19 +470,6 @@ class NumBusterSource(BaseSource):
             # TODO: Implement if NumBuster API access is obtained
             return []
 
-        # Demo mode
-        self.logger.debug(f"NumBuster DEMO mode for: {phone}")
-        return [
-            SourceResult(
-                data_type='name',
-                value='Демо Абонент',
-                source_name=self.name,
-                source_tier=self.source_tier,
-                confidence=0.45,
-                metadata={
-                    'phone': phone,
-                    'trust_rating': 0.6,
-                    'demo': True,
-                },
-            ),
-        ]
+        # No API key configured
+        self.logger.info("NumBuster: no API key configured, returning empty")
+        return []

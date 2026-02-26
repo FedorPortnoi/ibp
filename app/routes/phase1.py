@@ -142,10 +142,31 @@ def buratino_search_results(investigation_id):
             age_to=age_to,
         )
 
-    # Reload all VK profiles sorted by similarity
+    # Run OK search if not already done
+    existing_ok = SocialProfile.query.filter_by(
+        investigation_id=investigation_id,
+        platform='ok'
+    ).all()
+
+    if not existing_ok:
+        try:
+            from app.services.phase1.ok_search_integration import ok_search_integration
+            ok_search_integration.search_and_save(
+                investigation_id=investigation_id,
+                query=investigation.input_name,
+                city=city,
+                age_from=age_from,
+                age_to=age_to,
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"OK search failed: {e}")
+
+    # Reload all profiles (VK + OK) sorted by similarity
     all_profiles = SocialProfile.query.filter_by(
         investigation_id=investigation_id,
-        platform='vk'
+    ).filter(
+        SocialProfile.platform.in_(['vk', 'ok'])
     ).order_by(SocialProfile.name_similarity.desc()).all()
 
     # Update search stats

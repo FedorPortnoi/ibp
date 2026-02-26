@@ -264,6 +264,13 @@ class VKWallExtractor:
         if numeric_id:
             self._scan_mentions(numeric_id, result)
 
+        # ----- 6. Tagged posts by OTHER people on the subject's wall -----
+        self._scan_others_wall_posts(user_id, numeric_id, result)
+
+        # ----- 7. Photo comments -----
+        if numeric_id:
+            self._scan_photo_comments(numeric_id, result)
+
         return result
 
     def _scan_wall_posts(
@@ -338,18 +345,19 @@ class VKWallExtractor:
                 time.sleep(0.35)
 
     def _scan_post_comments(self, owner_id: int, result: WallExtractionResult):
-        """Scan comments on recent wall posts for contact info."""
-        # Get the most recent 20 posts to scan comments on
+        """Scan comments on wall posts for contact info."""
+        # Get the most recent 50 posts to scan comments on
         response = self._vk_api_call('wall.get', {
             'owner_id': owner_id,
-            'count': 20,
+            'count': 50,
         })
         if not response:
             return
 
         posts = response.get('items', [])
         comments_found = 0
-        max_comments_total = 200  # cap to avoid excessive API calls
+        max_comments_per_post = 50
+        max_comments_total = 500  # cap to avoid excessive API calls
 
         for post in posts:
             post_id = post.get('id')
@@ -357,11 +365,11 @@ class VKWallExtractor:
             if not post_id or comment_count == 0:
                 continue
 
-            # Fetch comments for this post
+            # Fetch comments for this post (up to 50 per post)
             comments_resp = self._vk_api_call('wall.getComments', {
                 'owner_id': owner_id,
                 'post_id': post_id,
-                'count': min(100, max_comments_total - comments_found),
+                'count': min(max_comments_per_post, max_comments_total - comments_found),
                 'sort': 'asc',
                 'need_likes': 0,
             })
@@ -435,11 +443,15 @@ class VKWallExtractor:
                     )
 
     def _scan_profile_fields(self, user_id: str, result: WallExtractionResult):
-        """Extract contacts from profile info fields (about, status, site, etc.)."""
+        """Extract contacts from profile info fields (about, status, site, social links, etc.)."""
         fields = [
             'about', 'status', 'activities', 'interests', 'books', 'games',
             'movies', 'music', 'tv', 'site', 'contacts', 'connections',
             'mobile_phone', 'home_phone', 'personal',
+            # Social connections — cross-platform identity
+            'twitter', 'facebook', 'skype', 'instagram', 'livejournal',
+            # Additional profile fields
+            'screen_name', 'career', 'city', 'home_town',
         ]
 
         response = self._vk_api_call('users.get', {
@@ -496,6 +508,49 @@ class VKWallExtractor:
                     if not any(p.value == contact.value for p in result.phones):
                         result.phones.append(contact)
 
+        # Extract cross-platform social links
+        social_fields = {
+            'twitter': 'twitter',
+            'facebook': 'facebook',
+            'instagram': 'instagram',
+            'skype': 'skype',
+            'livejournal': 'livejournal',
+        }
+        for field_name, platform in social_fields.items():
+            val = (user.get(field_name) or '').strip()
+            if not val:
+                continue
+
+            if platform == 'instagram':
+                username = val.lstrip('@').lower().rstrip('/')
+                if username and username not in result.instagram_usernames:
+                    result.instagram_usernames.append(username)
+            elif platform == 'skype':
+                # Skype username can correlate to email (skype_user@outlook.com)
+                result.other_contacts.append({
+                    'type': 'skype',
+                    'value': val,
+                    'source': 'VK profile connections',
+                })
+            else:
+                result.other_contacts.append({
+                    'type': platform,
+                    'value': val,
+                    'source': 'VK profile connections',
+                })
+
+        # Extract career info for corporate email generation
+        career = user.get('career')
+        if career and isinstance(career, list):
+            for job in career:
+                company = job.get('company', '')
+                if company:
+                    result.other_contacts.append({
+                        'type': 'employer',
+                        'value': company,
+                        'source': 'VK career field',
+                    })
+
     def _scan_mentions(self, user_id: int, result: WallExtractionResult):
         """Scan posts where the user is tagged/mentioned via newsfeed.getMentions."""
         response = self._vk_api_call('newsfeed.getMentions', {
@@ -519,6 +574,93 @@ class VKWallExtractor:
                     post_url=post_url,
                     post_date=str(item.get('date')) if item.get('date') else None,
                 )
+
+    def _scan_others_wall_posts(
+        self,
+        user_id: str,
+        numeric_id: Optional[int],
+        result: WallExtractionResult,
+    ):
+        """Scan posts written by OTHER people on the subject's wall (filter=others).
+        Friends often write messages like 'Саша, вот мой номер: 89161234567'."""
+        params = {
+            'count': 100,
+            'filter': 'others',
+        }
+        if user_id.isdigit():
+            params['owner_id'] = user_id
+        else:
+            params['domain'] = user_id
+
+        response = self._vk_api_call('wall.get', params)
+        if not response:
+            return
+
+        posts = response.get('items', [])
+        for post in posts:
+            text = post.get('text', '')
+            for repost in post.get('copy_history', []):
+                text += ' ' + repost.get('text', '')
+
+            post_id = post.get('id')
+            owner_id = post.get('owner_id')
+            post_date = post.get('date')
+            post_url = f"https://vk.com/wall{owner_id}_{post_id}" if owner_id and post_id else None
+
+            self._extract_contacts_from_text(
+                text, result,
+                source='VK wall post (by others)',
+                post_url=post_url,
+                post_date=str(post_date) if post_date else None,
+            )
+
+    def _scan_photo_comments(self, owner_id: int, result: WallExtractionResult):
+        """Scan comments on photos for contact info."""
+        # Get recent photos
+        photos_resp = self._vk_api_call('photos.getAll', {
+            'owner_id': owner_id,
+            'count': 50,
+            'photo_sizes': 0,
+        })
+        if not photos_resp:
+            return
+
+        photos = photos_resp.get('items', [])
+        comments_scanned = 0
+        max_photo_comments = 200
+
+        for photo in photos:
+            photo_id = photo.get('id')
+            if not photo_id:
+                continue
+            comment_count = photo.get('comments', {})
+            if isinstance(comment_count, dict):
+                comment_count = comment_count.get('count', 0)
+            if not comment_count:
+                continue
+
+            comments_resp = self._vk_api_call('photos.getComments', {
+                'owner_id': owner_id,
+                'photo_id': photo_id,
+                'count': min(50, max_photo_comments - comments_scanned),
+                'sort': 'asc',
+            })
+            if not comments_resp:
+                continue
+
+            comments = comments_resp.get('items', [])
+            for comment in comments:
+                text = comment.get('text', '')
+                if text:
+                    self._extract_contacts_from_text(
+                        text, result,
+                        source='VK photo comment',
+                    )
+
+            comments_scanned += len(comments)
+            if comments_scanned >= max_photo_comments:
+                break
+            time.sleep(0.35)
 
     def _extract_via_scraping(
         self,

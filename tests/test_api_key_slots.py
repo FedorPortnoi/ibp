@@ -48,14 +48,12 @@ class TestGetContactSlot:
     """GetContact phone lookup — GETCONTACT_API_KEY."""
 
     def test_demo_mode_no_key(self):
-        """Without any key, GetContact returns demo data."""
+        """Without any key, GetContact returns empty (no mock data)."""
         from app.services.phase2.sources.getcontact import GetContactSource
         src = GetContactSource()
         assert src.is_available() is True
         results = src.query(phone='+79161234567')
-        assert len(results) >= 1
-        assert results[0].metadata.get('demo') is True
-        assert results[0].data_type == 'name'
+        assert results == []
 
     def test_real_mode_api_key(self, caplog):
         """With GETCONTACT_API_KEY in TOKEN|AES_KEY format, activates real mode."""
@@ -99,14 +97,12 @@ class TestDeHashedSlot:
     """DeHashed breach API — DEHASHED_EMAIL + DEHASHED_API_KEY."""
 
     def test_demo_mode_no_key(self):
-        """Without keys, DeHashed returns demo data."""
+        """Without keys, DeHashed returns empty (no mock data)."""
         from app.services.phase2.sources.breach_api import DehashedSource
         src = DehashedSource()
         assert src.is_available() is True
         results = src.query(email='test@example.com')
-        assert len(results) >= 1
-        assert results[0].metadata.get('demo') is True
-        assert results[0].metadata.get('breach_source') == 'dehashed_demo'
+        assert results == []
 
     def test_real_mode_with_keys(self, caplog):
         """With both DEHASHED_EMAIL and DEHASHED_API_KEY, logs real mode."""
@@ -122,15 +118,14 @@ class TestDeHashedSlot:
         assert results == []
 
     def test_demo_mode_partial_key(self):
-        """With only one of two keys, returns demo data."""
+        """With only one of two keys, returns empty (no mock data)."""
         os.environ['DEHASHED_EMAIL'] = 'user@example.com'
         # DEHASHED_API_KEY intentionally not set
         from app.services.phase2.sources.breach_api import DehashedSource
         src = DehashedSource()
         assert src._credentials is None
         results = src.query(name='Иванов')
-        assert len(results) >= 1
-        assert results[0].metadata.get('demo') is True
+        assert results == []
 
     def test_no_query_returns_empty(self):
         """Without any query parameter, returns empty."""
@@ -147,14 +142,12 @@ class TestSnusbaseSlot:
     """Snusbase breach API — SNUSBASE_API_KEY."""
 
     def test_demo_mode_no_key(self):
-        """Without key, Snusbase returns demo data."""
+        """Without key, Snusbase returns empty (no mock data)."""
         from app.services.phase2.sources.breach_api import SnusbaseSource
         src = SnusbaseSource()
         assert src.is_available() is True
         results = src.query(email='test@example.com')
-        assert len(results) >= 1
-        assert results[0].metadata.get('demo') is True
-        assert results[0].metadata.get('breach_source') == 'snusbase_demo'
+        assert results == []
 
     def test_real_mode_with_key(self, caplog):
         """With SNUSBASE_API_KEY, logs real mode activation."""
@@ -169,12 +162,11 @@ class TestSnusbaseSlot:
         assert results == []
 
     def test_username_query_demo(self):
-        """Snusbase demo mode works with username query too."""
+        """Snusbase without key returns empty for username query too."""
         from app.services.phase2.sources.breach_api import SnusbaseSource
         src = SnusbaseSource()
         results = src.query(username='testuser')
-        assert len(results) >= 1
-        assert results[0].data_type == 'username'
+        assert results == []
 
     def test_no_query_returns_empty(self):
         """Without email or username, returns empty."""

@@ -509,6 +509,126 @@ def smtp_verify_email(email: str, timeout: int = 8) -> Optional[bool]:
         return None
 
 
+def generate_corporate_emails(
+    first_name: str,
+    last_name: str,
+    employer: str,
+) -> List[Dict[str, Any]]:
+    """
+    Generate corporate email patterns based on employer name from VK career field.
+
+    Args:
+        first_name: First name (Russian or Latin)
+        last_name: Last name (Russian or Latin)
+        employer: Company name from VK career field
+
+    Returns:
+        List of candidate dicts with email, source, priority, confidence
+    """
+    candidates = []
+    if not employer or not (first_name or last_name):
+        return candidates
+
+    # Transliterate names
+    fn = transliterate(first_name).lower() if is_cyrillic(first_name) else first_name.lower()
+    ln = transliterate(last_name).lower() if is_cyrillic(last_name) else last_name.lower()
+    f_init = fn[0] if fn else ''
+
+    # Try to extract domain from employer name
+    # Common Russian corporate domain patterns
+    employer_clean = employer.strip().lower()
+    employer_clean = re.sub(r'^(ооо|оао|зао|пао|ип)\s+', '', employer_clean)
+    employer_clean = re.sub(r'[«»""\']+', '', employer_clean)
+    employer_latin = transliterate(employer_clean) if is_cyrillic(employer_clean) else employer_clean
+    employer_latin = re.sub(r'[^a-z0-9]', '', employer_latin)
+
+    if not employer_latin or len(employer_latin) < 3:
+        return candidates
+
+    # Typical corporate domains
+    corp_domains = [
+        f'{employer_latin}.ru',
+        f'{employer_latin}.com',
+    ]
+
+    patterns = []
+    if fn and ln:
+        patterns = [
+            f'{fn}@',
+            f'{fn}.{ln}@',
+            f'{f_init}.{ln}@',
+            f'{f_init}{ln}@',
+            f'{ln}.{fn}@',
+            f'{ln}@',
+        ]
+    elif ln:
+        patterns = [f'{ln}@']
+    elif fn:
+        patterns = [f'{fn}@']
+
+    for pattern in patterns:
+        for domain in corp_domains:
+            email = f'{pattern}{domain}'
+            if is_valid_email(email):
+                candidates.append({
+                    'email': email.lower(),
+                    'source': f'Corporate ({employer})',
+                    'priority': 2,
+                    'confidence': 'low',
+                    'verification': 'unverified',
+                })
+
+    return candidates[:20]
+
+
+def skype_to_email_candidates(skype_username: str) -> List[Dict[str, Any]]:
+    """
+    Generate email candidates from a Skype username.
+    Microsoft accounts often use skype_username@outlook.com or @hotmail.com.
+    Gravatar can also be checked with skype@live.com.
+
+    Args:
+        skype_username: Skype username from VK contacts
+
+    Returns:
+        List of candidate dicts
+    """
+    candidates = []
+    if not skype_username or len(skype_username) < 3:
+        return candidates
+
+    username = skype_username.lower().strip()
+
+    # Microsoft account domains
+    ms_domains = ['outlook.com', 'hotmail.com', 'live.com', 'live.ru']
+    # Also try popular Russian domains since people often use same username
+    other_domains = ['gmail.com', 'mail.ru', 'yandex.ru']
+
+    for domain in ms_domains:
+        email = f'{username}@{domain}'
+        if is_valid_email(email):
+            candidates.append({
+                'email': email,
+                'source': f'Skype username ({username})',
+                'priority': 2,
+                'confidence': 'low',
+                'verification': 'unverified',
+            })
+
+    for domain in other_domains:
+        email = f'{username}@{domain}'
+        if is_valid_email(email):
+            candidates.append({
+                'email': email,
+                'source': f'Skype username ({username})',
+                'priority': 4,
+                'confidence': 'low',
+                'verification': 'unverified',
+            })
+
+    return candidates
+
+
 # Domains that block SMTP verification but are popular in Russia
 BLOCKED_DOMAINS = {'mail.ru', 'bk.ru', 'list.ru', 'inbox.ru', 'yandex.ru', 'ya.ru'}
 

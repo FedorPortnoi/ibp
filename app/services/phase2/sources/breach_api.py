@@ -26,10 +26,6 @@ from typing import List, Optional
 import requests
 
 from ..base_source import BaseSource, SourceResult, SourceTier, SourceType
-from ...mock_data import (
-    _use_mock_apis, mock_hudsonrock, mock_proxynova,
-    mock_snusbase, mock_dehashed, mock_leakcheck_pro, mock_hibp_breaches,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -87,15 +83,6 @@ class HudsonRockSource(BaseSource):
         **kwargs
     ) -> List[SourceResult]:
         results = []
-
-        # Mock mode — return realistic fake infostealer data
-        if _use_mock_apis():
-            query = email if isinstance(email, str) else (email[0] if email else username or '')
-            if not query:
-                return []
-            self.logger.debug(f"HudsonRock MOCK mode for: {query}")
-            data = mock_hudsonrock(query, 'email' if email else 'username')
-            return self._parse_mock_stealers(query, data)
 
         # Collect emails to check - from kwargs (email_candidates from pipeline)
         emails_to_check = []
@@ -316,71 +303,6 @@ class HudsonRockSource(BaseSource):
 
         return results
 
-    def _parse_mock_stealers(self, query: str, data: dict) -> List[SourceResult]:
-        """Parse mock HudsonRock stealer data into SourceResults."""
-        results = []
-        stealers = data.get('stealers', [])
-        if not stealers:
-            return results
-
-        results.append(SourceResult(
-            data_type='email' if '@' in query else 'username',
-            value=query,
-            source_name=self.name,
-            source_tier=self.source_tier,
-            confidence=0.95,
-            verified=True,
-            metadata={
-                'breach_source': 'infostealer',
-                'stealer_count': len(stealers),
-                'verification': 'breach_confirmed',
-                'mock': True,
-            },
-        ))
-
-        seen_creds = set()
-        for stealer in stealers:
-            for cred in stealer.get('credentials', []):
-                cred_user = cred.get('username', '')
-                cred_pass = cred.get('password', '')
-                if cred_pass:
-                    cred_key = f"{cred_user}:{cred_pass}"
-                    if cred_key not in seen_creds:
-                        seen_creds.add(cred_key)
-                        results.append(SourceResult(
-                            data_type='credential',
-                            value=cred_user,
-                            source_name=self.name,
-                            source_tier=self.source_tier,
-                            confidence=0.95,
-                            verified=True,
-                            raw_data={'password': cred_pass, 'url': cred.get('url', '')},
-                            metadata={
-                                'computer_name': stealer.get('computer_name', ''),
-                                'date_compromised': stealer.get('date_compromised', ''),
-                                'breach_source': 'infostealer',
-                                'mock': True,
-                            },
-                        ))
-
-                if cred_user and '@' in cred_user and cred_user.lower() != query.lower():
-                    results.append(SourceResult(
-                        data_type='email',
-                        value=cred_user.lower(),
-                        source_name=self.name,
-                        source_tier=self.source_tier,
-                        confidence=0.90,
-                        verified=True,
-                        metadata={
-                            'breach_source': 'infostealer',
-                            'discovered_via': query,
-                            'mock': True,
-                        },
-                    ))
-
-        return results
-
-
 class HIBPSource(BaseSource):
     """
     Have I Been Pwned (HIBP) — breach data API.
@@ -422,31 +344,6 @@ class HIBPSource(BaseSource):
     ) -> List[SourceResult]:
         results = []
 
-        # Mock mode — return realistic breach list for email
-        if _use_mock_apis() and email:
-            email_to_check = email if isinstance(email, str) else email[0] if email else None
-            if email_to_check:
-                self.logger.debug(f"HIBP MOCK mode for: {email_to_check}")
-                breaches = mock_hibp_breaches(email_to_check)
-                for breach in breaches:
-                    results.append(SourceResult(
-                        data_type='email',
-                        value=email_to_check,
-                        source_name=self.name,
-                        source_tier=self.source_tier,
-                        confidence=0.95,
-                        verified=True,
-                        metadata={
-                            'breach_source': 'hibp_mock',
-                            'breach_name': breach['Name'],
-                            'breach_date': breach['BreachDate'],
-                            'pwn_count': breach['PwnCount'],
-                            'data_classes': breach['DataClasses'],
-                            'mock': True,
-                        },
-                    ))
-                return results
-
         # If we have a paid key and an email, do email breach lookup
         api_key = self._api_key
         if api_key and email:
@@ -459,6 +356,8 @@ class HIBPSource(BaseSource):
                 # TODO: Implement real paid API call
                 # GET /api/v3/breachedaccount/{email}?truncateResponse=false
                 # Headers: {"hibp-api-key": api_key, "user-agent": "IBP-OSINT"}
+        elif email and not api_key:
+            self.logger.info("HIBP: no API key configured for email breach lookup, using free password validation only")
 
         # Free password validation (always available)
         passwords_to_check = kwargs.get('passwords', [])
@@ -621,38 +520,11 @@ class LeakCheckSource(BaseSource):
         return results
 
     def _search(self, query: str, query_type: str) -> List[SourceResult]:
-        """Query LeakCheck API. Uses mock if enabled, Pro if key set, else public."""
-        if _use_mock_apis():
-            return self._search_mock(query, query_type)
+        """Query LeakCheck API. Pro if key set, else public (free)."""
         pro_key = self._pro_key
         if pro_key:
             return self._search_pro(query, query_type, pro_key)
         return self._search_public(query, query_type)
-
-    def _search_mock(self, query: str, query_type: str) -> List[SourceResult]:
-        """Return realistic mock LeakCheck Pro results."""
-        self.logger.debug(f"LeakCheck MOCK mode for: {query}")
-        mock_results = mock_leakcheck_pro(query, query_type)
-        results = []
-        breach_names = [r['source']['name'] for r in mock_results]
-        if breach_names:
-            results.append(SourceResult(
-                data_type=query_type,
-                value=query,
-                source_name=self.name,
-                source_tier=self.source_tier,
-                confidence=0.92,
-                verified=True,
-                metadata={
-                    'breach_source': 'leakcheck_mock',
-                    'breach_names': breach_names,
-                    'breach_count': len(breach_names),
-                    'verification': 'breach_confirmed',
-                    'details': mock_results,
-                    'mock': True,
-                },
-            ))
-        return results
 
     def _search_pro(self, query: str, query_type: str, api_key: str) -> List[SourceResult]:
         """Query LeakCheck Pro API (full results with passwords)."""
@@ -797,33 +669,6 @@ class SnusbaseSource(BaseSource):
         if not query:
             return []
 
-        # Mock mode — return rich realistic breach data
-        if _use_mock_apis():
-            self.logger.debug(f"Snusbase MOCK mode for: {query}")
-            mock_results = mock_snusbase(query, 'email' if '@' in query else 'username')
-            results = []
-            breach_names = [r['breach_name'] for r in mock_results]
-            for record in mock_results:
-                result = SourceResult(
-                    data_type='email' if '@' in query else 'username',
-                    value=query,
-                    source_name=self.name,
-                    source_tier=self.source_tier,
-                    confidence=0.85,
-                    verified=True,
-                    metadata={
-                        'breach_source': 'snusbase_mock',
-                        'breach_name': record['breach_name'],
-                        'breach_names': breach_names,
-                        'breach_count': len(breach_names),
-                        'mock': True,
-                    },
-                )
-                if record.get('password'):
-                    result.raw_data = {'password': record['password']}
-                results.append(result)
-            return results
-
         key = self._api_key
         if key:
             self.logger.info(
@@ -835,24 +680,9 @@ class SnusbaseSource(BaseSource):
             # Headers: {"Auth": key, "Content-Type": "application/json"}
             return []
 
-        # Demo mode — return synthetic breach data
-        self.logger.debug(f"Snusbase DEMO mode for: {query}")
-        return [
-            SourceResult(
-                data_type='email' if '@' in query else 'username',
-                value=query,
-                source_name=self.name,
-                source_tier=self.source_tier,
-                confidence=0.70,
-                verified=False,
-                metadata={
-                    'breach_source': 'snusbase_demo',
-                    'breach_names': ['DemoBreachDB_2023', 'ExampleLeak_2022'],
-                    'breach_count': 2,
-                    'demo': True,
-                },
-            ),
-        ]
+        # No API key configured
+        self.logger.info("Snusbase: no API key configured, returning empty")
+        return []
 
 
 class DehashedSource(BaseSource):
@@ -902,41 +732,6 @@ class DehashedSource(BaseSource):
 
         query_type = 'email' if email else 'name' if name else 'phone' if phone else 'username'
 
-        # Mock mode — return rich realistic breach data
-        if _use_mock_apis():
-            self.logger.debug(f"DeHashed MOCK mode for: {query}")
-            mock_results = mock_dehashed(query, query_type)
-            results = []
-            breach_names = [r['database_name'] for r in mock_results]
-            for record in mock_results:
-                result = SourceResult(
-                    data_type=query_type,
-                    value=query,
-                    source_name=self.name,
-                    source_tier=self.source_tier,
-                    confidence=0.85,
-                    verified=True,
-                    metadata={
-                        'breach_source': 'dehashed_mock',
-                        'breach_name': record['database_name'],
-                        'breach_names': breach_names,
-                        'breach_count': len(breach_names),
-                        'dehashed_id': record['id'],
-                        'mock': True,
-                    },
-                )
-                raw = {}
-                if record.get('password'):
-                    raw['password'] = record['password']
-                if record.get('hashed_password'):
-                    raw['hash'] = record['hashed_password']
-                if record.get('ip_address'):
-                    raw['ip_address'] = record['ip_address']
-                if raw:
-                    result.raw_data = raw
-                results.append(result)
-            return results
-
         creds = self._credentials
         if creds:
             self.logger.info(
@@ -948,24 +743,9 @@ class DehashedSource(BaseSource):
             # Auth: Basic (email, api_key)
             return []
 
-        # Demo mode
-        self.logger.debug(f"DeHashed DEMO mode for: {query}")
-        return [
-            SourceResult(
-                data_type=query_type,
-                value=query,
-                source_name=self.name,
-                source_tier=self.source_tier,
-                confidence=0.65,
-                verified=False,
-                metadata={
-                    'breach_source': 'dehashed_demo',
-                    'breach_names': ['DemoCombo_2024'],
-                    'breach_count': 1,
-                    'demo': True,
-                },
-            ),
-        ]
+        # No API key configured
+        self.logger.info("DeHashed: no API key configured, returning empty")
+        return []
 
 
 class ProxyNovaCOMBSource(BaseSource):
@@ -1003,15 +783,6 @@ class ProxyNovaCOMBSource(BaseSource):
     ) -> List[SourceResult]:
         results = []
 
-        # Mock mode — return realistic COMB data
-        if _use_mock_apis():
-            query_email = email if isinstance(email, str) else (email[0] if email else None)
-            if not query_email:
-                return []
-            self.logger.debug(f"ProxyNova COMB MOCK mode for: {query_email}")
-            data = mock_proxynova(query_email)
-            return self._parse_mock_comb(query_email, data)
-
         # Collect emails to search
         emails_to_check = []
         if email:
@@ -1040,68 +811,6 @@ class ProxyNovaCOMBSource(BaseSource):
 
         if results:
             self.logger.info(f"ProxyNova COMB found {len(results)} results")
-        return results
-
-    def _parse_mock_comb(self, email: str, data: dict) -> List[SourceResult]:
-        """Parse mock ProxyNova COMB data into SourceResults."""
-        results = []
-        lines = data.get('lines', [])
-        if not lines:
-            return results
-
-        results.append(SourceResult(
-            data_type='email',
-            value=email,
-            source_name=self.name,
-            source_tier=self.source_tier,
-            confidence=0.92,
-            verified=True,
-            metadata={
-                'breach_source': 'comb',
-                'total_records': data.get('count', 0),
-                'verification': 'breach_confirmed',
-                'mock': True,
-            },
-        ))
-
-        seen_passwords = set()
-        for line in lines:
-            sep_idx = line.find(':')
-            if sep_idx == -1:
-                continue
-            line_email = line[:sep_idx].strip()
-            line_password = line[sep_idx + 1:].strip()
-
-            if not line_password or line_password in seen_passwords:
-                continue
-            seen_passwords.add(line_password)
-
-            results.append(SourceResult(
-                data_type='credential',
-                value=line_email,
-                source_name=self.name,
-                source_tier=self.source_tier,
-                confidence=0.90,
-                verified=True,
-                raw_data={'password': line_password},
-                metadata={'breach_source': 'comb', 'mock': True},
-            ))
-
-            if '@' in line_email and line_email.lower() != email.lower():
-                results.append(SourceResult(
-                    data_type='email',
-                    value=line_email.lower(),
-                    source_name=self.name,
-                    source_tier=self.source_tier,
-                    confidence=0.85,
-                    verified=True,
-                    metadata={
-                        'breach_source': 'comb',
-                        'discovered_via': email,
-                        'mock': True,
-                    },
-                ))
-
         return results
 
     def _search_email(self, email: str) -> List[SourceResult]:

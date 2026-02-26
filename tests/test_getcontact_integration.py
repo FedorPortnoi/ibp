@@ -1,10 +1,9 @@
 """
 Tests for GetContact API Integration
 ======================================
-Tests the GetContactSource with all three modes:
-1. Mock mode (USE_MOCK_APIS=true)
-2. Real API mode (with credentials — uses mocked HTTP)
-3. Demo mode (no credentials)
+Tests the GetContactSource with two modes:
+1. Real API mode (with credentials — uses mocked HTTP)
+2. Demo mode (no credentials — returns empty list)
 
 Also tests the low-level GetContactAPI encryption/signing.
 """
@@ -29,7 +28,7 @@ import pytest
 def clean_env(monkeypatch):
     """Ensure no real credentials leak into tests."""
     for key in ('GETCONTACT_API_KEY', 'GETCONTACT_TOKEN', 'GETCONTACT_AES_KEY',
-                'GETCONTACT_DEVICE_ID', 'USE_MOCK_APIS'):
+                'GETCONTACT_DEVICE_ID'):
         monkeypatch.delenv(key, raising=False)
 
 
@@ -214,60 +213,15 @@ class TestGetContactAPIHTTP:
 # GetContactSource integration tests
 # -----------------------------------------------------------------------
 
-class TestGetContactSourceMockMode:
-    """Test GetContactSource in USE_MOCK_APIS=true mode."""
-
-    def test_mock_mode_returns_results(self, monkeypatch):
-        """Mock mode should return realistic contact tags."""
-        monkeypatch.setenv('USE_MOCK_APIS', 'true')
-        from app.services.phase2.sources.getcontact import GetContactSource
-        source = GetContactSource()
-        results = source.query(phone='+79161234567')
-        assert len(results) > 0
-        assert results[0].data_type == 'name'
-        assert results[0].metadata.get('mock') is True
-        assert results[0].confidence == 0.85
-        assert len(results[0].metadata.get('tags', [])) >= 2
-
-    def test_mock_mode_deterministic(self, monkeypatch):
-        """Same phone should always return same mock results."""
-        monkeypatch.setenv('USE_MOCK_APIS', 'true')
-        from app.services.phase2.sources.getcontact import GetContactSource
-        source = GetContactSource()
-        r1 = source.query(phone='+79161234567')
-        r2 = source.query(phone='+79161234567')
-        assert r1[0].value == r2[0].value
-        assert r1[0].metadata['tags'] == r2[0].metadata['tags']
-
-    def test_mock_mode_no_phone_returns_empty(self, monkeypatch):
-        """No phone number should return empty list."""
-        monkeypatch.setenv('USE_MOCK_APIS', 'true')
-        from app.services.phase2.sources.getcontact import GetContactSource
-        source = GetContactSource()
-        results = source.query(name='Иван Петров')
-        assert results == []
-
-
 class TestGetContactSourceDemoMode:
     """Test GetContactSource demo mode (no credentials)."""
 
-    def test_demo_mode_returns_demo_data(self):
-        """Without any credentials, should return demo data."""
+    def test_demo_mode_returns_empty(self):
+        """Without any credentials, should return empty list."""
         from app.services.phase2.sources.getcontact import GetContactSource
         source = GetContactSource()
         results = source.query(phone='+79161234567')
-        assert len(results) == 1
-        assert results[0].value == 'Демо Контакт'
-        assert results[0].metadata.get('demo') is True
-        assert results[0].confidence == 0.50
-
-    def test_demo_mode_has_tags(self):
-        """Demo data should include tags."""
-        from app.services.phase2.sources.getcontact import GetContactSource
-        source = GetContactSource()
-        results = source.query(phone='+79161234567')
-        assert results[0].metadata['tag_count'] == 2
-        assert len(results[0].metadata['tags']) == 2
+        assert results == []
 
 
 class TestGetContactSourceRealMode:
@@ -443,22 +397,14 @@ class TestPhoneNormalization:
 # -----------------------------------------------------------------------
 
 class TestNumBusterSource:
-    """Ensure NumBuster still works in all modes."""
+    """Ensure NumBuster still works in both modes."""
 
-    def test_mock_mode(self, monkeypatch):
-        monkeypatch.setenv('USE_MOCK_APIS', 'true')
+    def test_demo_mode_returns_empty(self):
+        """Without API key, should return empty list."""
         from app.services.phase2.sources.getcontact import NumBusterSource
         source = NumBusterSource()
         results = source.query(phone='+79161234567')
-        assert len(results) > 0
-        assert results[0].metadata.get('mock') is True
-
-    def test_demo_mode(self):
-        from app.services.phase2.sources.getcontact import NumBusterSource
-        source = NumBusterSource()
-        results = source.query(phone='+79161234567')
-        assert len(results) == 1
-        assert results[0].metadata.get('demo') is True
+        assert results == []
 
     def test_no_phone_returns_empty(self):
         from app.services.phase2.sources.getcontact import NumBusterSource
