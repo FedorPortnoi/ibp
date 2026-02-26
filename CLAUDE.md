@@ -74,14 +74,20 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 | `app/services/candidate/pipeline.py` | 8-stage orchestrator, CandidateTaskStatus, progress tracking |
 | `app/models/candidate_check.py` | Main model (~30 fields), JSON property getters/setters for all stages |
 | `app/routes/candidate_check.py` | All endpoints: /start, /progress, /confirm, /dossier, /export |
-| `app/services/candidate/social_analysis.py` | Stage 5: face search + social graph + Snoop + YaSeeker |
+| `app/services/candidate/social_analysis.py` | Stage 5: face search + social graph + Snoop + Maigret + Sherlock + YaSeeker |
 | `app/services/candidate/behavioral_analysis.py` | Stage 6: text analysis + geo extraction + timeline |
 | `app/services/candidate/contact_discovery.py` | Stage 4: 11-step chain + supplementary discovery for feedback loop |
 | `app/services/candidate/risk_scorer.py` | Stage 7: 8 risk categories, severity levels, composite scoring |
 | `app/services/candidate/report_builder.py` | Stage 8: compiles all data into report structure |
 | `app/services/candidate/bankruptcy_service.py` | Stage 1: EFRSB API + Playwright fallback |
-| `app/services/candidate/sanctions_check.py` | Stage 2: 4 sanctions lists |
+| `app/services/candidate/sanctions_check.py` | Stage 2: OpenSanctions + local DBs + Interpol + fallback scrapers |
+| `app/services/candidate/opensanctions_service.py` | Stage 2: OpenSanctions API — global sanctions database |
+| `app/services/candidate/local_security_db.py` | Stage 2: Local MVD + Extremist list JSON databases |
 | `app/services/candidate/fssp_service.py` | Stage 1: 4-tier fallback (API → AJAX → Playwright with 2-attempt retry → manual URL) |
+| `app/services/phase3/checko_service.py` | Stage 1: checko.ru enforcement proceedings (global FSSP alternative) |
+| `app/services/phase3/casebook_service.py` | Stage 1: casebook.ru arbitration courts (global kad.arbitr.ru alternative) |
+| `app/services/maigret_search.py` | Stage 5: Maigret username search (3,000+ sites) |
+| `app/services/sherlock_search.py` | Stage 5: Sherlock username search (400+ sites) |
 | `app/services/phase2/forgot_password_oracle.py` | Stage 4 Step 8: password recovery hints from 8 Russian services |
 | `app/services/phase2/marketplace_scanner.py` | Stage 4 Step 9: mining 6 Russian marketplace platforms |
 | `app/services/phase1/buratino_vk_search.py` | VK search engine (4 strategies), used by Stage 3 |
@@ -99,18 +105,23 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 |--------|--------|-------|
 | nalog.ru EGRUL | WORKS | Free government API, 2-step token flow, ~20 results/name |
 | sudact.ru courts | WORKS | Playwright scraping, 8-10 cases/name, ~5s |
-| FSSP enforcement | RETRY | API has SSL errors; Playwright retry (2 attempts, 3s delay); manual URL fallback. Needs FSSP_API_TOKEN + Russian IP |
+| **checko.ru** | WORKS | **Primary** FSSP alternative. Globally accessible, no geo-block |
+| casebook.ru | WORKS | Arbitration court aggregator. Replaces geo-blocked kad.arbitr.ru |
+| FSSP enforcement | FALLBACK | Fallback behind checko.ru. API has SSL errors; Playwright retry (2 attempts). Needs Russian IP |
 | EFRSB bankruptcy | WORKS | bankrot.fedresurs.ru API + Playwright fallback |
 | Rusprofile.ru | WORKS | Fallback for EGRUL. Uses `type=fl` person search. Graceful 403/404/429 handling |
-| kad.arbitr.ru | GEO-BLOCKED | HTTP 451, manual URL only |
+| kad.arbitr.ru | GEO-BLOCKED | HTTP 451, replaced by casebook.ru |
 
 ### Stage 2: Security Checks
 | Source | Status | Notes |
 |--------|--------|-------|
-| Rosfinmonitoring | WORKS | Web scraping, needs Russian IP for best results |
-| MVD Wanted | WORKS | Web scraping |
+| **OpenSanctions API** | WORKS | **Primary**. Free, global, covers Rosfinmonitoring + OFAC + EU + UN + Interpol |
+| Local MVD database | WORKS | Offline MVD wanted list (`data/mvd_wanted.json`). Update via `scripts/update_mvd_list.py` |
+| Local Extremist list | WORKS | Offline extremist list (`data/extremist_list.json`). Update via `scripts/update_extremist_list.py` |
 | Interpol | WORKS | REST API, works globally |
-| Extremist list | WORKS | Web scraping, needs Russian IP |
+| Rosfinmonitoring | FALLBACK | Web scraping fallback. Needs Russian IP |
+| MVD Wanted | FALLBACK | Web scraping fallback. Needs Russian IP |
+| Extremist list | FALLBACK | Web scraping fallback. Needs Russian IP |
 
 ### Stage 3: Social Media
 | Source | Status | Notes |
@@ -131,7 +142,7 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 | LeakCheck Public | WORKS | Free, no key. 12B+ records |
 | ProxyNova COMB | WORKS | Free, no key. 3.2B email:password pairs |
 | HIBP Pwned Passwords | WORKS | Free, k-anonymity |
-| Forgot-password oracle | WORKS | 8 services (VK, Mail.ru, Yandex, OK, Gosuslugi, TG, Avito, Sberbank). Some geo-blocked |
+| Forgot-password oracle | WORKS | 6 global (VK, Mail.ru, Yandex, OK, TG, Avito) + 2 geo-restricted (Gosuslugi, Sberbank, skip by default) |
 | Marketplace scanner | WORKS | 6 platforms (Avito, Youla, CIAN, Auto.ru, Yandex, VK Market) |
 | Snusbase | WIRED | Returns empty without key. Set SNUSBASE_API_KEY to activate ($5-16/mo) |
 | DeHashed | WIRED | Returns empty without keys. Set DEHASHED_EMAIL + DEHASHED_API_KEY ($5.49/mo) |
@@ -146,7 +157,9 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 |--------|--------|-------|
 | Search4Faces | WORKS | Free unlimited, 3 databases (vkok, vk01, vkokn) |
 | Social graph | WORKS | VK friends → NetworkX → Louvain → vis.js |
-| Snoop username search | WORKS | 5,372 sites, Russian-filtered. Subprocess at C:\Users\fedor\osint_tools\snoop |
+| Snoop username search | WORKS | 5,372 sites, Russian-filtered. Uses `OSINT_TOOLS_DIR` env var for path |
+| Maigret username search | WIRED | 3,000+ sites. pip install or OSINT_TOOLS_DIR. Runs in parallel with Snoop |
+| Sherlock username search | WIRED | 400+ sites. pip install or OSINT_TOOLS_DIR. Runs in parallel with Snoop |
 | YaSeeker | WORKS | Yandex Collections, Dzen, Music |
 
 ### Stage 6: Behavioral Analysis
@@ -216,6 +229,12 @@ SNOV_CLIENT_SECRET=...
 
 # === LOCAL LEAK DATABASE ===
 LEAKDB_DATA_DIR=...             # Default: data/demo/ (ships with fake data)
+
+# === GEO-RESTRICTED SERVICES ===
+ENABLE_GEO_RESTRICTED_CHECKERS= # Set to "1" for Russian IP. Enables Gosuslugi + Sberbank oracle checkers.
+
+# === OSINT TOOLS ===
+OSINT_TOOLS_DIR=...             # Path to osint_tools dir (snoop, maigret, sherlock). Default: ~/osint_tools
 
 # === OTHER ===
 GITHUB_TOKEN=...                # GitHub profile lookups
@@ -363,11 +382,15 @@ These routes and templates work but are superseded by the Candidate Check pipeli
 7. **WeasyPrint forbidden on Windows**: Dossier PDF falls back to print-ready HTML or Playwright.
 8. **SocialProfile.full_name is a property**: Not a setter — use first_name/last_name/display_name.
 9. **Rusprofile anti-bot**: Returns 403/429 under load. Handled gracefully, falls through to nalog.ru EGRUL.
-10. **Forgot-password oracle geo-blocking**: Gosuslugi and Sberbank checkers only work from Russian IP.
+10. **Forgot-password oracle geo-blocking**: Gosuslugi and Sberbank checkers skipped by default. Set `ENABLE_GEO_RESTRICTED_CHECKERS=1` for Russian IP deployments.
 
 ## External Tools
 
-OSINT tools at `C:\Users\fedor\osint_tools\` (snoop, maigret, sherlock, etc.). Snoop integrated via `app/services/snoop_search.py`.
+OSINT tools path: `OSINT_TOOLS_DIR` env var > `~/osint_tools/` > project root.
+- **Snoop**: integrated via `app/services/snoop_search.py` (5,372 sites)
+- **Maigret**: integrated via `app/services/maigret_search.py` (3,000+ sites). Also pip-installable.
+- **Sherlock**: integrated via `app/services/sherlock_search.py` (400+ sites). Also pip-installable.
+- In Docker: maigret/sherlock are pip-installed. Snoop is not bundled.
 
 ## File Targeting
 

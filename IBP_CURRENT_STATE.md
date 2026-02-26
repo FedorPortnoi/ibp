@@ -35,11 +35,11 @@
 
 | Stage | Wired | Real Data | Demo Fallback | Notes |
 |-------|-------|-----------|---------------|-------|
-| 1. Gov Registries | Yes | EGRUL + sudact.ru work | Empty results | FSSP has Playwright retry (2 attempts), bankruptcy needs Russian IP |
-| 2. Security Checks | Yes | Interpol works globally | Empty results | Russian sanctions need Russian IP |
+| 1. Gov Registries | Yes | EGRUL + sudact.ru + **checko.ru** + casebook.ru | Empty results | checko.ru is primary FSSP alt (global), casebook.ru replaces kad.arbitr.ru |
+| 2. Security Checks | Yes | **OpenSanctions** + Interpol + local DBs work globally | Empty results | Local MVD/extremist JSON + OpenSanctions = no geo-block needed |
 | 3. Social Media | Yes | VK + Telegram + OK work | 3 fake VK + 3 fake OK profiles | Yandex may timeout (CAPTCHA) |
-| 4. Contact Discovery | Yes | 11-step chain fully wired | Empty results | Paid APIs return empty without keys (no fake data) |
-| 5. Social Analysis | Yes | Search4Faces + graph work | Demo graph data | Snoop needs local tool |
+| 4. Contact Discovery | Yes | 11-step chain fully wired | Empty results | Gosuslugi/Sberbank oracle checkers skipped by default (geo-restricted) |
+| 5. Social Analysis | Yes | Search4Faces + graph + Snoop + **Maigret** + **Sherlock** | Demo graph data | Maigret/Sherlock pip-installable, run in parallel with Snoop |
 | 6. Behavioral Analysis | Yes | Text/geo/timeline work | Demo data | Requires VK wall access |
 | 7. Risk Scoring | Yes | 8 categories scored | Scores empty data | Always produces a level |
 | 8. Report Generation | Yes | Full dossier + PDF | Works with any data | Identity card, vis.js graph, geo map |
@@ -55,7 +55,7 @@
 | 5 | LeakDB name lookup | `leak_db` | 0.65 |
 | 6 | Breach API enrichment (HudsonRock, LeakCheck, ProxyNova) | `breach_api` | 0.60 |
 | 7 | LeakDB cross-reference (phone→email, email→phone) | `leak_db_xref` | 0.55 |
-| 8 | Forgot-password oracle (8 services) | `forgot_password_*` | 0.78-0.90 |
+| 8 | Forgot-password oracle (6 global + 2 geo-restricted) | `forgot_password_*` | 0.78-0.90 |
 | 9 | Marketplace mining (6 platforms) | `marketplace` | 0.90 |
 | 10 | Holehe email verification | `holehe_verified` | 0.80 |
 | 11 | Deduplicate + merge sources + cross-source boost | — | +0.15 boost |

@@ -35,6 +35,10 @@ def run_startup_checks():
         check_holehe,
         check_telethon,
         check_snoop,
+        check_maigret,
+        check_sherlock,
+        check_opensanctions,
+        check_local_security_data,
         check_python,
     ]
 
@@ -147,14 +151,69 @@ def check_telethon():
 
 def check_snoop():
     """Check if Snoop is available."""
-    paths = [
+    osint_dir = os.environ.get('OSINT_TOOLS_DIR')
+    paths = []
+    if osint_dir:
+        paths.append(os.path.join(osint_dir, 'snoop'))
+    paths.extend([
         os.path.join(os.path.expanduser('~'), 'osint_tools', 'snoop'),
         os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..', 'snoop'),
-    ]
+    ])
     for p in paths:
         if os.path.isdir(p):
             return 'ok', f'Snoop: Found at {p}'
     return 'warn', 'Snoop: Not found -- username enumeration disabled'
+
+
+def check_maigret():
+    """Check if Maigret is available."""
+    try:
+        from app.services.maigret_search import MaigretSearchService
+        svc = MaigretSearchService()
+        if svc.available:
+            return 'ok', 'Maigret: Available'
+        return 'warn', 'Maigret: Not installed -- pip install maigret'
+    except Exception:
+        return 'warn', 'Maigret: Not installed'
+
+
+def check_sherlock():
+    """Check if Sherlock is available."""
+    try:
+        from app.services.sherlock_search import SherlockSearchService
+        svc = SherlockSearchService()
+        if svc.available:
+            return 'ok', 'Sherlock: Available'
+        return 'warn', 'Sherlock: Not installed -- pip install sherlock-project'
+    except Exception:
+        return 'warn', 'Sherlock: Not installed'
+
+
+def check_opensanctions():
+    """Check if OpenSanctions API is reachable."""
+    try:
+        from app.services.candidate.opensanctions_service import OpenSanctionsService
+        svc = OpenSanctionsService(timeout=5)
+        if svc.is_reachable():
+            return 'ok', 'OpenSanctions: API reachable'
+        return 'warn', 'OpenSanctions: API unreachable'
+    except Exception:
+        return 'warn', 'OpenSanctions: Check failed'
+
+
+def check_local_security_data():
+    """Check if local security databases exist."""
+    data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..', 'data')
+    mvd = os.path.exists(os.path.join(data_dir, 'mvd_wanted.json'))
+    ext = os.path.exists(os.path.join(data_dir, 'extremist_list.json'))
+    if mvd and ext:
+        return 'ok', 'Security data: MVD + Extremist lists present'
+    parts = []
+    if not mvd:
+        parts.append('MVD missing')
+    if not ext:
+        parts.append('Extremist missing')
+    return 'warn', f'Security data: {", ".join(parts)} -- run scripts/update_*.py'
 
 
 def check_python():

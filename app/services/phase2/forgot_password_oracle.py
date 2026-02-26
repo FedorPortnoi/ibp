@@ -96,6 +96,7 @@ class ForgotPasswordChecker(ABC):
     SERVICE_NAME: str = "unknown"
     SUPPORTS_EMAIL: bool = False
     SUPPORTS_PHONE: bool = False
+    GEO_RESTRICTED: bool = False  # True for checkers that only work from Russian IP
 
     # Realistic browser headers — rotated per-session
     USER_AGENTS = [
@@ -593,6 +594,7 @@ class GosuslugiChecker(ForgotPasswordChecker):
     SERVICE_NAME = "gosuslugi"
     SUPPORTS_EMAIL = True
     SUPPORTS_PHONE = True
+    GEO_RESTRICTED = True
 
     RESTORE_URL = "https://esia.gosuslugi.ru/api/public/v1/password/restore"
 
@@ -897,6 +899,7 @@ class SberbankChecker(ForgotPasswordChecker):
     SERVICE_NAME = "sberbank"
     SUPPORTS_EMAIL = False
     SUPPORTS_PHONE = True
+    GEO_RESTRICTED = True
 
     LOGIN_URL = "https://online.sberbank.ru/CSAFront/api/requester/login"
 
@@ -996,7 +999,10 @@ class ForgotPasswordOracle:
     """
 
     def __init__(self):
-        self.checkers: List[ForgotPasswordChecker] = [
+        enable_geo = os.environ.get('ENABLE_GEO_RESTRICTED_CHECKERS', '').lower() in (
+            '1', 'true', 'yes',
+        )
+        all_checkers: List[ForgotPasswordChecker] = [
             VKChecker(),
             MailRuChecker(),
             YandexChecker(),
@@ -1006,7 +1012,19 @@ class ForgotPasswordOracle:
             AvitoChecker(),
             SberbankChecker(),
         ]
+        # Skip geo-restricted checkers unless explicitly enabled
+        self.checkers = [
+            c for c in all_checkers
+            if not c.GEO_RESTRICTED or enable_geo
+        ]
         self.logger = logging.getLogger(f"{__name__}.ForgotPasswordOracle")
+        if not enable_geo:
+            skipped = [c.SERVICE_NAME for c in all_checkers if c.GEO_RESTRICTED]
+            if skipped:
+                self.logger.info(
+                    f"Skipping geo-restricted checkers: {', '.join(skipped)}. "
+                    f"Set ENABLE_GEO_RESTRICTED_CHECKERS=1 for Russian IP deployments."
+                )
 
     def check_email(self, email: str) -> List[Dict[str, Any]]:
         """

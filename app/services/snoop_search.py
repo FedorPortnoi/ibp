@@ -25,9 +25,26 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-# Snoop paths relative to project root
+# Snoop paths: OSINT_TOOLS_DIR env var > ~/osint_tools/snoop > project_root/snoop
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-SNOOP_DIR = PROJECT_ROOT / "snoop"
+
+
+def _resolve_snoop_dir() -> Path:
+    """Resolve Snoop directory from env var, home dir, or project root."""
+    osint_dir = os.environ.get('OSINT_TOOLS_DIR')
+    if osint_dir:
+        candidate = Path(osint_dir) / "snoop"
+        if candidate.exists():
+            return candidate
+
+    home_candidate = Path.home() / "osint_tools" / "snoop"
+    if home_candidate.exists():
+        return home_candidate
+
+    return PROJECT_ROOT / "snoop"
+
+
+SNOOP_DIR = _resolve_snoop_dir()
 SNOOP_SCRIPT = SNOOP_DIR / "snoop.py"
 
 

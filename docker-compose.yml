@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  ibp:
+    build: .
+    container_name: ibp
+    ports:
+      - "80:5000"
+    volumes:
+      - ./data:/app/data
+      - ./data/leaks:/app/data/leaks
+    env_file:
+      - .env
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=sqlite:////app/data/ibp_investigations.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

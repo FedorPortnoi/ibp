@@ -94,6 +94,52 @@ def _run_snoop_search(usernames: List[str]) -> List[Dict]:
         return []
 
 
+def _run_maigret_search(usernames: List[str]) -> List[Dict]:
+    """Run Maigret username search."""
+    try:
+        from app.services.maigret_search import MaigretSearchService
+        maigret = MaigretSearchService()
+        if not maigret.available:
+            logger.info("Maigret not available, skipping")
+            return []
+
+        all_results = []
+        for username in usernames[:3]:
+            try:
+                results = maigret.search_username(username, timeout=120)
+                found = maigret.get_found_profiles(results)
+                all_results.extend(found)
+            except Exception as e:
+                logger.warning(f"Maigret search for '{username}' failed: {e}")
+        return all_results
+    except Exception as e:
+        logger.error(f"Maigret search failed: {e}")
+        return []
+
+
+def _run_sherlock_search(usernames: List[str]) -> List[Dict]:
+    """Run Sherlock username search."""
+    try:
+        from app.services.sherlock_search import SherlockSearchService
+        sherlock = SherlockSearchService()
+        if not sherlock.available:
+            logger.info("Sherlock not available, skipping")
+            return []
+
+        all_results = []
+        for username in usernames[:3]:
+            try:
+                results = sherlock.search_username(username, timeout=120)
+                found = sherlock.get_found_profiles(results)
+                all_results.extend(found)
+            except Exception as e:
+                logger.warning(f"Sherlock search for '{username}' failed: {e}")
+        return all_results
+    except Exception as e:
+        logger.error(f"Sherlock search failed: {e}")
+        return []
+
+
 def _run_yaseeker(usernames: List[str]) -> List[Dict]:
     """Run YaSeeker Yandex service discovery."""
     try:
@@ -282,10 +328,10 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
         'new_accounts_for_enrichment': [],
     }
 
-    # Run face search, snoop, and yaseeker in parallel
+    # Run face search, snoop, maigret, sherlock, and yaseeker in parallel
     _update('Поиск по лицу + имени пользователя', 56)
 
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         futures = {}
 
         # 5a. Face search (if photo available)
@@ -296,6 +342,14 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
         if usernames:
             futures['snoop'] = executor.submit(_run_snoop_search, usernames)
 
+        # 5c2. Maigret username search
+        if usernames:
+            futures['maigret'] = executor.submit(_run_maigret_search, usernames)
+
+        # 5c3. Sherlock username search
+        if usernames:
+            futures['sherlock'] = executor.submit(_run_sherlock_search, usernames)
+
         # 5d. YaSeeker
         if usernames:
             futures['yaseeker'] = executor.submit(_run_yaseeker, usernames)
@@ -305,12 +359,20 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
                 result = future.result(timeout=180)
                 if key == 'face':
                     results['face_matches'] = result
-                elif key == 'snoop':
-                    results['username_accounts'].extend(result)
-                elif key == 'yaseeker':
+                elif key in ('snoop', 'maigret', 'sherlock', 'yaseeker'):
                     results['username_accounts'].extend(result)
             except Exception as e:
                 logger.error(f"Social analysis sub-task '{key}' failed: {e}")
+
+        # Deduplicate username_accounts by URL
+        seen_urls = set()
+        deduped = []
+        for acct in results['username_accounts']:
+            url = acct.get('url', '')
+            if url and url not in seen_urls:
+                seen_urls.add(url)
+                deduped.append(acct)
+        results['username_accounts'] = deduped
 
     # 5b. Social graph (needs VK data, runs after parallel tasks)
     if vk_id:

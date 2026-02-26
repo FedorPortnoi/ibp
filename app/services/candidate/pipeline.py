@@ -314,14 +314,48 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 return records
 
             def _search_courts(full_name):
-                """Search court records by name."""
-                from app.services.phase3.court_search import CourtRecordSearch
-                searcher = CourtRecordSearch(timeout=30)
-                results = searcher.search_by_name(full_name)
-                return [r.to_dict() for r in results] if results else []
+                """Search court records — sudact.ru + casebook.ru."""
+                records = []
+                # Primary: sudact.ru (general + arbitration, works globally)
+                try:
+                    from app.services.phase3.court_search import CourtRecordSearch
+                    searcher = CourtRecordSearch(timeout=30)
+                    results = searcher.search_by_name(full_name)
+                    if results:
+                        records = [r.to_dict() for r in results]
+                except Exception as e:
+                    logger.warning(f"Sudact court search failed: {e}")
+
+                # Supplementary: casebook.ru (arbitration courts, replaces kad.arbitr.ru)
+                try:
+                    from app.services.phase3.casebook_service import CasebookService
+                    casebook = CasebookService(timeout=25)
+                    cb_results = casebook.search_person(full_name)
+                    if cb_results:
+                        existing_numbers = {r.get('case_number', '') for r in records}
+                        for cb in cb_results:
+                            d = cb.to_court_dict()
+                            if d['case_number'] not in existing_numbers:
+                                records.append(d)
+                                existing_numbers.add(d['case_number'])
+                except Exception as e:
+                    logger.warning(f"Casebook court search failed: {e}")
+
+                return records
 
             def _search_fssp(full_name, date_of_birth, region):
-                """Search ФССП enforcement proceedings."""
+                """Search enforcement proceedings — checko.ru primary, ФССП fallback."""
+                # Primary: checko.ru (globally accessible)
+                try:
+                    from app.services.phase3.checko_service import CheckoService
+                    checko = CheckoService(timeout=30)
+                    checko_records = checko.search_enforcement(full_name)
+                    if checko_records:
+                        return [r.to_fssp_dict() for r in checko_records]
+                except Exception as e:
+                    logger.warning(f"Checko.ru enforcement search failed: {e}")
+
+                # Fallback: ФССП (may be geo-blocked)
                 from app.services.candidate.fssp_service import FSSPService
                 svc = FSSPService(timeout=30, max_pages=3)
                 dob_str = date_of_birth.strftime('%Y-%m-%d') if date_of_birth else None

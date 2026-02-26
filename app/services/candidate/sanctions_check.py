@@ -1,11 +1,18 @@
 """
 Sanctions & Wanted List Checks
 ===============================
-Checks a candidate against 4 sources:
-1. Росфинмониторинг — terrorism financing sanctions
-2. МВД Розыск — federal wanted persons
-3. Интерпол — international red notices
-4. Перечень экстремистов — extremist list (Минюст)
+Checks a candidate against multiple sources:
+
+Primary (globally accessible):
+1. OpenSanctions API — covers Rosfinmonitoring, OFAC, EU, UN, Interpol, etc.
+2. Local MVD database — offline wanted persons list
+3. Local Extremist database — offline extremist list
+4. Интерпол — international red notices (public API)
+
+Fallback (geo-restricted, used when available):
+- Росфинмониторинг website scraper
+- МВД website scraper
+- Перечень экстремистов website scraper
 
 Each check is independent and returns a SanctionsResult.
 """
@@ -130,55 +137,253 @@ class SanctionsService:
         self,
         full_name: str,
         inn: Optional[str] = None,
+        birth_date: Optional[str] = None,
     ) -> List[SanctionsResult]:
         """
-        Run all 4 checks in parallel.
-        Returns list of 4 SanctionsResult objects.
-        """
-        results = [None, None, None, None]
+        Run all sanctions checks in parallel.
 
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = {
-                executor.submit(self._check_rosfinmonitoring, full_name): 0,
-                executor.submit(self._check_mvd_wanted, full_name): 1,
-                executor.submit(self._check_interpol, full_name): 2,
-                executor.submit(self._check_extremists, full_name): 3,
-            }
+        Primary sources (globally accessible):
+        - OpenSanctions API (covers Rosfinmonitoring + international lists)
+        - Local MVD wanted database
+        - Local Extremist list database
+        - Interpol Red Notices API
+
+        Fallback sources (geo-restricted, run in parallel):
+        - Rosfinmonitoring website scraper
+        - MVD website scraper
+        - Extremist list website scraper
+        """
+        results = []
+
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            futures = {}
+
+            # Primary: OpenSanctions (replaces Rosfinmonitoring for global access)
+            futures[executor.submit(
+                self._check_opensanctions, full_name, birth_date,
+            )] = 'opensanctions'
+
+            # Primary: Local MVD database
+            futures[executor.submit(
+                self._check_mvd_local, full_name,
+            )] = 'mvd_local'
+
+            # Primary: Local Extremist database
+            futures[executor.submit(
+                self._check_extremist_local, full_name,
+            )] = 'extremist_local'
+
+            # Primary: Interpol (works globally)
+            futures[executor.submit(
+                self._check_interpol, full_name,
+            )] = 'interpol'
+
+            # Fallback: live scrapers (may fail outside Russia)
+            futures[executor.submit(
+                self._check_rosfinmonitoring, full_name,
+            )] = 'rosfinmonitoring'
+            futures[executor.submit(
+                self._check_mvd_wanted, full_name,
+            )] = 'mvd_live'
 
             for future in as_completed(futures, timeout=60):
-                idx = futures[future]
+                source = futures[future]
                 try:
-                    results[idx] = future.result(timeout=30)
+                    result = future.result(timeout=30)
+                    if isinstance(result, list):
+                        results.extend(result)
+                    elif result is not None:
+                        results.append(result)
                 except Exception as e:
-                    logger.warning(f"Sanctions check #{idx} failed: {e}")
-                    labels = [
-                        'Росфинмониторинг', 'МВД Розыск',
-                        'Интерпол', 'Перечень экстремистов',
-                    ]
-                    results[idx] = SanctionsResult(
-                        source_name=labels[idx],
-                        checked=False,
-                        found=False,
-                        error=str(e),
-                    )
+                    logger.warning(f"Sanctions check '{source}' failed: {e}")
 
-        # Fill any None slots (shouldn't happen, but be safe)
-        labels = [
-            'Росфинмониторинг', 'МВД Розыск',
-            'Интерпол', 'Перечень экстремистов',
-        ]
-        for i in range(4):
-            if results[i] is None:
-                results[i] = SanctionsResult(
-                    source_name=labels[i],
-                    checked=False,
+        # Deduplicate: if both OpenSanctions and live scraper found something,
+        # prefer the more detailed result but keep both source names
+        results = self._deduplicate_results(results)
+
+        # Ensure we always return at least the 4 expected source slots
+        expected = {
+            'Росфинмониторинг': False,
+            'МВД — розыск': False,
+            'Интерпол': False,
+            'Перечень экстремистов': False,
+        }
+        for r in results:
+            name = r.source_name
+            if name in expected:
+                expected[name] = True
+            # Map OpenSanctions results to expected slots
+            elif 'Росфинмониторинг' in name:
+                expected['Росфинмониторинг'] = True
+
+        # Fill missing slots with "checked but not found" if we checked OpenSanctions
+        opensanctions_checked = any(
+            'OpenSanctions' in r.source_name or 'Росфинмониторинг' in r.source_name
+            for r in results if r.checked
+        )
+        for name, found in expected.items():
+            if not found:
+                # If OpenSanctions was checked, we can vouch for Rosfinmonitoring
+                checked = opensanctions_checked if name == 'Росфинмониторинг' else False
+                results.append(SanctionsResult(
+                    source_name=name,
+                    checked=checked,
                     found=False,
-                    error='Проверка не завершена',
-                )
+                    error=None if checked else 'Источник недоступен',
+                ))
 
         return results
 
-    # ── Source 1: Росфинмониторинг ────────────────────────────────
+    def _deduplicate_results(self, results: List[SanctionsResult]) -> List[SanctionsResult]:
+        """Remove duplicate source entries, preferring checked+found over unchecked."""
+        seen = {}
+        for r in results:
+            key = r.source_name
+            if key in seen:
+                existing = seen[key]
+                # Prefer checked over unchecked, found over not found
+                if r.checked and (not existing.checked or (r.found and not existing.found)):
+                    seen[key] = r
+            else:
+                seen[key] = r
+        return list(seen.values())
+
+    # ── Primary: OpenSanctions API ────────────────────────────────
+
+    def _check_opensanctions(
+        self, full_name: str, birth_date: Optional[str] = None,
+    ) -> List[SanctionsResult]:
+        """
+        Check OpenSanctions API for sanctions matches.
+        Returns list of SanctionsResult (one per matching dataset).
+        """
+        try:
+            from app.services.candidate.opensanctions_service import OpenSanctionsService
+            svc = OpenSanctionsService(timeout=self.TIMEOUT)
+            matches = svc.check_person(full_name, birth_date=birth_date)
+
+            if not matches:
+                # Checked successfully, no matches
+                return [SanctionsResult(
+                    source_name='OpenSanctions',
+                    checked=True,
+                    found=False,
+                    url='https://opensanctions.org/',
+                )]
+
+            results = []
+            for m in matches:
+                d = m.to_sanctions_dict()
+                results.append(SanctionsResult(
+                    source_name=d['source_name'],
+                    checked=True,
+                    found=True,
+                    match_details=d['match_details'],
+                    url=d['url'],
+                ))
+            return results
+
+        except Exception as e:
+            logger.warning(f"OpenSanctions check error: {e}")
+            return [SanctionsResult(
+                source_name='OpenSanctions',
+                checked=False,
+                found=False,
+                error=f'Ошибка: {e}',
+                url='https://opensanctions.org/',
+            )]
+
+    # ── Primary: Local MVD Database ────────────────────────────────
+
+    def _check_mvd_local(self, full_name: str) -> SanctionsResult:
+        """Check local MVD wanted persons database."""
+        try:
+            from app.services.candidate.local_security_db import LocalSecurityDB
+            db = LocalSecurityDB()
+
+            if not db.has_mvd_data():
+                return SanctionsResult(
+                    source_name='МВД — розыск',
+                    checked=False,
+                    found=False,
+                    error='Локальная база МВД не загружена',
+                    url='https://xn--b1aew.xn--p1ai/wanted',
+                )
+
+            matches = db.check_mvd_wanted(full_name)
+            if matches:
+                details = matches[0].to_sanctions_dict()
+                return SanctionsResult(
+                    source_name='МВД — розыск',
+                    checked=True,
+                    found=True,
+                    match_details=details['match_details'],
+                    url=details['url'],
+                )
+
+            return SanctionsResult(
+                source_name='МВД — розыск',
+                checked=True,
+                found=False,
+                url='https://xn--b1aew.xn--p1ai/wanted',
+            )
+
+        except Exception as e:
+            logger.warning(f"Local MVD check error: {e}")
+            return SanctionsResult(
+                source_name='МВД — розыск',
+                checked=False,
+                found=False,
+                error=f'Ошибка: {e}',
+                url='https://xn--b1aew.xn--p1ai/wanted',
+            )
+
+    # ── Primary: Local Extremist Database ──────────────────────────
+
+    def _check_extremist_local(self, full_name: str) -> SanctionsResult:
+        """Check local extremist list database."""
+        try:
+            from app.services.candidate.local_security_db import LocalSecurityDB
+            db = LocalSecurityDB()
+
+            if not db.has_extremist_data():
+                return SanctionsResult(
+                    source_name='Перечень экстремистов',
+                    checked=False,
+                    found=False,
+                    error='Локальная база экстремистов не загружена',
+                    url='https://minjust.gov.ru/ru/extremist-materials/',
+                )
+
+            matches = db.check_extremist_list(full_name)
+            if matches:
+                details = matches[0].to_sanctions_dict()
+                return SanctionsResult(
+                    source_name='Перечень экстремистов',
+                    checked=True,
+                    found=True,
+                    match_details=details['match_details'],
+                    url=details['url'],
+                )
+
+            return SanctionsResult(
+                source_name='Перечень экстремистов',
+                checked=True,
+                found=False,
+                url='https://minjust.gov.ru/ru/extremist-materials/',
+            )
+
+        except Exception as e:
+            logger.warning(f"Local extremist check error: {e}")
+            return SanctionsResult(
+                source_name='Перечень экстремистов',
+                checked=False,
+                found=False,
+                error=f'Ошибка: {e}',
+                url='https://minjust.gov.ru/ru/extremist-materials/',
+            )
+
+    # ── Fallback Source 1: Росфинмониторинг ────────────────────────
 
     def _check_rosfinmonitoring(self, full_name: str) -> SanctionsResult:
         """

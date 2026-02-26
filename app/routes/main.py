@@ -13,8 +13,64 @@ logger = logging.getLogger('ibp.routes.main')
 
 @main_bp.route('/health')
 def health_check():
-    """Health check for Render.com / uptime monitors."""
-    return jsonify({'status': 'ok'}), 200
+    """Health check with service status."""
+    import os
+    import subprocess
+    from app import db as _db
+
+    # Database connectivity
+    db_ok = False
+    try:
+        _db.session.execute(_db.text('SELECT 1'))
+        db_ok = True
+    except Exception:
+        pass
+
+    # Git version (or VERSION file)
+    version = 'unknown'
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--short', 'HEAD'],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            version = result.stdout.strip()
+    except Exception:
+        version_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'VERSION')
+        if os.path.exists(version_file):
+            with open(version_file) as f:
+                version = f.read().strip()
+
+    # Key service status
+    services = {
+        'vk_token': bool(os.environ.get('VK_SERVICE_TOKEN')),
+        'telegram': bool(os.environ.get('TELEGRAM_API_ID') and os.environ.get('TELEGRAM_API_HASH')),
+        'ok_token': bool(os.environ.get('OK_SESSION_TOKEN')),
+    }
+
+    # OpenSanctions API reachable?
+    opensanctions_ok = False
+    try:
+        from app.services.candidate.opensanctions_service import OpenSanctionsService
+        opensanctions_ok = OpenSanctionsService(timeout=5).is_reachable()
+    except Exception:
+        pass
+
+    # Local security data files present?
+    data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'data')
+    local_data = {
+        'mvd_wanted': os.path.exists(os.path.join(data_dir, 'mvd_wanted.json')),
+        'extremist_list': os.path.exists(os.path.join(data_dir, 'extremist_list.json')),
+    }
+
+    return jsonify({
+        'status': 'ok' if db_ok else 'degraded',
+        'version': version,
+        'database': db_ok,
+        'services': services,
+        'opensanctions': opensanctions_ok,
+        'local_data': local_data,
+    }), 200 if db_ok else 503
 
 
 @main_bp.route('/')
