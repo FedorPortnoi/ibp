@@ -10,6 +10,8 @@ from flask import Flask, render_template, session, redirect, url_for, request, j
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -19,6 +21,11 @@ load_dotenv()
 db = SQLAlchemy()
 migrate = Migrate()
 csrf = CSRFProtect()
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["120 per minute"],
+    storage_uri="memory://",
+)
 
 logger = logging.getLogger('ibp')
 
@@ -55,11 +62,13 @@ def create_app(config_name=None):
     # Testing overrides
     if config_name == 'testing':
         app.config['WTF_CSRF_ENABLED'] = False
+        app.config['RATELIMIT_ENABLED'] = False
 
     # Initialize extensions with app
     db.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
+    limiter.init_app(app)
 
     # Create required directories
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -116,6 +125,23 @@ def create_app(config_name=None):
                 session['next_url'] = request.url
             return redirect(url_for('auth.login'))
 
+    # Security headers on all responses
+    @app.after_request
+    def set_security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; "
+            "img-src 'self' data: https: blob:; "
+            "connect-src 'self'; "
+            "frame-ancestors 'self'"
+        )
+        return response
+
     # Register error handlers
     @app.errorhandler(404)
     def not_found(e):
@@ -125,6 +151,12 @@ def create_app(config_name=None):
     def server_error(e):
         logger.error(f"500 error: {e}", exc_info=True)
         return render_template('errors/500.html'), 500
+
+    @app.errorhandler(429)
+    def ratelimit_handler(e):
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'error': 'Слишком много запросов. Попробуйте позже.'}), 429
+        return render_template('errors/500.html'), 429
 
     # Create database tables
     with app.app_context():

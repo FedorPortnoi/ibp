@@ -13,7 +13,7 @@ from datetime import datetime, date
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, current_app, make_response
 
-from app import db
+from app import db, limiter
 from app.models.candidate_check import CandidateCheck
 from app.services.candidate.pipeline import candidate_tasks, CandidateTaskStatus, run_candidate_pipeline, cleanup_old_tasks
 
@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 @candidate_bp.route('/start', methods=['POST'])
+@limiter.limit("10 per minute")
 def start_check():
     """
     Start a candidate background check.
@@ -318,6 +319,7 @@ def delete_check(check_id):
 
 
 @candidate_bp.route('/export/<check_id>/json')
+@limiter.limit("5 per minute")
 def export_json(check_id):
     """Export dossier as downloadable JSON file."""
     check = CandidateCheck.query.get(check_id)
@@ -389,6 +391,7 @@ def export_json(check_id):
 
 
 @candidate_bp.route('/export/<check_id>/pdf')
+@limiter.limit("5 per minute")
 def export_pdf(check_id):
     """Export dossier as PDF via Playwright (Chromium)."""
     try:

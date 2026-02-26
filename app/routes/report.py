@@ -11,6 +11,8 @@ from datetime import datetime
 import json
 import io
 
+from app import limiter
+
 report_bp = Blueprint('report', __name__, url_prefix='/report')
 logger = logging.getLogger(__name__)
 
@@ -258,6 +260,7 @@ def generate():
 
 
 @report_bp.route('/download/html', methods=['POST'])
+@limiter.limit("5 per minute")
 def download_html():
     """Download identity card as HTML file."""
     try:
@@ -284,6 +287,7 @@ def download_html():
 
 
 @report_bp.route('/download/pdf', methods=['POST'])
+@limiter.limit("5 per minute")
 def download_pdf():
     """Download investigation report as PDF."""
     try:
@@ -313,6 +317,7 @@ def download_pdf():
 
 
 @report_bp.route('/download/json', methods=['POST'])
+@limiter.limit("5 per minute")
 def download_json():
     """Download investigation data as JSON."""
     try:

@@ -15,6 +15,8 @@ import time
 from datetime import datetime
 from flask import Blueprint, request, jsonify, render_template
 
+from app import limiter
+
 logger = logging.getLogger(__name__)
 
 api_search_bp = Blueprint('api_search', __name__, url_prefix='/api/search')
@@ -27,6 +29,7 @@ def search_page():
 
 
 @api_search_bp.route('/vk', methods=['POST'])
+@limiter.limit("30 per minute")
 def search_vk():
     """
     VK People Search — uses existing BuratinoVKSearch pipeline.
@@ -97,6 +100,7 @@ def search_vk():
 
 
 @api_search_bp.route('/telegram', methods=['POST'])
+@limiter.limit("30 per minute")
 def search_telegram():
     """
     Telegram Discovery — three methods:

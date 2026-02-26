@@ -13,6 +13,8 @@ from flask import (
     url_for, session, flash, current_app, jsonify
 )
 
+from app import limiter
+
 logger = logging.getLogger('ibp.auth')
 
 auth_bp = Blueprint('auth', __name__)
@@ -57,6 +59,7 @@ def login_required(f):
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
 def login():
     """Login page."""
     if not is_auth_enabled():

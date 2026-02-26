@@ -18,7 +18,7 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 # All API keys that should be loaded from os.environ at app creation time.
 # Keyed by Flask config name -> (env var name, default value).
 _ENV_KEYS = {
-    # Flask core
+    # Flask core (consolidated — use SECRET_KEY only; FLASK_SECRET_KEY kept as fallback)
     'SECRET_KEY': [('SECRET_KEY', None), ('FLASK_SECRET_KEY', None)],
     'DATABASE_URL': ('DATABASE_URL', None),
 
