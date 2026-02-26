@@ -137,12 +137,19 @@ def check_telethon():
         api_id = os.environ.get('TELEGRAM_API_ID')
         if not api_id:
             return 'warn', 'Telethon: Installed but TELEGRAM_API_ID not set'
-        # Check for session files
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        session_files = [f for f in os.listdir(os.path.join(base_dir, '..')) if f.endswith('.session')]
-        if session_files:
-            return 'ok', f'Telethon: Session found ({session_files[0]})'
-        return 'warn', 'Telethon: Configured but no session file'
+
+        # Check session file at canonical location: tg_session/ibp_session.session
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        project_root = os.path.join(project_root, '..')
+        session_file = os.path.join(project_root, 'tg_session', 'ibp_session.session')
+        session_file = os.path.normpath(session_file)
+
+        if os.path.exists(session_file):
+            size_kb = os.path.getsize(session_file) / 1024
+            if size_kb < 0.1:
+                return 'warn', f'Telethon: Session file corrupt ({size_kb:.1f} KB) -- run: python scripts/auth_telegram.py'
+            return 'ok', f'Telethon: Session found ({size_kb:.1f} KB)'
+        return 'warn', 'Telethon: No session -- run: python scripts/auth_telegram.py'
     except ImportError:
         return 'warn', 'Telethon: Not installed -- Telegram features disabled'
     except Exception:

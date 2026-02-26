@@ -325,8 +325,8 @@ class TelegramDiscoveryService:
 
                 if not await client.is_user_authorized():
                     logger.warning(
-                        "TG Method C: Telethon session not authorized. "
-                        "Run 'python scripts/telethon_auth.py' first."
+                        "TG Method C: Telethon session expired or not authorized. "
+                        "Run: python scripts/auth_telegram.py"
                     )
                     await client.disconnect()
                     return []

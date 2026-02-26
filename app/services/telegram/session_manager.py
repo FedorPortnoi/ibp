@@ -201,3 +201,60 @@ class TelegramSessionManager:
             'client_exists': cls._client is not None,
             'connected': cls._connected,
         }
+
+    @classmethod
+    def check_session_health(cls) -> dict:
+        """
+        Check if the Telegram session file exists and is valid.
+        Safe to call synchronously at startup. Does NOT create a client.
+
+        Returns:
+            {'valid': bool, 'message': str, 'session_path': str}
+        """
+        if not cls.is_configured():
+            return {
+                'valid': False,
+                'message': 'Telegram not configured (TELEGRAM_API_ID/HASH/PHONE not set)',
+                'session_path': None,
+            }
+
+        try:
+            from . import config
+            cfg = config.get_config()
+            session_path = cfg['session_path']
+            session_file = session_path + '.session'
+
+            import os
+            if not os.path.exists(session_file):
+                return {
+                    'valid': False,
+                    'message': (
+                        f'Telegram session file not found: {session_file}\n'
+                        'Run: python scripts/auth_telegram.py'
+                    ),
+                    'session_path': session_file,
+                }
+
+            # Check file size — empty or corrupt files are < 100 bytes
+            file_size = os.path.getsize(session_file)
+            if file_size < 100:
+                return {
+                    'valid': False,
+                    'message': (
+                        f'Telegram session file appears corrupt ({file_size} bytes)\n'
+                        'Run: python scripts/auth_telegram.py'
+                    ),
+                    'session_path': session_file,
+                }
+
+            return {
+                'valid': True,
+                'message': f'Session file exists ({file_size} bytes)',
+                'session_path': session_file,
+            }
+        except Exception as e:
+            return {
+                'valid': False,
+                'message': f'Session check error: {e}',
+                'session_path': None,
+            }

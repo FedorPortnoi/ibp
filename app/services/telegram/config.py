@@ -24,8 +24,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Base directory for session files
-_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Base directory for session files — unified to tg_session/ at project root
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+_SESSION_DIR = os.path.join(_PROJECT_ROOT, 'tg_session')
 
 # Configuration values (loaded from environment)
 API_ID = os.environ.get('TELEGRAM_API_ID', '')
@@ -33,7 +34,7 @@ API_HASH = os.environ.get('TELEGRAM_API_HASH', '')
 PHONE = os.environ.get('TELEGRAM_PHONE', '')
 SESSION_PATH = os.environ.get(
     'TELEGRAM_SESSION_PATH',
-    os.path.join(_BASE_DIR, 'ibp_session')
+    os.path.join(_SESSION_DIR, 'ibp_session')
 )
 
 
