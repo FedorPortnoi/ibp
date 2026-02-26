@@ -21,6 +21,12 @@ from bs4 import BeautifulSoup
 
 from app.utils.phone import normalize_phone
 
+try:
+    from playwright.sync_api import sync_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 PHONE_PATTERN = re.compile(
@@ -54,6 +60,7 @@ class MarketplaceListing:
     date: str = ""
     price: str = ""
     source: str = ""
+    category: str = ""  # listing category (reveals interests/profession)
 
 
 @dataclass
@@ -70,7 +77,8 @@ class ScannerResult:
             "source": self.source,
             "listings": [{"title": l.title, "url": l.url, "phone": l.phone,
                           "email": l.email, "seller_name": l.seller_name,
-                          "city": l.city, "date": l.date} for l in self.listings],
+                          "city": l.city, "date": l.date,
+                          "category": l.category} for l in self.listings],
             "phones_found": self.phones_found,
             "emails_found": self.emails_found,
         }
@@ -185,15 +193,43 @@ class MarketplaceScanner:
 
 
 class AvitoScanner(MarketplaceScanner):
-    """Avito.ru — largest Russian classifieds platform."""
+    """Avito.ru — largest Russian classifieds platform.
+
+    Two extraction modes:
+    1. HTTP (fast): Scrapes search results, extracts phones from listing text.
+       Phones are rarely visible in search results since Avito hides them.
+    2. Playwright (deep): Opens top listings, clicks "Показать номер" button
+       to reveal the seller's actual phone. Much more reliable but slower.
+    """
     name = "avito"
     base_url = "https://www.avito.ru"
+
+    # Max listings to deep-extract phones from via Playwright
+    MAX_DEEP_LISTINGS = 5
+
+    USER_AGENTS = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) '
+        'Gecko/20100101 Firefox/132.0',
+    ]
 
     def search_by_name(self, full_name: str, city: str = None) -> ScannerResult:
         self.logger.info("Avito: searching name='%s' city=%s", full_name, city)
         result = ScannerResult(source=self.name)
         region = quote_plus(city.lower()) if city else "rossiya"
         url = f"{self.base_url}/{region}?q={quote_plus(full_name)}"
+
+        # Try Playwright deep extraction first (clicks "Показать номер")
+        if PLAYWRIGHT_AVAILABLE:
+            try:
+                self._search_with_playwright(url, full_name, result)
+                if result.phones_found:
+                    return result
+            except Exception as exc:
+                self.logger.warning("Avito Playwright search failed: %s", exc)
+
+        # Fallback to HTTP scraping
         self._fetch_and_parse(
             url, result,
             item_sel='[data-marker="item"]',
@@ -203,9 +239,19 @@ class AvitoScanner(MarketplaceScanner):
         return result
 
     def search_by_phone(self, phone: str) -> ScannerResult:
+        """Search Avito by phone — confirms phone belongs to subject if listing name matches."""
         self.logger.info("Avito: searching phone='%s'", phone)
         result = ScannerResult(source=self.name)
         url = f"{self.base_url}/rossiya?q={quote_plus(phone)}"
+
+        if PLAYWRIGHT_AVAILABLE:
+            try:
+                self._search_with_playwright(url, phone, result)
+                if result.listings:
+                    return result
+            except Exception as exc:
+                self.logger.warning("Avito Playwright phone search failed: %s", exc)
+
         self._fetch_and_parse(
             url, result,
             item_sel='[data-marker="item"]',
@@ -213,6 +259,172 @@ class AvitoScanner(MarketplaceScanner):
             link_sel='a[itemprop="url"]',
         )
         return result
+
+    def _search_with_playwright(self, search_url: str, query: str,
+                                result: ScannerResult):
+        """Use Playwright to search Avito and extract phones by clicking 'Показать номер'.
+
+        Flow:
+        1. Navigate to search results page
+        2. Collect listing URLs from search results
+        3. For each listing (up to MAX_DEEP_LISTINGS):
+           a. Navigate to listing page
+           b. Click "Показать номер" button
+           c. Extract revealed phone number
+           d. Extract seller name, city, category
+        """
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True,
+                args=['--disable-blink-features=AutomationControlled'],
+            )
+            try:
+                context = browser.new_context(
+                    user_agent=random.choice(self.USER_AGENTS),
+                    locale='ru-RU',
+                    viewport={'width': 1280, 'height': 720},
+                )
+                page = context.new_page()
+                page.set_default_timeout(15000)
+
+                # Anti-detection
+                page.add_init_script(
+                    'Object.defineProperty(navigator, "webdriver", '
+                    '{get: () => undefined})'
+                )
+
+                # Navigate to search results
+                page.goto(search_url, wait_until='domcontentloaded')
+                time.sleep(random.uniform(2.0, 4.0))
+
+                # Check for anti-bot / CAPTCHA
+                body_text = page.locator('body').inner_text()
+                if 'captcha' in body_text.lower() or 'доступ ограничен' in body_text.lower():
+                    self.logger.warning("Avito: anti-bot detected on search page")
+                    result.errors.append("Avito anti-bot detected")
+                    return
+
+                # Collect listing URLs from search results
+                listing_links = page.locator(
+                    '[data-marker="item"] a[itemprop="url"], '
+                    '[data-marker="item"] [itemprop="name"]'
+                ).all()
+
+                listing_urls = []
+                for link in listing_links[:self.MAX_DEEP_LISTINGS * 2]:
+                    href = link.get_attribute('href')
+                    if href and '/item/' in href:
+                        full_url = urljoin(self.base_url, href)
+                        if full_url not in listing_urls:
+                            listing_urls.append(full_url)
+
+                self.logger.info("Avito: found %d listing URLs", len(listing_urls))
+
+                # Visit each listing and extract phone
+                for listing_url in listing_urls[:self.MAX_DEEP_LISTINGS]:
+                    try:
+                        self._extract_listing_phone(
+                            page, listing_url, result,
+                        )
+                    except Exception as exc:
+                        self.logger.debug("Avito listing extraction error: %s", exc)
+
+                    time.sleep(random.uniform(2.0, 5.0))
+
+            finally:
+                browser.close()
+
+    def _extract_listing_phone(self, page, listing_url: str,
+                               result: ScannerResult):
+        """Navigate to a single Avito listing and extract the phone number."""
+        page.goto(listing_url, wait_until='domcontentloaded')
+        time.sleep(random.uniform(1.5, 3.0))
+
+        listing = MarketplaceListing(source=self.name, url=listing_url)
+
+        # Extract title
+        title_el = page.locator('h1[itemprop="name"], h1[data-marker="item-view/title-info"]')
+        if title_el.count() > 0:
+            listing.title = title_el.first.inner_text().strip()
+
+        # Extract seller name
+        seller_el = page.locator(
+            '[data-marker="seller-info/name"], '
+            '[class*="seller-info"] [class*="name"], '
+            '[data-marker="item-view/seller-info"]'
+        )
+        if seller_el.count() > 0:
+            listing.seller_name = seller_el.first.inner_text().strip()
+
+        # Extract city from breadcrumbs or location
+        city_el = page.locator(
+            '[class*="geo-root"], '
+            '[data-marker="item-address"], '
+            '[class*="item-address"]'
+        )
+        if city_el.count() > 0:
+            listing.city = city_el.first.inner_text().strip()
+
+        # Extract price
+        price_el = page.locator(
+            '[itemprop="price"], '
+            '[data-marker="item-view/item-price"]'
+        )
+        if price_el.count() > 0:
+            listing.price = price_el.first.inner_text().strip()
+
+        # Click "Показать номер" to reveal phone
+        show_phone_btn = page.locator(
+            '[data-marker="item-phone-button/phone-button"], '
+            'button:has-text("Показать"), '
+            '[class*="phone-button"]'
+        )
+        if show_phone_btn.count() > 0:
+            try:
+                show_phone_btn.first.click()
+                time.sleep(random.uniform(1.0, 2.0))
+
+                # After click, phone appears in a container
+                phone_el = page.locator(
+                    '[data-marker="item-phone-button/phone"], '
+                    'a[href^="tel:"], '
+                    '[class*="phone-number"]'
+                )
+                if phone_el.count() > 0:
+                    raw_phone = phone_el.first.inner_text().strip()
+                    phones = self._extract_phones(raw_phone)
+                    if phones:
+                        listing.phone = phones[0]
+                        result.phones_found.extend(phones)
+                        self.logger.info(
+                            "Avito: extracted phone %s from '%s'",
+                            phones[0], listing.title[:50],
+                        )
+                else:
+                    # Try extracting from href="tel:..." links
+                    tel_links = page.locator('a[href^="tel:"]')
+                    if tel_links.count() > 0:
+                        href = tel_links.first.get_attribute('href') or ''
+                        raw_phone = href.replace('tel:', '')
+                        phones = self._extract_phones(raw_phone)
+                        if phones:
+                            listing.phone = phones[0]
+                            result.phones_found.extend(phones)
+            except Exception as exc:
+                self.logger.debug("Avito phone reveal failed: %s", exc)
+
+        # Also extract email from page text
+        page_text = page.locator('body').inner_text()
+        emails = self._extract_emails(page_text)
+        if emails:
+            listing.email = emails[0]
+            result.emails_found.extend(emails)
+
+        if listing.title:
+            result.listings.append(listing)
+
+        result.phones_found = list(dict.fromkeys(result.phones_found))
+        result.emails_found = list(dict.fromkeys(result.emails_found))
 
 
 class YoulaScanner(MarketplaceScanner):
@@ -512,6 +724,7 @@ class MarketplaceOracle:
         all_phones: List[dict] = []
         all_emails: List[dict] = []
         all_listings: List[dict] = []
+        all_cities: List[str] = []  # city data for Stage 6 geo intelligence
         seen_p: Set[str] = set()
         seen_e: Set[str] = set()
         for scanner in self.scanners:
@@ -535,9 +748,15 @@ class MarketplaceOracle:
                                            "confidence": conf - 0.05})
                 for l in sr.listings:
                     all_listings.append(l.__dict__)
+                    # Collect city data for geo intelligence
+                    if l.city and l.city.strip():
+                        all_cities.append(l.city.strip())
             except Exception as exc:
                 self.logger.error("Scanner %s failed: %s", scanner.name, exc, exc_info=True)
-        return {"phones": all_phones, "emails": all_emails, "listings": all_listings}
+        return {
+            "phones": all_phones, "emails": all_emails,
+            "listings": all_listings, "cities": all_cities,
+        }
 
     # --- Demo data ---
 
