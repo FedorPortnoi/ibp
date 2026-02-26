@@ -65,28 +65,7 @@ def export_pdf(investigation_id):
     if 'error' in dossier:
         return jsonify(dossier), 404
 
-    # Try WeasyPrint
-    try:
-        import weasyprint
-        html_content = render_template('dossier.html', print_mode=True, **dossier)
-        pdf_bytes = weasyprint.HTML(string=html_content).write_pdf()
-
-        return Response(
-            pdf_bytes,
-            mimetype='application/pdf',
-            headers={
-                'Content-Disposition': (
-                    f'attachment; filename=dossier_{investigation_id[:8]}'
-                    f'_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
-                )
-            }
-        )
-    except ImportError:
-        logger.info("WeasyPrint not available, returning print-ready HTML")
-    except Exception as e:
-        logger.warning(f"WeasyPrint PDF generation failed: {e}")
-
-    # Fallback: render print-ready HTML page with auto-print
+    # Render print-ready HTML page (use browser print-to-PDF)
     html_content = render_template('dossier.html', print_mode=True, **dossier)
     return Response(
         html_content,

@@ -1712,7 +1712,7 @@ class CombinedPhoneSources:
 
         # Validate against target name if provided
         if target_name and results['names_found']:
-            from app.services.phase2.per_profile_search import calculate_name_similarity
+            from app.utils.name_similarity import calculate_name_similarity
             best_match = 0.0
             best_name = None
             for name_info in results['names_found']:
