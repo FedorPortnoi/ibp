@@ -40,25 +40,25 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 @pytest.fixture
 def app():
     """Create Flask app with test config, auth disabled."""
-    # Save original env, set test overrides BEFORE create_app()
-    saved_env = {}
-    env_overrides = {
-        'IBP_PASSWORD': '',
-        'IBP_PASSWORD_HASH': '',
-        'DATABASE_URL': 'sqlite:///:memory:',
-    }
-    for k, v in env_overrides.items():
-        saved_env[k] = os.environ.get(k)
-        if v:
-            os.environ[k] = v
-        else:
-            os.environ.pop(k, None)
-
     from app import create_app, db
+
+    # Save and override DATABASE_URL BEFORE create_app
+    saved_db_url = os.environ.get('DATABASE_URL')
+    os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
+
+    # Create app (imports trigger load_dotenv which may restore .env values)
     app = create_app()
     app.config['TESTING'] = True
     app.config['WTF_CSRF_ENABLED'] = False
     app.config['SECRET_KEY'] = 'test-secret-key'
+
+    # Disable auth AFTER create_app — load_dotenv in service imports restores .env values
+    saved_auth = {
+        'IBP_PASSWORD': os.environ.get('IBP_PASSWORD'),
+        'IBP_PASSWORD_HASH': os.environ.get('IBP_PASSWORD_HASH'),
+    }
+    os.environ.pop('IBP_PASSWORD', None)
+    os.environ.pop('IBP_PASSWORD_HASH', None)
 
     with app.app_context():
         yield app
@@ -66,11 +66,15 @@ def app():
         db.drop_all()
 
     # Restore original env
-    for k, v in saved_env.items():
+    for k, v in saved_auth.items():
         if v is None:
             os.environ.pop(k, None)
         else:
             os.environ[k] = v
+    if saved_db_url is None:
+        os.environ.pop('DATABASE_URL', None)
+    else:
+        os.environ['DATABASE_URL'] = saved_db_url
 
 
 @pytest.fixture
@@ -1206,9 +1210,7 @@ class TestPhase2Routes:
         """POST /phase2/start should return task_id on success."""
         profiles = [{'platform': 'vk', 'username': 'test', 'url': 'https://vk.com/test'}]
 
-        with patch('app.routes.phase2.threading.Thread') as mock_thread:
-            mock_thread.return_value = MagicMock()
-
+        with patch('app.routes.phase2.run_phase2_task'):
             response = client.post('/phase2/start',
                                  json={'selected_profiles': profiles,
                                        'target_name': 'Test User'},
