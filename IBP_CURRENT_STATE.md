@@ -2,7 +2,7 @@
 
 **Last updated**: 2026-02-26
 **Branch**: `main`
-**Latest commit**: `293e068` feat: production-ready overhaul — 9 new services, confidence scoring, mock removal
+**Latest commit**: `cea8dc1` fix: test fixture auth race — pop env vars after create_app
 
 ---
 
@@ -10,22 +10,22 @@
 
 | Metric | Count |
 |--------|-------|
-| Python files (app/) | 107 |
-| Lines of code (app/) | 52,612 |
+| Python files (app/) | 111 |
+| Lines of code (app/) | 46,762 |
 | HTML templates | 29 |
 | Template lines | 11,171 |
-| Test files | 67 |
-| Test functions | ~2,980 |
-| Test lines | 37,899 |
+| Test files | 66 |
+| Test functions | ~3,014 |
+| Test lines | 38,401 |
 | Database models | 7 |
 | Route blueprints | 13 |
-| Service classes | 170 |
-| Total endpoints | 60+ |
+| Service classes | ~91 |
+| Total endpoints | 87 |
 | Pipeline stages | 8 |
 | Contact discovery steps | 11 |
 
-**Total source files**: 203 (app/ + tests/ + templates)
-**Total lines**: ~101,700 (app + tests + templates)
+**Total source files**: 206 (app/ + tests/ + templates)
+**Total lines**: ~96,334 (app + tests + templates)
 
 ---
 
@@ -39,7 +39,7 @@
 | 2. Security Checks | Yes | **OpenSanctions** + Interpol + local DBs work globally | Empty results | Local MVD/extremist JSON + OpenSanctions = no geo-block needed |
 | 3. Social Media | Yes | VK + Telegram + OK work | 3 fake VK + 3 fake OK profiles | Yandex may timeout (CAPTCHA) |
 | 4. Contact Discovery | Yes | 11-step chain fully wired | Empty results | Gosuslugi/Sberbank oracle checkers skipped by default (geo-restricted) |
-| 5. Social Analysis | Yes | Search4Faces + graph + Snoop + **Maigret** + **Sherlock** | Demo graph data | Maigret/Sherlock pip-installable, run in parallel with Snoop |
+| 5. Social Analysis | Yes | Search4Faces + graph + Snoop + **Maigret** + **Sherlock** | Demo graph data | Maigret/Sherlock pip-installable, run in parallel with Snoop via ThreadPoolExecutor |
 | 6. Behavioral Analysis | Yes | Text/geo/timeline work | Demo data | Requires VK wall access |
 | 7. Risk Scoring | Yes | 8 categories scored | Scores empty data | Always produces a level |
 | 8. Report Generation | Yes | Full dossier + PDF | Works with any data | Identity card, vis.js graph, geo map |
@@ -54,11 +54,11 @@
 | 4 | Email guessing (username + transliteration) | `email_guess` | 0.40 |
 | 5 | LeakDB name lookup | `leak_db` | 0.65 |
 | 6 | Breach API enrichment (HudsonRock, LeakCheck, ProxyNova) | `breach_api` | 0.60 |
-| 7 | LeakDB cross-reference (phone→email, email→phone) | `leak_db_xref` | 0.55 |
+| 7 | LeakDB cross-reference (phone->email, email->phone) | `leak_db_xref` | 0.55 |
 | 8 | Forgot-password oracle (6 global + 2 geo-restricted) | `forgot_password_*` | 0.78-0.90 |
 | 9 | Marketplace mining (6 platforms) | `marketplace` | 0.90 |
 | 10 | Holehe email verification | `holehe_verified` | 0.80 |
-| 11 | Deduplicate + merge sources + cross-source boost | — | +0.15 boost |
+| 11 | Deduplicate + merge sources + cross-source boost | -- | +0.15 boost |
 
 ### Confidence Scoring System
 
@@ -116,41 +116,58 @@ These features work without any API keys configured:
 | kad.arbitr.ru (arbitration) | HTTP 451 blocked entirely |
 | Forgot-password oracle (Gosuslugi, Sberbank) | Geo-blocked, returns empty |
 
-**Works globally**: nalog.ru EGRUL, sudact.ru courts, Interpol, VK API, Telegram API, all breach APIs, Search4Faces, OK.ru demo, Holehe, marketplace scanners
+**Works globally**: nalog.ru EGRUL, sudact.ru courts, Interpol, VK API, Telegram API, all breach APIs, Search4Faces, OK.ru demo, Holehe, marketplace scanners, OpenSanctions, checko.ru, casebook.ru
 
 ---
 
-## New Services Added (2026-02-26)
+## Security Hardening (Added 2026-02-26)
 
-### Forgot-Password Oracle (`app/services/phase2/forgot_password_oracle.py`)
-- **8 Russian service checkers**: VK, Mail.ru, Yandex, OK, Gosuslugi, Telegram, Avito, Sberbank
-- Submits phone/email to password recovery endpoints
-- Extracts masked hints (e.g., "i***@mail.ru", "+7***567")
-- Cross-correlates hints across services for multi-source confirmation
-- Wired into contact discovery Step 8
+### Rate Limiting (Flask-Limiter)
+- Global default: 120 requests/minute
+- `/candidate/start`: 10/minute
+- Candidate export endpoints: 5/minute
+- `/api/search`: 30/minute
+- Auth login: 10/minute
+- Dossier/report exports: 5/minute
+- 429 handler returns Russian error message for JSON/AJAX requests
+- Disabled in testing config
 
-### Marketplace Scanner (`app/services/phase2/marketplace_scanner.py`)
-- **6 platform scanners**: Avito, Youla, CIAN, Auto.ru, Yandex Search, VK Market
-- Searches by name and confirmed phone numbers
-- Extracts phone numbers from classified listings
-- Wired into contact discovery Step 9
+### CSRF Protection (Flask-WTF)
+- `CSRFProtect()` initialized in app factory
+- `csrf_token()` in all forms: login, candidate confirm, candidate history, people search
+- CSRF meta tag + JS fetch interceptor in `base.html` for AJAX requests
+- Disabled in testing config
 
-### OK.ru Search Integration (`app/services/phase1/ok_search_integration.py`)
-- Odnoklassniki people search with web scraping
-- Demo mode generates 3 reproducible fake profiles when `OK_SESSION_TOKEN` is not set
-- Name similarity scoring with `difflib.SequenceMatcher`
-- Wired into Phase 1 route alongside VK search
+### Security Headers
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: SAMEORIGIN`
+- `X-XSS-Protection: 1; mode=block`
+- Full `Content-Security-Policy`
 
-### Enhanced VK Wall Extractor
-- Tagged posts scanning (`wall.get filter=others`) — posts by others on subject's wall
-- Photo comments scanning (`photos.getComments`)
-- Expanded profile fields: Instagram, Skype, career/employer, Facebook, Twitter, LiveJournal
-- Increased scan limits: 50 comments per post, 500 total, 50 posts scanned
+---
 
-### Enhanced Email Generator
-- Corporate email patterns from VK career/employer data
-- Skype-to-email correlation (Microsoft account domains)
-- Expanded domain list: outlook.com, hotmail.com, internet.ru, icloud.com
+## Services Added Since Initial Release
+
+### Global Source Replacements (Stage 1-2)
+- **checko.ru** (`app/services/phase3/checko_service.py`) — Primary FSSP alternative, globally accessible
+- **casebook.ru** (`app/services/phase3/casebook_service.py`) — Arbitration courts, replaces geo-blocked kad.arbitr.ru
+- **OpenSanctions** (`app/services/candidate/opensanctions_service.py`) — Global sanctions (Rosfinmonitoring + OFAC + EU + UN + Interpol)
+- **Local security DBs** (`app/services/candidate/local_security_db.py`) — Offline MVD wanted + extremist JSON databases
+
+### Username Search Tools (Stage 5)
+- **Maigret** (`app/services/maigret_search.py`) — 3,000+ sites, pip-installable, wired into social_analysis.py
+- **Sherlock** (`app/services/sherlock_search.py`) — 400+ sites, pip-installable, wired into social_analysis.py
+- Both run in parallel with Snoop via `ThreadPoolExecutor` in Stage 5
+
+### Contact Discovery Enhancements (Stage 4)
+- **Forgot-Password Oracle** (`app/services/phase2/forgot_password_oracle.py`) — 8 Russian service checkers (VK, Mail.ru, Yandex, OK, Gosuslugi, Telegram, Avito, Sberbank). Extracts masked hints, cross-correlates across services.
+- **Marketplace Scanner** (`app/services/phase2/marketplace_scanner.py`) — 6 platforms (Avito, Youla, CIAN, Auto.ru, Yandex Search, VK Market). Searches by name and phone.
+- **OK.ru Search** (`app/services/phase1/ok_search_integration.py`) — Odnoklassniki people search with demo mode (3 fake profiles when `OK_SESSION_TOKEN` unset)
+- **Enhanced VK Wall Extractor** — Tagged posts, photo comments, expanded profile fields (Instagram, Skype, career, Facebook, Twitter, LiveJournal)
+- **Enhanced Email Generator** — Corporate patterns from VK career data, Skype-to-email, expanded domain list
+
+### Utilities
+- **Name Similarity** (`app/utils/name_similarity.py`) — Extracted from deleted per_profile_search.py
 
 ---
 
@@ -159,8 +176,6 @@ These features work without any API keys configured:
 | Feature | Status |
 |---------|--------|
 | Instagram/Facebook/Twitter/TikTok search | Not implemented |
-| Maigret integration | External tool, not wired into pipeline |
-| Sherlock integration | External tool, not wired into pipeline |
 | Property registry (Rosreestr) | Not implemented |
 | Vehicle registry (GIBDD) | Not implemented |
 | Passport verification (FMS) | Not implemented |
@@ -168,6 +183,19 @@ These features work without any API keys configured:
 | Real-time monitoring | One-shot only |
 | Multi-user RBAC | Single-user design |
 | Compliance audit logs | Basic file logging only |
+
+---
+
+## Deployment Infrastructure
+
+| File | Purpose |
+|------|---------|
+| `Dockerfile` | python:3.12-slim + Playwright + Chromium + maigret + sherlock (pip) + gunicorn, non-root `ibp` user |
+| `docker-compose.yml` | Port 80:5000, SQLite/leaks volume mounts, `.env` file, health check |
+| `deploy.sh` | git pull -> docker compose build -> restart -> health check (5 retries) |
+| `render.yaml` | Render free tier, gunicorn, auto-generated SECRET_KEY, Python 3.11.11 |
+| `.env.example` | Full documented environment variable template |
+| `.dockerignore` | Build context exclusions |
 
 ---
 
@@ -193,22 +221,21 @@ Excluded from count:
 ### P0 — Deploy to Production
 1. **Get a Russian VPS/proxy** — Many data sources are geo-blocked
 2. **Paste paid API keys** — Snusbase, DeHashed, GetContact, etc.
-3. **Deploy to Render** — Verify production config, health checks
+3. **Deploy via Docker** — Dockerfile + docker-compose ready, verify health checks
 
 ### P1 — High Value
-4. **Wire Snoop/Maigret into Stage 5** — External tools exist locally, need subprocess integration
-5. **Rate limiting** — Add Flask-Limiter to public endpoints
-6. **Russian IP proxy config** — SOCKS5 proxy for geo-blocked sources
+4. **Russian IP proxy config** — SOCKS5 proxy for geo-blocked sources
+5. **Instagram/Twitter/TikTok** — Requires new scraping services
+6. **SourceManager plugin auto-discovery in Stage 4** — Replace manual chain with plugin system
 
 ### P2 — Medium Value
-7. **Instagram/Twitter/TikTok** — Requires new scraping services
-8. **SourceManager plugin auto-discovery in Stage 4** — Replace manual chain with plugin system
-9. **Improve E2E test coverage** — Full Playwright test of candidate check flow with real data
+7. **Improve E2E test coverage** — Full Playwright test of candidate check flow with real data
+8. **Property/Vehicle registries** — Requires Russian government API access
+9. **Multi-user auth** — Flask-Login with user roles
 
 ### P3 — Nice to Have
-10. **Property/Vehicle registries** — Requires Russian government API access
-11. **Multi-user auth** — Flask-Login with user roles
-12. **Real-time monitoring** — Periodic re-checks with change detection
+10. **Real-time monitoring** — Periodic re-checks with change detection
+11. **Compliance audit logs** — Structured logging for investigations
 
 ---
 
@@ -216,14 +243,31 @@ Excluded from count:
 
 | Issue | Impact | Fix Effort |
 |-------|--------|-----------|
-| `per_profile_search.py` (2,695 lines) | Dead code, superseded by combined_search | Delete after confirming no imports |
-| OSINT knowledge routes (5,354 lines) | Massive static data in route files | Move to JSON/YAML data files |
-| No CSRF on all forms | Security gap | Add Flask-WTF csrf_token to all forms |
-| No rate limiting | DoS vulnerability | Add Flask-Limiter |
-| Error handler returns exception details | Information disclosure | Strip details in production |
-| WeasyPrint reference in dossier.py | Always fails on Windows | Remove, use Playwright only |
-| Duplicate SECRET_KEY / FLASK_SECRET_KEY | Confusing | Consolidate to one var |
-| pytest I/O error running full suite at once | Windows stderr issue | Run test files individually |
+| Error handler returns exception details | Information disclosure in production | Strip details in production mode |
+| pytest I/O error running full suite at once | Windows stderr issue | Run test files individually, use `-p no:faulthandler` |
+
+### Resolved Technical Debt
+| Issue | Resolution |
+|-------|-----------|
+| `per_profile_search.py` (2,695 lines dead code) | Deleted in `0a80c02`. `calculate_name_similarity()` extracted to `app/utils/name_similarity.py` |
+| OSINT knowledge routes (~5,354 lines dead code) | Deleted in `0a80c02` (`osint_knowledge.py` + `osint_knowledge_gaps.py`) |
+| WeasyPrint references in dossier.py | Removed in `0a80c02`. PDF uses Playwright only |
+| Duplicate SECRET_KEY / FLASK_SECRET_KEY | Consolidated in config.py — uses SECRET_KEY with FLASK_SECRET_KEY as fallback |
+| No CSRF on forms | Flask-WTF `CSRFProtect` wired, all forms have `csrf_token()` |
+| No rate limiting | Flask-Limiter wired with per-endpoint limits |
+
+---
+
+## Recent Commit History
+
+```
+cea8dc1 fix: test fixture auth race — pop env vars after create_app
+d041749 feat: replace geo-blocked sources with global alternatives, add deployment + tool integrations
+0a80c02 chore: remove dead code — per_profile_search, OSINT knowledge, WeasyPrint
+fad8ca8 feat: add security hardening — rate limiting, security headers, CSRF
+b77350b fix: remove unsupported count kwarg from VKWebSearch.search() call
+293e068 feat: production-ready overhaul — 9 new services, confidence scoring, mock removal
+```
 
 ---
 
@@ -233,13 +277,16 @@ Excluded from count:
 main (production-ready)
   ├── 8-stage pipeline fully wired
   ├── 11-step contact discovery chain
+  ├── Maigret + Sherlock + Snoop username search (parallel, Stage 5)
+  ├── OpenSanctions + local MVD/extremist DBs (no geo-block)
+  ├── checko.ru + casebook.ru (global FSSP/court alternatives)
   ├── Forgot-password oracle (8 services)
   ├── Marketplace scanner (6 platforms)
   ├── OK.ru search integration
-  ├── Enhanced VK wall extractor (tagged posts, photo comments, social fields)
   ├── Numeric confidence scoring (0.0-1.0) with cross-source boost
+  ├── Security hardening (rate limiting + CSRF + security headers)
+  ├── Docker deployment ready (Dockerfile + compose + deploy.sh + render.yaml)
+  ├── ~8,050 lines dead code removed
   ├── All mock data removed — services return empty without keys
-  ├── Rusprofile graceful error handling (403/404/429)
-  ├── FSSP Playwright retry (2 attempts)
   └── 3,756 tests passing, 0 failures
 ```
