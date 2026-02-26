@@ -438,12 +438,15 @@ def find_usernames_for_names(
 
 def run_oracle_on_usernames(
     usernames: List[Tuple[str, str]],
+    checker: Optional[VKUsernameForgotChecker] = None,
 ) -> List[OracleTestResult]:
     """
     Run VKUsernameForgotChecker on each username.
+    Reuses checker instance to benefit from rate-limit short-circuit.
     Returns list of OracleTestResult.
     """
-    checker = VKUsernameForgotChecker(timeout=30)
+    if checker is None:
+        checker = VKUsernameForgotChecker(timeout=30)
     results: List[OracleTestResult] = []
 
     for username, source_name in usernames:
@@ -520,13 +523,17 @@ def run_oracle_on_usernames(
                 ))
             else:
                 # Account exists but unrecognized response
+                # Include body_preview from raw_data for debugging
+                preview = ''
+                if fp_result.raw_data and 'body_preview' in fp_result.raw_data:
+                    preview = fp_result.raw_data['body_preview'][:100]
                 results.append(OracleTestResult(
                     username=username,
                     source_name=source_name,
                     result_type='account_exists',
                     hint_type='unknown',
                     elapsed_seconds=elapsed,
-                    error=f'exists=True unrecognized (confidence={fp_result.confidence})',
+                    error=f'unrecognized (conf={fp_result.confidence}) body={preview!r}',
                 ))
 
         except Exception as e:
@@ -567,7 +574,7 @@ def format_round_report(report: RoundReport) -> str:
     col_result = 16
     col_hint = 12
     col_time = 10
-    col_detail = 30
+    col_detail = 60
     header = (
         f"+{'-' * col_user}+{'-' * col_result}+{'-' * col_hint}"
         f"+{'-' * col_time}+{'-' * col_detail}+"
@@ -688,6 +695,8 @@ class TestForgotPasswordOracleLive:
         used_usernames: set = set()
         all_rounds: List[RoundReport] = []
         best_rate = 0.0
+        # Shared checker instance — rate-limit flag persists across rounds
+        checker = VKUsernameForgotChecker(timeout=30)
 
         for round_num in range(1, MAX_ROUNDS + 1):
             names = ROUND_NAMES[round_num]
@@ -714,8 +723,8 @@ class TestForgotPasswordOracleLive:
 
             _p(f"Found {len(username_pairs)} usernames: {usernames_list}")
 
-            # Step 2: Run oracle
-            results = run_oracle_on_usernames(username_pairs)
+            # Step 2: Run oracle (reuse checker for rate-limit tracking)
+            results = run_oracle_on_usernames(username_pairs, checker=checker)
 
             # Build report
             report = RoundReport(
@@ -726,6 +735,7 @@ class TestForgotPasswordOracleLive:
             )
 
             # Step 3: Analyse failures
+            all_rate_limited = True
             for r in results:
                 if r.result_type == 'captcha':
                     report.issues.append(f"CAPTCHA on {r.username}")
@@ -735,6 +745,8 @@ class TestForgotPasswordOracleLive:
                     report.issues.append(f"Timeout on {r.username}")
                 elif r.result_type == 'error':
                     report.issues.append(f"Error on {r.username}: {r.error}")
+                if r.result_type != 'rate_limited':
+                    all_rate_limited = False
 
             # Print round report
             round_text = format_round_report(report)
@@ -742,6 +754,12 @@ class TestForgotPasswordOracleLive:
 
             all_rounds.append(report)
             best_rate = max(best_rate, report.success_rate)
+
+            # Early exit if VK 24h rate limit hit (no point continuing)
+            if all_rate_limited and results:
+                _p(f"\nVK 24h rate limit active — all {len(results)} checks "
+                   f"blocked. Stopping early.")
+                break
 
             # Check if we hit the target
             if report.success_rate >= TARGET_SUCCESS_RATE:

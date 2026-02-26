@@ -24,6 +24,7 @@ Usage:
     merged = cross_correlate_hints(results)
 """
 
+import json
 import logging
 import os
 import re
@@ -376,14 +377,22 @@ class VKUsernameForgotChecker:
         'try again later',
     ]
 
-    # Masked phone pattern: +7 916 ***-**-67, +7 9** ***-**-67, etc.
+    # Masked phone patterns — VK uses various formats:
+    # +7 916 ***-**-67, +7 9** ***-**-67, +7 *** *** ** 67
+    # Also in API JSON: "+7 *** ***-**-67", "7916***4567"
     PHONE_PATTERN = re.compile(
-        r'\+7\s*[\d\*]{1,3}\s*[\d\*]{3}[-\s][\d\*]{2}[-\s][\d\*]{2}'
+        r'\+?7[\s\-]?[\d\*]{1,3}[\s\-]?[\d\*]{3}[\s\-]?[\d\*]{2}[\s\-]?[\d\*]{2}'
     )
 
     # Masked email pattern: iv***@mail.ru, a****v@gmail.com
     EMAIL_PATTERN = re.compile(
         r'[a-zA-Z0-9][a-zA-Z0-9\*]{1,30}@[a-zA-Z0-9]+\.[a-zA-Z]{2,}'
+    )
+
+    # Debug directory for snapshots of unrecognized responses
+    _DEBUG_DIR = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        '..', '..', '..', 'tests', 'debug_vk_oracle',
     )
 
     # Carrier code extraction: first 3 digits after +7
@@ -394,6 +403,7 @@ class VKUsernameForgotChecker:
     def __init__(self, timeout: int = 30):
         self.timeout = timeout
         self.logger = logging.getLogger(f"{__name__}.VKUsernameForgotChecker")
+        self._rate_limited = False  # per-IP 24h rate limit flag
 
     @staticmethod
     def _normalize_username(username: str) -> str:
@@ -434,12 +444,21 @@ class VKUsernameForgotChecker:
         and extract masked phone/email if available.
 
         Returns ForgotPasswordResult or None on unrecoverable error.
+        Retry logic is here (not in _run_playwright) to avoid nesting
+        sync_playwright() contexts.
         """
         if not PLAYWRIGHT_AVAILABLE:
             self.logger.warning("Playwright not installed — skipping VK username oracle")
             return ForgotPasswordResult(
                 service=self.SERVICE_NAME,
                 error="playwright_unavailable",
+            )
+
+        # Short-circuit if we already hit VK's 24h rate limit
+        if self._rate_limited:
+            return ForgotPasswordResult(
+                service=self.SERVICE_NAME,
+                error="rate_limited",
             )
 
         username = self._normalize_username(username)
@@ -449,18 +468,217 @@ class VKUsernameForgotChecker:
         # Random delay to mimic human
         time.sleep(random.uniform(1.0, 3.0))
 
-        try:
-            return self._run_playwright(username)
-        except Exception as e:
-            self.logger.error(f"VK username oracle error for {username}: {e}", exc_info=True)
-            return ForgotPasswordResult(
-                service=self.SERVICE_NAME,
-                error=str(e),
-            )
+        result = None
+        for attempt in range(2):
+            try:
+                result = self._run_playwright(username)
+            except Exception as e:
+                self.logger.error(
+                    f"VK username oracle error for {username}: {e}",
+                    exc_info=True,
+                )
+                return ForgotPasswordResult(
+                    service=self.SERVICE_NAME,
+                    error=str(e),
+                )
 
-    def _run_playwright(self, username: str, retry: bool = True) -> ForgotPasswordResult:
-        """Launch Playwright, navigate to VK ID restore, submit username."""
+            if result is None:
+                return None
+
+            # Retry on captcha (first attempt only, wait 15s)
+            if result.error == 'captcha' and attempt == 0:
+                self.logger.info("VK captcha — waiting 15s and retrying")
+                time.sleep(15)
+                continue
+
+            # Rate limit: set flag and do NOT retry (24h cooldown)
+            if result.error == 'rate_limited':
+                self._rate_limited = True
+                self.logger.warning(
+                    f"VK 24h rate limit hit for {username} — "
+                    "skipping all subsequent oracle checks"
+                )
+                return result
+
+            # Any other result: return as-is
+            return result
+
+        # Exhausted retries
+        return result
+
+    def _parse_api_responses(self, captured: list, username: str) -> Optional[dict]:
+        """
+        Parse captured VK API responses for masked phone/email hints.
+        VK ID SPA makes XHR calls that return JSON with structured data.
+        Returns dict with hint_type, masked_hint, confidence, raw_data or None.
+        """
+        for resp_info in captured:
+            body = resp_info.get('body')
+            if not body:
+                continue
+            # Try JSON parse
+            try:
+                data = json.loads(body)
+            except (json.JSONDecodeError, ValueError):
+                # Not JSON — check raw text for masked patterns
+                phone_m = self.PHONE_PATTERN.search(body)
+                if phone_m:
+                    masked = phone_m.group().strip()
+                    partial = self._extract_partial_digits(masked)
+                    return {
+                        'hint_type': 'phone',
+                        'masked_hint': masked,
+                        'confidence': 0.85,
+                        'raw_data': {
+                            'username': username,
+                            'source': 'api_response_text',
+                            'url': resp_info.get('url', ''),
+                            'raw_masked': masked,
+                            **partial,
+                        },
+                    }
+                continue
+
+            # Walk the JSON tree looking for phone/email masks
+            hint = self._extract_hint_from_json(data, username, resp_info.get('url', ''))
+            if hint:
+                return hint
+
+        return None
+
+    def _extract_hint_from_json(self, data: Any, username: str, url: str) -> Optional[dict]:
+        """Recursively search JSON structure for masked phone/email hints."""
+        if isinstance(data, str):
+            # Check string values for phone masks
+            phone_m = self.PHONE_PATTERN.search(data)
+            if phone_m:
+                masked = phone_m.group().strip()
+                partial = self._extract_partial_digits(masked)
+                return {
+                    'hint_type': 'phone',
+                    'masked_hint': masked,
+                    'confidence': 0.85,
+                    'raw_data': {
+                        'username': username,
+                        'source': 'api_json',
+                        'url': url,
+                        'raw_masked': masked,
+                        **partial,
+                    },
+                }
+            # Check for email masks
+            email_m = self.EMAIL_PATTERN.search(data)
+            if email_m:
+                masked = email_m.group().strip()
+                return {
+                    'hint_type': 'email',
+                    'masked_hint': masked,
+                    'confidence': 0.75,
+                    'raw_data': {
+                        'username': username,
+                        'source': 'api_json',
+                        'url': url,
+                        'raw_masked': masked,
+                    },
+                }
+            return None
+
+        if isinstance(data, dict):
+            # Check known VK response fields first
+            for key in ('phone_mask', 'phone', 'masked_phone', 'phone_hint',
+                        'phone_number', 'phone_masked', 'mask'):
+                val = data.get(key)
+                if val and isinstance(val, str) and ('*' in val or '+7' in val):
+                    partial = self._extract_partial_digits(val)
+                    return {
+                        'hint_type': 'phone',
+                        'masked_hint': val,
+                        'confidence': 0.90,
+                        'raw_data': {
+                            'username': username,
+                            'source': 'api_json_field',
+                            'url': url,
+                            'field': key,
+                            'raw_masked': val,
+                            **partial,
+                        },
+                    }
+            for key in ('email_mask', 'email', 'masked_email', 'email_hint',
+                        'email_masked'):
+                val = data.get(key)
+                if val and isinstance(val, str) and '*' in val and '@' in val:
+                    return {
+                        'hint_type': 'email',
+                        'masked_hint': val,
+                        'confidence': 0.80,
+                        'raw_data': {
+                            'username': username,
+                            'source': 'api_json_field',
+                            'url': url,
+                            'field': key,
+                            'raw_masked': val,
+                        },
+                    }
+            # Recurse into values
+            for v in data.values():
+                hint = self._extract_hint_from_json(v, username, url)
+                if hint:
+                    return hint
+        elif isinstance(data, list):
+            for item in data:
+                hint = self._extract_hint_from_json(item, username, url)
+                if hint:
+                    return hint
+
+        return None
+
+    def _save_debug_snapshot(self, page, username: str, body_text: str,
+                             html: str, captured_responses: list):
+        """Save debug snapshot for unrecognized VK responses."""
+        try:
+            debug_dir = os.path.normpath(self._DEBUG_DIR)
+            os.makedirs(debug_dir, exist_ok=True)
+            ts = int(time.time())
+            prefix = f"{ts}_{username}"
+
+            # Screenshot
+            screenshot_path = os.path.join(debug_dir, f"{prefix}.png")
+            page.screenshot(path=screenshot_path, full_page=True)
+
+            # Body text
+            text_path = os.path.join(debug_dir, f"{prefix}_body.txt")
+            with open(text_path, 'w', encoding='utf-8') as f:
+                f.write(f"URL: {page.url}\n")
+                f.write(f"Username: {username}\n")
+                f.write(f"Timestamp: {ts}\n")
+                f.write("=" * 60 + "\n")
+                f.write(body_text)
+
+            # HTML
+            html_path = os.path.join(debug_dir, f"{prefix}_page.html")
+            with open(html_path, 'w', encoding='utf-8') as f:
+                f.write(html)
+
+            # Captured API responses
+            if captured_responses:
+                api_path = os.path.join(debug_dir, f"{prefix}_api.json")
+                with open(api_path, 'w', encoding='utf-8') as f:
+                    json.dump(captured_responses, f, indent=2, ensure_ascii=False,
+                              default=str)
+
+            self.logger.info(
+                f"Debug snapshot saved to {debug_dir}/{prefix}*"
+            )
+        except Exception as e:
+            self.logger.warning(f"Failed to save debug snapshot: {e}")
+
+    def _run_playwright(self, username: str) -> ForgotPasswordResult:
+        """
+        Launch Playwright, navigate to VK ID restore, submit username.
+        Single attempt — retry logic lives in check_username().
+        """
         result = ForgotPasswordResult(service=self.SERVICE_NAME)
+        captured_api_responses = []
 
         with sync_playwright() as p:
             browser = p.chromium.launch(
@@ -481,6 +699,29 @@ class VKUsernameForgotChecker:
                     'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
                 )
 
+                # Intercept API responses from VK domains
+                def _on_response(response):
+                    url = response.url
+                    if any(d in url for d in (
+                        'id.vk.com', 'login.vk.com', 'api.vk.com',
+                        'vk.com/auth', 'vk.com/login', 'vk.com/restore',
+                    )):
+                        try:
+                            body = response.text()
+                            captured_api_responses.append({
+                                'url': url,
+                                'status': response.status,
+                                'body': body,
+                            })
+                        except Exception:
+                            captured_api_responses.append({
+                                'url': url,
+                                'status': response.status,
+                                'body': None,
+                            })
+
+                page.on('response', _on_response)
+
                 # Navigate to VK ID restore page
                 page.goto(self.RESTORE_URL, wait_until='networkidle')
                 time.sleep(random.uniform(1.0, 2.0))
@@ -490,11 +731,6 @@ class VKUsernameForgotChecker:
 
                 # Check for bot detection on initial load
                 if any(m.lower() in body_text.lower() for m in self.CAPTCHA_MARKERS):
-                    if retry:
-                        self.logger.info("VK bot detection — waiting 15s and retrying")
-                        browser.close()
-                        time.sleep(15)
-                        return self._run_playwright(username, retry=False)
                     result.error = "captcha"
                     self.logger.warning(f"VK bot detection for username {username}")
                     return result
@@ -525,110 +761,176 @@ class VKUsernameForgotChecker:
                 if continue_btn.count() == 0:
                     result.error = "ui_changed_no_continue_btn"
                     return result
+
+                # Clear pre-click API captures, we only care about post-click
+                pre_click_count = len(captured_api_responses)
                 continue_btn.first.click()
 
-                # Wait for response
-                time.sleep(random.uniform(3.0, 5.0))
+                # Wait for SPA to load the response
+                try:
+                    page.wait_for_load_state('networkidle', timeout=15000)
+                except Exception:
+                    pass
+                # Extra wait for SPA rendering
+                time.sleep(random.uniform(1.5, 3.0))
 
                 body_text = page.locator('body').inner_text()
                 # Normalize non-breaking spaces (VK uses \xa0 extensively)
                 body_text = body_text.replace('\xa0', ' ')
                 html = page.content()
+                current_url = page.url
+
+                # Slice to only post-click API responses
+                post_click_responses = captured_api_responses[pre_click_count:]
+
+                self.logger.debug(
+                    f"VK oracle [{username}]: url={current_url}, "
+                    f"body_len={len(body_text)}, "
+                    f"api_responses={len(post_click_responses)}"
+                )
+
+                # --- Priority 1: Parse captured API responses for hints ---
+                api_hint = self._parse_api_responses(
+                    post_click_responses, username
+                )
+                if api_hint:
+                    result.exists = True
+                    result.confidence = api_hint['confidence']
+                    result.hint_type = api_hint['hint_type']
+                    result.masked_hint = api_hint['masked_hint']
+                    result.raw_data = api_hint.get('raw_data', {})
+                    self.logger.info(
+                        f"VK forgot password oracle: found "
+                        f"{api_hint['hint_type']} hint "
+                        f"'{api_hint['masked_hint']}' from API "
+                        f"for user {username}"
+                    )
+                    return result
+
+                # --- Priority 2: Text-based parsing of page content ---
 
                 # Check for rate limiting
-                if any(m.lower() in body_text.lower() for m in self.RATE_LIMIT_MARKERS):
-                    if retry:
-                        self.logger.info("VK rate limited — waiting 30s and retrying")
-                        browser.close()
-                        time.sleep(30)
-                        return self._run_playwright(username, retry=False)
+                if any(m.lower() in body_text.lower()
+                       for m in self.RATE_LIMIT_MARKERS):
                     result.error = "rate_limited"
                     return result
 
                 # Check CAPTCHA
-                if any(m.lower() in body_text.lower() for m in self.CAPTCHA_MARKERS):
+                if any(m.lower() in body_text.lower()
+                       for m in self.CAPTCHA_MARKERS):
                     result.error = "captcha"
-                    self.logger.warning(f"VK CAPTCHA detected for username {username}")
+                    self.logger.warning(
+                        f"VK CAPTCHA detected for username {username}"
+                    )
                     return result
 
-                # Check "not found" — still on the same page with error message
+                # Check "not found"
                 if any(m in body_text for m in self.NOT_FOUND_MARKERS):
                     result.exists = False
                     result.confidence = 0.85
                     return result
 
-                # Check "cannot restore" — account exists but no recovery option
+                # Check "cannot restore" — account exists, no recovery
                 if any(m in body_text for m in self.CANNOT_RESTORE_MARKERS):
                     result.exists = True
                     result.confidence = 0.80
                     result.hint_type = 'existence'
                     result.masked_hint = 'account_exists_no_recovery'
-                    result.raw_data = {'username': username, 'recovery': False}
+                    result.raw_data = {
+                        'username': username, 'recovery': False,
+                    }
                     self.logger.info(
-                        f"VK forgot password oracle: account exists (no recovery) "
-                        f"for user {username}"
+                        f"VK forgot password oracle: account exists "
+                        f"(no recovery) for user {username}"
                     )
                     return result
 
-                # Check "ask phone" — account exists + phone recovery available
+                # Check "ask phone" — account exists + phone recovery
                 if any(m in body_text for m in self.ASK_PHONE_MARKERS):
                     result.exists = True
                     result.confidence = 0.90
                     result.hint_type = 'existence'
                     result.masked_hint = 'account_exists_phone_recovery'
-                    result.raw_data = {'username': username, 'recovery': True}
-                    self.logger.info(
-                        f"VK forgot password oracle: account exists (phone recovery) "
-                        f"for user {username}"
-                    )
-                    return result
-
-                # Check for masked phone hints (legacy or future VK behavior)
-                phone_match = self.PHONE_PATTERN.search(html)
-                if phone_match:
-                    masked = phone_match.group().strip()
-                    partial = self._extract_partial_digits(masked)
-                    result.exists = True
-                    result.masked_hint = masked
-                    result.hint_type = 'phone'
-                    result.confidence = 0.85
                     result.raw_data = {
-                        'username': username,
-                        'hint_type': 'phone',
-                        'raw_masked': masked,
-                        **partial,
+                        'username': username, 'recovery': True,
                     }
                     self.logger.info(
-                        f"VK forgot password oracle: found masked phone {masked} "
-                        f"for user {username}"
+                        f"VK forgot password oracle: account exists "
+                        f"(phone recovery) for user {username}"
                     )
                     return result
 
-                # Check for masked email hints
-                email_match = self.EMAIL_PATTERN.search(html)
-                if email_match:
-                    masked = email_match.group().strip()
-                    result.exists = True
-                    result.masked_hint = masked
-                    result.hint_type = 'email'
-                    result.confidence = 0.75
-                    result.raw_data = {
-                        'username': username,
-                        'hint_type': 'email',
-                        'raw_masked': masked,
-                    }
-                    self.logger.info(
-                        f"VK forgot password oracle: found masked email {masked} "
-                        f"for user {username}"
-                    )
-                    return result
+                # --- Priority 3: Regex search for masked phone/email ---
 
-                # Page loaded but unrecognized state
+                # Search both body text AND HTML for masked phone
+                for source_text, source_name in [
+                    (body_text, 'body_text'), (html, 'html'),
+                ]:
+                    phone_match = self.PHONE_PATTERN.search(source_text)
+                    if phone_match:
+                        masked = phone_match.group().strip()
+                        partial = self._extract_partial_digits(masked)
+                        result.exists = True
+                        result.masked_hint = masked
+                        result.hint_type = 'phone'
+                        result.confidence = 0.85
+                        result.raw_data = {
+                            'username': username,
+                            'hint_type': 'phone',
+                            'source': source_name,
+                            'raw_masked': masked,
+                            **partial,
+                        }
+                        self.logger.info(
+                            f"VK forgot password oracle: found masked "
+                            f"phone '{masked}' in {source_name} "
+                            f"for user {username}"
+                        )
+                        return result
+
+                # Search for masked email
+                for source_text, source_name in [
+                    (body_text, 'body_text'), (html, 'html'),
+                ]:
+                    email_match = self.EMAIL_PATTERN.search(source_text)
+                    if email_match:
+                        masked = email_match.group().strip()
+                        result.exists = True
+                        result.masked_hint = masked
+                        result.hint_type = 'email'
+                        result.confidence = 0.75
+                        result.raw_data = {
+                            'username': username,
+                            'hint_type': 'email',
+                            'source': source_name,
+                            'raw_masked': masked,
+                        }
+                        self.logger.info(
+                            f"VK forgot password oracle: found masked "
+                            f"email '{masked}' in {source_name} "
+                            f"for user {username}"
+                        )
+                        return result
+
+                # --- Fallback: unrecognized. Save debug snapshot. ---
+                self.logger.warning(
+                    f"VK unrecognized response for {username}: "
+                    f"url={current_url}, "
+                    f"body[0:500]={body_text[:500]!r}, "
+                    f"api_count={len(post_click_responses)}"
+                )
+                self._save_debug_snapshot(
+                    page, username, body_text, html,
+                    post_click_responses,
+                )
+
                 result.exists = True
                 result.confidence = 0.50
                 result.raw_data = {
                     'username': username,
-                    'body_preview': body_text[:200],
+                    'url': current_url,
+                    'body_preview': body_text[:500],
+                    'api_responses_count': len(post_click_responses),
                 }
                 return result
 
