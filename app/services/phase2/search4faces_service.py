@@ -2,10 +2,14 @@
 Search4faces Facial Recognition Service
 =======================================
 Searches VK/OK databases for matching faces.
-100% FREE, unlimited searches.
+
+Two search methods:
+  1. JSON-RPC API (paid, $40+/mo) — set SEARCH4FACES_API_KEY
+  2. Playwright browser automation (free, unlimited) — default fallback
 
 Based on: https://search4faces.com/en/
-Bellingcat reference: https://bellingcat.gitbook.io/toolkit/more/all-tools/search4faces
+API docs: https://search4faces.com/en/api.html
+Bellingcat: https://bellingcat.gitbook.io/toolkit/more/all-tools/search4faces
 
 Database info:
 - vkok: VK & OK avatars (312M faces, 2022-2024)
@@ -13,6 +17,8 @@ Database info:
 - vkokn: Newer database
 """
 
+import base64
+import json
 import requests
 from bs4 import BeautifulSoup
 from typing import List, Optional
@@ -49,10 +55,20 @@ class Search4FacesResults:
 
 # Search4faces configuration
 BASE_URL = "https://search4faces.com"
-DATABASES = {
-    'vkok': '/en/vkok/index.html',      # VK & OK avatars (newer)
-    'vk01': '/en/vk01/index.html',      # VK profile photos (larger)
-    'vkokn': '/en/vkokn/index.html',    # Newest database
+API_URL = "https://search4faces.com/api/json-rpc/v1"
+
+# Database page paths (for Playwright fallback)
+DATABASE_PAGES = {
+    'vkok': '/en/vkok/index.html',
+    'vk01': '/en/vk01/index.html',
+    'vkokn': '/en/vkokn/index.html',
+}
+
+# Database IDs for JSON-RPC API (source parameter in searchFace)
+DATABASE_API_IDS = {
+    'vkok': 2,   # VK + OK avatars
+    'vk01': 1,   # VK profile photos
+    'vkokn': 3,  # Newest database
 }
 
 HEADERS = {
@@ -66,6 +82,302 @@ HEADERS = {
 }
 
 
+def _get_image_data(image_path=None, image_url=None, image_bytes=None):
+    """Prepare image data from various sources. Returns (bytes, filename, content_type) or raises."""
+    if image_path:
+        if not os.path.exists(image_path):
+            raise FileNotFoundError(f"Image file not found: {image_path}")
+        with open(image_path, 'rb') as f:
+            data = f.read()
+        filename = os.path.basename(image_path)
+        ext = filename.lower().rsplit('.', 1)[-1] if '.' in filename else 'jpg'
+        ct = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+              'webp': 'image/webp', 'gif': 'image/gif'}.get(ext, 'image/jpeg')
+        return data, filename, ct
+
+    if image_url:
+        logger.info(f"Downloading image from: {image_url[:80]}...")
+        resp = requests.get(image_url, timeout=15, headers={
+            'User-Agent': HEADERS['User-Agent'],
+        })
+        resp.raise_for_status()
+        ct = resp.headers.get('Content-Type', 'image/jpeg')
+        if len(resp.content) < 1000:
+            raise ValueError(f"Downloaded image too small ({len(resp.content)} bytes) — may be a placeholder")
+        return resp.content, 'photo.jpg', ct
+
+    if image_bytes:
+        if len(image_bytes) < 1000:
+            raise ValueError(f"Image data too small ({len(image_bytes)} bytes)")
+        return image_bytes, 'photo.jpg', 'image/jpeg'
+
+    raise ValueError("No image provided (need image_path, image_url, or image_bytes)")
+
+
+# ── Method 1: JSON-RPC API (paid) ──────────────────────────────────
+
+def _search_via_api(image_data: bytes, database: str, max_results: int) -> Search4FacesResults:
+    """Search via JSON-RPC API. Requires SEARCH4FACES_API_KEY."""
+    api_key = os.environ.get('SEARCH4FACES_API_KEY', '').strip()
+    if not api_key:
+        return Search4FacesResults(
+            success=False, matches=[], database_searched=database,
+            error="SEARCH4FACES_API_KEY not set"
+        )
+
+    headers = {
+        'Content-Type': 'application/json',
+        'x-authorization-token': api_key,
+    }
+
+    # Step 1: detectFaces
+    b64_image = base64.b64encode(image_data).decode('ascii')
+
+    detect_payload = {
+        "jsonrpc": "2.0",
+        "id": "detect_1",
+        "method": "detectFaces",
+        "params": {
+            "image": b64_image,
+        }
+    }
+
+    logger.info(f"Search4Faces API: detectFaces ({len(image_data)} bytes)...")
+    try:
+        resp = requests.post(API_URL, json=detect_payload, headers=headers, timeout=30)
+        resp.raise_for_status()
+        detect_result = resp.json()
+    except Exception as e:
+        logger.error(f"Search4Faces API detectFaces failed: {e}")
+        return Search4FacesResults(
+            success=False, matches=[], database_searched=database,
+            error=f"detectFaces failed: {e}"
+        )
+
+    if 'error' in detect_result:
+        error_msg = detect_result['error'].get('message', str(detect_result['error']))
+        logger.error(f"Search4Faces API detectFaces error: {error_msg}")
+        return Search4FacesResults(
+            success=False, matches=[], database_searched=database,
+            error=f"detectFaces: {error_msg}"
+        )
+
+    result_data = detect_result.get('result', {})
+    faces = result_data.get('faces', [])
+    image_id = result_data.get('id_image')
+
+    if not faces:
+        logger.warning("Search4Faces API: no faces detected in image")
+        return Search4FacesResults(
+            success=True, matches=[], database_searched=database,
+            error="No faces detected in image"
+        )
+
+    if not image_id:
+        logger.error("Search4Faces API: no image_id returned")
+        return Search4FacesResults(
+            success=False, matches=[], database_searched=database,
+            error="No image_id in detectFaces response"
+        )
+
+    # Use the first detected face
+    face = faces[0]
+    source_id = DATABASE_API_IDS.get(database, 1)
+
+    # Step 2: searchFace
+    search_payload = {
+        "jsonrpc": "2.0",
+        "id": "search_1",
+        "method": "searchFace",
+        "params": {
+            "id_image": image_id,
+            "face": face,
+            "source": source_id,
+            "hidden": False,
+            "results": min(max_results, 500),
+            "lang": "en",
+        }
+    }
+
+    logger.info(f"Search4Faces API: searchFace (db={database}, source={source_id})...")
+    try:
+        resp = requests.post(API_URL, json=search_payload, headers=headers, timeout=60)
+        resp.raise_for_status()
+        search_result = resp.json()
+    except Exception as e:
+        logger.error(f"Search4Faces API searchFace failed: {e}")
+        return Search4FacesResults(
+            success=False, matches=[], database_searched=database,
+            error=f"searchFace failed: {e}"
+        )
+
+    if 'error' in search_result:
+        error_msg = search_result['error'].get('message', str(search_result['error']))
+        logger.error(f"Search4Faces API searchFace error: {error_msg}")
+        return Search4FacesResults(
+            success=False, matches=[], database_searched=database,
+            error=f"searchFace: {error_msg}"
+        )
+
+    # Parse results
+    matches = []
+    for item in search_result.get('result', []):
+        profile_url = item.get('url', '')
+        if not profile_url:
+            profile_url = item.get('link', '')
+        if not profile_url:
+            continue
+
+        if 'vk.com' in profile_url:
+            platform = 'vk'
+        elif 'ok.ru' in profile_url:
+            platform = 'ok'
+        else:
+            platform = 'unknown'
+
+        similarity = item.get('similarity', 0)
+        if isinstance(similarity, (int, float)):
+            similarity = float(similarity)
+            if similarity > 1.0:
+                similarity = similarity / 100.0  # Convert percentage to 0-1
+
+        matches.append(FaceMatch(
+            platform=platform,
+            profile_url=profile_url,
+            username=extract_username(profile_url, platform),
+            similarity_score=similarity,
+            thumbnail_url=item.get('image') or item.get('photo'),
+            name=item.get('name'),
+            age=item.get('age'),
+            city=item.get('city'),
+        ))
+
+    logger.info(f"Search4Faces API: {len(matches)} matches in {database}")
+    return Search4FacesResults(success=True, matches=matches, database_searched=database)
+
+
+# ── Method 2: Playwright browser automation (free) ────────────────
+
+def _search_via_playwright(image_data: bytes, filename: str, database: str, max_results: int) -> Search4FacesResults:
+    """Search via browser automation. Free, no API key needed."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        logger.warning("Playwright not installed — cannot use free Search4Faces search")
+        return Search4FacesResults(
+            success=False, matches=[], database_searched=database,
+            error="Playwright not installed (pip install playwright && playwright install chromium)"
+        )
+
+    page_path = DATABASE_PAGES.get(database)
+    if not page_path:
+        return Search4FacesResults(
+            success=False, matches=[], database_searched=database,
+            error=f"Unknown database: {database}"
+        )
+
+    page_url = f"{BASE_URL}{page_path}"
+
+    # Save image to temp file for upload
+    import tempfile
+    ext = 'jpg'
+    if filename.lower().endswith('.png'):
+        ext = 'png'
+    temp_path = None
+
+    try:
+        with tempfile.NamedTemporaryFile(suffix=f'.{ext}', delete=False) as tmp:
+            tmp.write(image_data)
+            temp_path = tmp.name
+
+        logger.info(f"Search4Faces Playwright: opening {page_url}...")
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page(
+                user_agent=HEADERS['User-Agent'],
+                viewport={'width': 1280, 'height': 900},
+            )
+
+            # Navigate to the database search page
+            page.goto(page_url, wait_until='networkidle', timeout=30000)
+            time.sleep(1)
+
+            # Find the file input and upload the image
+            # Search4Faces uses <input type="file"> for photo upload
+            file_input = page.query_selector('input[type="file"]')
+            if not file_input:
+                # Try common selectors
+                for sel in ['input[accept*="image"]', '#photo', '#file', '.upload input']:
+                    file_input = page.query_selector(sel)
+                    if file_input:
+                        break
+
+            if not file_input:
+                browser.close()
+                logger.error("Search4Faces Playwright: no file input found on page")
+                return Search4FacesResults(
+                    success=False, matches=[], database_searched=database,
+                    error="No file input found on search page"
+                )
+
+            logger.info("Search4Faces Playwright: uploading image...")
+            file_input.set_input_files(temp_path)
+
+            # Wait for upload processing
+            time.sleep(2)
+
+            # Click the search/submit button
+            search_btn = page.query_selector('button[type="submit"], input[type="submit"], .search-btn, #search, button:has-text("Search"), button:has-text("Поиск")')
+            if search_btn:
+                search_btn.click()
+            else:
+                # Try pressing Enter as fallback
+                page.keyboard.press('Enter')
+
+            # Wait for results to load
+            logger.info("Search4Faces Playwright: waiting for results...")
+            try:
+                # Wait for result cards or VK/OK links to appear
+                page.wait_for_selector(
+                    'a[href*="vk.com/"], a[href*="ok.ru/"], .result, [class*="result"]',
+                    timeout=45000
+                )
+                time.sleep(2)  # Extra wait for dynamic rendering
+            except Exception:
+                # Page might have loaded but with no results
+                logger.info("Search4Faces Playwright: no result elements appeared (may be no matches)")
+
+            # Get page content and parse
+            html = page.content()
+            browser.close()
+
+        # Parse the results HTML
+        matches = parse_search_results(html, database)
+        logger.info(f"Search4Faces Playwright: {len(matches)} matches in {database}")
+
+        return Search4FacesResults(
+            success=True,
+            matches=matches[:max_results],
+            database_searched=database,
+        )
+
+    except Exception as e:
+        logger.error(f"Search4Faces Playwright error: {e}")
+        return Search4FacesResults(
+            success=False, matches=[], database_searched=database,
+            error=f"Playwright error: {e}"
+        )
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.unlink(temp_path)
+            except Exception:
+                pass
+
+
+# ── Main entry point ────────────────────────────────────────────────
+
 def search_by_photo(
     image_path: str = None,
     image_url: str = None,
@@ -75,6 +387,9 @@ def search_by_photo(
 ) -> Search4FacesResults:
     """
     Search for faces matching the provided image.
+
+    Tries JSON-RPC API first (if SEARCH4FACES_API_KEY set),
+    then falls back to Playwright browser automation.
 
     Args:
         image_path: Path to local image file
@@ -86,149 +401,40 @@ def search_by_photo(
     Returns:
         Search4FacesResults with matching profiles
     """
-    if database not in DATABASES:
+    valid_dbs = set(DATABASE_PAGES.keys())
+    if database not in valid_dbs:
         return Search4FacesResults(
-            success=False,
-            matches=[],
-            database_searched=database,
-            error=f"Invalid database. Use: {list(DATABASES.keys())}"
+            success=False, matches=[], database_searched=database,
+            error=f"Invalid database. Use: {list(valid_dbs)}"
         )
 
-    session = requests.Session()
-    session.headers.update(HEADERS)
-
+    # Prepare image
     try:
-        # Step 1: Get the search page (for cookies/tokens)
-        page_url = f"{BASE_URL}{DATABASES[database]}"
-        page_resp = session.get(page_url, timeout=15)
-        page_resp.raise_for_status()
-
-        # Step 2: Prepare image data
-        if image_path:
-            if not os.path.exists(image_path):
-                return Search4FacesResults(
-                    success=False,
-                    matches=[],
-                    database_searched=database,
-                    error=f"Image file not found: {image_path}"
-                )
-            with open(image_path, 'rb') as f:
-                image_data = f.read()
-            filename = os.path.basename(image_path)
-            # Determine content type
-            ext = filename.lower().split('.')[-1]
-            content_type = {
-                'jpg': 'image/jpeg',
-                'jpeg': 'image/jpeg',
-                'png': 'image/png',
-                'webp': 'image/webp',
-                'gif': 'image/gif'
-            }.get(ext, 'image/jpeg')
-
-        elif image_url:
-            try:
-                img_resp = requests.get(image_url, timeout=15)
-                img_resp.raise_for_status()
-                image_data = img_resp.content
-                filename = 'photo.jpg'
-                content_type = img_resp.headers.get('Content-Type', 'image/jpeg')
-            except Exception as e:
-                return Search4FacesResults(
-                    success=False,
-                    matches=[],
-                    database_searched=database,
-                    error=f"Failed to download image: {e}"
-                )
-
-        elif image_bytes:
-            image_data = image_bytes
-            filename = 'photo.jpg'
-            content_type = 'image/jpeg'
-
-        else:
-            return Search4FacesResults(
-                success=False,
-                matches=[],
-                database_searched=database,
-                error="No image provided"
-            )
-
-        # Step 3: Upload image and search
-        # Search4faces uses multipart form upload
-        # The actual upload endpoint may vary - trying common patterns
-        upload_endpoints = [
-            f"{BASE_URL}/upload/{database}",
-            f"{BASE_URL}/api/upload",
-            f"{BASE_URL}/en/{database}/search",
-        ]
-
-        files = {
-            'photo': (filename, image_data, content_type)
-        }
-
-        data = {
-            'db': database,
-            'age_min': '0',
-            'age_max': '100',
-            'gender': '',  # Empty for any gender
-            'country': '',
-            'city': ''
-        }
-
-        upload_resp = None
-        for endpoint in upload_endpoints:
-            try:
-                upload_resp = session.post(
-                    endpoint,
-                    files=files,
-                    data=data,
-                    timeout=60
-                )
-                if upload_resp.status_code == 200:
-                    break
-            except Exception:
-                continue
-
-        if upload_resp is None or upload_resp.status_code != 200:
-            # Fallback: try to parse results from the main page response
-            # Some versions of search4faces return results directly
-            logger.warning("Direct upload failed, trying alternative method")
-
-            # Try form-based submission to the index page
-            form_data = {
-                'photo': (filename, image_data, content_type)
-            }
-            upload_resp = session.post(
-                page_url,
-                files=form_data,
-                data=data,
-                timeout=60
-            )
-
-        # Step 4: Parse results
-        matches = parse_search_results(upload_resp.text if upload_resp else '', database)
-
-        return Search4FacesResults(
-            success=True,
-            matches=matches[:max_results],
-            database_searched=database
-        )
-
-    except requests.exceptions.Timeout:
-        return Search4FacesResults(
-            success=False,
-            matches=[],
-            database_searched=database,
-            error="Request timed out"
-        )
+        image_data, filename, content_type = _get_image_data(image_path, image_url, image_bytes)
     except Exception as e:
-        logger.error(f"Search4faces error: {e}")
+        logger.error(f"Search4Faces image preparation failed: {e}")
         return Search4FacesResults(
-            success=False,
-            matches=[],
-            database_searched=database,
+            success=False, matches=[], database_searched=database,
             error=str(e)
         )
+
+    logger.info(f"Search4Faces: searching {database} ({len(image_data)} bytes image)...")
+
+    # Method 1: Try JSON-RPC API if key is available
+    api_key = os.environ.get('SEARCH4FACES_API_KEY', '').strip()
+    if api_key:
+        result = _search_via_api(image_data, database, max_results)
+        if result.success and result.matches:
+            return result
+        if result.success and not result.matches:
+            logger.info(f"Search4Faces API returned 0 matches for {database}")
+            return result
+        # API failed — fall through to Playwright
+        logger.warning(f"Search4Faces API failed ({result.error}), trying Playwright...")
+
+    # Method 2: Playwright browser automation (free)
+    result = _search_via_playwright(image_data, filename, database, max_results)
+    return result
 
 
 def parse_search_results(html: str, database: str) -> List[FaceMatch]:
@@ -287,10 +493,14 @@ def parse_search_results(html: str, database: str) -> List[FaceMatch]:
             # Try to get name from link text or nearby elements
             name = link.get_text(strip=True) or None
 
+            # Try to get similarity score from nearby text
+            similarity = _extract_similarity_near(link)
+
             matches.append(FaceMatch(
                 platform=platform,
                 profile_url=href,
                 username=username,
+                similarity_score=similarity,
                 thumbnail_url=thumbnail,
                 name=name
             ))
@@ -301,7 +511,6 @@ def parse_search_results(html: str, database: str) -> List[FaceMatch]:
                 # Extract profile link
                 link = card.select_one('a[href*="vk.com"], a[href*="ok.ru"]')
                 if not link:
-                    # Try parent or child elements
                     link = card.find_parent('a')
                     if not link or ('vk.com' not in str(link.get('href', '')) and 'ok.ru' not in str(link.get('href', ''))):
                         link = card.find('a')
@@ -313,7 +522,6 @@ def parse_search_results(html: str, database: str) -> List[FaceMatch]:
                 if not profile_url:
                     continue
 
-                # Determine platform
                 if 'vk.com' in profile_url:
                     platform = 'vk'
                 elif 'ok.ru' in profile_url:
@@ -321,10 +529,9 @@ def parse_search_results(html: str, database: str) -> List[FaceMatch]:
                 else:
                     continue
 
-                # Extract username from URL
                 username = extract_username(profile_url, platform)
 
-                # Extract similarity score if available
+                # Extract similarity score
                 score_selectors = ['.similarity', '.score', '.match-percent', '[class*="score"]', '[class*="percent"]']
                 similarity = None
                 for selector in score_selectors:
@@ -333,14 +540,18 @@ def parse_search_results(html: str, database: str) -> List[FaceMatch]:
                         score_text = score_elem.get_text()
                         numbers = re.findall(r'(\d+\.?\d*)', score_text)
                         if numbers:
-                            similarity = float(numbers[0])
+                            val = float(numbers[0])
+                            similarity = val / 100.0 if val > 1.0 else val
                             break
+
+                if similarity is None:
+                    similarity = _extract_similarity_near(card)
 
                 # Extract thumbnail
                 thumb = card.select_one('img')
                 thumbnail_url = thumb.get('src') if thumb else None
 
-                # Extract name if available
+                # Extract name
                 name_selectors = ['.name', '.username', '.title', 'h3', 'h4', '.user-name']
                 name = None
                 for selector in name_selectors:
@@ -363,6 +574,20 @@ def parse_search_results(html: str, database: str) -> List[FaceMatch]:
                 continue
 
     return matches
+
+
+def _extract_similarity_near(element) -> Optional[float]:
+    """Try to extract a similarity percentage from text near an element."""
+    try:
+        text = element.get_text()
+        # Look for patterns like "92%", "0.92", "92.3%"
+        pct_match = re.search(r'(\d{1,3}(?:\.\d+)?)\s*%', text)
+        if pct_match:
+            val = float(pct_match.group(1))
+            return val / 100.0 if val > 1.0 else val
+    except Exception:
+        pass
+    return None
 
 
 def extract_username(url: str, platform: str) -> Optional[str]:
@@ -396,7 +621,6 @@ def search_all_databases(
     all_matches = []
     seen_urls = set()
 
-    # Search main databases
     databases_to_search = ['vkok', 'vk01']
 
     for db_name in databases_to_search:
@@ -432,22 +656,10 @@ def search_vk_only(
     image_bytes: bytes = None,
     max_results: int = 50
 ) -> Search4FacesResults:
-    """
-    Search only VK database (largest, 1.1B faces).
-
-    Args:
-        image_path/url/bytes: Image to search
-        max_results: Maximum results to return
-
-    Returns:
-        Search4FacesResults
-    """
+    """Search only VK database (largest, 1.1B faces)."""
     return search_by_photo(
-        image_path=image_path,
-        image_url=image_url,
-        image_bytes=image_bytes,
-        database='vk01',
-        max_results=max_results
+        image_path=image_path, image_url=image_url, image_bytes=image_bytes,
+        database='vk01', max_results=max_results
     )
 
 
@@ -457,20 +669,8 @@ def search_vk_ok_combined(
     image_bytes: bytes = None,
     max_results: int = 50
 ) -> Search4FacesResults:
-    """
-    Search combined VK+OK avatars database.
-
-    Args:
-        image_path/url/bytes: Image to search
-        max_results: Maximum results to return
-
-    Returns:
-        Search4FacesResults
-    """
+    """Search combined VK+OK avatars database."""
     return search_by_photo(
-        image_path=image_path,
-        image_url=image_url,
-        image_bytes=image_bytes,
-        database='vkok',
-        max_results=max_results
+        image_path=image_path, image_url=image_url, image_bytes=image_bytes,
+        database='vkok', max_results=max_results
     )
