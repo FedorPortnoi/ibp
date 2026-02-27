@@ -194,6 +194,10 @@ class ContactDiscoveryService:
 
         social_profiles = check.social_media_profiles or []
 
+        # Use confirmed_name (from Stage 0 EGRUL) if available, else fall back to input
+        effective_name = getattr(check, 'confirmed_name', None) or check.full_name
+        birth_year_str = str(check.date_of_birth.year) if check.date_of_birth else None
+
         # Step 1: VK profiles (API contacts)
         try:
             self._extract_from_vk(social_profiles)
@@ -221,19 +225,19 @@ class ContactDiscoveryService:
 
         # Step 4: Email guessing from usernames
         try:
-            self._guess_emails(social_profiles, check.full_name)
+            self._guess_emails(social_profiles, effective_name, birth_year=birth_year_str)
         except Exception as e:
             logger.warning(f"Email guessing error: {e}")
 
         # Step 4b: Hunter.io corporate email search (if employer known from VK career)
         try:
-            self._hunter_corporate_search(social_profiles, check.full_name)
+            self._hunter_corporate_search(social_profiles, effective_name)
         except Exception as e:
             logger.warning(f"Hunter.io corporate search error: {e}")
 
         # Step 5: LeakDB name lookup
         try:
-            self._query_leakdb_by_name(check.full_name)
+            self._query_leakdb_by_name(effective_name)
         except Exception as e:
             logger.warning(f"LeakDB name lookup error: {e}")
 
@@ -629,8 +633,14 @@ class ContactDiscoveryService:
 
     # ── Step 4: Email Guessing ───────────────────────────────────────
 
-    def _guess_emails(self, social_profiles: list, full_name: str):
-        """Generate email guesses from usernames and name transliteration."""
+    def _guess_emails(self, social_profiles: list, full_name: str, birth_year: str = None):
+        """Generate email guesses from usernames and name transliteration.
+
+        Args:
+            social_profiles: list of social profile dicts
+            full_name: candidate's full name (confirmed_name preferred)
+            birth_year: optional birth year string (e.g. "1990") for year-based patterns
+        """
         usernames = set()
         for profile in social_profiles:
             username = (profile.get('username') or '').strip()
@@ -639,24 +649,29 @@ class ContactDiscoveryService:
                 if not (username.startswith('id') and username[2:].isdigit()):
                     usernames.add(username.lower())
 
-        # Username-based guesses
+        # Username-based guesses (with birth year patterns)
         for username in usernames:
             clean = re.sub(r'[^a-z0-9._-]', '', username)
             if len(clean) < 3:
                 continue
             score = _get_score('email_guess')
-            for domain in GUESS_DOMAINS:
-                self.found_emails.append(DiscoveredEmail(
-                    email=f'{clean}@{domain}',
-                    source='email_guess',
-                    confidence=_score_to_label(score),
-                    verified=False,
-                    profile_name=f'@{username}',
-                    confidence_score=score,
-                    sources=['email_guess'],
-                ))
+            patterns = [clean]
+            if birth_year:
+                patterns.append(f'{clean}{birth_year[-2:]}')
+                patterns.append(f'{clean}{birth_year}')
+            for pat in patterns:
+                for domain in GUESS_DOMAINS:
+                    self.found_emails.append(DiscoveredEmail(
+                        email=f'{pat}@{domain}',
+                        source='email_guess',
+                        confidence=_score_to_label(score),
+                        verified=False,
+                        profile_name=f'@{username}',
+                        confidence_score=score,
+                        sources=['email_guess'],
+                    ))
 
-        # Name-based guesses (transliterated)
+        # Name-based guesses (transliterated + birth year)
         if full_name:
             parts = full_name.strip().split()
             if len(parts) >= 2:
@@ -672,13 +687,22 @@ class ContactDiscoveryService:
                             first_clean = re.sub(r"[^a-z]", '', first_lat.lower())
                             if not last_clean or not first_clean:
                                 continue
+                            base_patterns = [
+                                f'{first_clean}.{last_clean}',
+                                f'{last_clean}.{first_clean}',
+                                f'{first_clean}{last_clean}',
+                                f'{last_clean}{first_clean}',
+                            ]
+                            # Add birth year variants
+                            year_patterns = []
+                            if birth_year:
+                                y2 = birth_year[-2:]
+                                for bp in base_patterns:
+                                    year_patterns.append(f'{bp}{y2}')
+                                    year_patterns.append(f'{bp}{birth_year}')
+                            all_patterns = base_patterns + year_patterns
                             for domain in NAME_GUESS_DOMAINS:
-                                for pattern in (
-                                    f'{first_clean}.{last_clean}',
-                                    f'{last_clean}.{first_clean}',
-                                    f'{first_clean}{last_clean}',
-                                    f'{last_clean}{first_clean}',
-                                ):
+                                for pattern in all_patterns:
                                     self.found_emails.append(DiscoveredEmail(
                                         email=f'{pattern}@{domain}',
                                         source='email_guess',

@@ -51,6 +51,7 @@ class TelegramDiscoveryService:
         city: str = '',
         age_from: int = None,
         age_to: int = None,
+        birth_year: int = None,
     ) -> List[Dict]:
         """
         Run all three Telegram discovery methods sequentially.
@@ -85,7 +86,8 @@ class TelegramDiscoveryService:
         # ── Method B: Username Guessing ──
         try:
             profiles_b = self._method_b_username_guessing(
-                first_name, last_name, set(all_profiles.keys())
+                first_name, last_name, set(all_profiles.keys()),
+                birth_year=birth_year,
             )
             for p in profiles_b:
                 key = p.get('username', '').lower()
@@ -207,12 +209,13 @@ class TelegramDiscoveryService:
         first_name: str,
         last_name: str,
         already_checked: set,
+        birth_year: int = None,
     ) -> List[Dict]:
         """
         Generate plausible Telegram usernames from the name,
         check each on t.me, verify display name matches.
         """
-        candidates = self._generate_telegram_candidates(first_name, last_name)
+        candidates = self._generate_telegram_candidates(first_name, last_name, birth_year=birth_year)
         # Remove already checked usernames
         candidates = [c for c in candidates if c.lower() not in already_checked]
 
@@ -435,7 +438,7 @@ class TelegramDiscoveryService:
     # Username Generation
     # ─────────────────────────────────────────────────────────────
 
-    def _generate_telegram_candidates(self, first_name: str, last_name: str) -> List[str]:
+    def _generate_telegram_candidates(self, first_name: str, last_name: str, birth_year: int = None) -> List[str]:
         """
         Generate plausible Telegram usernames from a Russian name.
         Uses multi-system transliteration + diminutive variants.
@@ -470,6 +473,18 @@ class TelegramDiscoveryService:
                     f"{first}_{last[0]}",    # artem_k
                     f"{last}.{first[0]}",    # kozlov.a
                 ])
+
+        # Add birth year variants (e.g., artem_kozlov90, kozlov1990)
+        if birth_year:
+            y2 = str(birth_year)[-2:]
+            y4 = str(birth_year)
+            # Add year suffixes to the top base patterns
+            base_count = min(len(candidates), 8)
+            year_variants = []
+            for base in candidates[:base_count]:
+                year_variants.append(f"{base}{y2}")
+                year_variants.append(f"{base}{y4}")
+            candidates.extend(year_variants)
 
         # Add diminutive variants (e.g., sasha_kozlov for Александр Козлов)
         try:

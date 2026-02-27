@@ -796,6 +796,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             try:
                 from app.services.phase1.telegram_discovery import TelegramDiscoveryService
 
+                tg_birth_year = check.date_of_birth.year if check.date_of_birth else None
+
                 def _tg_search():
                     svc = TelegramDiscoveryService()
                     try:
@@ -804,6 +806,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             last_name=name_parts['last'],
                             vk_screen_names=vk_screen_names,
                             city=check.region or '',
+                            birth_year=tg_birth_year,
                         )
                     finally:
                         svc.close()
