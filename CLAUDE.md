@@ -18,20 +18,21 @@ IBP (Identity-Based Profiler) is a unified OSINT investigation platform for Russ
 - For PDF generation: use **Playwright** (installed) or **reportlab**. Never try WeasyPrint or xhtml2pdf.
 - Always verify native dependency compatibility before suggesting any new library.
 
-## The 8-Stage Pipeline
+## The 9-Stage Pipeline (Stage 0-8)
 
 The pipeline lives in `app/services/candidate/pipeline.py`:
 
 | Stage | Name | % | Key Service | What It Does |
 |-------|------|---|-------------|-------------|
-| 1 | Government Registries | 0-15 | `bankruptcy_service.py`, `fssp_service.py` + phase3 services | EGRUL business registry, courts (sudact.ru), FSSP enforcement (2-attempt Playwright retry), EFRSB bankruptcy |
-| 2 | Security Checks | 15-25 | `sanctions_check.py` | Rosfinmonitoring, MVD wanted, Interpol, extremist list |
-| 3 | Social Media Discovery | 25-40 | `phase1/buratino_vk_search.py`, `phase1/telegram_discovery.py`, `phase1/ok_search_integration.py` | VK People Search (4 strategies), Telegram (3 methods), OK.ru search. **Precise mode**: pauses here for profile confirmation |
-| 4 | Contact Discovery | 40-55 | `contact_discovery.py` | 14-step chain: VK extraction, deep VK wall mining, Telegram, business/FSSP, email guessing, Hunter.io corporate, LeakDB, breach APIs, LeakDB cross-ref, forgot-password oracle (8 services), marketplace mining (6 platforms, Avito Playwright phone extraction), Holehe, dedup with cross-source boost |
-| 5 | Deep Social Analysis | 55-70 | `social_analysis.py` | Search4Faces (3 DBs), social graph (NetworkX + Louvain), Snoop (5,372 sites), YaSeeker. Feedback loop: new accounts re-enter Stage 4 |
-| 6 | Behavioral Intelligence | 70-82 | `behavioral_analysis.py` | VK wall text analysis (sentiment/keywords), geo extraction (100 Russian cities), activity timeline |
-| 7 | Risk Scoring | 82-92 | `risk_scorer.py` | 8-category dimensional scoring → CLEAN/LOW/MEDIUM/HIGH/CRITICAL |
-| 8 | Report Generation | 92-100 | `report_builder.py` | Compiles dossier with all stage data, identity card, social graph, geo map, PDF/JSON export |
+| 0 | Identity Confirmation | 0-8 | `pipeline.py` (inline) + `business_registry.py`, `bankruptcy_service.py` | **INN-first**: EGRUL lookup by INN, bankruptcy by INN, linked companies deep dive, business network extraction, identity confirmation report. Sets `confirmed_name` used by all subsequent stages. |
+| 1 | Government Registries | 8-18 | `fssp_service.py` + phase3 services | EGRUL by name (merged with Stage 0 INN results), courts (sudact.ru), FSSP enforcement (2-attempt Playwright retry) |
+| 2 | Security Checks | 18-27 | `sanctions_check.py` | Rosfinmonitoring, MVD wanted, Interpol, extremist list |
+| 3 | Social Media Discovery | 27-42 | `phase1/buratino_vk_search.py`, `phase1/telegram_discovery.py`, `phase1/ok_search_integration.py` | VK People Search (4 strategies + DOB filtering), Telegram (3 methods + birth year username patterns), OK.ru search. **Precise mode**: pauses here for profile confirmation |
+| 4 | Contact Discovery | 42-57 | `contact_discovery.py` | 14-step chain: VK extraction, deep VK wall mining, Telegram, business/FSSP, email guessing (with birth year patterns), Hunter.io corporate, LeakDB, breach APIs, LeakDB cross-ref, forgot-password oracle (8 services), marketplace mining (6 platforms, Avito Playwright phone extraction), Holehe, dedup with cross-source boost. Uses `confirmed_name` for name-based lookups. |
+| 5 | Deep Social Analysis | 57-72 | `social_analysis.py` | Search4Faces (3 DBs), social graph (NetworkX + Louvain), Snoop (5,372 sites), YaSeeker. Feedback loop: new accounts re-enter Stage 4 |
+| 6 | Behavioral Intelligence | 72-83 | `behavioral_analysis.py` | VK wall text analysis (sentiment/keywords), geo extraction (100 Russian cities), activity timeline |
+| 7 | Risk Scoring | 83-93 | `risk_scorer.py` | 9-category dimensional scoring (+ identity flags) → CLEAN/LOW/MEDIUM/HIGH/CRITICAL |
+| 8 | Report Generation | 93-100 | `report_builder.py` | Compiles dossier with all stage data, identity card, identity confirmation section, social graph, geo map, PDF/JSON export |
 
 ### Contact Discovery 11-Step Chain (Stage 4)
 
@@ -73,9 +74,10 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 
 | File | Purpose |
 |------|---------|
-| `app/services/candidate/pipeline.py` | 8-stage orchestrator, CandidateTaskStatus, progress tracking |
-| `app/models/candidate_check.py` | Main model (~30 fields), JSON property getters/setters for all stages |
-| `app/routes/candidate_check.py` | All endpoints: /start, /progress, /confirm, /dossier, /export |
+| `app/services/candidate/pipeline.py` | 9-stage orchestrator (Stage 0-8), CandidateTaskStatus, progress tracking |
+| `app/models/candidate_check.py` | Main model (~30 fields), JSON property getters/setters for all stages, identity confirmation fields |
+| `app/routes/candidate_check.py` | All endpoints: /start (INN required + checksum validation), /progress, /confirm, /dossier, /export |
+| `app/utils/inn_validator.py` | Russian INN checksum validation (10-digit legal, 12-digit individual) |
 | `app/services/candidate/social_analysis.py` | Stage 5: face search + social graph + Snoop + Maigret + Sherlock + YaSeeker |
 | `app/services/candidate/behavioral_analysis.py` | Stage 6: text analysis + geo extraction + timeline |
 | `app/services/candidate/contact_discovery.py` | Stage 4: 14-step chain (incl. 1b deep VK wall, 4b Hunter.io) + supplementary discovery for feedback loop |
@@ -273,8 +275,8 @@ python scripts/load_leaks.py telco ./data/raw/beeline.csv --carrier beeline
 
 ## Test Infrastructure
 
-- **67 test files**, **~2,980 test functions**, **37,899 lines** of test code
-- **3,756 tests pass**, 0 failures, 0 errors
+- **69 test files**, **~3,018 test functions** of test code
+- **3,794+ tests pass**, 0 failures, 0 errors
 - Located in `tests/` with subdirectories: `unit/`, `e2e/`, and root-level integration tests
 - E2E tests use Playwright browser automation
 - Unit tests mock external services (autouse fixtures for network-heavy steps)
