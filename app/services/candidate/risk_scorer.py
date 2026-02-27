@@ -34,6 +34,7 @@ class RiskScorer:
         """
         red_flags = []
 
+        red_flags.extend(self._analyze_identity(check))
         red_flags.extend(self._analyze_business(check))
         red_flags.extend(self._analyze_courts(check))
         red_flags.extend(self._analyze_fssp(check))
@@ -54,6 +55,33 @@ class RiskScorer:
         red_flags.sort(key=lambda f: severity_order.get(f['severity'], 99))
 
         return risk_level, red_flags
+
+    # ── Identity Red Flags (Stage 0) ──
+
+    def _analyze_identity(self, check):
+        """Analyze identity confirmation results from Stage 0."""
+        flags = []
+        identity = getattr(check, 'identity_confirmation', None) or {}
+
+        # Name discrepancy: EGRUL name differs from user input
+        if identity.get('name_discrepancy'):
+            egrul_name = identity.get('egrul_name', '')
+            flags.append(self._flag(
+                SEVERITY_MEDIUM, 'identity', 'name_discrepancy',
+                'Расхождение ФИО: введённое имя отличается от данных ЕГРЮЛ',
+                details=f'ЕГРЮЛ: {egrul_name}' if egrul_name else '',
+            ))
+
+        # Identity not confirmed via INN
+        if hasattr(check, 'identity_confirmed') and check.identity_confirmed is False:
+            # Only flag if INN was provided (it should be, since it's required)
+            if check.inn:
+                flags.append(self._flag(
+                    SEVERITY_LOW, 'identity', 'identity_not_confirmed',
+                    'ИНН не подтверждён через ЕГРЮЛ (нет записей)',
+                ))
+
+        return flags
 
     # ── Business Red Flags ──
 
@@ -239,8 +267,14 @@ class RiskScorer:
         # Total active debt
         total_active_debt = sum(self._safe_number(r.get('amount')) for r in active)
 
-        # large_debt vs medium_debt
-        if total_active_debt > 500_000:
+        # critical_debt > large_debt > medium_debt
+        if total_active_debt > 1_000_000:
+            flags.append(self._flag(
+                SEVERITY_HIGH, 'fssp', 'critical_debt',
+                'Критическая задолженность (>1 000 000\u20bd)',
+                details=f'Общая сумма: {total_active_debt:,.0f}\u20bd по {len(active)} производствам',
+            ))
+        elif total_active_debt > 500_000:
             flags.append(self._flag(
                 SEVERITY_HIGH, 'fssp', 'large_debt',
                 'Крупная задолженность (>500 000\u20bd)',

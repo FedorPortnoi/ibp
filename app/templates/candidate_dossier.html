@@ -194,13 +194,16 @@
     <div class="mb-6">
         <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
-                <h1 class="text-2xl sm:text-3xl font-bold text-white font-display mb-2">{{ check.full_name }}</h1>
+                <h1 class="text-2xl sm:text-3xl font-bold text-white font-display mb-2">{{ check.confirmed_name or check.full_name }}</h1>
+                {% if check.confirmed_name and check.confirmed_name != check.full_name %}
+                <div class="text-xs text-yellow-400 mb-1">&#x26A0;&#xFE0F; Введено: {{ check.full_name }}</div>
+                {% endif %}
                 <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-400">
                     {% if check.date_of_birth %}
                         <span>{{ check.date_of_birth.strftime('%d.%m.%Y') }}</span>
                     {% endif %}
                     {% if check.inn %}
-                        <span>ИНН {{ check.inn }}</span>
+                        <span>ИНН {{ check.inn }}{% if check.identity_confirmed %} &#x2705;{% endif %}</span>
                     {% endif %}
                     {% if check.region %}
                         <span>{{ check.region }}</span>
@@ -284,6 +287,9 @@
             <a href="#risk-box" class="nav-pill">&#x1F6E1; Риски
                 <span class="badge {% if red_flags %}badge-count{% else %}badge-empty{% endif %}" {% if red_flags|length > 0 %}style="background: rgba(239, 68, 68, 0.2); color: #f87171;"{% endif %}>{{ red_flags|length if red_flags else '0' }}</span>
             </a>
+            <a href="#sec-identity" class="nav-pill">&#x1F194; ИНН
+                <span class="badge {% if check.identity_confirmed %}badge-count{% else %}badge-empty{% endif %}">{{ '&#x2713;' if check.identity_confirmed else '—' }}</span>
+            </a>
             <a href="#sec-business" class="nav-pill">&#x1F4CB; Бизнес
                 <span class="badge {% if business_records %}badge-count{% else %}badge-empty{% endif %}">{{ business_records|length if business_records else '—' }}</span>
             </a>
@@ -338,6 +344,61 @@
             {% endif %}
         </div>
     </div>
+
+    {# ================================================================
+       3.5 IDENTITY CONFIRMATION (Stage 0)
+       ================================================================ #}
+    <section id="sec-identity" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F194; Идентификация по ИНН</h2>
+        </div>
+
+        {% set id_conf = check.identity_confirmation or {} %}
+        <div class="bg-gray-800 rounded-lg p-4 space-y-3">
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <span class="text-gray-400">ИНН:</span>
+                    <span class="text-white font-mono ml-2">{{ check.inn or '—' }}</span>
+                </div>
+                <div>
+                    <span class="text-gray-400">Статус:</span>
+                    {% if check.identity_confirmed %}
+                        <span class="text-green-400 ml-2">&#x2705; Подтверждён через ЕГРЮЛ</span>
+                    {% else %}
+                        <span class="text-yellow-400 ml-2">&#x26A0;&#xFE0F; Не найден в ЕГРЮЛ</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if check.confirmed_name and check.confirmed_name != check.full_name %}
+            <div class="bg-yellow-900/30 border border-yellow-700/50 rounded p-3 text-sm">
+                <div class="text-yellow-400 font-medium mb-1">&#x26A0;&#xFE0F; Расхождение ФИО</div>
+                <div class="text-gray-300">Введено: <span class="text-white">{{ check.full_name }}</span></div>
+                <div class="text-gray-300">ЕГРЮЛ: <span class="text-white">{{ check.confirmed_name }}</span></div>
+            </div>
+            {% elif check.confirmed_name %}
+            <div class="text-sm text-gray-400">
+                Подтверждённое имя: <span class="text-white">{{ check.confirmed_name }}</span>
+            </div>
+            {% endif %}
+
+            {% if id_conf.get('business_network') %}
+            <div class="mt-3">
+                <div class="text-sm text-gray-400 mb-2">Бизнес-сеть (связанные компании):</div>
+                <div class="space-y-1">
+                    {% for company in id_conf.get('business_network', [])[:10] %}
+                    <div class="text-sm text-gray-300 pl-3 border-l-2 border-violet-500/30">
+                        {{ company.get('company_name', '—') }}
+                        {% if company.get('co_founders') %}
+                            <span class="text-gray-500 ml-1">({{ company.get('co_founders', [])|length }} соучредителей)</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </section>
 
     {# ================================================================
        4. BUSINESS SECTION

@@ -329,13 +329,27 @@ def build_report(check) -> Dict[str, Any]:
     elif check.check_duration_seconds:
         duration = check.check_duration_seconds
 
+    # Identity confirmation data from Stage 0
+    identity_confirmation = _safe_json(getattr(check, 'identity_confirmation', None), {})
+
     report = {
         'identity_card': {
             'full_name': check.full_name,
+            'confirmed_name': getattr(check, 'confirmed_name', None),
+            'inn': check.inn,
+            'identity_confirmed': getattr(check, 'identity_confirmed', False),
             'date_of_birth': check.date_of_birth.isoformat() if check.date_of_birth else None,
             'photo_url': photo_url,
             'city': city,
             'confirmed_accounts': confirmed_accounts,
+        },
+        'identity_confirmation': {
+            'inn': check.inn,
+            'confirmed_name': getattr(check, 'confirmed_name', None),
+            'identity_confirmed': getattr(check, 'identity_confirmed', False),
+            'egrul_status': identity_confirmation.get('egrul_status'),
+            'business_network': identity_confirmation.get('business_network', []),
+            'name_discrepancy': identity_confirmation.get('name_discrepancy', False),
         },
         'risk_summary': {
             'risk_level': check.risk_level or 'unknown',
@@ -385,6 +399,8 @@ def build_report(check) -> Dict[str, Any]:
 def _count_stages(check) -> int:
     """Count how many pipeline stages have data."""
     count = 0
+    if getattr(check, 'identity_confirmed', False) or _safe_json(getattr(check, 'identity_confirmation', None), {}):
+        count += 1  # Stage 0
     if _safe_json(check.business_records, []) or _safe_json(check.court_records, []):
         count += 1  # Stage 1
     if _safe_json(check.sanctions_results, {}):
