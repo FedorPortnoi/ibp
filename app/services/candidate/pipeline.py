@@ -1,17 +1,18 @@
 """
 Candidate Check Pipeline
 ========================
-Orchestrates the 8-stage unified background check.
+Orchestrates the 9-stage unified background check (Stage 0-8).
 
 Stages:
-1. Government Registries (ЕГРЮЛ, courts, ФССП, ЕФРСБ)   [0-15%]
-2. Security Checks (sanctions)                             [15-25%]
-3. Social Media Discovery (VK, Telegram)                   [25-40%]
-4. Contact Discovery (VK/TG extraction + breach APIs)      [40-55%]
-5. Deep Social Analysis (face search, graph, Snoop)        [55-70%]
-6. Behavioral Intelligence (text, geo, timeline)           [70-82%]
-7. Risk Scoring (8-category red flags)                     [82-92%]
-8. Report Generation (dossier + identity card)             [92-100%]
+0. Identity Confirmation (ЕГРЮЛ by INN, bankruptcy, network) [0-8%]
+1. Government Registries (courts, ФССП, checko.ru)           [8-18%]
+2. Security Checks (sanctions)                                [18-27%]
+3. Social Media Discovery (VK, Telegram)                      [27-42%]
+4. Contact Discovery (VK/TG extraction + breach APIs)         [42-57%]
+5. Deep Social Analysis (face search, graph, Snoop)           [57-72%]
+6. Behavioral Intelligence (text, geo, timeline)              [72-83%]
+7. Risk Scoring (8-category red flags)                        [83-93%]
+8. Report Generation (dossier + identity card)                [93-100%]
 """
 
 import logging
@@ -277,9 +278,159 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             name_parts = check.name_parts
 
             # ══════════════════════════════════════════════
-            # STAGE 1: GOVERNMENT REGISTRIES [0-15%]
+            # STAGE 0: IDENTITY CONFIRMATION [0-8%]
             # ══════════════════════════════════════════════
-            task.update('gov_registries', 'Проверка государственных реестров...', 5)
+            task.update('identity', 'Подтверждение личности по ИНН...', 1)
+
+            identity_data = {
+                'egrul_status': 'not_checked',
+                'confirmed_name': check.full_name,
+                'linked_companies': [],
+                'business_network': [],
+                'bankruptcy_status': 'not_checked',
+                'name_discrepancy': False,
+            }
+            bankruptcy_records = []
+
+            # Step 0.1 — ЕГРЮЛ Direct Lookup by INN
+            egrul_inn_records = []
+            if check.inn:
+                task.update('identity', 'ЕГРЮЛ — поиск по ИНН...', 2)
+                try:
+                    from app.services.phase3.business_registry import BusinessRegistrySearch
+                    searcher = BusinessRegistrySearch(timeout=30)
+                    inn_results = searcher.search_by_inn(check.inn)
+                    if inn_results:
+                        egrul_inn_records = [r.to_dict() for r in inn_results]
+                        identity_data['egrul_status'] = 'registered'
+                        identity_data['linked_companies'] = egrul_inn_records
+
+                        # Extract confirmed name from first record
+                        first_record = egrul_inn_records[0]
+                        egrul_name = first_record.get('person_name') or first_record.get('name', '')
+                        if egrul_name and egrul_name != check.full_name:
+                            identity_data['name_discrepancy'] = True
+                            identity_data['egrul_name'] = egrul_name
+                            logger.info(
+                                f"Stage 0: Name discrepancy — input '{check.full_name}' "
+                                f"vs EGRUL '{egrul_name}'"
+                            )
+
+                        task.add_message(
+                            f'ЕГРЮЛ по ИНН: найдено {len(egrul_inn_records)} записей',
+                            'success',
+                        )
+                        sources_with_results += 1
+                    else:
+                        identity_data['egrul_status'] = 'not_registered'
+                        task.add_message('ЕГРЮЛ по ИНН: записей не найдено', 'info')
+                    sources_checked += 1
+                except Exception as e:
+                    logger.warning(f"Stage 0 EGRUL INN lookup failed: {e}")
+                    task.add_message('ЕГРЮЛ по ИНН: источник недоступен', 'warning')
+                    sources_checked += 1
+
+            # Step 0.2 — Bankruptcy Lookup by INN
+            task.update('identity', 'ЕФРСБ — проверка банкротства по ИНН...', 4)
+            try:
+                from app.services.candidate.bankruptcy_service import BankruptcyService
+                svc = BankruptcyService(timeout=30)
+                dob_str = check.date_of_birth.strftime('%Y-%m-%d') if check.date_of_birth else None
+                b_results = svc.search(check.full_name, inn=check.inn, dob=dob_str)
+                bankruptcy_records = [r.to_dict() for r in b_results]
+                is_manual = (
+                    bankruptcy_records
+                    and len(bankruptcy_records) == 1
+                    and bankruptcy_records[0].get('source') == 'manual'
+                )
+                if is_manual:
+                    task.add_message('ЕФРСБ: требуется ручная проверка', 'warning')
+                elif bankruptcy_records:
+                    task.add_message(
+                        f'Банкротство: найдено {len(bankruptcy_records)} записей',
+                        'success',
+                    )
+                    identity_data['bankruptcy_status'] = 'found'
+                    sources_with_results += 1
+                else:
+                    task.add_message('Банкротство: записей не найдено', 'info')
+                    identity_data['bankruptcy_status'] = 'clean'
+                sources_checked += 1
+            except Exception as e:
+                logger.warning(f"Stage 0 bankruptcy lookup failed: {e}")
+                task.add_message('ЕФРСБ: источник недоступен', 'warning')
+                sources_checked += 1
+
+            # Step 0.3 — Linked Companies Deep Dive
+            business_network = []
+            if egrul_inn_records:
+                task.update('identity', 'Анализ бизнес-связей...', 5)
+                try:
+                    from app.services.phase3.business_registry import BusinessRegistrySearch
+                    net_searcher = BusinessRegistrySearch(timeout=20)
+                    seen_inns = {check.inn}
+                    for company in egrul_inn_records[:5]:  # Limit to 5 companies
+                        company_inn = company.get('inn', '')
+                        if company_inn and company_inn not in seen_inns:
+                            seen_inns.add(company_inn)
+                            try:
+                                co_results = net_searcher.search_by_inn(company_inn)
+                                if co_results:
+                                    co_founders = []
+                                    for cr in co_results:
+                                        d = cr.to_dict()
+                                        co_name = d.get('person_name') or d.get('name', '')
+                                        co_role = d.get('role', '')
+                                        if co_name and co_name != check.full_name:
+                                            co_founders.append({
+                                                'name': co_name,
+                                                'role': co_role,
+                                            })
+                                    if co_founders:
+                                        business_network.append({
+                                            'company_inn': company_inn,
+                                            'company_name': company.get('name', ''),
+                                            'co_founders': co_founders[:10],
+                                        })
+                            except Exception:
+                                pass  # Non-critical, continue
+                except Exception as e:
+                    logger.warning(f"Stage 0 business network analysis failed: {e}")
+
+            identity_data['business_network'] = business_network
+
+            # Step 0.4 — Identity Confirmation Report
+            # Set confirmed_name: use EGRUL name if found and different
+            confirmed = check.full_name
+            if egrul_inn_records:
+                check.identity_confirmed = True
+            identity_data['confirmed_name'] = confirmed
+            check.confirmed_name = confirmed
+            check.identity_confirmation = identity_data
+            check.bankruptcy_records = bankruptcy_records
+            db.session.commit()
+
+            task.update('identity', 'Личность подтверждена', 8)
+            logger.info(
+                f"Stage 0 complete: INN={check.inn}, confirmed={check.identity_confirmed}, "
+                f"discrepancy={identity_data['name_discrepancy']}, "
+                f"companies={len(egrul_inn_records)}, network={len(business_network)}"
+            )
+            _pause()
+
+            # Use confirmed_name for all subsequent stages
+            effective_name = check.confirmed_name or check.full_name
+            effective_name_parts = effective_name.strip().split()
+            effective_parts = {
+                'last': effective_name_parts[0] if len(effective_name_parts) > 0 else '',
+                'first': effective_name_parts[1] if len(effective_name_parts) > 1 else '',
+                'patronymic': effective_name_parts[2] if len(effective_name_parts) > 2 else '',
+            }
+
+            # ══════════════════════════════════════════════
+            # STAGE 1: GOVERNMENT REGISTRIES [8-18%]
+            # ══════════════════════════════════════════════
+            task.update('gov_registries', 'Проверка государственных реестров...', 10)
 
             biz_records = []
             court_records = []
@@ -362,44 +513,42 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 results = svc.search(full_name, dob_str, region)
                 return [r.to_dict() for r in results]
 
-            task.update('gov_registries', 'ЕГРЮЛ + Суды + ФССП + ЕФРСБ — параллельный поиск...', 8)
+            task.update('gov_registries', 'ЕГРЮЛ + Суды + ФССП — параллельный поиск...', 12)
 
             fssp_records = []
-            bankruptcy_records = []
+            # Note: bankruptcy_records already populated by Stage 0
 
-            def _search_bankruptcy(full_name, inn, date_of_birth):
-                """Search ЕФРСБ bankruptcy records."""
-                from app.services.candidate.bankruptcy_service import BankruptcyService
-                svc = BankruptcyService(timeout=30)
-                dob_str = date_of_birth.strftime('%Y-%m-%d') if date_of_birth else None
-                results = svc.search(full_name, inn=inn, dob=dob_str)
-                return [r.to_dict() for r in results]
-
-            with ThreadPoolExecutor(max_workers=4) as executor:
-                future_biz = executor.submit(_search_business, check.full_name, check.inn)
-                future_courts = executor.submit(_search_courts, check.full_name)
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                future_biz = executor.submit(_search_business, effective_name, check.inn)
+                future_courts = executor.submit(_search_courts, effective_name)
                 future_fssp = executor.submit(
-                    _search_fssp, check.full_name, check.date_of_birth, check.region,
-                )
-                future_bankruptcy = executor.submit(
-                    _search_bankruptcy, check.full_name, check.inn, check.date_of_birth,
+                    _search_fssp, effective_name, check.date_of_birth, check.region,
                 )
 
                 for future in as_completed(
-                    [future_biz, future_courts, future_fssp, future_bankruptcy],
+                    [future_biz, future_courts, future_fssp],
                     timeout=120,
                 ):
                     try:
                         if future is future_biz:
                             biz_records = future.result(timeout=60)
+                            # Merge with Stage 0 EGRUL INN results
+                            if egrul_inn_records:
+                                existing_keys = {
+                                    (r.get('inn', '') or '') + (r.get('ogrn', '') or '')
+                                    for r in biz_records
+                                }
+                                for r in egrul_inn_records:
+                                    key = (r.get('inn', '') or '') + (r.get('ogrn', '') or '')
+                                    if key not in existing_keys:
+                                        biz_records.append(r)
+                                        existing_keys.add(key)
                             if biz_records:
                                 task.add_message(f'ЕГРЮЛ: найдено {len(biz_records)} записей', 'success')
                                 sources_with_results += 1
                             else:
                                 task.add_message('ЕГРЮЛ: записи не найдены', 'info')
                             sources_checked += 1
-                            if check.inn:
-                                sources_checked += 1  # INN search counts as separate source
 
                         elif future is future_courts:
                             court_records = future.result(timeout=60)
@@ -427,34 +576,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                                     f'ФССП: найдено {len(fssp_records)} производств', 'success',
                                 )
                                 sources_with_results += 1
-
                             else:
                                 task.add_message('ФССП: производств не найдено', 'info')
-                            sources_checked += 1
-
-                        elif future is future_bankruptcy:
-                            bankruptcy_records = future.result(timeout=60)
-                            is_manual = (
-                                bankruptcy_records
-                                and len(bankruptcy_records) == 1
-                                and bankruptcy_records[0].get('source') == 'manual'
-                            )
-                            if is_manual:
-                                task.add_message(
-                                    'ЕФРСБ: требуется ручная проверка',
-                                    'warning',
-                                )
-                            elif bankruptcy_records:
-                                task.add_message(
-                                    f'Банкротство: найдено {len(bankruptcy_records)} записей',
-                                    'success',
-                                )
-                                sources_with_results += 1
-
-                            else:
-                                task.add_message(
-                                    'Банкротство: записей не найдено', 'info',
-                                )
                             sources_checked += 1
 
                     except Exception as e:
@@ -470,39 +593,37 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             logger.warning(f"ФССП search failed: {e}")
                             task.add_message('ФССП: источник недоступен', 'warning')
                             sources_checked += 1
-                        else:
-                            logger.warning(f"ЕФРСБ search failed: {e}")
-                            task.add_message('ЕФРСБ: источник недоступен', 'warning')
-                            sources_checked += 1
 
             # Demo fallback for Stage 1
             if _is_demo_mode() and not biz_records and not court_records:
-                demo_biz, demo_courts, demo_fssp, demo_bankruptcy = _get_demo_gov_data(check.full_name)
+                demo_biz, demo_courts, demo_fssp, demo_bankruptcy = _get_demo_gov_data(effective_name)
                 biz_records = demo_biz
                 court_records = demo_courts
                 fssp_records = demo_fssp
-                bankruptcy_records = demo_bankruptcy
+                if not bankruptcy_records:
+                    bankruptcy_records = demo_bankruptcy
+                    check.bankruptcy_records = bankruptcy_records
                 task.add_message('Реестры: демо-данные (нет API)', 'info')
                 sources_with_results += 2
-                sources_checked += 4
+                sources_checked += 3
 
             check.business_records = biz_records
             check.court_records = court_records
             check.fssp_records = fssp_records
-            check.bankruptcy_records = bankruptcy_records
-            task.update('gov_registries', 'Реестры проверены', 15)
+            # bankruptcy_records already set in Stage 0
+            task.update('gov_registries', 'Реестры проверены', 18)
             _pause()
 
             db.session.commit()
 
             # ══════════════════════════════════════════════
-            # STAGE 2: SECURITY CHECKS [15-25%]
+            # STAGE 2: SECURITY CHECKS [18-27%]
             # ══════════════════════════════════════════════
-            task.update('security', 'Проверка санкционных списков...', 18)
+            task.update('security', 'Проверка санкционных списков...', 20)
 
             from app.services.candidate.sanctions_check import SanctionsService
             sanctions_svc = SanctionsService()
-            sanctions_results = sanctions_svc.check_all(check.full_name, inn=check.inn)
+            sanctions_results = sanctions_svc.check_all(effective_name, inn=check.inn)
 
             sanctions_checked = 0
             for sr in sanctions_results:
@@ -530,7 +651,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             task.update(
                 'security',
                 f'Санкции: проверено {sanctions_checked} источника',
-                25,
+                27,
             )
 
             sanctions_dicts = [sr.to_dict() for sr in sanctions_results]
@@ -546,19 +667,20 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             _pause()
 
             # ══════════════════════════════════════════════
-            # STAGE 3: SOCIAL MEDIA DISCOVERY [25-40%]
+            # STAGE 3: SOCIAL MEDIA DISCOVERY [27-42%]
             # ══════════════════════════════════════════════
-            task.update('social', 'Поиск в социальных сетях...', 28)
+            task.update('social', 'Поиск в социальных сетях...', 29)
 
             social_profiles = []
             vk_screen_names = []
 
             # 3.1 VK search — run first so Telegram can use screen_names
-            task.update('social', 'VK — поиск профилей...', 30)
+            task.update('social', 'VK — поиск профилей...', 31)
             try:
                 from app.services.phase1.buratino_vk_search import buratino_vk_search
 
-                # Calculate age range from DOB for filtering (±2 years)
+                # Calculate age range from DOB for filtering (±3 years)
+                # VK age data is often approximate (missing month/day), so use ±3
                 vk_age_from = vk_age_to = None
                 if check.date_of_birth:
                     from datetime import date as _date
@@ -566,8 +688,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     age = today.year - check.date_of_birth.year - (
                         (today.month, today.day) < (check.date_of_birth.month, check.date_of_birth.day)
                     )
-                    vk_age_from = max(age - 2, 16)
-                    vk_age_to = age + 2
+                    vk_age_from = max(age - 3, 16)
+                    vk_age_to = age + 3
 
                 def _vk_search():
                     return buratino_vk_search.search(
@@ -586,6 +708,19 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         logger.warning(f"VK search timeout/error: {e}")
                         vk_profiles = []
 
+                logger.info(
+                    f"Stage 3 VK: got {len(vk_profiles)} profiles from search "
+                    f"(city={check.region!r}, age={vk_age_from}-{vk_age_to}). "
+                    f"Pre-filter profiles:"
+                )
+                for _dbg_p in vk_profiles[:5]:
+                    _dbg_d = _dbg_p.to_dict() if hasattr(_dbg_p, 'to_dict') else _dbg_p
+                    logger.info(
+                        f"  VK profile: id{_dbg_d.get('vk_id')}, "
+                        f"{_dbg_d.get('full_name')!r}, city={_dbg_d.get('city')!r}, "
+                        f"age={_dbg_d.get('age')}, sim={_dbg_d.get('name_similarity', 0):.0f}%"
+                    )
+
                 if vk_profiles:
                     for p in vk_profiles[:10]:
                         d = p.to_dict() if hasattr(p, 'to_dict') else p
@@ -601,6 +736,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
                         social_profiles.append({
                             'platform': 'vk',
+                            'platform_id': d.get('vk_id'),
                             'display_name': d.get('full_name', ''),
                             'username': d.get('screen_name', ''),
                             'url': d.get('profile_url', ''),
@@ -630,7 +766,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             _pause()
 
             # 3.2 Telegram search — uses VK screen_names for cross-ref
-            task.update('social', 'Telegram — поиск профилей...', 34)
+            task.update('social', 'Telegram — поиск профилей...', 36)
             try:
                 from app.services.phase1.telegram_discovery import TelegramDiscoveryService
 
@@ -703,7 +839,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 task.add_message('Telegram: поиск недоступен', 'warning')
                 sources_checked += 1
 
-            task.update('social', f'Соцсети: найдено {len(social_profiles)} профилей', 40)
+            task.update('social', f'Соцсети: найдено {len(social_profiles)} профилей', 42)
             check.social_media_profiles = social_profiles
             db.session.commit()
             _pause()
@@ -713,7 +849,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 check.status = 'awaiting_confirmation'
                 check.paused_at_stage = 'awaiting_confirmation'
                 db.session.commit()
-                task.update('social', 'Ожидание подтверждения профиля', 40)
+                task.update('social', 'Ожидание подтверждения профиля', 42)
                 logger.info(f"Pipeline paused for profile confirmation (check {check_id})")
 
                 max_wait = 1800  # 30 minutes
@@ -740,12 +876,12 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 if check.status == 'running':
                     check.paused_at_stage = None
                     db.session.commit()
-                    task.update('social', 'Профиль подтверждён — продолжение', 40)
+                    task.update('social', 'Профиль подтверждён — продолжение', 42)
 
             # ══════════════════════════════════════════════
-            # STAGE 4: CONTACT DISCOVERY [40-55%]
+            # STAGE 4: CONTACT DISCOVERY [42-57%]
             # ══════════════════════════════════════════════
-            task.update('contacts', 'Поиск контактных данных...', 42)
+            task.update('contacts', 'Поиск контактных данных...', 44)
 
             try:
                 from app.services.candidate.contact_discovery import ContactDiscoveryService
@@ -778,13 +914,13 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 task.update(
                     'contacts',
                     f'Найдено {len(phones)} тел., {len(emails)} email',
-                    55,
+                    57,
                 )
             except Exception as e:
                 logger.error(f"Contact discovery error: {e}", exc_info=True)
                 contacts = {'phones': [], 'emails': []}
                 task.add_message('Контакты: ошибка поиска', 'warning')
-                task.update('contacts', 'Ошибка поиска контактов', 55)
+                task.update('contacts', 'Ошибка поиска контактов', 57)
 
             # Demo fallback for Stage 4
             phones = contacts.get('phones', [])
@@ -798,15 +934,15 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             db.session.commit()
 
             # ══════════════════════════════════════════════
-            # STAGE 5: DEEP SOCIAL ANALYSIS [55-70%]
+            # STAGE 5: DEEP SOCIAL ANALYSIS [57-72%]
             # ══════════════════════════════════════════════
-            task.update('social_analysis', 'Глубокий анализ соцсетей...', 56)
+            task.update('social_analysis', 'Глубокий анализ соцсетей...', 58)
 
             try:
                 from app.services.candidate.social_analysis import run_social_analysis
 
                 def stage5_callback(stage, msg, pct):
-                    task.update('social_analysis', msg, pct or 56)
+                    task.update('social_analysis', msg, pct or 58)
 
                 social_results = run_social_analysis(
                     check, task_status_callback=stage5_callback,
@@ -832,7 +968,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 # Stage 5e: Feedback loop — new accounts → supplementary contacts
                 new_accounts = social_results.get('new_accounts_for_enrichment', [])
                 if new_accounts:
-                    task.update('social_analysis', 'Дообогащение новых аккаунтов', 65)
+                    task.update('social_analysis', 'Дообогащение новых аккаунтов', 67)
                     from app.services.candidate.contact_discovery import ContactDiscoveryService
                     contact_service = ContactDiscoveryService()
                     supplementary = contact_service.discover_supplementary(
@@ -871,19 +1007,19 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 task.add_message('Глубокий анализ соцсетей: ошибка (пропущен)', 'warning')
                 sources_checked += 1
 
-            task.update('social_analysis', 'Социальный анализ завершён', 70)
+            task.update('social_analysis', 'Социальный анализ завершён', 72)
             _pause()
 
             # ══════════════════════════════════════════════
-            # STAGE 6: BEHAVIORAL INTELLIGENCE [70-82%]
+            # STAGE 6: BEHAVIORAL INTELLIGENCE [72-83%]
             # ══════════════════════════════════════════════
-            task.update('behavioral', 'Поведенческий анализ...', 72)
+            task.update('behavioral', 'Поведенческий анализ...', 73)
 
             try:
                 from app.services.candidate.behavioral_analysis import run_behavioral_analysis
 
                 def stage6_callback(stage, msg, pct):
-                    task.update('behavioral', msg, pct or 72)
+                    task.update('behavioral', msg, pct or 73)
 
                 behavioral_results = run_behavioral_analysis(
                     check, task_status_callback=stage6_callback,
@@ -917,13 +1053,13 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 task.add_message('Поведенческий анализ: ошибка (пропущен)', 'warning')
                 sources_checked += 1
 
-            task.update('behavioral', 'Поведенческий анализ завершён', 82)
+            task.update('behavioral', 'Поведенческий анализ завершён', 83)
             _pause()
 
             # ══════════════════════════════════════════════
-            # STAGE 7: RISK SCORING [82-92%]
+            # STAGE 7: RISK SCORING [83-93%]
             # ══════════════════════════════════════════════
-            task.update('risk', 'Анализ рисков...', 85)
+            task.update('risk', 'Анализ рисков...', 86)
 
             from app.services.candidate.risk_scorer import RiskScorer
             scorer = RiskScorer()
@@ -967,7 +1103,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             check.risk_score_numeric = min(100.0, total_score)
             db.session.commit()
 
-            task.update('risk', f'Риск: {check.risk_level_display}', 92)
+            task.update('risk', f'Риск: {check.risk_level_display}', 93)
             task.add_message(
                 f'Оценка риска: {check.risk_level_display} '
                 f'({len(merged_flags)} факторов)',
@@ -976,9 +1112,9 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             _pause()
 
             # ══════════════════════════════════════════════
-            # STAGE 8: REPORT GENERATION [92-100%]
+            # STAGE 8: REPORT GENERATION [93-100%]
             # ══════════════════════════════════════════════
-            task.update('report', 'Генерация отчёта...', 94)
+            task.update('report', 'Генерация отчёта...', 95)
 
             try:
                 from app.services.candidate.report_builder import build_report
