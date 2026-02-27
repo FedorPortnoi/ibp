@@ -69,10 +69,19 @@ def start_check():
     if age < 16 or age > 100:
         return _error('Возраст должен быть от 16 до 100 лет', 400)
 
-    # --- Optional fields ---
+    # --- INN (required) ---
     inn = (data.get('inn') or '').strip()[:12]
-    if inn and not re.match(r'^\d{10}(\d{2})?$', inn):
+    if not inn:
+        return _error('ИНН обязателен', 400)
+    if not re.match(r'^\d{10}(\d{2})?$', inn):
         return _error('ИНН должен содержать 10 или 12 цифр', 400)
+
+    from app.utils.inn_validator import validate_inn
+    inn_valid, inn_error = validate_inn(inn)
+    if not inn_valid:
+        return _error(inn_error, 400)
+
+    # --- Optional fields ---
 
     passport_raw = (data.get('passport') or '').strip()
     passport_series = None
@@ -104,7 +113,7 @@ def start_check():
         id=check_id,
         full_name=full_name,
         date_of_birth=dob,
-        inn=inn or None,
+        inn=inn,
         passport_series=passport_series,
         passport_number=passport_number,
         registered_address=address or None,

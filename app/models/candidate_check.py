@@ -26,13 +26,18 @@ class CandidateCheck(db.Model):
     # Input
     full_name = db.Column(db.String(255), nullable=False)
     date_of_birth = db.Column(db.Date, nullable=False)
-    inn = db.Column(db.String(12))
+    inn = db.Column(db.String(12), nullable=False)
     passport_series = db.Column(db.String(4))
     passport_number = db.Column(db.String(6))
     registered_address = db.Column(db.Text)
     region = db.Column(db.String(100))
     phone = db.Column(db.String(20))
     email = db.Column(db.String(255))
+
+    # --- Stage 0: Identity Confirmation ---
+    _identity_confirmation = db.Column('identity_confirmation', db.Text, default='{}')
+    confirmed_name = db.Column(db.String(255), nullable=True)
+    identity_confirmed = db.Column(db.Boolean, default=False)
 
     # Results (JSON)
     _business_records = db.Column('business_records', db.Text, default='[]')
@@ -238,6 +243,15 @@ class CandidateCheck(db.Model):
     def risk_breakdown(self, value):
         self._risk_breakdown = self._dump_json(value)
 
+    # identity_confirmation
+    @property
+    def identity_confirmation(self):
+        return self._load_json(self._identity_confirmation, {})
+
+    @identity_confirmation.setter
+    def identity_confirmation(self, value):
+        self._identity_confirmation = self._dump_json(value)
+
     # --- Computed properties ---
 
     @property
@@ -284,6 +298,8 @@ class CandidateCheck(db.Model):
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
             'status': self.status,
             'full_name': self.full_name,
+            'confirmed_name': self.confirmed_name,
+            'identity_confirmed': self.identity_confirmed,
             'date_of_birth': self.date_of_birth.isoformat() if self.date_of_birth else None,
             'inn': self.inn,
             'region': self.region,

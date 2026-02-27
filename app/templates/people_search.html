@@ -407,12 +407,13 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                         <div>
                             <label for="cand_inn" class="block text-sm font-medium text-gray-300 mb-2">
-                                ИНН <span class="text-gray-600 text-xs">(необязательно)</span>
+                                ИНН <span class="text-red-400">*</span>
                             </label>
-                            <input type="text" id="cand_inn" name="inn"
+                            <input type="text" id="cand_inn" name="inn" required
                                    placeholder="771234567890" maxlength="12"
                                    pattern="\d{10}(\d{2})?" title="10 или 12 цифр"
                                    class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                            <div id="inn-error" class="text-red-400 text-xs mt-1 hidden"></div>
                         </div>
                         <div>
                             <label for="cand_passport" class="block text-sm font-medium text-gray-300 mb-2">
@@ -589,6 +590,25 @@ function switchToCandidateWithName() {
 // ═══════════════════════════════════════════════════════════════
 // CANDIDATE FORM — Quality Indicator
 // ═══════════════════════════════════════════════════════════════
+function validateInnChecksum(inn) {
+    if (!inn || !/^\d{10}(\d{2})?$/.test(inn)) return false;
+    const d = inn.split('').map(Number);
+    if (d.length === 10) {
+        const w = [2,4,10,3,5,9,4,6,8];
+        const sum = w.reduce((s, wi, i) => s + wi * d[i], 0);
+        return (sum % 11 % 10) === d[9];
+    }
+    if (d.length === 12) {
+        const w11 = [7,2,4,10,3,5,9,4,6,8];
+        const w12 = [3,7,2,4,10,3,5,9,4,6,8];
+        const s11 = w11.reduce((s, wi, i) => s + wi * d[i], 0);
+        if ((s11 % 11 % 10) !== d[10]) return false;
+        const s12 = w12.reduce((s, wi, i) => s + wi * d[i], 0);
+        return (s12 % 11 % 10) === d[11];
+    }
+    return false;
+}
+
 function updateQualityIndicator() {
     const name = document.getElementById('cand_full_name').value.trim();
     const dob = document.getElementById('cand_dob').value;
@@ -597,9 +617,22 @@ function updateQualityIndicator() {
     const address = document.getElementById('cand_address').value.trim();
 
     const el = document.getElementById('quality-indicator');
+    const innErr = document.getElementById('inn-error');
 
-    if (!name || !dob) {
-        el.textContent = 'Заполните имя и дату рождения для начала проверки';
+    // Validate INN checksum
+    if (inn && inn.length >= 10) {
+        if (!validateInnChecksum(inn)) {
+            innErr.textContent = 'Контрольная сумма ИНН некорректна';
+            innErr.classList.remove('hidden');
+        } else {
+            innErr.classList.add('hidden');
+        }
+    } else {
+        innErr.classList.add('hidden');
+    }
+
+    if (!name || !dob || !inn) {
+        el.textContent = 'Заполните ФИО, дату рождения и ИНН для начала проверки';
         el.className = 'mb-6 px-4 py-3 rounded-lg bg-bg-dark border border-violet-100 text-sm text-gray-500';
         return;
     }
@@ -607,12 +640,12 @@ function updateQualityIndicator() {
     if (inn && passport && address) {
         el.innerHTML = '&#x1F4CB; <span class="text-green-400 font-medium">Полная проверка</span> \u2014 максимальный охват источников';
         el.className = 'mb-6 px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/20 text-sm text-gray-300';
-    } else if (inn) {
-        el.innerHTML = '&#x1F4CB; <span class="text-violet-bright font-medium">Расширенная проверка</span> \u2014 включая бизнес-реестры по ИНН';
+    } else if (inn && passport) {
+        el.innerHTML = '&#x1F4CB; <span class="text-violet-bright font-medium">Расширенная проверка</span> \u2014 ИНН + паспортные данные';
         el.className = 'mb-6 px-4 py-3 rounded-lg bg-violet-50 border border-violet-200 text-sm text-gray-300';
     } else {
-        el.innerHTML = '&#x1F4CB; <span class="text-gray-300 font-medium">Базовая проверка</span> \u2014 будут проверены основные источники';
-        el.className = 'mb-6 px-4 py-3 rounded-lg bg-bg-dark border border-violet-100 text-sm text-gray-400';
+        el.innerHTML = '&#x1F4CB; <span class="text-violet-bright font-medium">Стандартная проверка</span> \u2014 ФИО + ИНН + дата рождения';
+        el.className = 'mb-6 px-4 py-3 rounded-lg bg-violet-50 border border-violet-200 text-sm text-gray-300';
     }
 }
 
