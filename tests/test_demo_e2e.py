@@ -94,6 +94,7 @@ def _create_check(app, full_name='Иванов Иван Петрович', mode=
             id=check_id,
             full_name=full_name,
             date_of_birth=date(1985, 1, 15),
+            inn='7707083893',
             status='pending',
             check_mode=mode,
         )
@@ -234,6 +235,7 @@ class TestDemoEndToEnd:
         r = client.post('/candidate/start', json={
             'full_name': 'Тестов Тест Тестович',
             'date_of_birth': '1990-05-15',
+            'inn': '7707083893',
             'check_mode': 'quick',
         })
         assert r.status_code == 200

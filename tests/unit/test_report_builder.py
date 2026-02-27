@@ -40,6 +40,10 @@ def _make_check(**overrides):
     check.activity_timeline = overrides.get('activity_timeline', [])
     check.red_flags = overrides.get('red_flags', [])
     check.risk_breakdown = overrides.get('risk_breakdown', {})
+    check.inn = overrides.get('inn', '7707083893')
+    check.confirmed_name = overrides.get('confirmed_name', None)
+    check.identity_confirmed = overrides.get('identity_confirmed', False)
+    check.identity_confirmation = overrides.get('identity_confirmation', {})
     return check
 
 
@@ -50,10 +54,11 @@ class TestBuildReportSections:
         check = _make_check()
         report = build_report(check)
         expected_keys = [
-            'identity_card', 'risk_summary', 'government_records',
-            'sanctions', 'social_profiles', 'contact_info',
-            'social_graph_summary', 'geo_summary', 'behavioral_summary',
-            'face_matches', 'timeline_events', 'metadata',
+            'identity_card', 'identity_confirmation', 'risk_summary',
+            'government_records', 'sanctions', 'social_profiles',
+            'contact_info', 'social_graph_summary', 'geo_summary',
+            'behavioral_summary', 'face_matches', 'timeline_events',
+            'metadata',
         ]
         for key in expected_keys:
             assert key in report, f"Missing section: {key}"
@@ -297,9 +302,10 @@ class TestStagesCounted:
             text_analysis={'sentiment': {'score': 0.1}},
             risk_level='low',
             report_generated=True,
+            identity_confirmed=True,
         )
         report = build_report(check)
-        assert report['metadata']['stages_completed'] == 8
+        assert report['metadata']['stages_completed'] == 9  # Stage 0-8
 
     def test_stages_empty_check(self):
         check = _make_check(risk_level=None, report_generated=False)

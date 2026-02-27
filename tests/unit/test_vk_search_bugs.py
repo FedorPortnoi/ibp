@@ -226,7 +226,12 @@ class TestVKWebSearchCountArgFix:
                 finally:
                     vk_mod.VKWebSearch = original_cls
 
-        mock_web_search_instance.search.assert_called_once_with('Иван Иванов')
+        mock_web_search_instance.search.assert_called_once_with(
+            'Иван Иванов',
+            birth_day=None,
+            birth_month=None,
+            birth_year=None,
+        )
 
     def test_vk_web_search_signature_no_count_param(self):
         """VKWebSearch.search() signature must not accept count parameter."""

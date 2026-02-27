@@ -197,6 +197,7 @@ class TestFormValidation:
     def test_invalid_passport(self, client):
         resp = client.post('/candidate/start', json={
             'full_name': 'Иванов Иван', 'date_of_birth': '1990-05-15',
+            'inn': '7707083893',
             'passport': '123',  # wrong format
         })
         assert resp.status_code == 400
@@ -205,6 +206,7 @@ class TestFormValidation:
     def test_invalid_email(self, client):
         resp = client.post('/candidate/start', json={
             'full_name': 'Иванов Иван', 'date_of_birth': '1990-05-15',
+            'inn': '7707083893',
             'email': 'not-an-email',
         })
         assert resp.status_code == 400
@@ -216,6 +218,7 @@ class TestFormValidation:
             resp = client.post('/candidate/start', json={
                 'full_name': '<script>alert(1)</script>Иванов Иван',
                 'date_of_birth': '1990-05-15',
+                'inn': '7707083893',
             })
             assert resp.status_code == 200
             data = resp.get_json()
@@ -234,6 +237,7 @@ class TestStartCheck:
         resp = client.post('/candidate/start', json={
             'full_name': 'Петров Пётр Петрович',
             'date_of_birth': '1985-03-20',
+            'inn': '7707083893',
             'check_mode': 'quick',
         })
         assert resp.status_code == 200
@@ -258,6 +262,7 @@ class TestStartCheck:
         resp = client.post('/candidate/start', json={
             'full_name': 'Сидоров Сергей',
             'date_of_birth': '1992-11-10',
+            'inn': '7707083893',
             'check_mode': 'precise',
         })
         assert resp.status_code == 200
@@ -275,6 +280,7 @@ class TestStartCheck:
         resp = client.post('/candidate/start', json={
             'full_name': 'Козлов Анатолий',
             'date_of_birth': '1988-07-01',
+            'inn': '7707083893',
             'check_mode': 'invalid_mode',
         })
         assert resp.status_code == 200
@@ -291,6 +297,7 @@ class TestStartCheck:
         resp = client.post('/candidate/start', data={
             'full_name': 'Кузнецов Дмитрий',
             'date_of_birth': '1995-01-20',
+            'inn': '7707083893',
         }, follow_redirects=False)
         # Form POST should redirect to progress page
         assert resp.status_code == 302
@@ -308,7 +315,7 @@ class TestStartCheck:
         resp = client.post('/candidate/start', json={
             'full_name': 'Морозова Елена Сергеевна',
             'date_of_birth': '1993-08-12',
-            'inn': '772012345678',
+            'inn': '7707083893',
             'passport': '4515 123456',
             'phone': '+79161234567',
             'email': 'moroz@mail.ru',
@@ -320,7 +327,7 @@ class TestStartCheck:
 
         with app.app_context():
             check = CandidateCheck.query.get(data['check_id'])
-            assert check.inn == '772012345678'
+            assert check.inn == '7707083893'
             assert check.passport_series == '4515'
             assert check.passport_number == '123456'
             assert check.phone == '+79161234567'
@@ -568,6 +575,7 @@ class TestAPIEndpoints:
                 id=check_id,
                 full_name='Пустой Тест',
                 date_of_birth=date(1990, 1, 1),
+                inn='7707083893',
                 status='complete',
             )
             db.session.add(check)
@@ -643,6 +651,7 @@ class TestCandidateCheckModel:
                 id=check_id,
                 full_name='Тест Тестович',
                 date_of_birth=date(1985, 6, 15),
+                inn='7707083893',
                 status='complete',
             )
             db.session.add(check)
@@ -720,6 +729,7 @@ class TestCandidateCheckModel:
                 id=uuid.uuid4().hex,
                 full_name='Пустой Тест',
                 date_of_birth=date(1990, 1, 1),
+                inn='7707083893',
             )
             db.session.add(check)
             db.session.commit()
@@ -811,6 +821,7 @@ class TestHistoryAndDelete:
                 id=check_id,
                 full_name='Удалить Меня',
                 date_of_birth=date(1990, 1, 1),
+                inn='7707083893',
                 status='complete',
             )
             db.session.add(check)
@@ -839,6 +850,7 @@ class TestDemoMode:
         resp = client.post('/candidate/start', json={
             'full_name': 'Демо Тестович',
             'date_of_birth': '1990-01-01',
+            'inn': '7707083893',
             'check_mode': 'quick',
         })
         data = resp.get_json()

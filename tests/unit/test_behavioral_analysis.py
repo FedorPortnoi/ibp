@@ -65,7 +65,7 @@ class TestDemoMode:
         result = _demo_response()
         assert len(result['activity_timeline']) == 30
 
-    @patch.dict('os.environ', {'VK_SERVICE_TOKEN': '', 'VK_TOKEN': ''})
+    @patch.dict('os.environ', {'VK_SERVICE_TOKEN': '', 'VK_TOKEN': '', 'VK_USER_TOKEN': ''})
     def test_no_token_returns_demo(self):
         check = _make_check()
         result = run_behavioral_analysis(check)
