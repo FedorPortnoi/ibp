@@ -679,11 +679,15 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             try:
                 from app.services.phase1.buratino_vk_search import buratino_vk_search
 
-                # Calculate age range from DOB for filtering (±3 years)
-                # VK age data is often approximate (missing month/day), so use ±3
+                # Parse DOB into components for VK API birth_day/month/year params
+                vk_birth_day = vk_birth_month = vk_birth_year = None
                 vk_age_from = vk_age_to = None
                 if check.date_of_birth:
                     from datetime import date as _date
+                    vk_birth_day = check.date_of_birth.day
+                    vk_birth_month = check.date_of_birth.month
+                    vk_birth_year = check.date_of_birth.year
+                    # Also keep age range (±3 years) as secondary filter
                     today = _date.today()
                     age = today.year - check.date_of_birth.year - (
                         (today.month, today.day) < (check.date_of_birth.month, check.date_of_birth.day)
@@ -693,10 +697,13 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
                 def _vk_search():
                     return buratino_vk_search.search(
-                        query=check.full_name,
+                        query=effective_name,
                         city=check.region,
                         age_from=vk_age_from,
                         age_to=vk_age_to,
+                        birth_day=vk_birth_day,
+                        birth_month=vk_birth_month,
+                        birth_year=vk_birth_year,
                     )
 
                 # Timeout: 60s max for VK search
@@ -734,6 +741,24 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         else:
                             continue
 
+                        # DOB match boost: compare VK bdate with check.date_of_birth
+                        dob_match = False
+                        conf_score = round(sim / 100, 2)
+                        vk_bdate = d.get('birth_date', '')
+                        if vk_bdate and check.date_of_birth:
+                            bdate_parts = vk_bdate.split('.')
+                            if len(bdate_parts) == 3:
+                                try:
+                                    bd, bm, by = int(bdate_parts[0]), int(bdate_parts[1]), int(bdate_parts[2])
+                                    if (bd == check.date_of_birth.day
+                                            and bm == check.date_of_birth.month
+                                            and by == check.date_of_birth.year):
+                                        dob_match = True
+                                        conf_score = min(0.98, max(conf_score, 0.95))
+                                        confidence = 'высокая'
+                                except (ValueError, IndexError):
+                                    pass
+
                         social_profiles.append({
                             'platform': 'vk',
                             'platform_id': d.get('vk_id'),
@@ -743,7 +768,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             'avatar_url': d.get('photo_url'),
                             'photo_url': d.get('photo_url'),
                             'confidence': confidence,
-                            'confidence_score': round(sim / 100, 2),
+                            'confidence_score': conf_score,
+                            'dob_match': dob_match,
                             'source_method': 'VK People Search',
                             'city': d.get('city', ''),
                         })

@@ -205,6 +205,9 @@ class VKWebSearch:
     def search(
         self,
         query: str,
+        birth_day: Optional[int] = None,
+        birth_month: Optional[int] = None,
+        birth_year: Optional[int] = None,
     ) -> Tuple[List[Dict], int]:
         """
         Search VK for people by name. Returns (profiles, total_count).
@@ -229,7 +232,12 @@ class VKWebSearch:
                     id_methods[uid] = method
 
         # Step 1: People search (most accurate — searches real name fields)
-        web_search_ids = self._playwright_search(query)
+        web_search_ids = self._playwright_search(
+            query,
+            birth_day=birth_day,
+            birth_month=birth_month,
+            birth_year=birth_year,
+        )
         _add_ids(web_search_ids, 'people_search')
 
         # Step 2: Newsfeed search (supplementary — finds post authors)
@@ -394,7 +402,13 @@ class VKWebSearch:
     # Class-level flag: skip Playwright if login has already failed this session
     _login_failed = False
 
-    def _playwright_search(self, query: str) -> List[int]:
+    def _playwright_search(
+        self,
+        query: str,
+        birth_day: Optional[int] = None,
+        birth_month: Optional[int] = None,
+        birth_year: Optional[int] = None,
+    ) -> List[int]:
         """
         Search VK using the web token obtained from the browser session.
 
@@ -422,7 +436,12 @@ class VKWebSearch:
             return []
 
         # Step 3: Call users.search with the web token
-        return self._users_search_with_token(web_token, query)
+        return self._users_search_with_token(
+            web_token, query,
+            birth_day=birth_day,
+            birth_month=birth_month,
+            birth_year=birth_year,
+        )
 
     def _refresh_web_token(self) -> Optional[str]:
         """
@@ -502,7 +521,10 @@ class VKWebSearch:
         return None
 
     def _users_search_with_token(
-        self, token: str, query: str
+        self, token: str, query: str,
+        birth_day: Optional[int] = None,
+        birth_month: Optional[int] = None,
+        birth_year: Optional[int] = None,
     ) -> List[int]:
         """
         Call VK API users.search with a web token.
@@ -517,15 +539,24 @@ class VKWebSearch:
             return []
 
         try:
+            search_params = {
+                'q': query,
+                'count': 1000,  # Always fetch maximum from VK
+                'fields': ','.join(self.PROFILE_FIELDS),
+                'access_token': token,
+                'v': self.VK_API_VERSION,
+            }
+            # Add DOB filters if provided (VK API supports these)
+            if birth_day:
+                search_params['birth_day'] = birth_day
+            if birth_month:
+                search_params['birth_month'] = birth_month
+            if birth_year:
+                search_params['birth_year'] = birth_year
+
             resp = self._session.post(
                 f"{self.VK_API_BASE}/users.search",
-                data={
-                    'q': query,
-                    'count': 1000,  # Always fetch maximum from VK
-                    'fields': ','.join(self.PROFILE_FIELDS),
-                    'access_token': token,
-                    'v': self.VK_API_VERSION,
-                },
+                data=search_params,
                 timeout=15,
             )
             data = resp.json()

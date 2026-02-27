@@ -342,6 +342,59 @@ class BuratinoVKSearch:
             }
             return ''.join(table.get(ch, ch) for ch in text)
 
+    # VK API returns city names in profile language — map English↔Russian for top cities
+    _CITY_ALIASES = {
+        'москва': 'moscow', 'санкт-петербург': 'saint petersburg',
+        'новосибирск': 'novosibirsk', 'екатеринбург': 'yekaterinburg',
+        'казань': 'kazan', 'нижний новгород': 'nizhny novgorod',
+        'челябинск': 'chelyabinsk', 'самара': 'samara', 'омск': 'omsk',
+        'ростов-на-дону': 'rostov-on-don', 'уфа': 'ufa', 'красноярск': 'krasnoyarsk',
+        'воронеж': 'voronezh', 'пермь': 'perm', 'волгоград': 'volgograd',
+        'краснодар': 'krasnodar', 'тюмень': 'tyumen', 'саратов': 'saratov',
+        'тольятти': 'tolyatti', 'ижевск': 'izhevsk', 'барнаул': 'barnaul',
+        'иркутск': 'irkutsk', 'хабаровск': 'khabarovsk', 'владивосток': 'vladivostok',
+        'ярославль': 'yaroslavl', 'махачкала': 'makhachkala', 'томск': 'tomsk',
+        'оренбург': 'orenburg', 'кемерово': 'kemerovo', 'новокузнецк': 'novokuznetsk',
+        'рязань': 'ryazan', 'астрахань': 'astrakhan', 'набережные челны': 'naberezhnye chelny',
+        'пенза': 'penza', 'липецк': 'lipetsk', 'киров': 'kirov', 'тула': 'tula',
+        'чебоксары': 'cheboksary', 'калининград': 'kaliningrad',
+        'санкт петербург': 'saint petersburg', 'петербург': 'saint petersburg',
+        'спб': 'saint petersburg', 'мск': 'moscow', 'питер': 'saint petersburg',
+    }
+    # Build reverse mapping (english → russian)
+    _CITY_ALIASES_REV = {v: k for k, v in _CITY_ALIASES.items()}
+    # Also handle 'st. petersburg' / 'st petersburg'
+    _CITY_ALIASES_REV['st. petersburg'] = 'санкт-петербург'
+    _CITY_ALIASES_REV['st petersburg'] = 'санкт-петербург'
+
+    def _city_matches(self, search_city: str, profile_city: str) -> bool:
+        """Check if cities match across Russian/English naming."""
+        sc = search_city.lower().strip()
+        pc = profile_city.lower().strip()
+
+        # Direct substring match
+        if sc in pc or pc in sc:
+            return True
+
+        # Transliteration match (Новосибирск → novosibirsk)
+        sc_lat = self._to_latin(sc)
+        pc_lat = self._to_latin(pc)
+        if sc_lat in pc_lat or pc_lat in sc_lat:
+            return True
+
+        # Alias match (Москва ↔ Moscow)
+        sc_alias = self._CITY_ALIASES.get(sc) or self._CITY_ALIASES_REV.get(sc)
+        pc_alias = self._CITY_ALIASES.get(pc) or self._CITY_ALIASES_REV.get(pc)
+        if sc_alias and (sc_alias in pc or sc_alias in pc_lat):
+            return True
+        if pc_alias and (pc_alias in sc or pc_alias in sc_lat):
+            return True
+        # Both aliased → compare aliases
+        if sc_alias and pc_alias and (sc_alias == pc_alias):
+            return True
+
+        return False
+
     def _parse_profile(self, data: Dict[str, Any], target_name: str = None) -> VKProfileResult:
         """Parse VK API user data into VKProfileResult."""
         # Extract city
@@ -404,7 +457,10 @@ class BuratinoVKSearch:
         sex: Optional[int] = None,
         count: int = 50,
         offset: int = 0,
-        target_name: Optional[str] = None
+        target_name: Optional[str] = None,
+        birth_day: Optional[int] = None,
+        birth_month: Optional[int] = None,
+        birth_year: Optional[int] = None,
     ) -> Tuple[List[VKProfileResult], int]:
         """
         Search VKontakte for people by name.
@@ -430,7 +486,12 @@ class BuratinoVKSearch:
         try:
             from app.services.phase1.vk_web_search import VKWebSearch
             web_searcher = VKWebSearch(service_token=self.token)
-            raw_profiles, _ = web_searcher.search(query)
+            raw_profiles, _ = web_searcher.search(
+                query,
+                birth_day=birth_day,
+                birth_month=birth_month,
+                birth_year=birth_year,
+            )
             for item in raw_profiles:
                 vk_id = item.get('id')
                 if vk_id and vk_id not in all_profiles_by_id:
@@ -445,13 +506,28 @@ class BuratinoVKSearch:
         if city or age_from or age_to:
             filtered = {}
             for vk_id, profile in all_profiles_by_id.items():
-                if city and profile.city and city.lower() not in profile.city.lower():
-                    continue
+                if city and profile.city:
+                    if not self._city_matches(city, profile.city):
+                        continue
                 if age_from and profile.age and profile.age < age_from:
                     continue
                 if age_to and profile.age and profile.age > age_to:
                     continue
                 filtered[vk_id] = profile
+            logger.info(
+                f"VK filter: {len(all_profiles_by_id)} -> {len(filtered)} "
+                f"(city={city!r}, age={age_from}-{age_to})"
+            )
+            # Fallback: if city+age filter removed ALL results, retry with age-only
+            if not filtered and all_profiles_by_id and city:
+                logger.info("VK filter fallback: retrying without city filter")
+                for vk_id, profile in all_profiles_by_id.items():
+                    if age_from and profile.age and profile.age < age_from:
+                        continue
+                    if age_to and profile.age and profile.age > age_to:
+                        continue
+                    filtered[vk_id] = profile
+                logger.info(f"VK filter fallback: {len(filtered)} profiles after age-only filter")
             all_profiles_by_id = filtered
 
         profiles = list(all_profiles_by_id.values())
