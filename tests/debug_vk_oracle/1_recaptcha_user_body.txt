@@ -1,0 +1,5 @@
+URL: https://id.vk.com/restore
+Username: recaptcha_user
+Timestamp: 1
+============================================================
+Please verify you are human

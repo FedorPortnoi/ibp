@@ -44,7 +44,9 @@
       "WebFetch(domain:emailrep.io)",
       "WebFetch(domain:hunter.io)",
       "WebFetch(domain:t.me)",
-      "WebFetch(domain:fssp.gov.ru)"
+      "WebFetch(domain:fssp.gov.ru)",
+      "WebFetch(domain:id.vk.com)",
+      "WebFetch(domain:search4faces.com)"
     ]
   }
 }

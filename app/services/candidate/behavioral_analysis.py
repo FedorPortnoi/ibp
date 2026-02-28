@@ -32,6 +32,14 @@ def _fetch_vk_wall_posts(vk_profiles: List[Dict], token: str, max_posts: int = 1
     all_posts = []
     for profile in vk_profiles[:2]:  # Max 2 VK profiles
         vk_id = profile.get('platform_id') or profile.get('vk_id') or profile.get('id')
+        # Fallback: extract numeric ID from URL (e.g., https://vk.com/id380010961)
+        if not vk_id:
+            url = profile.get('url', '')
+            if '/id' in url:
+                try:
+                    vk_id = int(url.split('/id')[-1].split('?')[0].split('/')[0])
+                except (ValueError, IndexError):
+                    pass
         if not vk_id:
             continue
 

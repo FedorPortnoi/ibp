@@ -1,0 +1,4 @@
+URL: https://id.vk.com/restore
+Username: captcha_user
+Timestamp: 1
+============================================================

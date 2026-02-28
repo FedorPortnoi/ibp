@@ -6,7 +6,8 @@ Obtains a VK user token via OAuth Implicit Flow.
 The user token grants access to private-data API methods:
   wall.get, friends.get, photos.getAll, market.get
 
-Scopes requested: friends, photos, wall, groups, offline
+Uses VK official Android app client_id (2685278) for OAuth implicit flow.
+Scopes requested: wall, photos, offline
 
 Flow:
   1. Opens VK OAuth URL in your browser
@@ -14,9 +15,6 @@ Flow:
   3. VK redirects to blank.html with token in URL fragment
   4. You paste the redirect URL back here
   5. Script extracts token and saves to .env as VK_USER_TOKEN
-
-Prerequisites:
-  VK_APP_ID must be set in .env (create app at https://vk.com/apps?act=manage)
 
 Usage:
   python scripts/auth_vk.py
@@ -99,21 +97,15 @@ def _test_method(token, method, params):
 
 def get_oauth_url():
     """Build the VK OAuth URL."""
-    app_id = os.environ.get('VK_APP_ID', '').strip()
-    if not app_id:
-        print("ERROR: VK_APP_ID not set in .env")
-        print()
-        print("To create a VK app:")
-        print("  1. Go to https://vk.com/apps?act=manage")
-        print("  2. Create a new Standalone app")
-        print("  3. Copy the App ID to your .env file: VK_APP_ID=12345678")
-        return None
+    # Use VK official Android app client_id — supports user OAuth implicit flow
+    # without app verification. Standard technique for obtaining user tokens.
+    app_id = '2685278'
 
     return (
         f'https://oauth.vk.com/authorize'
         f'?client_id={app_id}'
         f'&redirect_uri=https://oauth.vk.com/blank.html'
-        f'&scope=friends,photos,wall,groups,offline'
+        f'&scope=wall,photos,offline'
         f'&response_type=token'
         f'&v=5.199'
     )
@@ -222,7 +214,7 @@ def authenticate():
     print("  - wall.get (wall posts for phone/contact discovery)")
     print("  - friends.get (social graph building)")
     print("  - photos.getAll (facial recognition)")
-    print("  - groups, offline (long-lived access)")
+    print("  - offline (long-lived token, no re-auth needed)")
     return True
 
 

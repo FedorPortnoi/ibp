@@ -47,6 +47,13 @@ def _get_vk_id(profiles: List[Dict]) -> Optional[int]:
                     return int(vk_id)
                 except (ValueError, TypeError):
                     pass
+            # Fallback: extract numeric ID from URL (e.g., https://vk.com/id380010961)
+            url = p.get('url', '')
+            if '/id' in url:
+                try:
+                    return int(url.split('/id')[-1].split('?')[0].split('/')[0])
+                except (ValueError, IndexError):
+                    pass
     return None
 
 
