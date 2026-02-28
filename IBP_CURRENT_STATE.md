@@ -1,8 +1,8 @@
 # IBP Current State
 
-**Last updated**: 2026-02-26
+**Last updated**: 2026-02-27
 **Branch**: `main`
-**Latest commit**: `cea8dc1` fix: test fixture auth race — pop env vars after create_app
+**Latest commit**: `2cce0ca` docs: INN-first pipeline architecture
 
 ---
 
@@ -21,7 +21,7 @@
 | Route blueprints | 13 |
 | Service classes | ~91 |
 | Total endpoints | 87 |
-| Pipeline stages | 8 |
+| Pipeline stages | 9 (Stage 0-8) |
 | Contact discovery steps | 11 |
 
 **Total source files**: 206 (app/ + tests/ + templates)
@@ -31,18 +31,21 @@
 
 ## Feature Completion vs Original Spec
 
-### 8-Stage Pipeline: **100% wired, ~90% data quality**
+### 9-Stage Pipeline (Stage 0-8): **100% wired, ~90% data quality**
+
+INN (Russian Tax ID) is the required primary identifier. Stage 0 uses INN for direct EGRUL/bankruptcy lookups before name-based searches.
 
 | Stage | Wired | Real Data | Demo Fallback | Notes |
 |-------|-------|-----------|---------------|-------|
-| 1. Gov Registries | Yes | EGRUL + sudact.ru + **checko.ru** + casebook.ru | Empty results | checko.ru is primary FSSP alt (global), casebook.ru replaces kad.arbitr.ru |
+| 0. Identity Confirmation | Yes | EGRUL by INN + EFRSB bankruptcy by INN + business network | Skips if no INN | Sets `confirmed_name` for all subsequent stages |
+| 1. Gov Registries | Yes | EGRUL by name + sudact.ru + **checko.ru** + casebook.ru | Empty results | checko.ru is primary FSSP alt (global), casebook.ru replaces kad.arbitr.ru |
 | 2. Security Checks | Yes | **OpenSanctions** + Interpol + local DBs work globally | Empty results | Local MVD/extremist JSON + OpenSanctions = no geo-block needed |
-| 3. Social Media | Yes | VK + Telegram + OK work | 3 fake VK + 3 fake OK profiles | Yandex may timeout (CAPTCHA) |
-| 4. Contact Discovery | Yes | 11-step chain fully wired | Empty results | Gosuslugi/Sberbank oracle checkers skipped by default (geo-restricted) |
+| 3. Social Media | Yes | VK (with DOB filtering) + Telegram (with birth year usernames) + OK | 3 fake VK + 3 fake OK profiles | VK `users.search` now uses `birth_day/month/year` params |
+| 4. Contact Discovery | Yes | 11-step chain + birth year email/username patterns | Empty results | Uses `confirmed_name`, birth year in email guessing + Telegram usernames |
 | 5. Social Analysis | Yes | Search4Faces + graph + Snoop + **Maigret** + **Sherlock** | Demo graph data | Maigret/Sherlock pip-installable, run in parallel with Snoop via ThreadPoolExecutor |
 | 6. Behavioral Analysis | Yes | Text/geo/timeline work | Demo data | Requires VK wall access |
-| 7. Risk Scoring | Yes | 8 categories scored | Scores empty data | Always produces a level |
-| 8. Report Generation | Yes | Full dossier + PDF | Works with any data | Identity card, vis.js graph, geo map |
+| 7. Risk Scoring | Yes | 9 categories scored (incl. identity) | Scores empty data | Identity discrepancy flag, critical debt (>1M) flag |
+| 8. Report Generation | Yes | Full dossier + PDF + identity section | Works with any data | Identity card, INN tab, vis.js graph, geo map |
 
 ### Contact Discovery 11-Step Chain (Stage 4)
 
@@ -77,9 +80,9 @@
 
 These features work without any API keys configured:
 
-1. Start a candidate check (quick or precise mode)
-2. All 8 stages execute (with demo/empty data)
-3. Progress bar tracks all 8 stages in real-time
+1. Start a candidate check (quick or precise mode, INN required)
+2. All 9 stages execute (Stage 0 identity confirmation + Stages 1-8)
+3. Progress bar tracks all 9 stages in real-time
 4. Precise mode pauses at Stage 3 for profile confirmation
 5. Risk scoring produces a risk level (CLEAN with no data)
 6. Dossier page renders with all tabs (social graph, geo, behavioral, accounts)
@@ -170,6 +173,11 @@ These features work without any API keys configured:
 - **Enhanced Email Generator** — Corporate patterns from VK career data, Skype-to-email, expanded domain list. Hunter.io email verification + domain search integration.
 - **Hunter.io Integration** (`app/services/phase2/email_generator.py: hunter_verify_email, hunter_domain_search`) — Free tier: 25 verifications + 25 domain searches/month. Wired into Stage 4 Step 4b for corporate email discovery.
 
+### INN-First Pipeline (Stage 0)
+- **INN Validator** (`app/utils/inn_validator.py`) — Checksum validation for 10/12-digit Russian tax IDs
+- **Stage 0 Identity Confirmation** — EGRUL by INN + bankruptcy by INN + business network extraction
+- **DOB filtering** — VK `birth_day/month/year` params, Telegram/email year variants
+
 ### Utilities
 - **Name Similarity** (`app/utils/name_similarity.py`) — Extracted from deleted per_profile_search.py
 
@@ -203,16 +211,18 @@ These features work without any API keys configured:
 
 ---
 
-## Test Results (2026-02-26)
+## Test Results (2026-02-27)
 
 | Category | Tests | Status |
 |----------|-------|--------|
 | Unit tests (tests/unit/) | ~3,114 | All pass |
 | Integration tests (root-level test_*.py) | ~580 | All pass |
 | Demo E2E tests (test_demo_e2e.py) | 20 | All pass |
-| Candidate pipeline tests (test_candidate_unified.py) | 53 | All pass |
+| Candidate pipeline tests (test_candidate_unified.py) | 93 | All pass |
+| INN validation tests (test_inn_validation.py) | 20 | All pass |
+| INN pipeline tests (test_inn_pipeline.py) | 18 | All pass |
 | New service tests (oracle + marketplace + deep VK) | 172 | All pass |
-| **Total** | **~3,939** | **0 failures, 0 errors** |
+| **Total** | **~3,794+** | **0 failures, 0 errors** |
 
 Excluded from count:
 - `tests/test_phase1.py`, `tests/test_phase3_e2e.py` — Playwright E2E requiring running server
@@ -266,13 +276,42 @@ Excluded from count:
 ## Recent Commit History
 
 ```
-cf5125f feat: deep VK mining improvements — tagged post comments, wall extraction in Stage 4, Hunter.io
-3ab0deb feat: enhance Avito marketplace scanner with Playwright phone extraction
-3a238a9 fix: mark VK forgot-password oracle as account_existence_only (Feb 2026)
-4337eba fix: VK oracle retry crash + add network interception for hint extraction
-fe3be3c feat: update VK forgot-password oracle for new id.vk.com restore flow + add live test
-cea8dc1 fix: test fixture auth race — pop env vars after create_app
+2cce0ca docs: INN-first pipeline architecture
+0aceb92 test: INN validation + Stage 0 pipeline tests + regression fixes
+0e70299 feat: risk scoring identity flags + dossier identity section + report builder
+35a1ac9 feat: contact discovery — birth year email patterns, confirmed_name, Telegram year variants
+bb7175d feat: VK search with DOB filtering — birth_day/month/year params + confidence boost
+5d61bd8 docs: update CLAUDE.md — dual-token architecture, auth scripts, Search4Faces API
+1828e42 feat: VK dual-token architecture — VK_USER_TOKEN for private API methods
 ```
+
+---
+
+## INN-First Architecture (Added 2026-02-27)
+
+### Stage 0: Identity Confirmation via INN
+- **INN is required** — form validation + checksum verification (10/12-digit Russian tax IDs)
+- **EGRUL by INN** — direct lookup via `BusinessRegistrySearch.search_by_inn()`
+- **Bankruptcy by INN** — EFRSB lookup (moved from Stage 1 for early signal)
+- **Business network** — extracts linked companies and co-founders from EGRUL
+- Sets `confirmed_name` (EGRUL name) used by all subsequent stages
+- Sets `identity_confirmed` flag and `identity_confirmation` JSON
+- New utility: `app/utils/inn_validator.py` — checksum validation for 10/12-digit INNs
+
+### DOB Filtering (Stage 3-4)
+- VK `users.search` now uses `birth_day`, `birth_month`, `birth_year` API params
+- Telegram username guessing adds year suffix variants (e.g., `ivanov90`, `ivanov1990`)
+- Email guessing adds year-based patterns (e.g., `ivanov90@mail.ru`)
+- DOB-matched VK profiles get 0.95+ confidence
+
+### Risk Scoring Enhancements (Stage 7)
+- New `_analyze_identity()` — name discrepancy flag (SEVERITY_MEDIUM), identity not confirmed flag (SEVERITY_LOW)
+- New `critical_debt` flag — >1M RUB active FSSP debt (SEVERITY_HIGH)
+
+### Dossier Updates (Stage 8)
+- New "ИНН" nav pill and "Идентификация по ИНН" section in dossier
+- Shows EGRUL status, confirmed name, business network, name discrepancy alert
+- Report builder includes `identity_confirmation` section, `_count_stages()` returns 9
 
 ---
 
@@ -280,7 +319,10 @@ cea8dc1 fix: test fixture auth race — pop env vars after create_app
 
 ```
 main (production-ready)
-  ├── 8-stage pipeline fully wired
+  ├── 9-stage pipeline (Stage 0-8) — INN-first architecture
+  ├── Stage 0: Identity confirmation (EGRUL by INN + bankruptcy + business network)
+  ├── INN required with checksum validation (10/12-digit)
+  ├── DOB filtering in VK search + birth year patterns in Telegram/email
   ├── 14-step contact discovery chain (incl. 1b deep VK wall, 4b Hunter.io, 8a VK oracle)
   ├── Maigret + Sherlock + Snoop username search (parallel, Stage 5)
   ├── OpenSanctions + local MVD/extremist DBs (no geo-block)
@@ -295,5 +337,5 @@ main (production-ready)
   ├── Docker deployment ready (Dockerfile + compose + deploy.sh + render.yaml)
   ├── ~8,050 lines dead code removed
   ├── All mock data removed — services return empty without keys
-  └── 3,756 tests passing, 0 failures
+  └── 3,794+ tests passing, 0 failures
 ```

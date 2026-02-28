@@ -4,9 +4,9 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Project Overview
 
-IBP (Identity-Based Profiler) is a unified OSINT investigation platform for Russian-speaking targets. The core feature is a **single 8-stage Candidate Check pipeline** that runs background checks by searching government registries, social networks, breach databases, and behavioral signals.
+IBP (Identity-Based Profiler) is a unified OSINT investigation platform for Russian-speaking targets. The core feature is a **single 9-stage (Stage 0-8) Candidate Check pipeline** that runs background checks by searching government registries, social networks, breach databases, and behavioral signals. INN (Russian Tax ID) is the primary required identifier.
 
-- **Primary flow**: Candidate Check (`/candidate/start`) — 8-stage automated pipeline
+- **Primary flow**: Candidate Check (`/candidate/start`) — 9-stage automated pipeline (INN required)
 - **Legacy flow**: People Search (Buratino) — 3-phase manual investigation (routes still work, deprecated)
 - **Stack**: Python Flask + SQLite + Playwright + VK API + Tailwind CSS
 - **Deployment**: Render free tier, Frankfurt region (ibp-osint.onrender.com)

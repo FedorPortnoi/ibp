@@ -95,6 +95,14 @@ class RiskScorer:
         if not real_records:
             return flags
 
+        # serial_entrepreneur — 4+ companies (informational)
+        if len(real_records) >= 4:
+            flags.append(self._flag(
+                SEVERITY_LOW, 'business', 'serial_entrepreneur',
+                f'Связан с {len(real_records)} компаниями',
+                details='Информационный флаг — множественные бизнес-связи',
+            ))
+
         # mass_director — 5+ companies where person is director/founder
         director_roles = ['директор', 'руководитель', 'учредитель', 'генеральный директор']
         director_count = sum(
@@ -133,6 +141,17 @@ class RiskScorer:
                         details=f'{r.get("name", r.get("company_name", ""))} — ликвидирована {end_date_str}',
                     ))
                     break
+
+        # liquidated_with_debt — liquidated company + active FSSP debt cross-reference
+        if liquidated:
+            fssp_records = getattr(check, 'fssp_records', None) or []
+            active_fssp = [r for r in fssp_records if not r.get('completed')]
+            if active_fssp:
+                flags.append(self._flag(
+                    SEVERITY_MEDIUM, 'business', 'liquidated_with_debt',
+                    'Ликвидированная компания при наличии активных исп. производств',
+                    details=f'{len(liquidated)} ликвид. компаний, {len(active_fssp)} активных производств ФССП',
+                ))
 
         # mass_registration_address — multiple companies at same address
         addresses = [
