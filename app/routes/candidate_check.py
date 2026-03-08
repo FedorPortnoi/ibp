@@ -461,7 +461,7 @@ def export_pdf(check_id):
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch()
+            browser = p.chromium.launch(headless=True)
             page = browser.new_page()
             page.set_content(html_str, wait_until='networkidle')
             pdf_bytes = page.pdf(

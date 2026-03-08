@@ -1056,7 +1056,7 @@ def save_vk_session():
     print("=" * 60)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=True)
         context = browser.new_context(locale='ru-RU')
         page = context.new_page()
 

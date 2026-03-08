@@ -143,6 +143,11 @@ my_pic.jpg
 svetlana axtinas.jpg
 tikhon portnoi.jpg
 
+# === Scratch / dev artifacts ===
+testsserver_log.txt
+forgot_pw_oracle_check.session
+scripts/e2e_court_investigation_debug.log
+
 # === Misc ===
 tokens_api_ect/
 *.session
