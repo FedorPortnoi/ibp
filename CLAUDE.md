@@ -74,6 +74,7 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 
 | File | Purpose |
 |------|---------|
+| `app/services/ai/claude_integration.py` | Claude AI integration: risk narrative, behavioral summary, executive summary, court case interpretation |
 | `app/services/candidate/pipeline.py` | 9-stage orchestrator (Stage 0-8), CandidateTaskStatus, progress tracking |
 | `app/models/candidate_check.py` | Main model (~30 fields), JSON property getters/setters for all stages, identity confirmation fields |
 | `app/routes/candidate_check.py` | All endpoints: /start (INN required + checksum validation), /progress, /confirm, /dossier, /export |
@@ -187,6 +188,9 @@ When `VK_SERVICE_TOKEN` is not set, VK search returns 3 fake profiles and social
 ```bash
 # === REQUIRED ===
 SECRET_KEY=...                  # Flask session secret (REQUIRED)
+
+# === AI INTEGRATION (optional) ===
+ANTHROPIC_API_KEY=...           # Claude API key for AI summaries. Pipeline works without it.
 
 # === VK API (dual-token architecture) ===
 VK_SERVICE_TOKEN=...            # Permanent app token for search (users.search, users.get). Demo mode if unset. Currently SET.

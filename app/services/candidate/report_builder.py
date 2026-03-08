@@ -332,6 +332,11 @@ def build_report(check) -> Dict[str, Any]:
     # Identity confirmation data from Stage 0
     identity_confirmation = _safe_json(getattr(check, 'identity_confirmation', None), {})
 
+    # AI summaries
+    risk_narrative = getattr(check, 'risk_narrative', None)
+    behavioral_ai = getattr(check, 'behavioral_summary', None)
+    executive_summary = getattr(check, 'executive_summary', None)
+
     report = {
         'identity_card': {
             'full_name': check.full_name,
@@ -383,6 +388,11 @@ def build_report(check) -> Dict[str, Any]:
         'behavioral_summary': _build_behavioral_summary(text_analysis),
         'face_matches': face_matches,
         'timeline_events': _build_timeline_events(check),
+        'ai_summaries': {
+            'executive_summary': executive_summary,
+            'risk_narrative': risk_narrative,
+            'behavioral_summary': behavioral_ai,
+        },
         'metadata': {
             'check_id': check.id,
             'created_at': check.created_at.isoformat() if check.created_at else None,

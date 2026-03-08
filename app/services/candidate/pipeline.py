@@ -607,6 +607,13 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 sources_with_results += 2
                 sources_checked += 3
 
+            # AI: Summarize court cases
+            try:
+                from app.services.ai.claude_integration import summarize_court_cases
+                court_records = summarize_court_cases(court_records)
+            except Exception as e:
+                logger.debug(f"AI court summary skipped: {e}")
+
             check.business_records = biz_records
             check.court_records = court_records
             check.fssp_records = fssp_records
@@ -1082,6 +1089,19 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 task.add_message('Поведенческий анализ: ошибка (пропущен)', 'warning')
                 sources_checked += 1
 
+            # AI: Behavioral summary from VK posts
+            try:
+                from app.services.ai.claude_integration import generate_behavioral_summary
+                ai_behavioral = generate_behavioral_summary(
+                    check.text_analysis, effective_name,
+                )
+                if ai_behavioral:
+                    check.behavioral_summary = ai_behavioral
+                    db.session.commit()
+                    task.add_message('AI: поведенческий профиль сгенерирован', 'success')
+            except Exception as e:
+                logger.debug(f"AI behavioral summary skipped: {e}")
+
             task.update('behavioral', 'Поведенческий анализ завершён', 83)
             _pause()
 
@@ -1132,6 +1152,20 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             check.risk_score_numeric = min(100.0, total_score)
             db.session.commit()
 
+            # AI: Risk narrative
+            try:
+                from app.services.ai.claude_integration import generate_risk_narrative
+                ai_narrative = generate_risk_narrative(
+                    check.risk_level, check.risk_score_numeric,
+                    merged_flags, effective_name,
+                )
+                if ai_narrative:
+                    check.risk_narrative = ai_narrative
+                    db.session.commit()
+                    task.add_message('AI: нарратив рисков сгенерирован', 'success')
+            except Exception as e:
+                logger.debug(f"AI risk narrative skipped: {e}")
+
             task.update('risk', f'Риск: {check.risk_level_display}', 93)
             task.add_message(
                 f'Оценка риска: {check.risk_level_display} '
@@ -1154,6 +1188,33 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             except Exception as e:
                 logger.error(f"Stage 8 report generation error: {e}", exc_info=True)
                 task.add_message('Генерация отчёта: ошибка (пропущен)', 'warning')
+
+            # AI: Executive summary (after all stages)
+            try:
+                from app.services.ai.claude_integration import generate_executive_summary
+                check_data = {
+                    'full_name': effective_name,
+                    'inn': check.inn,
+                    'identity_confirmed': check.identity_confirmed,
+                    'risk_level': check.risk_level,
+                    'risk_score_numeric': check.risk_score_numeric,
+                    'red_flag_count': check.red_flag_count,
+                    'red_flags': check.red_flags,
+                    'business_records': check.business_records,
+                    'court_records': check.court_records,
+                    'fssp_records': check.fssp_records,
+                    'bankruptcy_records': check.bankruptcy_records,
+                    'social_media_profiles': check.social_media_profiles,
+                    'contact_discoveries': check.contact_discoveries,
+                    'sanctions_results': check.sanctions_results,
+                }
+                ai_summary = generate_executive_summary(check_data)
+                if ai_summary:
+                    check.executive_summary = ai_summary
+                    db.session.commit()
+                    task.add_message('AI: сводка расследования сгенерирована', 'success')
+            except Exception as e:
+                logger.debug(f"AI executive summary skipped: {e}")
 
             # Complete
             check.status = 'complete'

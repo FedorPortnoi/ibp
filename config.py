@@ -75,6 +75,9 @@ _ENV_KEYS = {
     # LeakDB
     'LEAKDB_DATA_DIR': ('LEAKDB_DATA_DIR', None),
 
+    # AI (Claude)
+    'ANTHROPIC_API_KEY': ('ANTHROPIC_API_KEY', None),
+
     # Auth
     'IBP_PASSWORD': ('IBP_PASSWORD', None),
     'IBP_PASSWORD_HASH': ('IBP_PASSWORD_HASH', None),

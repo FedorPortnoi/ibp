@@ -72,6 +72,11 @@ class CandidateCheck(db.Model):
     _risk_breakdown = db.Column('risk_breakdown', db.Text, default='{}')
     risk_score_numeric = db.Column(db.Float, nullable=True)  # 0-100 composite
 
+    # --- AI Summaries (Claude) ---
+    risk_narrative = db.Column(db.Text, nullable=True)
+    behavioral_summary = db.Column(db.Text, nullable=True)
+    executive_summary = db.Column(db.Text, nullable=True)
+
     # --- Stage 8: Report ---
     report_generated = db.Column(db.Boolean, default=False)
     report_path = db.Column(db.String(500), nullable=True)
@@ -311,6 +316,9 @@ class CandidateCheck(db.Model):
             'sources_checked': self.sources_checked,
             'sources_with_results': self.sources_with_results,
             'check_duration_seconds': self.check_duration_seconds,
+            'risk_narrative': self.risk_narrative,
+            'behavioral_summary': self.behavioral_summary,
+            'executive_summary': self.executive_summary,
         }
 
     def __repr__(self):
