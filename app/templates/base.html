@@ -111,14 +111,17 @@
 
                 <!-- Nav Links (desktop) -->
                 <div class="hidden md:flex items-center gap-1">
-                    <a href="/" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-pill">
-                        Dashboard
+                    <a href="{{ url_for('main.about') }}" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-pill {% if request.endpoint == 'main.about' %}text-white{% endif %}">
+                        About
                     </a>
-                    <a href="/candidate/history" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-pill">
-                        History
+                    <a href="{{ url_for('main.services') }}" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-pill {% if request.endpoint == 'main.services' %}text-white{% endif %}">
+                        Services
                     </a>
-                    <a href="/connections" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-pill">
-                        Connections
+                    <a href="{{ url_for('main.projects') }}" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-pill {% if request.endpoint == 'main.projects' %}text-white{% endif %}">
+                        Projects
+                    </a>
+                    <a href="{{ url_for('main.contact') }}" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-pill {% if request.endpoint == 'main.contact' %}text-white{% endif %}">
+                        Contact
                     </a>
                 </div>
 
@@ -152,9 +155,12 @@
     <!-- Mobile menu overlay -->
     <div id="mobile-menu" class="fixed inset-0 z-40 hidden" style="background: rgba(5,5,8,0.95); backdrop-filter: blur(20px);">
         <div class="flex flex-col items-center justify-center h-full gap-6">
-            <a href="/" class="text-2xl text-white hover:text-accent-bright transition-colors">Dashboard</a>
-            <a href="/candidate/history" class="text-2xl text-white hover:text-accent-bright transition-colors">History</a>
-            <a href="/connections" class="text-2xl text-white hover:text-accent-bright transition-colors">Connections</a>
+            <a href="{{ url_for('main.index') }}" class="text-2xl text-white hover:text-accent-bright transition-colors">Home</a>
+            <a href="{{ url_for('main.about') }}" class="text-2xl text-white hover:text-accent-bright transition-colors">About</a>
+            <a href="{{ url_for('main.services') }}" class="text-2xl text-white hover:text-accent-bright transition-colors">Services</a>
+            <a href="{{ url_for('main.projects') }}" class="text-2xl text-white hover:text-accent-bright transition-colors">Projects</a>
+            <a href="{{ url_for('main.contact') }}" class="text-2xl text-white hover:text-accent-bright transition-colors">Contact</a>
+            <a href="/candidate/history" class="text-xl text-gray-400 hover:text-white transition-colors">History</a>
             <a href="/phase1/new?tab=candidate" class="btn btn-primary btn-lg mt-4">New Check</a>
         </div>
     </div>
@@ -249,7 +255,101 @@
     .nav-scrolled .backdrop-blur-xl {
         background: rgba(5, 5, 8, 0.92) !important;
     }
+
+    /* ── Page transition animations ── */
+    @keyframes sledEnterUp {
+        from { opacity: 0; transform: translateY(28px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes sledEnterDown {
+        from { opacity: 0; transform: translateY(-28px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes sledExitUp {
+        from { opacity: 1; transform: translateY(0); }
+        to   { opacity: 0; transform: translateY(-20px); }
+    }
+    @keyframes sledExitDown {
+        from { opacity: 1; transform: translateY(0); }
+        to   { opacity: 0; transform: translateY(20px); }
+    }
+    html.sled-enter-fwd main,
+    html.sled-enter-fwd footer {
+        animation: sledEnterUp 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    html.sled-enter-bwd main,
+    html.sled-enter-bwd footer {
+        animation: sledEnterDown 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    html.sled-exit-fwd main,
+    html.sled-exit-fwd footer {
+        animation: sledExitUp 0.28s ease-in both;
+        pointer-events: none;
+    }
+    html.sled-exit-bwd main,
+    html.sled-exit-bwd footer {
+        animation: sledExitDown 0.28s ease-in both;
+        pointer-events: none;
+    }
     </style>
+
+    <!-- Page-to-page scroll navigation -->
+    <script>
+    (function() {
+        // Apply enter animation from direction stored before navigation
+        var dir = sessionStorage.getItem('sledNavDir');
+        if (dir) {
+            sessionStorage.removeItem('sledNavDir');
+            document.documentElement.classList.add(dir === 'fwd' ? 'sled-enter-fwd' : 'sled-enter-bwd');
+        }
+
+        // Only enable scroll-triggered nav on pages that opt in via data-page-nav
+        var pageEl = document.querySelector('[data-page-nav]');
+        if (!pageEl) return;
+
+        var nextUrl = pageEl.dataset.nextUrl || '';
+        var prevUrl = pageEl.dataset.prevUrl || '';
+        var transitioning = false;
+        var wheelAcc = 0;
+        var THRESHOLD = 200;
+
+        function go(url, navDir) {
+            if (transitioning || !url) return;
+            transitioning = true;
+            sessionStorage.setItem('sledNavDir', navDir);
+            document.documentElement.classList.add(navDir === 'fwd' ? 'sled-exit-fwd' : 'sled-exit-bwd');
+            setTimeout(function() { window.location.href = url; }, 300);
+        }
+
+        window.addEventListener('wheel', function(e) {
+            if (transitioning) return;
+            var atBottom = (window.scrollY + window.innerHeight) >= (document.documentElement.scrollHeight - 8);
+            var atTop = window.scrollY <= 0;
+            if (e.deltaY > 0 && atBottom && nextUrl) {
+                wheelAcc += e.deltaY;
+                if (wheelAcc > THRESHOLD) { wheelAcc = 0; go(nextUrl, 'fwd'); }
+            } else if (e.deltaY < 0 && atTop && prevUrl) {
+                wheelAcc += Math.abs(e.deltaY);
+                if (wheelAcc > THRESHOLD) { wheelAcc = 0; go(prevUrl, 'bwd'); }
+            } else {
+                wheelAcc = 0;
+            }
+        }, { passive: true });
+
+        // Touch support
+        var touchY = 0;
+        window.addEventListener('touchstart', function(e) { touchY = e.touches[0].clientY; }, { passive: true });
+        window.addEventListener('touchend', function(e) {
+            if (transitioning) return;
+            var diff = touchY - e.changedTouches[0].clientY;
+            if (Math.abs(diff) < 60) return;
+            var atBottom = (window.scrollY + window.innerHeight) >= (document.documentElement.scrollHeight - 8);
+            var atTop = window.scrollY <= 0;
+            if (diff > 0 && atBottom && nextUrl) go(nextUrl, 'fwd');
+            else if (diff < 0 && atTop && prevUrl) go(prevUrl, 'bwd');
+        }, { passive: true });
+    })();
+    </script>
 
     {% block scripts %}{% endblock %}
 </body>

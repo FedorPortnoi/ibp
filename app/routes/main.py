@@ -75,14 +75,40 @@ def health_check():
 
 @main_bp.route('/')
 def index():
-    """Redirect root to Buratino-style new investigation page."""
-    return redirect(url_for('phase1.new_investigation'))
+    """Home landing page."""
+    return render_template('home.html')
+
+
+@main_bp.route('/about')
+def about():
+    """About page — what СЛЕД is and how it works."""
+    return render_template('about.html')
+
+
+@main_bp.route('/services')
+def services():
+    """Services page — pipeline capabilities breakdown."""
+    return render_template('services.html')
+
+
+@main_bp.route('/projects')
+def projects():
+    """Projects page — recent candidate checks."""
+    from app.models.candidate_check import CandidateCheck
+    checks = CandidateCheck.query.order_by(CandidateCheck.created_at.desc()).limit(20).all()
+    return render_template('projects.html', checks=checks)
+
+
+@main_bp.route('/contact')
+def contact():
+    """Contact/access page."""
+    return render_template('contact.html')
 
 
 @main_bp.route('/dashboard')
 def dashboard():
-    """Dashboard - redirect to investigations list."""
-    return redirect(url_for('main.investigations_list'))
+    """Dashboard - redirect to home."""
+    return redirect(url_for('main.index'))
 
 
 @main_bp.route('/investigations')

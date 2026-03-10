@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}About — СЛЕД{% endblock %}
+
+{% block head %}
+<style>
+.about-section {
+    min-height: calc(100vh - 80px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 3rem;
+    padding-bottom: 4rem;
+}
+.section-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    opacity: 0.8;
+    margin-bottom: 1.25rem;
+}
+.page-title {
+    font-size: clamp(2.5rem, 7vw, 5rem);
+    font-weight: 300;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+}
+.about-body {
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    line-height: 1.75;
+    max-width: 640px;
+    margin-bottom: 3rem;
+}
+.pipeline-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1px;
+    background: var(--border-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    overflow: hidden;
+}
+.pipeline-cell {
+    background: var(--bg-panel);
+    padding: 1.25rem 1.5rem;
+    transition: background 0.15s;
+}
+.pipeline-cell:hover {
+    background: var(--bg-panel-hover);
+}
+.pipeline-stage {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-bright);
+    margin-bottom: 0.5rem;
+}
+.pipeline-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+.pipeline-desc {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+}
+.about-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    margin-bottom: 3rem;
+}
+@media (max-width: 768px) {
+    .about-split { grid-template-columns: 1fr; gap: 2rem; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div data-page-nav data-prev-url="{{ url_for('main.index') }}" data-next-url="{{ url_for('main.services') }}">
+    <section class="about-section max-w-[var(--content-width)] mx-auto" style="padding-left: var(--padding-x); padding-right: var(--padding-x);">
+
+        <p class="section-label">About</p>
+        <h1 class="page-title">Unified OSINT<br>Investigation Platform</h1>
+
+        <div class="about-split">
+            <p class="about-body" style="margin-bottom: 0;">
+                СЛЕД is an advanced background check system designed for authorized
+                investigators. It automates the collection and cross-referencing of
+                data from government registries, social networks, breach databases,
+                and behavioral signals into a single comprehensive dossier.
+            </p>
+            <div class="space-y-4">
+                <div class="flex items-start gap-3">
+                    <div class="w-1.5 h-1.5 rounded-full bg-accent mt-2 flex-shrink-0"></div>
+                    <div>
+                        <p class="text-sm font-medium text-white mb-1">INN-First Architecture</p>
+                        <p class="text-sm text-gray-500">Russian Tax ID is the primary identifier, enabling direct registry lookups before any name-based search.</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-1.5 h-1.5 rounded-full bg-accent mt-2 flex-shrink-0"></div>
+                    <div>
+                        <p class="text-sm font-medium text-white mb-1">9-Stage Automated Pipeline</p>
+                        <p class="text-sm text-gray-500">From identity confirmation to PDF dossier — fully automated with real-time progress tracking.</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-1.5 h-1.5 rounded-full bg-accent mt-2 flex-shrink-0"></div>
+                    <div>
+                        <p class="text-sm font-medium text-white mb-1">Quick &amp; Precise Modes</p>
+                        <p class="text-sm text-gray-500">Quick mode runs all stages unattended. Precise mode pauses after social discovery for profile confirmation.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pipeline grid -->
+        <div class="pipeline-grid">
+            <div class="pipeline-cell">
+                <p class="pipeline-stage">Stage 0</p>
+                <p class="pipeline-name">Identity Confirmation</p>
+                <p class="pipeline-desc">EGRUL by INN, bankruptcy lookup, business network extraction</p>
+            </div>
+            <div class="pipeline-cell">
+                <p class="pipeline-stage">Stage 1</p>
+                <p class="pipeline-name">Government Registries</p>
+                <p class="pipeline-desc">Courts, FSSP enforcement, EGRUL by name, arbitration</p>
+            </div>
+            <div class="pipeline-cell">
+                <p class="pipeline-stage">Stage 2</p>
+                <p class="pipeline-name">Security Checks</p>
+                <p class="pipeline-desc">Sanctions, MVD wanted, Interpol, extremist lists</p>
+            </div>
+            <div class="pipeline-cell">
+                <p class="pipeline-stage">Stage 3</p>
+                <p class="pipeline-name">Social Media Discovery</p>
+                <p class="pipeline-desc">VK, Telegram, OK.ru across multiple search strategies</p>
+            </div>
+            <div class="pipeline-cell">
+                <p class="pipeline-stage">Stage 4</p>
+                <p class="pipeline-name">Contact Discovery</p>
+                <p class="pipeline-desc">11-step chain: phones, emails, marketplaces, breach APIs</p>
+            </div>
+            <div class="pipeline-cell">
+                <p class="pipeline-stage">Stage 5</p>
+                <p class="pipeline-name">Deep Social Analysis</p>
+                <p class="pipeline-desc">Face search, social graph, 5,372-site username scan</p>
+            </div>
+            <div class="pipeline-cell">
+                <p class="pipeline-stage">Stage 6</p>
+                <p class="pipeline-name">Behavioral Intelligence</p>
+                <p class="pipeline-desc">Text sentiment, geo extraction, activity timeline</p>
+            </div>
+            <div class="pipeline-cell">
+                <p class="pipeline-stage">Stage 7</p>
+                <p class="pipeline-name">Risk Scoring</p>
+                <p class="pipeline-desc">9-category dimensional scoring → CLEAN / LOW / MEDIUM / HIGH / CRITICAL</p>
+            </div>
+            <div class="pipeline-cell">
+                <p class="pipeline-stage">Stage 8</p>
+                <p class="pipeline-name">Report Generation</p>
+                <p class="pipeline-desc">Full dossier with identity card, social graph, geo map, PDF export</p>
+            </div>
+        </div>
+
+    </section>
+</div>
+{% endblock %}

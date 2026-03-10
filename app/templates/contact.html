@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Contact — СЛЕД{% endblock %}
+
+{% block head %}
+<style>
+.contact-section {
+    min-height: calc(100vh - 80px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 3rem;
+    padding-bottom: 5rem;
+}
+.section-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    opacity: 0.8;
+    margin-bottom: 1.25rem;
+}
+.page-title {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 300;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+}
+.contact-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: start;
+}
+@media (max-width: 768px) {
+    .contact-split { grid-template-columns: 1fr; gap: 2.5rem; }
+}
+.contact-body {
+    font-size: 1.0625rem;
+    color: var(--text-secondary);
+    line-height: 1.75;
+    margin-bottom: 2rem;
+}
+.info-row {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+.info-row:last-child { border-bottom: none; }
+.info-key {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    width: 100px;
+    flex-shrink: 0;
+    padding-top: 2px;
+}
+.info-val {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+.access-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    padding: 2rem;
+}
+.access-card h3 {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+}
+.access-card p {
+    font-size: 0.875rem;
+    color: var(--text-dim);
+    line-height: 1.65;
+    margin-bottom: 1.5rem;
+}
+.cta-block {
+    background: rgba(59,79,240,0.06);
+    border: 1px solid rgba(59,79,240,0.15);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+}
+.cta-block p {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div data-page-nav data-prev-url="{{ url_for('main.projects') }}">
+    <section class="contact-section max-w-[var(--content-width)] mx-auto" style="padding-left: var(--padding-x); padding-right: var(--padding-x);">
+
+        <p class="section-label">Contact</p>
+        <h1 class="page-title">Authorized<br>Use Only</h1>
+
+        <div class="contact-split">
+            <div>
+                <p class="contact-body">
+                    СЛЕД is a restricted investigative platform. Access is granted only to
+                    authorized security professionals, HR teams, and investigators operating
+                    within legal boundaries applicable to their jurisdiction.
+                </p>
+
+                <div>
+                    <div class="info-row">
+                        <span class="info-key">Platform</span>
+                        <span class="info-val">СЛЕД — Identity-Based Profiler</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-key">Stack</span>
+                        <span class="info-val">Python · Flask · SQLite · Playwright</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-key">Hosted</span>
+                        <span class="info-val">Render (Frankfurt) / Docker self-host</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-key">Pipeline</span>
+                        <span class="info-val">9 automated stages, INN-first</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-key">Export</span>
+                        <span class="info-val">PDF dossier · JSON data</span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="access-card">
+                    <h3>Quick Access</h3>
+                    <p>
+                        If you already have credentials, start a new background check
+                        directly. The pipeline runs fully automated — results are ready
+                        in minutes.
+                    </p>
+                    <a href="/phase1/new?tab=candidate" class="btn btn-primary w-full justify-center">
+                        Start Investigation
+                    </a>
+
+                    <div class="cta-block">
+                        <p>
+                            Need to review previous checks or manage the investigation
+                            history? Access the full history from your account.
+                        </p>
+                        <div class="flex gap-2 flex-wrap">
+                            <a href="{{ url_for('candidate.history') }}" class="btn btn-ghost btn-sm text-gray-400">
+                                View History
+                            </a>
+                            <a href="{{ url_for('main.projects') }}" class="btn btn-ghost btn-sm text-gray-400">
+                                Recent Projects
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                {% if not session.get('authenticated') %}
+                <div class="mt-4 text-center">
+                    <a href="{{ url_for('auth.login') }}" class="text-sm text-accent-bright hover:underline">
+                        Sign in →
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </section>
+</div>
+{% endblock %}

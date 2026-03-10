@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}СЛЕД — Identity-Based Profiler{% endblock %}
+
+{% block head %}
+<style>
+.home-hero {
+    min-height: calc(100vh - 80px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+.home-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 50% at 50% 40%, rgba(59,79,240,0.07) 0%, transparent 70%);
+    pointer-events: none;
+}
+.hero-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    opacity: 0.8;
+}
+.hero-title {
+    font-size: clamp(3.5rem, 10vw, 7rem);
+    font-weight: 300;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--text-primary);
+}
+.hero-title span {
+    color: var(--accent-bright);
+}
+.hero-subtitle {
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
+    color: var(--text-secondary);
+    line-height: 1.6;
+    max-width: 540px;
+}
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.stat-num {
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+.stat-lbl {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+.scroll-hint {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.35;
+    animation: floatBounce 2.4s ease-in-out infinite;
+}
+@keyframes floatBounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50%       { transform: translateX(-50%) translateY(6px); }
+}
+.scroll-hint-line {
+    width: 1px;
+    height: 36px;
+    background: linear-gradient(to bottom, var(--text-dim), transparent);
+}
+.scroll-hint-label {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div data-page-nav data-next-url="{{ url_for('main.about') }}">
+
+    <!-- Hero -->
+    <section class="home-hero max-w-[var(--content-width)] mx-auto" style="padding: 0 var(--padding-x);">
+        <div class="space-y-8">
+            <p class="hero-label">Intelligence Platform</p>
+
+            <h1 class="hero-title">
+                СЛЕД<span>.</span>
+            </h1>
+
+            <p class="hero-subtitle">
+                Unified OSINT investigation platform for comprehensive background
+                checks — government registries, social networks, breach databases,
+                and behavioral signals in a single automated pipeline.
+            </p>
+
+            <div class="flex flex-wrap items-center gap-4 pt-2">
+                <a href="/phase1/new?tab=candidate" class="btn btn-primary btn-lg">
+                    Start Investigation
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="ml-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </a>
+                <a href="{{ url_for('main.services') }}" class="btn btn-ghost btn-lg text-gray-400 hover:text-white">
+                    See Capabilities
+                </a>
+            </div>
+
+            <!-- Stats row -->
+            <div class="flex flex-wrap gap-10 pt-6 border-t border-white/[0.06]">
+                <div class="stat-item">
+                    <span class="stat-num">9</span>
+                    <span class="stat-lbl">Pipeline Stages</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-num">30+</span>
+                    <span class="stat-lbl">Data Sources</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-num">5,372</span>
+                    <span class="stat-lbl">Sites Scanned</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-num">PDF</span>
+                    <span class="stat-lbl">Full Dossier</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scroll indicator -->
+        <div class="scroll-hint">
+            <span class="scroll-hint-label">scroll</span>
+            <div class="scroll-hint-line"></div>
+        </div>
+    </section>
+
+</div>
+{% endblock %}
