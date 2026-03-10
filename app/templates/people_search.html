@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Поиск людей - IBP{% endblock %}
+{% block title %}Поиск людей - СЛЕД{% endblock %}
 
 {% block head %}
 <style>
     .search-card {
-        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(17, 10, 31, 0.9) 100%);
-        border: 1px solid rgba(139, 92, 246, 0.2);
-        border-radius: 16px;
+        background: var(--bg-panel);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-xl);
         padding: 24px;
     }
 
@@ -16,25 +16,16 @@
         gap: 10px;
         margin-bottom: 16px;
         padding-bottom: 12px;
-        border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+        border-bottom: 1px solid var(--border-subtle);
     }
 
-    .column-header img {
-        width: 24px;
-        height: 24px;
-        border-radius: 4px;
-    }
-
-    .column-count {
-        font-size: 13px;
-        color: #9ca3af;
-        margin-left: auto;
-    }
+    .column-header img { width: 24px; height: 24px; border-radius: 4px; }
+    .column-count { font-size: 13px; color: var(--text-secondary); margin-left: auto; font-family: var(--font-mono); }
 
     .result-card {
-        background: rgba(17, 10, 31, 0.8);
-        border: 1px solid rgba(139, 92, 246, 0.15);
-        border-radius: 12px;
+        background: var(--bg-dark);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
         padding: 14px;
         transition: all 0.3s ease;
         cursor: pointer;
@@ -42,198 +33,103 @@
     }
 
     .result-card:hover {
-        border-color: rgba(139, 92, 246, 0.4);
+        border-color: var(--border-bright);
         transform: translateY(-1px);
-        box-shadow: 0 6px 24px rgba(139, 92, 246, 0.12);
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
     }
 
     .result-card.selected {
-        border-color: #8b5cf6;
-        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3), 0 8px 32px rgba(139, 92, 246, 0.2);
-        background: rgba(139, 92, 246, 0.08);
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px var(--accent-muted), var(--glow-accent);
+        background: var(--accent-subtle);
     }
 
     .profile-avatar {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 2px solid rgba(139, 92, 246, 0.25);
-        flex-shrink: 0;
+        width: 48px; height: 48px; border-radius: 50%;
+        object-fit: cover; border: 2px solid var(--border-default); flex-shrink: 0;
     }
 
     .avatar-placeholder {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        background: rgba(139, 92, 246, 0.15);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        border: 2px solid rgba(139, 92, 246, 0.25);
+        width: 48px; height: 48px; border-radius: 50%;
+        background: var(--accent-subtle); display: flex;
+        align-items: center; justify-content: center;
+        flex-shrink: 0; border: 2px solid var(--border-default);
     }
 
     .platform-badge {
-        padding: 2px 8px;
-        border-radius: 9999px;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        padding: 2px 8px; border-radius: var(--radius-pill);
+        font-size: 11px; font-weight: 500; font-family: var(--font-mono);
+        text-transform: uppercase; letter-spacing: 0.5px;
     }
 
-    .platform-vk { background: rgba(0, 119, 255, 0.2); color: #4da6ff; }
-    .platform-telegram { background: rgba(38, 165, 228, 0.2); color: #26a5e4; }
-    .platform-whatsapp { background: rgba(37, 211, 102, 0.2); color: #25d366; }
-    .platform-max { background: rgba(255, 100, 100, 0.2); color: #ff6464; }
+    .platform-vk { background: rgba(0, 119, 255, 0.12); color: #4da6ff; }
+    .platform-telegram { background: rgba(38, 165, 228, 0.12); color: #26a5e4; }
+    .platform-whatsapp { background: rgba(37, 211, 102, 0.12); color: #25d366; }
+    .platform-max { background: rgba(255, 100, 100, 0.12); color: #ff6464; }
 
     .confidence-badge {
-        padding: 2px 8px;
-        border-radius: 9999px;
-        font-size: 10px;
-        font-weight: 600;
-        white-space: nowrap;
+        padding: 2px 8px; border-radius: var(--radius-pill);
+        font-size: 10px; font-weight: 500; white-space: nowrap; font-family: var(--font-mono);
     }
 
-    .confidence-high { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
-    .confidence-medium { background: rgba(234, 179, 8, 0.2); color: #eab308; }
-    .confidence-low { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+    .confidence-high { background: rgba(52, 211, 153, 0.12); color: var(--success); }
+    .confidence-medium { background: rgba(251, 191, 36, 0.12); color: var(--warning); }
+    .confidence-low { background: rgba(248, 113, 113, 0.12); color: var(--error); }
 
-    .source-label {
-        font-size: 10px;
-        color: #6b7280;
-        margin-top: 4px;
-    }
+    .source-label { font-size: 10px; color: var(--text-dim); margin-top: 4px; font-family: var(--font-mono); }
 
-    .column-spinner {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 48px 0;
-    }
-
+    .column-spinner { display: flex; flex-direction: column; align-items: center; padding: 48px 0; }
     .spinner-ring {
-        width: 32px;
-        height: 32px;
-        border: 3px solid rgba(139, 92, 246, 0.2);
-        border-top-color: #8b5cf6;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
+        width: 32px; height: 32px;
+        border: 3px solid var(--border-default);
+        border-top-color: var(--accent);
+        border-radius: 50%; animation: spin 0.8s linear infinite;
     }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-
-    .column-error {
-        text-align: center;
-        padding: 24px;
-        color: #ef4444;
-        font-size: 14px;
-    }
-
-    .column-empty {
-        text-align: center;
-        padding: 32px 16px;
-        color: #6b7280;
-        font-size: 14px;
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .column-error { text-align: center; padding: 24px; color: var(--error); font-size: 14px; }
+    .column-empty { text-align: center; padding: 32px 16px; color: var(--text-dim); font-size: 14px; }
 
     .select-btn {
-        padding: 4px 14px;
-        border-radius: 8px;
-        font-size: 12px;
-        font-weight: 600;
-        background: rgba(139, 92, 246, 0.15);
-        color: #a78bfa;
-        border: 1px solid rgba(139, 92, 246, 0.25);
-        cursor: pointer;
-        transition: all 0.2s;
-        white-space: nowrap;
+        padding: 4px 14px; border-radius: var(--radius-pill);
+        font-size: 12px; font-weight: 500;
+        background: var(--accent-muted); color: var(--accent-bright);
+        border: 1px solid rgba(59, 79, 240, 0.25);
+        cursor: pointer; transition: all 0.2s; white-space: nowrap;
     }
-
-    .select-btn:hover {
-        background: rgba(139, 92, 246, 0.3);
-        border-color: #8b5cf6;
-    }
-
-    .result-card.selected .select-btn {
-        background: #8b5cf6;
-        color: white;
-        border-color: #8b5cf6;
-    }
+    .select-btn:hover { background: rgba(59, 79, 240, 0.3); border-color: var(--accent); }
+    .result-card.selected .select-btn { background: var(--accent); color: white; border-color: var(--accent); }
 
     .proceed-bar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: rgba(10, 6, 24, 0.95);
-        border-top: 1px solid rgba(139, 92, 246, 0.3);
-        padding: 16px 24px;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        gap: 16px;
-        z-index: 50;
-        backdrop-filter: blur(10px);
+        position: fixed; bottom: 0; left: 0; right: 0;
+        background: rgba(5, 5, 8, 0.95);
+        border-top: 1px solid var(--border-default);
+        padding: 16px 24px; display: none;
+        align-items: center; justify-content: center; gap: 16px;
+        z-index: 50; backdrop-filter: blur(20px);
     }
-
-    .proceed-bar.visible {
-        display: flex;
-    }
+    .proceed-bar.visible { display: flex; }
 
     .proceed-btn {
-        padding: 10px 28px;
-        border-radius: 10px;
-        font-size: 15px;
-        font-weight: 600;
-        background: #8b5cf6;
-        color: white;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s;
+        padding: 10px 28px; border-radius: var(--radius-pill);
+        font-size: 15px; font-weight: 500;
+        background: var(--accent); color: white;
+        border: none; cursor: pointer; transition: all var(--transition-smooth);
     }
-
-    .proceed-btn:hover {
-        background: #7c3aed;
-        box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
-    }
+    .proceed-btn:hover { background: var(--accent-dim); box-shadow: var(--glow-accent); }
 
     .stats-badge {
-        background: rgba(139, 92, 246, 0.15);
-        border: 1px solid rgba(139, 92, 246, 0.3);
-        padding: 6px 14px;
-        border-radius: 9999px;
-        font-size: 13px;
+        background: var(--accent-muted); border: 1px solid rgba(59, 79, 240, 0.2);
+        padding: 6px 14px; border-radius: var(--radius-pill);
+        font-size: 13px; font-family: var(--font-mono);
     }
 
     /* Column collapse on mobile */
-    .column-toggle {
-        display: none;
-    }
-
+    .column-toggle { display: none; }
     @media (max-width: 1023px) {
-        .column-toggle {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .column-toggle .toggle-arrow {
-            transition: transform 0.2s;
-        }
-
-        .column-toggle.collapsed .toggle-arrow {
-            transform: rotate(-90deg);
-        }
-
-        .column-content.collapsed {
-            display: none;
-        }
+        .column-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+        .column-toggle .toggle-arrow { transition: transform 0.2s; }
+        .column-toggle.collapsed .toggle-arrow { transform: rotate(-90deg); }
+        .column-content.collapsed { display: none; }
     }
 </style>
 {% endblock %}
@@ -241,14 +137,14 @@
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 py-8">
     <!-- Mode Tabs -->
-    <div class="flex mb-6 bg-bg-panel rounded-xl border border-violet-200 p-1.5">
+    <div class="flex mb-6 bg-bg-panel rounded-2xl border border-white/[0.06] p-1.5">
         <button id="tab-search" onclick="switchMode('search')"
-                class="flex-1 py-3 px-6 rounded-lg text-sm font-semibold transition-all bg-violet text-white shadow-lg shadow-violet/20">
-            &#x1F50D; Поиск людей
+                class="flex-1 py-3 px-6 rounded-xl text-sm font-medium transition-all bg-accent text-white">
+            Поиск людей
         </button>
         <button id="tab-candidate" onclick="switchMode('candidate')"
-                class="flex-1 py-3 px-6 rounded-lg text-sm font-semibold transition-all text-gray-400 hover:text-white hover:bg-white/5">
-            &#x1F6E1;&#xFE0F; Проверка кандидата
+                class="flex-1 py-3 px-6 rounded-xl text-sm font-medium transition-all text-gray-400 hover:text-white hover:bg-white/5">
+            Проверка кандидата
         </button>
     </div>
 
@@ -257,10 +153,10 @@
 
     <!-- Header -->
     <div class="mb-8">
-        <h1 class="text-3xl font-bold text-white mb-2 font-display">
-            <span class="text-violet">Поиск</span> людей
+        <h1 class="text-3xl font-normal text-white mb-2 tracking-tight">
+            <span class="text-accent">Поиск</span> людей
         </h1>
-        <p class="text-gray-400">Поиск по ВКонтакте и Telegram</p>
+        <p class="text-gray-400 text-sm">Поиск по ВКонтакте и Telegram</p>
     </div>
 
     <!-- Search Form -->
@@ -269,17 +165,17 @@
             <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
                 <!-- Name Input -->
                 <div class="md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Полное имя</label>
+                    <label class="form-label">Полное имя</label>
                     <input type="text" id="name" autocomplete="off"
-                           class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition"
+                           class="form-input"
                            placeholder="Артём Козлов" required>
                 </div>
 
                 <!-- Photo Upload -->
                 <div class="md:col-span-1">
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Фото</label>
+                    <label class="form-label">Фото</label>
                     <label id="photo-label" for="photo-input"
-                           class="flex items-center justify-center w-full h-[46px] bg-bg-dark border border-violet-200 rounded-lg cursor-pointer hover:border-violet transition"
+                           class="flex items-center justify-center w-full h-[46px] bg-bg-dark border border-white/[0.08] rounded-lg cursor-pointer hover:border-accent transition"
                            title="Фото (необязательно)">
                         <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
@@ -291,31 +187,31 @@
 
                 <!-- City Input -->
                 <div class="md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Город (необязательно)</label>
+                    <label class="form-label">Город (необязательно)</label>
                     <input type="text" id="city" autocomplete="off"
-                           class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition"
+                           class="form-input"
                            placeholder="Москва">
                 </div>
 
                 <!-- Age Range -->
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Возраст от</label>
+                    <label class="form-label">Возраст от</label>
                     <input type="number" id="age_from" min="1" max="120" autocomplete="off"
-                           class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition"
+                           class="form-input"
                            placeholder="18">
                 </div>
 
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Возраст до</label>
+                    <label class="form-label">Возраст до</label>
                     <input type="number" id="age_to" min="1" max="120" autocomplete="off"
-                           class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition"
+                           class="form-input"
                            placeholder="65">
                 </div>
 
                 <!-- Search Button -->
                 <div class="md:col-span-1 flex items-end">
                     <button type="submit" id="search-btn"
-                            class="w-full px-4 py-3 bg-violet hover:bg-violet-dim text-white font-semibold rounded-lg transition flex items-center justify-center">
+                            class="w-full px-4 py-3 bg-accent hover:bg-accent-dim text-white font-semibold rounded-lg transition flex items-center justify-center">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
@@ -351,7 +247,7 @@
 
     <!-- Empty State (before first search) -->
     <div id="empty-state" class="text-center py-16">
-        <svg class="w-16 h-16 mx-auto text-violet-200 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-16 h-16 mx-auto text-accent-200 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
         </svg>
         <p class="text-gray-500">Введите имя для поиска</p>
@@ -360,8 +256,8 @@
     <!-- "Не нашли?" button (shown after search completes) -->
     <div id="not-found-btn" class="text-center mt-6" style="display: none;">
         <button onclick="switchToCandidateWithName()"
-                class="px-6 py-2.5 border border-violet-200 text-gray-300 hover:text-white hover:border-violet rounded-lg transition-all text-sm">
-            Не нашли кого искали? Попробуйте <span class="text-violet font-medium">проверку кандидата</span> &rarr;
+                class="px-6 py-2.5 border border-white/[0.08] text-gray-300 hover:text-white hover:border-accent rounded-lg transition-all text-sm">
+            Не нашли кого искали? Попробуйте <span class="text-accent font-medium">проверку кандидата</span> &rarr;
         </button>
     </div>
 
@@ -372,11 +268,15 @@
         <div class="max-w-3xl mx-auto">
 
             <!-- Info Banner -->
-            <div class="mb-6 flex items-start gap-3 bg-violet-50 border border-violet-200 rounded-xl p-4">
-                <span class="text-2xl flex-shrink-0">&#x1F6E1;&#xFE0F;</span>
+            <div class="mb-8 flex items-start gap-4 bg-bg-panel border border-white/[0.06] rounded-2xl p-5">
+                <div class="w-10 h-10 rounded-xl bg-accent/[0.1] border border-accent/20 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                </div>
                 <div>
-                    <h2 class="text-xl font-bold text-white mb-1">Проверка кандидата</h2>
-                    <p class="text-gray-400 text-sm">Полная проверка по государственным реестрам, судам, ФССП, санкционным спискам и соцсетям. Чем больше данных вы укажете, тем точнее результат.</p>
+                    <h2 class="text-lg font-normal text-white mb-1 tracking-tight">Проверка кандидата</h2>
+                    <p class="text-gray-500 text-sm leading-relaxed">Полная проверка по государственным реестрам, судам, ФССП, санкционным спискам и соцсетям. Чем больше данных вы укажете, тем точнее результат.</p>
                 </div>
             </div>
 
@@ -387,142 +287,140 @@
                     <!-- Row 1: Name + DOB -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                         <div class="md:col-span-2">
-                            <label for="cand_full_name" class="block text-sm font-medium text-gray-300 mb-2">
+                            <label for="cand_full_name" class="form-label">
                                 Полное имя (ФИО) <span class="text-red-400">*</span>
                             </label>
                             <input type="text" id="cand_full_name" name="full_name" required
                                    placeholder="Морозов Андрей Викторович"
-                                   class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                                   class="form-input">
                         </div>
                         <div>
-                            <label for="cand_dob" class="block text-sm font-medium text-gray-300 mb-2">
+                            <label for="cand_dob" class="form-label">
                                 Дата рождения <span class="text-red-400">*</span>
                             </label>
                             <input type="date" id="cand_dob" name="date_of_birth" required
-                                   class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                                   class="form-input">
                         </div>
                     </div>
 
                     <!-- Row 2: INN + Passport + Region -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                         <div>
-                            <label for="cand_inn" class="block text-sm font-medium text-gray-300 mb-2">
+                            <label for="cand_inn" class="form-label">
                                 ИНН <span class="text-red-400">*</span>
                             </label>
                             <input type="text" id="cand_inn" name="inn" required
                                    placeholder="771234567890" maxlength="12"
                                    pattern="\d{10}(\d{2})?" title="10 или 12 цифр"
-                                   class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                                   class="form-input">
                             <div id="inn-error" class="text-red-400 text-xs mt-1 hidden"></div>
                         </div>
                         <div>
-                            <label for="cand_passport" class="block text-sm font-medium text-gray-300 mb-2">
+                            <label for="cand_passport" class="form-label">
                                 Паспорт <span class="text-gray-600 text-xs">(необязательно)</span>
                             </label>
                             <input type="text" id="cand_passport" name="passport"
                                    placeholder="4515 123456"
                                    pattern="\d{4}\s?\d{6}" title="Серия (4 цифры) и номер (6 цифр)"
-                                   class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                                   class="form-input">
                         </div>
                         <div>
-                            <label for="cand_region" class="block text-sm font-medium text-gray-300 mb-2">
+                            <label for="cand_region" class="form-label">
                                 Регион <span class="text-gray-600 text-xs">(необязательно)</span>
                             </label>
                             <input type="text" id="cand_region" name="region"
                                    placeholder="Москва"
-                                   class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                                   class="form-input">
                         </div>
                     </div>
 
                     <!-- Row 3: Address (full width) -->
                     <div class="mb-4">
-                        <label for="cand_address" class="block text-sm font-medium text-gray-300 mb-2">
+                        <label for="cand_address" class="form-label">
                             Адрес регистрации <span class="text-gray-600 text-xs">(необязательно)</span>
                         </label>
                         <input type="text" id="cand_address" name="registered_address"
                                placeholder="г. Москва, ул. Ленина, д. 5, кв. 12"
-                               class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                               class="form-input">
                     </div>
 
                     <!-- Row 4: Phone + Email -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                         <div>
-                            <label for="cand_phone" class="block text-sm font-medium text-gray-300 mb-2">
+                            <label for="cand_phone" class="form-label">
                                 Телефон <span class="text-gray-600 text-xs">(необязательно)</span>
                             </label>
                             <input type="text" id="cand_phone" name="phone"
                                    placeholder="+79001234567"
-                                   class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                                   class="form-input">
                         </div>
                         <div>
-                            <label for="cand_email" class="block text-sm font-medium text-gray-300 mb-2">
+                            <label for="cand_email" class="form-label">
                                 Email <span class="text-gray-600 text-xs">(необязательно)</span>
                             </label>
                             <input type="email" id="cand_email" name="email"
                                    placeholder="morozov@mail.ru"
-                                   class="w-full px-4 py-3 bg-bg-dark border border-violet-200 rounded-lg text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition">
+                                   class="form-input">
                         </div>
                     </div>
 
                     <!-- Mode Selector -->
                     <div class="mb-6">
-                        <label class="block text-sm font-medium text-gray-400 mb-2">Режим проверки</label>
+                        <label class="form-label">Режим проверки</label>
                         <div class="grid grid-cols-2 gap-3">
                             <label class="relative cursor-pointer">
-                                <input type="radio" name="check_mode" value="quick" checked
-                                       class="sr-only peer">
-                                <div class="p-3 rounded-lg border border-violet-200 bg-bg-dark
-                                            peer-checked:border-violet peer-checked:bg-violet-50
-                                            hover:border-violet/50 transition">
-                                    <div class="text-sm font-semibold text-white mb-0.5">&#x26A1; Быстрый</div>
-                                    <div class="text-xs text-gray-500">Автоматический выбор профиля</div>
+                                <input type="radio" name="check_mode" value="quick" checked class="sr-only peer">
+                                <div class="p-4 rounded-xl border border-white/[0.06] bg-bg-dark
+                                            peer-checked:border-accent peer-checked:bg-accent/[0.04]
+                                            hover:border-white/[0.12] transition">
+                                    <div class="text-sm text-white mb-0.5 font-medium">Быстрый</div>
+                                    <div class="text-xs text-gray-600">Автоматический выбор профиля</div>
                                 </div>
                             </label>
                             <label class="relative cursor-pointer">
-                                <input type="radio" name="check_mode" value="precise"
-                                       class="sr-only peer">
-                                <div class="p-3 rounded-lg border border-violet-200 bg-bg-dark
-                                            peer-checked:border-violet peer-checked:bg-violet-50
-                                            hover:border-violet/50 transition">
-                                    <div class="text-sm font-semibold text-white mb-0.5">&#x1F3AF; Точный</div>
-                                    <div class="text-xs text-gray-500">Вы подтверждаете профиль вручную</div>
+                                <input type="radio" name="check_mode" value="precise" class="sr-only peer">
+                                <div class="p-4 rounded-xl border border-white/[0.06] bg-bg-dark
+                                            peer-checked:border-accent peer-checked:bg-accent/[0.04]
+                                            hover:border-white/[0.12] transition">
+                                    <div class="text-sm text-white mb-0.5 font-medium">Точный</div>
+                                    <div class="text-xs text-gray-600">Вы подтверждаете профиль вручную</div>
                                 </div>
                             </label>
                         </div>
                     </div>
 
                     <!-- Quality Indicator -->
-                    <div id="quality-indicator" class="mb-6 px-4 py-3 rounded-lg bg-bg-dark border border-violet-100 text-sm text-gray-500">
+                    <div id="quality-indicator" class="mb-6 px-4 py-3 rounded-lg bg-bg-dark border border-white/[0.06] text-sm text-gray-500">
                         Заполните имя и дату рождения для начала проверки
                     </div>
 
                     <!-- Submit Button -->
                     <button type="submit" id="candidate-submit-btn"
-                            class="w-full px-4 py-3 bg-violet hover:bg-violet-dim text-white font-semibold rounded-lg transition flex items-center justify-center">
-                        &#x1F6E1;&#xFE0F; Начать проверку
+                            class="btn btn-primary btn-xl w-full">
+                        Начать проверку
                     </button>
                 </div>
             </form>
 
             <!-- History Link -->
             <div class="mt-6 text-center">
-                <a href="/candidate/history" class="text-sm text-gray-500 hover:text-violet-bright transition">
+                <a href="/candidate/history" class="text-sm text-gray-500 hover:text-accent-bright transition">
                     &#x1F4CB; История проверок кандидатов
                 </a>
             </div>
 
             <!-- What Gets Checked -->
-            <div class="mt-4 bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
-                <h3 class="text-violet font-semibold mb-2">Что проверяется</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-400">
-                    <div>&bull; ЕГРЮЛ/ЕГРИП &mdash; бизнес-реестры</div>
-                    <div>&bull; ФССП &mdash; исполнительные производства</div>
-                    <div>&bull; Суды &mdash; судебные дела</div>
-                    <div>&bull; Банкротство &mdash; ЕФРСБ</div>
-                    <div>&bull; Санкции и розыск</div>
-                    <div>&bull; ВКонтакте, Telegram</div>
-                    <div>&bull; Email и телефон</div>
-                    <div>&bull; Оценка рисков</div>
+            <div class="mt-4 bg-bg-panel rounded-2xl p-5 border border-white/[0.06]">
+                <div class="mono-label mb-3">Coverage</div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> ЕГРЮЛ/ЕГРИП</div>
+                    <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> ФССП</div>
+                    <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> Суды</div>
+                    <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> Банкротство</div>
+                    <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> Санкции</div>
+                    <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> VK / Telegram</div>
+                    <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> Email / Телефон</div>
+                    <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> Оценка рисков</div>
                 </div>
             </div>
 
@@ -550,8 +448,8 @@ let selectedProfile = null;
 // ═══════════════════════════════════════════════════════════════
 // MODE TABS (Поиск людей / Проверка кандидата)
 // ═══════════════════════════════════════════════════════════════
-const TAB_ACTIVE = 'flex-1 py-3 px-6 rounded-lg text-sm font-semibold transition-all bg-violet text-white shadow-lg shadow-violet/20';
-const TAB_INACTIVE = 'flex-1 py-3 px-6 rounded-lg text-sm font-semibold transition-all text-gray-400 hover:text-white hover:bg-white/5';
+const TAB_ACTIVE = 'flex-1 py-3 px-6 rounded-xl text-sm font-medium transition-all bg-accent text-white';
+const TAB_INACTIVE = 'flex-1 py-3 px-6 rounded-xl text-sm font-medium transition-all text-gray-400 hover:text-white hover:bg-white/5';
 
 function switchMode(mode) {
     const searchPanel = document.getElementById('tab-search-panel');
@@ -633,7 +531,7 @@ function updateQualityIndicator() {
 
     if (!name || !dob || !inn) {
         el.textContent = 'Заполните ФИО, дату рождения и ИНН для начала проверки';
-        el.className = 'mb-6 px-4 py-3 rounded-lg bg-bg-dark border border-violet-100 text-sm text-gray-500';
+        el.className = 'mb-6 px-4 py-3 rounded-lg bg-bg-dark border border-white/[0.06] text-sm text-gray-500';
         return;
     }
 
@@ -641,11 +539,11 @@ function updateQualityIndicator() {
         el.innerHTML = '&#x1F4CB; <span class="text-green-400 font-medium">Полная проверка</span> \u2014 максимальный охват источников';
         el.className = 'mb-6 px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/20 text-sm text-gray-300';
     } else if (inn && passport) {
-        el.innerHTML = '&#x1F4CB; <span class="text-violet-bright font-medium">Расширенная проверка</span> \u2014 ИНН + паспортные данные';
-        el.className = 'mb-6 px-4 py-3 rounded-lg bg-violet-50 border border-violet-200 text-sm text-gray-300';
+        el.innerHTML = '&#x1F4CB; <span class="text-accent-bright font-medium">Расширенная проверка</span> \u2014 ИНН + паспортные данные';
+        el.className = 'mb-6 px-4 py-3 rounded-lg bg-accent/[0.05] border border-white/[0.08] text-sm text-gray-300';
     } else {
-        el.innerHTML = '&#x1F4CB; <span class="text-violet-bright font-medium">Стандартная проверка</span> \u2014 ФИО + ИНН + дата рождения';
-        el.className = 'mb-6 px-4 py-3 rounded-lg bg-violet-50 border border-violet-200 text-sm text-gray-300';
+        el.innerHTML = '&#x1F4CB; <span class="text-accent-bright font-medium">Стандартная проверка</span> \u2014 ФИО + ИНН + дата рождения';
+        el.className = 'mb-6 px-4 py-3 rounded-lg bg-accent/[0.05] border border-white/[0.08] text-sm text-gray-300';
     }
 }
 
@@ -714,13 +612,13 @@ document.addEventListener('DOMContentLoaded', function() {
 document.getElementById('photo-input').addEventListener('change', function() {
     const label = document.getElementById('photo-label');
     if (this.files && this.files[0]) {
-        label.classList.add('border-violet');
-        label.innerHTML = `<svg class="w-5 h-5 text-violet" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        label.classList.add('border-accent');
+        label.innerHTML = `<svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
         </svg>`;
         label.title = this.files[0].name;
     } else {
-        label.classList.remove('border-violet');
+        label.classList.remove('border-accent');
         label.innerHTML = `<svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -898,10 +796,10 @@ function renderProfileCard(profile, cardId) {
     // Avatar
     let avatarHtml;
     if (profile.photo_url) {
-        avatarHtml = `<img src="${escapeHtml(profile.photo_url)}" alt="" class="profile-avatar" onerror="this.parentElement.innerHTML='<div class=\\'avatar-placeholder\\'><svg class=\\'w-5 h-5 text-violet\\' fill=\\'none\\' stroke=\\'currentColor\\' viewBox=\\'0 0 24 24\\'><path stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\' stroke-width=\\'2\\' d=\\'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z\\'></path></svg></div>'">`;
+        avatarHtml = `<img src="${escapeHtml(profile.photo_url)}" alt="" class="profile-avatar" onerror="this.parentElement.innerHTML='<div class=\\'avatar-placeholder\\'><svg class=\\'w-5 h-5 text-accent\\' fill=\\'none\\' stroke=\\'currentColor\\' viewBox=\\'0 0 24 24\\'><path stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\' stroke-width=\\'2\\' d=\\'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z\\'></path></svg></div>'">`;
     } else {
         avatarHtml = `<div class="avatar-placeholder">
-            <svg class="w-5 h-5 text-violet" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
             </svg>
         </div>`;
@@ -956,7 +854,7 @@ function renderProfileCard(profile, cardId) {
                         Выбрать
                     </button>
                     ${profile.url ? `<a href="${escapeHtml(profile.url)}" target="_blank" rel="noopener noreferrer"
-                        class="text-xs text-violet hover:text-violet-bright transition" onclick="event.stopPropagation()">
+                        class="text-xs text-accent hover:text-accent-bright transition" onclick="event.stopPropagation()">
                         Открыть ↗
                     </a>` : ''}
                 </div>

@@ -1,20 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}Новое расследование - IBP{% endblock %}
+{% block title %}Новое расследование - СЛЕД{% endblock %}
 
 {% block content %}
 <div class="max-w-2xl mx-auto px-4 py-8">
     <!-- Header -->
     <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-violet mb-2 font-display">Новое расследование</h1>
+        <h1 class="text-3xl font-bold text-accent mb-2 font-display">Новое расследование</h1>
         <p class="text-gray-400">Найдите человека по имени или фотографии</p>
     </div>
 
     <!-- Progress Steps -->
     <div class="flex items-center justify-center mb-8 space-x-2">
         <div class="flex items-center">
-            <div class="w-8 h-8 rounded-full bg-violet flex items-center justify-center text-white font-bold text-sm">1</div>
-            <span class="ml-2 text-violet font-medium">Ввод данных</span>
+            <div class="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-bold text-sm">1</div>
+            <span class="ml-2 text-accent font-medium">Ввод данных</span>
         </div>
         <div class="w-8 h-px bg-gray-600"></div>
         <div class="flex items-center opacity-50">
@@ -29,9 +29,9 @@
     </div>
 
     <!-- Search Mode Tabs -->
-    <div class="flex mb-4 bg-bg-panel rounded-lg border border-violet-200 p-1">
+    <div class="flex mb-4 bg-bg-panel rounded-lg border border-white/[0.08] p-1">
         <button id="tabName" onclick="switchTab('name')"
-                class="flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors bg-violet text-white">
+                class="flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors bg-accent text-white">
             Поиск по имени
         </button>
         <button id="tabPhoto" onclick="switchTab('photo')"
@@ -41,7 +41,7 @@
     </div>
 
     <!-- ===== NAME SEARCH TAB ===== -->
-    <div id="nameSearchPanel" class="bg-bg-panel rounded-xl border border-violet-200 p-6">
+    <div id="nameSearchPanel" class="bg-bg-panel rounded-xl border border-white/[0.08] p-6">
         <form id="newInvestigationForm" class="space-y-6">
             <!-- Target Name -->
             <div>
@@ -54,7 +54,7 @@
                     name="target_name"
                     required
                     placeholder="Иванов Иван Иванович"
-                    class="w-full bg-bg-dark border border-violet-200 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition-colors"
+                    class="w-full bg-bg-dark border border-white/[0.08] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-colors"
                 >
                 <p class="text-xs text-gray-500 mt-1">Введите полное имя на русском или латинице</p>
             </div>
@@ -69,7 +69,7 @@
                     id="city"
                     name="city"
                     placeholder="Москва"
-                    class="w-full bg-bg-dark border border-violet-200 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition-colors"
+                    class="w-full bg-bg-dark border border-white/[0.08] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-colors"
                 >
             </div>
 
@@ -86,7 +86,7 @@
                         min="14"
                         max="100"
                         placeholder="18"
-                        class="w-full bg-bg-dark border border-violet-200 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition-colors"
+                        class="w-full bg-bg-dark border border-white/[0.08] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-colors"
                     >
                 </div>
                 <div>
@@ -100,7 +100,7 @@
                         min="14"
                         max="100"
                         placeholder="50"
-                        class="w-full bg-bg-dark border border-violet-200 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-violet focus:ring-1 focus:ring-violet outline-none transition-colors"
+                        class="w-full bg-bg-dark border border-white/[0.08] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-colors"
                     >
                 </div>
             </div>
@@ -110,7 +110,7 @@
                 <label for="photo" class="block text-sm font-medium text-gray-300 mb-2">
                     Фото для сравнения (необязательно)
                 </label>
-                <div class="border-2 border-dashed border-violet-200 rounded-lg p-6 text-center hover:border-violet transition-colors cursor-pointer" id="dropzone">
+                <div class="border-2 border-dashed border-white/[0.08] rounded-lg p-6 text-center hover:border-accent transition-colors cursor-pointer" id="dropzone">
                     <input type="file" id="photo" name="photo" accept="image/*" class="hidden">
                     <div id="dropzoneContent">
                         <span class="text-3xl mb-2 block">&#x1F4F7;</span>
@@ -125,7 +125,7 @@
             </div>
 
             <!-- Submit Button -->
-            <button type="submit" id="submitBtn" class="w-full bg-violet hover:bg-violet-dim text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2">
+            <button type="submit" id="submitBtn" class="w-full bg-accent hover:bg-accent-dim text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2">
                 <span>Поиск профилей ВКонтакте</span>
                 <span>&rarr;</span>
             </button>
@@ -134,19 +134,19 @@
         <!-- Loading State -->
         <div id="loadingState" class="hidden text-center py-8">
             <div class="animate-spin text-4xl mb-4">&#x1F50D;</div>
-            <p class="text-violet font-medium">Поиск во ВКонтакте...</p>
+            <p class="text-accent font-medium">Поиск во ВКонтакте...</p>
             <p class="text-gray-500 text-sm mt-2">Это может занять несколько секунд</p>
         </div>
     </div>
 
     <!-- ===== PHOTO SEARCH TAB ===== -->
-    <div id="photoSearchPanel" class="bg-bg-panel rounded-xl border border-violet-200 p-6 hidden">
+    <div id="photoSearchPanel" class="bg-bg-panel rounded-xl border border-white/[0.08] p-6 hidden">
         <div class="space-y-6">
             <div>
                 <label class="block text-sm font-medium text-gray-300 mb-2">
                     Загрузите фотографию лица
                 </label>
-                <div class="border-2 border-dashed border-violet-200 rounded-lg p-8 text-center hover:border-violet transition-colors cursor-pointer" id="photoDropzone">
+                <div class="border-2 border-dashed border-white/[0.08] rounded-lg p-8 text-center hover:border-accent transition-colors cursor-pointer" id="photoDropzone">
                     <input type="file" id="photoSearchInput" accept=".jpg,.jpeg,.png" class="hidden">
                     <div id="photoDropzoneContent">
                         <span class="text-4xl mb-3 block">&#x1F464;</span>
@@ -161,7 +161,7 @@
             </div>
 
             <button type="button" id="photoSearchBtn" onclick="startPhotoSearch()" disabled
-                    class="w-full bg-violet hover:bg-violet-dim text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+                    class="w-full bg-accent hover:bg-accent-dim text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
                 <span>Найти по лицу</span>
                 <span>&rarr;</span>
             </button>
@@ -170,7 +170,7 @@
         <!-- Photo Search Loading -->
         <div id="photoLoadingState" class="hidden text-center py-8">
             <div class="animate-spin text-4xl mb-4">&#x1F50D;</div>
-            <p class="text-violet font-medium">Поиск лица в базе VK...</p>
+            <p class="text-accent font-medium">Поиск лица в базе VK...</p>
             <p class="text-gray-500 text-sm mt-2">Анализ 300+ млн профилей</p>
         </div>
 
@@ -182,8 +182,8 @@
     </div>
 
     <!-- Info Panel -->
-    <div class="mt-6 bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
-        <h3 class="text-violet font-semibold mb-2 flex items-center">
+    <div class="mt-6 bg-bg-panel/50 rounded-lg p-4 border border-white/[0.06]">
+        <h3 class="text-accent font-semibold mb-2 flex items-center">
             <span class="mr-2">&#x1F4A1;</span> Как это работает
         </h3>
         <ul class="text-sm text-gray-400 space-y-1">
@@ -197,7 +197,7 @@
 
     <!-- Link to legacy search -->
     <div class="mt-4 text-center">
-        <a href="/phase1" class="text-sm text-gray-500 hover:text-violet-bright">
+        <a href="/phase1" class="text-sm text-gray-500 hover:text-accent-bright">
             Или используйте классический поиск (по имени пользователя) &rarr;
         </a>
     </div>
@@ -217,12 +217,12 @@
         if (tab === 'name') {
             namePanel.classList.remove('hidden');
             photoPanel.classList.add('hidden');
-            tabName.className = 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors bg-violet text-white';
+            tabName.className = 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors bg-accent text-white';
             tabPhoto.className = 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors text-gray-400 hover:text-white';
         } else {
             namePanel.classList.add('hidden');
             photoPanel.classList.remove('hidden');
-            tabPhoto.className = 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors bg-violet text-white';
+            tabPhoto.className = 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors bg-accent text-white';
             tabName.className = 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors text-gray-400 hover:text-white';
         }
     }
@@ -242,16 +242,16 @@
 
     dropzone.addEventListener('dragover', (e) => {
         e.preventDefault();
-        dropzone.classList.add('border-violet', 'bg-violet-50');
+        dropzone.classList.add('border-accent', 'bg-accent/[0.05]');
     });
 
     dropzone.addEventListener('dragleave', () => {
-        dropzone.classList.remove('border-violet', 'bg-violet-50');
+        dropzone.classList.remove('border-accent', 'bg-accent/[0.05]');
     });
 
     dropzone.addEventListener('drop', (e) => {
         e.preventDefault();
-        dropzone.classList.remove('border-violet', 'bg-violet-50');
+        dropzone.classList.remove('border-accent', 'bg-accent/[0.05]');
         if (e.dataTransfer.files.length) {
             photoInput.files = e.dataTransfer.files;
             showPreview(e.dataTransfer.files[0]);
@@ -331,16 +331,16 @@
 
     photoDropzone.addEventListener('dragover', (e) => {
         e.preventDefault();
-        photoDropzone.classList.add('border-violet', 'bg-violet-50');
+        photoDropzone.classList.add('border-accent', 'bg-accent/[0.05]');
     });
 
     photoDropzone.addEventListener('dragleave', () => {
-        photoDropzone.classList.remove('border-violet', 'bg-violet-50');
+        photoDropzone.classList.remove('border-accent', 'bg-accent/[0.05]');
     });
 
     photoDropzone.addEventListener('drop', (e) => {
         e.preventDefault();
-        photoDropzone.classList.remove('border-violet', 'bg-violet-50');
+        photoDropzone.classList.remove('border-accent', 'bg-accent/[0.05]');
         if (e.dataTransfer.files.length) {
             handlePhotoFile(e.dataTransfer.files[0]);
         }
@@ -442,14 +442,14 @@
             const platformColor = match.platform === 'telegram' ? 'bg-sky-500' : 'bg-blue-500';
 
             const card = document.createElement('div');
-            card.className = 'flex items-center gap-4 p-4 bg-bg-dark rounded-lg border border-violet-200 hover:border-violet cursor-pointer transition-all';
+            card.className = 'flex items-center gap-4 p-4 bg-bg-dark rounded-lg border border-white/[0.08] hover:border-accent cursor-pointer transition-all';
             card.onclick = () => selectPhotoMatch(idx);
 
             card.innerHTML = `
                 <div class="flex-shrink-0">
                     ${match.photo_url
                         ? `<img src="${match.photo_url}" class="w-14 h-14 rounded-full object-cover" onerror="this.src='https://vk.com/images/camera_200.png'">`
-                        : `<div class="w-14 h-14 rounded-full bg-violet flex items-center justify-center text-xl text-white font-bold">${(match.display_name || '?')[0]}</div>`
+                        : `<div class="w-14 h-14 rounded-full bg-accent flex items-center justify-center text-xl text-white font-bold">${(match.display_name || '?')[0]}</div>`
                     }
                 </div>
                 <div class="flex-1 min-w-0">

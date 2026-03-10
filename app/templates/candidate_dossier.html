@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Досье — {{ check.full_name }} — IBP{% endblock %}
+{% block title %}Досье — {{ check.full_name }} — СЛЕД{% endblock %}
 
 {% block head %}
 <style>
@@ -38,8 +38,8 @@
         transition: all 0.2s;
     }
     .nav-pill:hover {
-        border-color: var(--violet);
-        background: rgba(139, 92, 246, 0.1);
+        border-color: var(--accent);
+        background: var(--accent-subtle);
         color: var(--text-primary);
     }
     .nav-pill .badge {
@@ -53,7 +53,7 @@
         font-size: 0.6875rem;
         font-weight: 600;
     }
-    .badge-count { background: rgba(139, 92, 246, 0.2); color: var(--violet-bright); }
+    .badge-count { background: rgba(59, 79, 240, 0.2); color: var(--accent-bright); }
     .badge-empty { background: rgba(100, 116, 139, 0.15); color: var(--text-dim); }
 
     /* Status badges */
@@ -165,8 +165,8 @@
         text-decoration: none;
     }
     .export-btn:hover {
-        border-color: var(--violet);
-        background: rgba(139, 92, 246, 0.1);
+        border-color: var(--accent);
+        background: var(--accent-subtle);
         color: var(--text-primary);
     }
 
@@ -238,10 +238,10 @@
        1b. EXECUTIVE SUMMARY (AI)
        ================================================================ #}
     {% if check.executive_summary %}
-    <div class="dossier-card mb-6" style="border-left: 3px solid rgba(139, 92, 246, 0.6);">
+    <div class="dossier-card mb-6" style="border-left: 3px solid rgba(59, 79, 240, 0.6);">
         <div class="flex items-center gap-2 mb-2">
-            <span class="text-sm font-semibold text-violet-400">AI Executive Summary</span>
-            <span class="text-xs px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-300 border border-violet-500/20">Claude</span>
+            <span class="text-sm font-semibold text-accent-bright">AI Executive Summary</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-accent/[0.1] text-accent-bright border border-accent/[0.2]">Claude</span>
         </div>
         <p class="text-sm text-gray-300 leading-relaxed">{{ check.executive_summary }}</p>
     </div>
@@ -273,9 +273,9 @@
         <p class="text-sm text-gray-300 mb-3">{{ rc.desc }}</p>
 
         {% if check.risk_narrative %}
-        <div class="rounded-lg p-3 mb-3" style="background: rgba(139, 92, 246, 0.06); border: 1px solid rgba(139, 92, 246, 0.15);">
+        <div class="rounded-lg p-3 mb-3" style="background: rgba(59, 79, 240, 0.06); border: 1px solid rgba(59, 79, 240, 0.15);">
             <div class="flex items-center gap-1.5 mb-1">
-                <span class="text-xs font-medium text-violet-400">AI Risk Narrative</span>
+                <span class="text-xs font-medium text-accent-bright">AI Risk Narrative</span>
             </div>
             <p class="text-sm text-gray-300 leading-relaxed">{{ check.risk_narrative }}</p>
         </div>
@@ -409,7 +409,7 @@
                 <div class="text-sm text-gray-400 mb-2">Бизнес-сеть (связанные компании):</div>
                 <div class="space-y-1">
                     {% for company in id_conf.get('business_network', [])[:10] %}
-                    <div class="text-sm text-gray-300 pl-3 border-l-2 border-violet-500/30">
+                    <div class="text-sm text-gray-300 pl-3 border-l-2 border-accent/[0.3]">
                         {{ company.get('company_name', '—') }}
                         {% if company.get('co_founders') %}
                             <span class="text-gray-500 ml-1">({{ company.get('co_founders', [])|length }} соучредителей)</span>
@@ -480,7 +480,7 @@
                 {% if biz.get('source_url') or biz.get('url') %}
                     <div class="mt-2">
                         <a href="{{ biz.get('source_url', biz.get('url', '')) }}" target="_blank" rel="noopener"
-                           class="text-xs text-violet hover:text-violet-bright transition">Источник &#x2197;</a>
+                           class="text-xs text-accent hover:text-accent-bright transition">Источник &#x2197;</a>
                     </div>
                 {% endif %}
             </div>
@@ -535,14 +535,14 @@
                     {% endif %}
                 </div>
                 {% if case.get('ai_summary') %}
-                    <div class="mt-2 p-2 rounded text-xs text-gray-300 leading-relaxed" style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.1);">
-                        <span class="text-violet-400 font-medium">AI:</span> {{ case.ai_summary }}
+                    <div class="mt-2 p-2 rounded text-xs text-gray-300 leading-relaxed" style="background: rgba(59, 79, 240, 0.05); border: 1px solid var(--accent-subtle);">
+                        <span class="text-accent-bright font-medium">AI:</span> {{ case.ai_summary }}
                     </div>
                 {% endif %}
                 {% if case.get('url') or case.get('source_url') %}
                     <div class="mt-2">
                         <a href="{{ case.get('url', case.get('source_url', '')) }}" target="_blank" rel="noopener"
-                           class="text-xs text-violet hover:text-violet-bright transition">Источник &#x2197;</a>
+                           class="text-xs text-accent hover:text-accent-bright transition">Источник &#x2197;</a>
                     </div>
                 {% endif %}
             </div>
@@ -572,7 +572,7 @@
                     <div class="text-sm text-yellow-400 mb-2">&#x26A0;&#xFE0F; Автоматическая проверка заблокирована CAPTCHA</div>
                     <div class="text-xs text-gray-400 mb-3">{{ proc.get('subject', '') }}</div>
                     <a href="https://fssp.gov.ru/iss/ip/" target="_blank" rel="noopener"
-                       class="text-sm text-violet hover:text-violet-bright transition">
+                       class="text-sm text-accent hover:text-accent-bright transition">
                         &#x1F50D; Проверить вручную на fssp.gov.ru &#x2197;
                     </a>
                 </div>
@@ -637,7 +637,7 @@
                     <div class="text-sm text-yellow-400 mb-2">&#x26A0;&#xFE0F; Автоматическая проверка недоступна</div>
                     <div class="text-xs text-gray-400 mb-3">{{ br.get('stage', 'Проверьте вручную на сайте ЕФРСБ') }}</div>
                     <a href="{{ br.get('url', 'https://bankrot.fedresurs.ru/DebtorsSearch.aspx') }}" target="_blank" rel="noopener"
-                       class="text-sm text-violet hover:text-violet-bright transition">
+                       class="text-sm text-accent hover:text-accent-bright transition">
                         &#x1F50D; Проверить вручную на bankrot.fedresurs.ru &#x2197;
                     </a>
                 </div>
@@ -677,7 +677,7 @@
                     {% if br.get('url') %}
                         <div class="mt-2">
                             <a href="{{ br.url }}" target="_blank" rel="noopener"
-                               class="text-xs text-violet hover:text-violet-bright transition">Источник &#x2197;</a>
+                               class="text-xs text-accent hover:text-accent-bright transition">Источник &#x2197;</a>
                         </div>
                     {% endif %}
                 </div>
@@ -722,7 +722,7 @@
                     {% endif %}
                     {% if result.get('url') %}
                         <a href="{{ result.url }}" target="_blank" rel="noopener"
-                           class="text-xs text-violet hover:text-violet-bright transition ml-3 shrink-0">&#x2197;</a>
+                           class="text-xs text-accent hover:text-accent-bright transition ml-3 shrink-0">&#x2197;</a>
                     {% endif %}
                 </div>
             {% endfor %}
@@ -815,7 +815,7 @@
                     {% endif %}
                     {% if profile.get('url') %}
                         <a href="{{ profile.url }}" target="_blank" rel="noopener"
-                           class="text-xs text-violet hover:text-violet-bright transition">Открыть &#x2197;</a>
+                           class="text-xs text-accent hover:text-accent-bright transition">Открыть &#x2197;</a>
                     {% endif %}
                 </div>
             </div>
@@ -921,7 +921,7 @@
                         <div class="text-sm text-white truncate">{{ fm.get('username', fm.get('name', '')) }}</div>
                         {% if fm.get('profile_url') %}
                             <a href="{{ fm.profile_url }}" target="_blank" rel="noopener"
-                               class="text-xs text-violet hover:text-violet-bright">{{ fm.get('source', 'Search4Faces') }} &#x2197;</a>
+                               class="text-xs text-accent hover:text-accent-bright">{{ fm.get('source', 'Search4Faces') }} &#x2197;</a>
                         {% endif %}
                     </div>
                     {% set sim = fm.get('similarity', fm.get('score', 0)) %}
@@ -950,7 +950,7 @@
                     </div>
                     {% if acct.get('url') %}
                         <a href="{{ acct.url }}" target="_blank" rel="noopener"
-                           class="text-xs text-violet hover:text-violet-bright shrink-0">&#x2197;</a>
+                           class="text-xs text-accent hover:text-accent-bright shrink-0">&#x2197;</a>
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -975,26 +975,26 @@
         {% if social_graph_data.get('stats') %}
         <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
             {% if social_graph_data.stats.get('node_count') is not none %}
-            <div class="text-center p-2 rounded-lg bg-bg-panel border border-violet-100">
-                <div class="text-lg font-bold text-violet">{{ social_graph_data.stats.node_count }}</div>
+            <div class="text-center p-2 rounded-lg bg-bg-panel border border-white/[0.06]">
+                <div class="text-lg font-bold text-accent">{{ social_graph_data.stats.node_count }}</div>
                 <div class="text-xs text-gray-500">Узлов</div>
             </div>
             {% endif %}
             {% if social_graph_data.stats.get('edge_count') is not none %}
-            <div class="text-center p-2 rounded-lg bg-bg-panel border border-violet-100">
-                <div class="text-lg font-bold text-violet">{{ social_graph_data.stats.edge_count }}</div>
+            <div class="text-center p-2 rounded-lg bg-bg-panel border border-white/[0.06]">
+                <div class="text-lg font-bold text-accent">{{ social_graph_data.stats.edge_count }}</div>
                 <div class="text-xs text-gray-500">Связей</div>
             </div>
             {% endif %}
             {% if social_graph_data.stats.get('communities') is not none %}
-            <div class="text-center p-2 rounded-lg bg-bg-panel border border-violet-100">
-                <div class="text-lg font-bold text-violet">{{ social_graph_data.stats.communities }}</div>
+            <div class="text-center p-2 rounded-lg bg-bg-panel border border-white/[0.06]">
+                <div class="text-lg font-bold text-accent">{{ social_graph_data.stats.communities }}</div>
                 <div class="text-xs text-gray-500">Сообществ</div>
             </div>
             {% endif %}
             {% if social_graph_data.stats.get('density') is not none %}
-            <div class="text-center p-2 rounded-lg bg-bg-panel border border-violet-100">
-                <div class="text-lg font-bold text-violet">{{ '%.2f'|format(social_graph_data.stats.density) }}</div>
+            <div class="text-center p-2 rounded-lg bg-bg-panel border border-white/[0.06]">
+                <div class="text-lg font-bold text-accent">{{ '%.2f'|format(social_graph_data.stats.density) }}</div>
                 <div class="text-xs text-gray-500">Плотность</div>
             </div>
             {% endif %}
@@ -1018,7 +1018,7 @@
         <div class="mt-3">
             <table class="w-full text-sm">
                 <thead>
-                    <tr class="text-left text-xs text-gray-500 border-b border-violet-100">
+                    <tr class="text-left text-xs text-gray-500 border-b border-white/[0.06]">
                         <th class="pb-2">Город</th>
                         <th class="pb-2">Частота</th>
                         <th class="pb-2">Источник</th>
@@ -1026,7 +1026,7 @@
                 </thead>
                 <tbody>
                     {% for loc in geo_analysis.get('locations', []) %}
-                    <tr class="border-b border-violet-100/50">
+                    <tr class="border-b border-white/[0.03]">
                         <td class="py-2 text-white">{{ loc.get('city', loc.get('name', '')) }}</td>
                         <td class="py-2 text-gray-400">{{ loc.get('frequency', loc.get('count', 1)) }}</td>
                         <td class="py-2 text-gray-500 text-xs">{{ loc.get('source', '') }}</td>
@@ -1036,7 +1036,7 @@
             </table>
         </div>
         {% if geo_analysis.get('home_location') %}
-        <div class="mt-3 px-3 py-2 rounded-lg bg-violet-50 border border-violet-200 text-sm">
+        <div class="mt-3 px-3 py-2 rounded-lg bg-accent/[0.05] border border-white/[0.08] text-sm">
             <span class="text-gray-400">Предполагаемое место жительства:</span>
             <span class="text-white font-medium">{{ geo_analysis.home_location }}</span>
         </div>
@@ -1054,10 +1054,10 @@
         </div>
 
         {% if check.behavioral_summary %}
-        <div class="dossier-card mb-3" style="border-left: 3px solid rgba(139, 92, 246, 0.6);">
+        <div class="dossier-card mb-3" style="border-left: 3px solid rgba(59, 79, 240, 0.6);">
             <div class="flex items-center gap-2 mb-2">
-                <span class="text-sm font-semibold text-violet-400">AI Behavioral Profile</span>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-300 border border-violet-500/20">Claude</span>
+                <span class="text-sm font-semibold text-accent-bright">AI Behavioral Profile</span>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-accent/[0.1] text-accent-bright border border-accent/[0.2]">Claude</span>
             </div>
             <p class="text-sm text-gray-300 leading-relaxed">{{ check.behavioral_summary }}</p>
         </div>
@@ -1091,7 +1091,7 @@
                 {% for kw in text_analysis.get('keywords', [])[:20] %}
                     {% set kw_text = kw if kw is string else kw.get('word', kw.get('text', '')) %}
                     {% if kw_text %}
-                    <span class="px-3 py-1 rounded-full text-xs bg-violet-50 border border-violet-200 text-gray-300">{{ kw_text }}</span>
+                    <span class="px-3 py-1 rounded-full text-xs bg-accent/[0.05] border border-white/[0.08] text-gray-300">{{ kw_text }}</span>
                     {% endif %}
                 {% endfor %}
             </div>
@@ -1146,7 +1146,7 @@
         </div>
         <div class="space-y-0">
             {% for event in activity_timeline|sort(attribute='date', reverse=true) if event.get('date') %}
-            <div class="flex gap-3 py-3 border-b border-violet-100/30">
+            <div class="flex gap-3 py-3 border-b border-white/[0.03]">
                 <div class="shrink-0 w-20 text-xs text-gray-500 font-mono pt-0.5">{{ event.date }}</div>
                 <div class="flex-1">
                     {% set etype = event.get('type', '') %}
@@ -1162,7 +1162,7 @@
             </div>
             {% endfor %}
             {% for event in activity_timeline if not event.get('date') %}
-            <div class="flex gap-3 py-3 border-b border-violet-100/30">
+            <div class="flex gap-3 py-3 border-b border-white/[0.03]">
                 <div class="shrink-0 w-20 text-xs text-gray-500 font-mono pt-0.5">—</div>
                 <div class="flex-1">
                     <div class="text-sm text-gray-300">{{ event.get('description', event.get('text', '')) }}</div>
@@ -1176,7 +1176,7 @@
     {# ================================================================
        16. FOOTER
        ================================================================ #}
-    <div class="export-wrap flex flex-wrap gap-3 mb-6 pt-4 border-t border-violet-100">
+    <div class="export-wrap flex flex-wrap gap-3 mb-6 pt-4 border-t border-white/[0.06]">
         <a href="/candidate/export/{{ check.id }}/json" class="export-btn">&#x1F4CB; Скачать JSON</a>
         <a href="/candidate/export/{{ check.id }}/pdf" class="export-btn" id="pdf-btn">&#x1F4C4; Скачать PDF</a>
         <button onclick="window.print()" class="export-btn">&#x1F5A8; Печать</button>
@@ -1197,7 +1197,7 @@
     </div>
 
     <div class="back-link text-center">
-        <a href="/candidate/history" class="text-sm text-gray-500 hover:text-violet-bright transition">
+        <a href="/candidate/history" class="text-sm text-gray-500 hover:text-accent-bright transition">
             &larr; Все проверки
         </a>
     </div>
@@ -1226,7 +1226,7 @@
                     label: n.label || n.name || '',
                     shape: n.shape || 'dot',
                     size: n.size || 12,
-                    color: n.color || '#8b5cf6',
+                    color: n.color || 'var(--accent)',
                     image: n.image || undefined,
                     title: n.title || n.label || '',
                 };
@@ -1235,7 +1235,7 @@
                 return {
                     from: e.from,
                     to: e.to,
-                    color: {color: 'rgba(139,92,246,0.3)', highlight: '#8b5cf6'},
+                    color: {color: 'rgba(59,79,240,0.3)', highlight: 'var(--accent)'},
                 };
             }));
             var options = {
@@ -1286,8 +1286,8 @@
                     var freq = loc.frequency || loc.count || 1;
                     var marker = L.circleMarker([lat, lng], {
                         radius: Math.min(6 + freq * 2, 20),
-                        color: '#8b5cf6',
-                        fillColor: '#a78bfa',
+                        color: 'var(--accent)',
+                        fillColor: 'var(--accent-bright)',
                         fillOpacity: 0.6,
                     }).addTo(map);
                     marker.bindPopup('<b>' + name + '</b><br>Частота: ' + freq);

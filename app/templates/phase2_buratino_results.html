@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Фаза 2: Результаты - {{ investigation.input_name }} - IBP{% endblock %}
+{% block title %}Фаза 2: Результаты - {{ investigation.input_name }} - СЛЕД{% endblock %}
 
 {% block head %}
 <!-- vis.js for social graph -->
@@ -9,7 +9,7 @@
     #social-graph {
         width: 100%;
         height: 500px;
-        border: 1px solid rgba(139, 92, 246, 0.3);
+        border: 1px solid rgba(59, 79, 240, 0.3);
         border-radius: 0.75rem;
         background: linear-gradient(135deg, #1a1a2e 0%, #0d0d1a 100%);
     }
@@ -60,7 +60,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
         <div>
-            <h1 class="text-2xl font-bold text-violet font-display">Фаза 2: Результаты анализа</h1>
+            <h1 class="text-2xl font-bold text-accent font-display">Фаза 2: Результаты анализа</h1>
             <p class="text-gray-400">Поиск контактов и анализ социальных связей</p>
         </div>
         <div class="flex space-x-3">
@@ -74,12 +74,12 @@
     </div>
 
     <!-- Profile Summary -->
-    <div class="bg-bg-panel rounded-xl border border-violet-200 p-6 mb-8">
+    <div class="bg-bg-panel rounded-xl border border-accent-200 p-6 mb-8">
         <div class="flex items-center space-x-6">
             {% if profile and profile.photo_url %}
-            <img src="{{ profile.photo_url }}" alt="" class="w-20 h-20 rounded-full object-cover border-4 border-violet">
+            <img src="{{ profile.photo_url }}" alt="" class="w-20 h-20 rounded-full object-cover border-4 border-accent">
             {% else %}
-            <div class="w-20 h-20 rounded-full bg-violet flex items-center justify-center text-2xl text-white font-bold">
+            <div class="w-20 h-20 rounded-full bg-accent flex items-center justify-center text-2xl text-white font-bold">
                 {{ investigation.input_name[0] if investigation.input_name else '?' }}
             </div>
             {% endif %}
@@ -88,7 +88,7 @@
                     {% if profile %}{{ profile.full_name }}{% else %}{{ investigation.input_name }}{% endif %}
                 </h2>
                 {% if profile %}
-                <p class="text-violet">@{{ profile.username or profile.platform_id }}</p>
+                <p class="text-accent">@{{ profile.username or profile.platform_id }}</p>
                 {% if profile.city %}
                 <p class="text-gray-400 text-sm">{{ profile.city }}</p>
                 {% endif %}
@@ -104,36 +104,36 @@
 
     <!-- Stats Cards -->
     <div class="graph-stats">
-        <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
-            <div class="text-3xl font-bold text-violet" id="stat-nodes">0</div>
+        <div class="bg-bg-panel rounded-lg border border-accent-200 p-4 text-center">
+            <div class="text-3xl font-bold text-accent" id="stat-nodes">0</div>
             <div class="text-gray-500 text-sm">Узлы сети</div>
         </div>
-        <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
-            <div class="text-3xl font-bold text-violet" id="stat-edges">0</div>
+        <div class="bg-bg-panel rounded-lg border border-accent-200 p-4 text-center">
+            <div class="text-3xl font-bold text-accent" id="stat-edges">0</div>
             <div class="text-gray-500 text-sm">Связи</div>
         </div>
-        <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
+        <div class="bg-bg-panel rounded-lg border border-accent-200 p-4 text-center">
             <div class="text-3xl font-bold text-green-400" id="stat-clusters">0</div>
             <div class="text-gray-500 text-sm">Сообщества</div>
         </div>
-        <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
-            <div class="text-3xl font-bold text-violet" id="stat-density">0%</div>
+        <div class="bg-bg-panel rounded-lg border border-accent-200 p-4 text-center">
+            <div class="text-3xl font-bold text-accent" id="stat-density">0%</div>
             <div class="text-gray-500 text-sm">Плотность сети</div>
         </div>
     </div>
 
     <!-- Social Graph -->
-    <div class="bg-bg-panel rounded-xl border border-violet-200 p-6 mb-8">
+    <div class="bg-bg-panel rounded-xl border border-accent-200 p-6 mb-8">
         <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold text-white flex items-center">
                 <span class="mr-2">&#128101;</span>
                 Граф социальных связей
             </h3>
             <div class="flex items-center space-x-2">
-                <button onclick="fitGraph()" class="text-sm text-violet hover:text-violet-bright px-3 py-1 border border-violet-200 rounded">
+                <button onclick="fitGraph()" class="text-sm text-accent hover:text-accent-bright px-3 py-1 border border-accent-200 rounded">
                     Масштабировать
                 </button>
-                <button onclick="togglePhysics()" class="text-sm text-violet hover:text-violet-bright px-3 py-1 border border-violet-200 rounded" id="physicsBtn">
+                <button onclick="togglePhysics()" class="text-sm text-accent hover:text-accent-bright px-3 py-1 border border-accent-200 rounded" id="physicsBtn">
                     Остановить физику
                 </button>
             </div>
@@ -155,7 +155,7 @@
     <!-- Discovered Contacts -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <!-- Phone Numbers -->
-        <div class="bg-bg-panel rounded-xl border border-violet-200 p-6">
+        <div class="bg-bg-panel rounded-xl border border-accent-200 p-6">
             <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
                 <span class="mr-2">&#128222;</span>
                 Телефоны
@@ -164,7 +164,7 @@
             <div class="space-y-2">
                 {% if investigation.discovered_phones %}
                     {% for phone in investigation.discovered_phones %}
-                    <div class="flex items-center justify-between p-3 bg-bg-dark rounded-lg border border-violet-200/20 {% if phone.confidence == 'high' %}border-green-500/30{% endif %}">
+                    <div class="flex items-center justify-between p-3 bg-bg-dark rounded-lg border border-accent-200/20 {% if phone.confidence == 'high' %}border-green-500/30{% endif %}">
                         <div>
                             <span class="text-white font-mono">{{ phone.number }}</span>
                             {% if phone.telegram_url %}
@@ -192,7 +192,7 @@
                             <span class="px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs rounded">Возможно</span>
                             {% endif %}
                             {% if phone.verified_on %}
-                            <span class="text-xs text-violet">{{ phone.verified_on|join(', ') }}</span>
+                            <span class="text-xs text-accent">{{ phone.verified_on|join(', ') }}</span>
                             {% endif %}
                         </div>
                     </div>
@@ -204,7 +204,7 @@
         </div>
 
         <!-- Email Addresses -->
-        <div class="bg-bg-panel rounded-xl border border-violet-200 p-6">
+        <div class="bg-bg-panel rounded-xl border border-accent-200 p-6">
             <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
                 <span class="mr-2">&#128231;</span>
                 Электронная почта
@@ -234,11 +234,11 @@
                         {% set is_verified = email.verification in ['holehe_confirmed', 'smtp_verified', 'gravatar', 'breach_found'] %}
                         {% if not is_verified and not ns2.shown_separator and ns.verified > 0 %}
                             {% set ns2.shown_separator = true %}
-                            <div class="border-t border-violet-200/20 my-3 pt-1">
+                            <div class="border-t border-accent-200/20 my-3 pt-1">
                                 <span class="text-xs text-gray-500">Не подтверждённые (шаблоны)</span>
                             </div>
                         {% endif %}
-                    <div class="flex items-center justify-between p-3 bg-bg-dark rounded-lg border border-violet-200/20 {% if email.verification == 'holehe_confirmed' %}border-emerald-500/40{% elif email.verification == 'smtp_verified' %}border-green-500/40{% elif email.verification == 'gravatar' %}border-blue-500/40{% elif email.verification == 'breach_found' %}border-red-500/40{% endif %}">
+                    <div class="flex items-center justify-between p-3 bg-bg-dark rounded-lg border border-accent-200/20 {% if email.verification == 'holehe_confirmed' %}border-emerald-500/40{% elif email.verification == 'smtp_verified' %}border-green-500/40{% elif email.verification == 'gravatar' %}border-blue-500/40{% elif email.verification == 'breach_found' %}border-red-500/40{% endif %}">
                         <div class="flex-1 min-w-0">
                             <span class="text-white font-mono text-sm">{{ email.email }}</span>
                             <span class="text-xs text-gray-500 ml-2">{{ email.source }}</span>
@@ -260,7 +260,7 @@
                             {% endif %}
                             {# Verified on services (truncated for readability) #}
                             {% if email.verified_on %}
-                            <span class="text-xs text-violet truncate max-w-[140px]" title="{{ email.verified_on|join(', ') }}">{{ email.verified_on[:3]|join(', ') }}</span>
+                            <span class="text-xs text-accent truncate max-w-[140px]" title="{{ email.verified_on|join(', ') }}">{{ email.verified_on[:3]|join(', ') }}</span>
                             {% endif %}
                         </div>
                     </div>
@@ -273,7 +273,7 @@
     </div>
 
     <!-- Additional Profiles -->
-    <div class="bg-bg-panel rounded-xl border border-violet-200 p-6 mb-8">
+    <div class="bg-bg-panel rounded-xl border border-accent-200 p-6 mb-8">
         <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
             <span class="mr-2">&#127760;</span>
             Дополнительные профили
@@ -283,8 +283,8 @@
             {% if investigation.alternate_accounts %}
                 {% for account in investigation.alternate_accounts %}
                 <a href="{{ account.url }}" target="_blank" rel="noopener"
-                   class="flex items-center p-3 bg-bg-dark rounded-lg border border-violet-200/20 hover:border-violet transition-colors {% if account.platform == 'telegram' and account.confidence == 'high' %}border-blue-500/30{% endif %}">
-                    <div class="w-10 h-10 rounded-full bg-violet/20 flex items-center justify-center mr-3">
+                   class="flex items-center p-3 bg-bg-dark rounded-lg border border-accent-200/20 hover:border-accent transition-colors {% if account.platform == 'telegram' and account.confidence == 'high' %}border-blue-500/30{% endif %}">
+                    <div class="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center mr-3">
                         {% if account.platform == 'telegram' %}
                         <span class="text-lg">&#128172;</span>
                         {% elif account.platform == 'instagram' %}
@@ -322,7 +322,7 @@
                         <p class="text-yellow-500/70 text-xs mt-1">{{ account.note }}</p>
                         {% endif %}
                     </div>
-                    <span class="text-violet">&#8599;</span>
+                    <span class="text-accent">&#8599;</span>
                 </a>
                 {% endfor %}
             {% else %}
@@ -333,7 +333,7 @@
 
     <!-- Navigation -->
     <div class="flex items-center justify-between">
-        <a href="/phase1/search/{{ investigation.id }}" class="text-violet hover:text-violet-bright">
+        <a href="/phase1/search/{{ investigation.id }}" class="text-accent hover:text-accent-bright">
             &#8592; Назад к Фазе 1
         </a>
         <div class="flex space-x-4">

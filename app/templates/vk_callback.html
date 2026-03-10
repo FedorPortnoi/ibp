@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}VK Токен — IBP{% endblock %}
+{% block title %}VK Токен — СЛЕД{% endblock %}
 
 {% block content %}
 <div class="max-w-xl mx-auto px-4 py-16">
-    <div class="bg-bg-panel rounded-2xl border border-violet-200 p-8 text-center">
+    <div class="bg-bg-panel rounded-2xl border border-white/[0.08] p-8 text-center">
         {% if error %}
         <div class="text-red-400 mb-4">
             <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -14,7 +14,7 @@
             <p class="text-text-secondary">{{ error }}</p>
         </div>
         {% else %}
-        <div id="processing" class="text-violet-bright">
+        <div id="processing" class="text-accent-bright">
             <svg class="w-12 h-12 mx-auto mb-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>

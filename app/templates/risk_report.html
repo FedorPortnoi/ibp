@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Скоринг — {{ investigation.input_name }} | IBP{% endblock %}
+{% block title %}Скоринг — {{ investigation.input_name }} | СЛЕД{% endblock %}
 
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -22,10 +22,10 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 
         <!-- Large score circle -->
-        <div class="bg-bg-panel border border-violet-200 rounded-2xl p-8 flex flex-col items-center justify-center">
+        <div class="bg-bg-panel border border-accent-200 rounded-2xl p-8 flex flex-col items-center justify-center">
             <div class="relative w-40 h-40 mb-4">
                 <svg class="w-40 h-40 -rotate-90" viewBox="0 0 160 160">
-                    <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(139,92,246,0.1)" stroke-width="10"/>
+                    <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(59,79,240,0.1)" stroke-width="10"/>
                     <circle cx="80" cy="80" r="70" fill="none"
                             stroke="{{ score.color }}"
                             stroke-width="10"
@@ -47,7 +47,7 @@
         </div>
 
         <!-- Radar chart -->
-        <div class="md:col-span-2 bg-bg-panel border border-violet-200 rounded-2xl p-6">
+        <div class="md:col-span-2 bg-bg-panel border border-accent-200 rounded-2xl p-6">
             <h2 class="text-lg font-semibold text-text-primary mb-4">Профиль уязвимости</h2>
             <div class="relative" style="height: 320px;">
                 <canvas id="radarChart"></canvas>
@@ -57,30 +57,30 @@
 
     <!-- Data summary cards -->
     <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        <div class="bg-bg-panel border border-violet-100 rounded-xl p-4 text-center">
-            <div class="text-2xl font-bold text-violet">{{ score.data_summary.profiles_found }}</div>
+        <div class="bg-bg-panel border border-accent-100 rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-accent">{{ score.data_summary.profiles_found }}</div>
             <div class="text-xs text-text-dim mt-1">Профилей</div>
         </div>
-        <div class="bg-bg-panel border border-violet-100 rounded-xl p-4 text-center">
-            <div class="text-2xl font-bold text-violet">{{ score.data_summary.emails_found }}</div>
+        <div class="bg-bg-panel border border-accent-100 rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-accent">{{ score.data_summary.emails_found }}</div>
             <div class="text-xs text-text-dim mt-1">Email</div>
         </div>
-        <div class="bg-bg-panel border border-violet-100 rounded-xl p-4 text-center">
-            <div class="text-2xl font-bold text-violet">{{ score.data_summary.phones_found }}</div>
+        <div class="bg-bg-panel border border-accent-100 rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-accent">{{ score.data_summary.phones_found }}</div>
             <div class="text-xs text-text-dim mt-1">Телефонов</div>
         </div>
-        <div class="bg-bg-panel border border-violet-100 rounded-xl p-4 text-center">
-            <div class="text-2xl font-bold text-violet">{{ score.data_summary.business_records }}</div>
+        <div class="bg-bg-panel border border-accent-100 rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-accent">{{ score.data_summary.business_records }}</div>
             <div class="text-xs text-text-dim mt-1">Бизнес</div>
         </div>
-        <div class="bg-bg-panel border border-violet-100 rounded-xl p-4 text-center">
-            <div class="text-2xl font-bold text-violet">{{ score.data_summary.court_records }}</div>
+        <div class="bg-bg-panel border border-accent-100 rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-accent">{{ score.data_summary.court_records }}</div>
             <div class="text-xs text-text-dim mt-1">Суд. дел</div>
         </div>
     </div>
 
     <!-- Dimension breakdown -->
-    <div class="bg-bg-panel border border-violet-200 rounded-2xl p-6 mb-8">
+    <div class="bg-bg-panel border border-accent-200 rounded-2xl p-6 mb-8">
         <h2 class="text-lg font-semibold text-text-primary mb-6">Детализация по измерениям</h2>
 
         <div class="space-y-5">
@@ -91,7 +91,7 @@
                     <span class="text-sm font-bold text-text-primary">{{ dim.score }} / {{ dim.max }}</span>
                 </div>
                 <!-- Progress bar -->
-                <div class="w-full bg-violet-100 rounded-full h-2.5 mb-2">
+                <div class="w-full bg-accent/10 rounded-full h-2.5 mb-2">
                     {% if dim.max > 0 %}
                     <div class="h-2.5 rounded-full transition-all duration-700"
                          style="width: {{ (dim.score / dim.max * 100)|round(1) }}%; background-color: {{ score.color }}"></div>
@@ -100,7 +100,7 @@
                 <!-- Factors -->
                 <div class="flex flex-wrap gap-2">
                     {% for factor in dim.factors %}
-                    <span class="inline-block text-xs bg-violet-50 text-text-dim border border-violet-100 rounded-md px-2 py-0.5">
+                    <span class="inline-block text-xs bg-accent/5 text-text-dim border border-accent-100 rounded-md px-2 py-0.5">
                         {{ factor }}
                     </span>
                     {% endfor %}
@@ -159,7 +159,7 @@
             datasets: [{
                 label: 'Скоринг (%)',
                 data: data,
-                backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                backgroundColor: 'rgba(59, 79, 240, 0.15)',
                 borderColor: '{{ score.color }}',
                 borderWidth: 2,
                 pointBackgroundColor: '{{ score.color }}',
@@ -183,10 +183,10 @@
                         font: { size: 10 }
                     },
                     grid: {
-                        color: 'rgba(139, 92, 246, 0.12)'
+                        color: 'rgba(59, 79, 240, 0.12)'
                     },
                     angleLines: {
-                        color: 'rgba(139, 92, 246, 0.12)'
+                        color: 'rgba(59, 79, 240, 0.12)'
                     },
                     pointLabels: {
                         color: '#94a3b8',

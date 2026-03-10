@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{% block title %}IBP - Профайлер личности{% endblock %}</title>
+    <title>{% block title %}СЛЕД — Identity-Based Profiler{% endblock %}</title>
 
-    <!-- Google Fonts -->
+    <!-- Fonts: Outfit (body) + IBM Plex Mono (data) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 
-    <!-- IBP Design System CSS -->
+    <!-- СЛЕД Design System -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
@@ -19,50 +19,53 @@
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Custom Tailwind Config -->
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        // Backgrounds
-                        'bg-deep': '#030014',
-                        'bg-dark': '#0a0618',
-                        'bg-panel': '#110a1f',
-                        'bg-panel-hover': '#1a0f2e',
-                        // Primary (Violet)
-                        violet: {
-                            DEFAULT: '#8b5cf6',
-                            dim: '#7c3aed',
-                            bright: '#a78bfa',
-                            50: 'rgba(139, 92, 246, 0.05)',
-                            100: 'rgba(139, 92, 246, 0.1)',
-                            200: 'rgba(139, 92, 246, 0.2)',
-                            400: 'rgba(139, 92, 246, 0.4)',
+                        'bg-deep': '#050508',
+                        'bg-dark': '#0a0a0f',
+                        'bg-panel': '#111118',
+                        'bg-panel-hover': '#18181f',
+                        'bg-elevated': '#1e1e28',
+                        accent: {
+                            DEFAULT: '#3b4ff0',
+                            dim: '#2a3cd4',
+                            bright: '#6b7cf5',
                         },
-                        // Secondary
-                        purple: '#a855f7',
-                        pink: '#ec4899',
-                        indigo: '#6366f1',
-                        // Grays (keeping for compatibility)
+                        // Legacy violet aliases
+                        violet: {
+                            DEFAULT: '#3b4ff0',
+                            dim: '#2a3cd4',
+                            bright: '#6b7cf5',
+                            50: 'rgba(59, 79, 240, 0.05)',
+                            100: 'rgba(59, 79, 240, 0.08)',
+                            200: 'rgba(59, 79, 240, 0.15)',
+                            400: 'rgba(59, 79, 240, 0.4)',
+                        },
                         gray: {
-                            900: '#030014',
-                            800: '#0a0618',
-                            700: '#110a1f',
-                            600: '#1a0f2e',
-                            500: '#64748b',
-                            400: '#94a3b8',
-                            300: '#cbd5e1',
-                            200: '#e2e8f0',
-                            100: '#f1f5f9',
+                            900: '#050508',
+                            800: '#0a0a0f',
+                            700: '#111118',
+                            600: '#1e1e28',
+                            500: '#55566a',
+                            400: '#8b8d9e',
+                            300: '#c0c1d0',
+                            200: '#e0e1ee',
+                            100: '#f0f1fa',
                         },
                     },
                     fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
-                        display: ['Orbitron', 'sans-serif'],
+                        sans: ['Outfit', 'system-ui', 'sans-serif'],
+                        mono: ['IBM Plex Mono', 'monospace'],
+                        display: ['Outfit', 'system-ui', 'sans-serif'],
                     },
+                    borderRadius: {
+                        'xl': '14px',
+                        '2xl': '20px',
+                        'pill': '100px',
+                    }
                 }
             }
         }
@@ -97,90 +100,156 @@
 </head>
 <body class="min-h-screen">
     <!-- Navigation -->
-    <nav class="bg-bg-panel/80 backdrop-blur border-b border-violet-200 sticky top-0 z-50">
-        <div class="max-w-6xl mx-auto px-4">
-            <div class="flex items-center justify-between h-16">
+    <nav class="fixed top-0 left-0 right-0 z-50 transition-all duration-300" id="main-nav">
+        <div class="max-w-[var(--content-width)] mx-auto" style="padding: 0 var(--padding-x);">
+            <div class="flex items-center justify-between h-20">
                 <!-- Logo -->
-                <a href="/" class="flex items-center space-x-2 group">
-                    <span class="text-2xl">🔍</span>
-                    <span class="text-xl font-bold text-violet font-display group-hover:text-violet-bright transition-colors">IBP</span>
-                    <span class="text-text-dim text-sm hidden sm:inline">Профайлер личности</span>
+                <a href="/logout" class="flex items-center gap-3 group">
+                    <span class="text-xl font-medium tracking-tight text-white group-hover:text-accent-bright transition-colors">СЛЕД</span>
+                    <span class="hidden sm:inline text-xs font-mono text-gray-500 uppercase tracking-widest">Profiler</span>
                 </a>
 
-                <!-- Nav Links -->
-                <div class="flex items-center space-x-4">
-                    <a href="/" class="text-text-secondary hover:text-violet-bright transition-colors text-sm">
-                        Панель управления
+                <!-- Nav Links (desktop) -->
+                <div class="hidden md:flex items-center gap-1">
+                    <a href="/" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-pill">
+                        Dashboard
                     </a>
-                    <a href="/investigations" class="text-text-secondary hover:text-violet-bright transition-colors text-sm">
-                        Расследования
+                    <a href="/candidate/history" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-pill">
+                        History
                     </a>
-                    <a href="/connections" class="text-text-secondary hover:text-violet-bright transition-colors text-sm">
-                        Связи
+                    <a href="/connections" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-pill">
+                        Connections
                     </a>
-                    <a href="/candidate/history" class="text-text-secondary hover:text-violet-bright transition-colors text-sm">
-                        Проверки
-                    </a>
-                    <a href="/phase1" class="btn btn-primary btn-sm">
-                        Новый поиск
-                    </a>
-                    <!-- VK Token Status -->
-                    <span id="vk-status" class="text-xs cursor-pointer" title="VK API status">
-                        <span class="inline-block w-2 h-2 rounded-full bg-gray-500 mr-1"></span>VK
+                </div>
+
+                <!-- Right side -->
+                <div class="flex items-center gap-3">
+                    <!-- VK Status -->
+                    <span id="vk-status" class="text-xs cursor-pointer font-mono text-gray-500" title="VK API status">
+                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-gray-600 mr-1"></span>VK
                     </span>
                     {% if session.get('authenticated') %}
-                    <a href="/logout" title="Выход" class="text-gray-500 hover:text-red-400 transition-colors text-sm ml-2">
-                        &#x1f513; Выход
+                    <a href="/logout" title="Выход" class="text-xs text-gray-500 hover:text-gray-300 transition-colors font-mono uppercase tracking-wider">
+                        Exit
                     </a>
                     {% endif %}
+                    <a href="/phase1/new?tab=candidate" class="btn btn-primary btn-sm">
+                        New Check
+                    </a>
+                    <!-- Mobile menu toggle -->
+                    <button id="menu-toggle" class="md:hidden btn btn-ghost btn-sm px-3 text-gray-400">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
         </div>
+        <!-- Nav backdrop blur line -->
+        <div class="absolute inset-0 -z-10 backdrop-blur-xl bg-bg-deep/80 border-b border-white/[0.04]"></div>
     </nav>
 
+    <!-- Mobile menu overlay -->
+    <div id="mobile-menu" class="fixed inset-0 z-40 hidden" style="background: rgba(5,5,8,0.95); backdrop-filter: blur(20px);">
+        <div class="flex flex-col items-center justify-center h-full gap-6">
+            <a href="/" class="text-2xl text-white hover:text-accent-bright transition-colors">Dashboard</a>
+            <a href="/candidate/history" class="text-2xl text-white hover:text-accent-bright transition-colors">History</a>
+            <a href="/connections" class="text-2xl text-white hover:text-accent-bright transition-colors">Connections</a>
+            <a href="/phase1/new?tab=candidate" class="btn btn-primary btn-lg mt-4">New Check</a>
+        </div>
+    </div>
+
     <!-- Main Content -->
-    <main class="pb-8">
+    <main class="pt-20 pb-12 min-h-screen">
         {% block content %}{% endblock %}
     </main>
 
     <!-- Footer -->
-    <footer class="bg-bg-panel/50 border-t border-violet-100 py-4 mt-auto">
-        <div class="max-w-6xl mx-auto px-4 text-center text-text-muted text-sm">
-            IBP - Платформа OSINT-расследований | Только для авторизованного использования
+    <footer class="border-t border-white/[0.04] py-8">
+        <div class="max-w-[var(--content-width)] mx-auto text-center" style="padding: 0 var(--padding-x);">
+            <span class="font-mono text-xs text-gray-600 tracking-wider uppercase">СЛЕД &mdash; Identity-Based Profiler &mdash; Authorized Use Only</span>
         </div>
     </footer>
 
-    <!-- VK Token Status Polling -->
+    <!-- Scripts -->
     <script>
+    // Mobile menu
+    (function() {
+        var toggle = document.getElementById('menu-toggle');
+        var menu = document.getElementById('mobile-menu');
+        if (toggle && menu) {
+            toggle.addEventListener('click', function() {
+                menu.classList.toggle('hidden');
+                document.body.style.overflow = menu.classList.contains('hidden') ? '' : 'hidden';
+            });
+            menu.querySelectorAll('a').forEach(function(a) {
+                a.addEventListener('click', function() {
+                    menu.classList.add('hidden');
+                    document.body.style.overflow = '';
+                });
+            });
+        }
+    })();
+
+    // Nav scroll effect
+    (function() {
+        var nav = document.getElementById('main-nav');
+        if (!nav) return;
+        window.addEventListener('scroll', function() {
+            if (window.scrollY > 20) {
+                nav.classList.add('nav-scrolled');
+            } else {
+                nav.classList.remove('nav-scrolled');
+            }
+        }, { passive: true });
+    })();
+
+    // VK Token Status
     (function() {
         function updateVkStatus() {
             fetch('/api/vk/token-status')
-                .then(r => r.json())
-                .then(data => {
-                    const el = document.getElementById('vk-status');
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var el = document.getElementById('vk-status');
                     if (!el) return;
-                    const dot = el.querySelector('span');
                     if (data.valid === true) {
-                        dot.className = 'inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1';
-                        el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1"></span>VK';
-                        el.title = 'VK токен действителен';
+                        el.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1"></span>VK';
+                        el.title = 'VK token valid';
                     } else if (data.valid === false && data.token_set) {
-                        el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-red-400 mr-1"></span><a href="/vk/auth" class="text-red-400 hover:text-red-300">VK</a>';
-                        el.title = 'VK токен истёк — нажмите для обновления';
-                    } else if (!data.token_set) {
-                        el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 mr-1"></span>VK';
-                        el.title = 'VK токен не установлен';
+                        el.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full bg-red-400 mr-1"></span><a href="/vk/auth" class="text-red-400 hover:text-red-300">VK</a>';
+                        el.title = 'VK token expired';
                     } else {
-                        el.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 mr-1"></span>VK';
-                        el.title = 'Статус VK неизвестен';
+                        el.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 mr-1"></span>VK';
+                        el.title = 'VK token not set';
                     }
                 })
-                .catch(() => {});
+                .catch(function() {});
         }
         updateVkStatus();
-        setInterval(updateVkStatus, 300000); // Poll every 5 minutes
+        setInterval(updateVkStatus, 300000);
+    })();
+
+    // Scroll reveal
+    (function() {
+        var els = document.querySelectorAll('.reveal');
+        if (!els.length) return;
+        var observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('revealed');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+        els.forEach(function(el) { observer.observe(el); });
     })();
     </script>
+
+    <style>
+    .nav-scrolled .backdrop-blur-xl {
+        background: rgba(5, 5, 8, 0.92) !important;
+    }
+    </style>
 
     {% block scripts %}{% endblock %}
 </body>

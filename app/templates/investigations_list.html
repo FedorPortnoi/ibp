@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Расследования - IBP{% endblock %}
+{% block title %}Расследования - СЛЕД{% endblock %}
 
 {% block content %}
 <div class="max-w-5xl mx-auto px-4 py-8">
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="text-2xl font-bold text-violet font-display">Расследования</h1>
+            <h1 class="text-2xl font-bold text-accent font-display">Расследования</h1>
         </div>
         <div class="flex gap-3">
             {% if investigations|length >= 2 %}
-            <a href="/connections" class="px-4 py-2 bg-bg-panel border border-violet-200 text-gray-300 rounded-lg hover:border-violet hover:text-violet-bright transition text-sm flex items-center gap-2">
+            <a href="/connections" class="px-4 py-2 bg-bg-panel border border-white/[0.08] text-gray-300 rounded-lg hover:border-accent hover:text-accent-bright transition text-sm flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
                 </svg>
@@ -32,7 +32,7 @@
     {% set phase3_done = investigations|selectattr('status', 'equalto', 'phase_3_complete')|list|length %}
     {% set in_progress = total - complete %}
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <div class="bg-bg-panel rounded-lg border border-violet-200 p-3 text-center">
+        <div class="bg-bg-panel rounded-lg border border-white/[0.08] p-3 text-center">
             <div class="text-2xl font-bold text-white">{{ total }}</div>
             <div class="text-xs text-gray-400">Всего</div>
         </div>
@@ -54,9 +54,9 @@
     <div class="flex flex-col sm:flex-row gap-3 mb-6">
         <div class="flex-1">
             <input type="text" id="search-input" placeholder="Поиск по имени..."
-                class="w-full bg-bg-panel border border-violet-200 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:border-violet focus:outline-none text-sm">
+                class="w-full bg-bg-panel border border-white/[0.08] rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:border-accent focus:outline-none text-sm">
         </div>
-        <select id="status-filter" class="bg-bg-panel border border-violet-200 rounded-lg px-4 py-2 text-gray-300 text-sm focus:border-violet focus:outline-none">
+        <select id="status-filter" class="bg-bg-panel border border-white/[0.08] rounded-lg px-4 py-2 text-gray-300 text-sm focus:border-accent focus:outline-none">
             <option value="all">Все статусы</option>
             <option value="phase_1">Фаза 1</option>
             <option value="phase_1_complete">Фаза 1 завершена</option>
@@ -64,7 +64,7 @@
             <option value="phase_3_complete">Фаза 3 завершена</option>
             <option value="complete">Завершено</option>
         </select>
-        <select id="sort-order" class="bg-bg-panel border border-violet-200 rounded-lg px-4 py-2 text-gray-300 text-sm focus:border-violet focus:outline-none">
+        <select id="sort-order" class="bg-bg-panel border border-white/[0.08] rounded-lg px-4 py-2 text-gray-300 text-sm focus:border-accent focus:outline-none">
             <option value="newest">Сначала новые</option>
             <option value="oldest">Сначала старые</option>
             <option value="name">Имя А-Я</option>
@@ -74,7 +74,7 @@
     <!-- Investigations List -->
     <div id="investigations-list" class="space-y-4">
         {% for inv in investigations %}
-        <div class="investigation-card bg-bg-panel rounded-xl border border-violet-200 p-4 hover:border-violet transition-colors"
+        <div class="investigation-card bg-bg-panel rounded-xl border border-white/[0.08] p-4 hover:border-accent transition-colors"
              data-name="{{ inv.input_name|lower }}"
              data-status="{{ inv.status }}"
              data-created="{{ inv.created_at.isoformat() if inv.created_at else '' }}"
@@ -85,7 +85,7 @@
                     {% if inv.confirmed_profile_obj and inv.confirmed_profile_obj.photo_url %}
                     <img src="{{ inv.confirmed_profile_obj.photo_url }}" alt="" class="w-12 h-12 rounded-full object-cover">
                     {% else %}
-                    <div class="w-12 h-12 rounded-full bg-violet flex items-center justify-center text-white font-bold">
+                    <div class="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-white font-bold">
                         {{ inv.input_name[0] if inv.input_name else '?' }}
                     </div>
                     {% endif %}
@@ -119,27 +119,27 @@
 
                     <!-- Actions -->
                     {% if inv.status == 'phase_1' %}
-                    <a href="/phase1/search/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
+                    <a href="/phase1/search/{{ inv.id }}" class="text-accent hover:text-accent-bright text-sm">
                         Продолжить
                     </a>
                     {% elif inv.status == 'phase_1_complete' %}
-                    <a href="/phase2/analyze/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
+                    <a href="/phase2/analyze/{{ inv.id }}" class="text-accent hover:text-accent-bright text-sm">
                         Анализ
                     </a>
                     {% elif inv.status == 'phase_2_complete' %}
-                    <a href="/phase3/buratino/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm font-semibold">
+                    <a href="/phase3/buratino/{{ inv.id }}" class="text-accent hover:text-accent-bright text-sm font-semibold">
                         Глубокий анализ
                     </a>
                     {% elif inv.status == 'phase_2' %}
-                    <a href="/phase2/buratino/results/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
+                    <a href="/phase2/buratino/results/{{ inv.id }}" class="text-accent hover:text-accent-bright text-sm">
                         Результаты
                     </a>
                     {% elif inv.status == 'phase_3_complete' %}
-                    <a href="/report/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm font-semibold">
+                    <a href="/report/{{ inv.id }}" class="text-accent hover:text-accent-bright text-sm font-semibold">
                         Отчёт
                     </a>
                     {% elif inv.status == 'complete' %}
-                    <a href="/report/{{ inv.id }}" class="text-violet hover:text-violet-bright text-sm">
+                    <a href="/report/{{ inv.id }}" class="text-accent hover:text-accent-bright text-sm">
                         Отчёт
                     </a>
                     {% endif %}
@@ -156,19 +156,19 @@
 
             <!-- Quick Stats -->
             {% if inv.confirmed_profile_obj %}
-            <div class="mt-3 pt-3 border-t border-violet-100 flex items-center space-x-6 text-sm text-gray-400">
-                <span><span class="text-violet">Платформа:</span> {{ inv.confirmed_platform or 'VK' }}</span>
+            <div class="mt-3 pt-3 border-t border-white/[0.06] flex items-center space-x-6 text-sm text-gray-400">
+                <span><span class="text-accent">Платформа:</span> {{ inv.confirmed_platform or 'VK' }}</span>
                 {% if inv.confirmed_username %}
-                <span><span class="text-violet">Имя пользователя:</span> @{{ inv.confirmed_username }}</span>
+                <span><span class="text-accent">Имя пользователя:</span> @{{ inv.confirmed_username }}</span>
                 {% endif %}
                 {% if inv.discovered_phones %}
-                <span><span class="text-violet">Телефоны:</span> {{ inv.discovered_phones|length }}</span>
+                <span><span class="text-accent">Телефоны:</span> {{ inv.discovered_phones|length }}</span>
                 {% endif %}
                 {% if inv.discovered_emails %}
-                <span><span class="text-violet">Электронная почта:</span> {{ inv.discovered_emails|length }}</span>
+                <span><span class="text-accent">Электронная почта:</span> {{ inv.discovered_emails|length }}</span>
                 {% endif %}
                 {% if inv.status in ['phase_3_complete', 'complete'] and inv.risk_indicators %}
-                <span><span class="text-violet">Риск:</span>
+                <span><span class="text-accent">Риск:</span>
                     {% set ns_risk = namespace(level='low') %}
                     {% for ri in inv.risk_indicators %}
                         {% if ri.severity == 'high' %}{% set ns_risk.level = 'high' %}{% endif %}

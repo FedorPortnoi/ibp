@@ -1,19 +1,19 @@
 {% extends "base.html" %}
-{% block title %}Связи между расследованиями - IBP{% endblock %}
+{% block title %}Связи между расследованиями - СЛЕД{% endblock %}
 
 {% block head %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/vis-network.min.css" rel="stylesheet">
 <style>
     #connections-graph {
         height: 600px;
-        border: 1px solid rgba(139, 92, 246, 0.2);
+        border: 1px solid rgba(59, 79, 240, 0.2);
         border-radius: 16px;
         background: linear-gradient(135deg, rgba(3, 0, 20, 0.95) 0%, rgba(17, 10, 31, 0.95) 100%);
     }
 
     .side-panel {
         background: rgba(17, 10, 31, 0.9);
-        border: 1px solid rgba(139, 92, 246, 0.2);
+        border: 1px solid rgba(59, 79, 240, 0.2);
         border-radius: 12px;
         padding: 16px;
     }
@@ -28,12 +28,12 @@
         cursor: pointer;
     }
     .inv-checkbox-item:hover {
-        background: rgba(139, 92, 246, 0.1);
+        background: rgba(59, 79, 240, 0.1);
     }
 
     .edge-detail-card {
-        background: rgba(139, 92, 246, 0.05);
-        border: 1px solid rgba(139, 92, 246, 0.15);
+        background: rgba(59, 79, 240, 0.05);
+        border: 1px solid rgba(59, 79, 240, 0.15);
         border-radius: 10px;
         padding: 12px;
         margin-bottom: 8px;
@@ -51,7 +51,7 @@
 
     .controls-bar {
         background: rgba(17, 10, 31, 0.9);
-        border: 1px solid rgba(139, 92, 246, 0.2);
+        border: 1px solid rgba(59, 79, 240, 0.2);
         border-radius: 12px;
         padding: 12px 16px;
     }
@@ -69,13 +69,13 @@
         font-size: 0.75rem;
         cursor: pointer;
         transition: all 0.15s;
-        border: 1px solid rgba(139, 92, 246, 0.2);
+        border: 1px solid rgba(59, 79, 240, 0.2);
         background: transparent;
         color: #94a3b8;
     }
     .filter-chip:hover, .filter-chip.active {
-        background: rgba(139, 92, 246, 0.2);
-        border-color: #8b5cf6;
+        background: rgba(59, 79, 240, 0.2);
+        border-color: #3b4ff0;
         color: #ffffff;
     }
 </style>
@@ -87,7 +87,7 @@
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-2xl font-bold text-white font-display">
-                <span class="text-violet">Связи</span> между расследованиями
+                <span class="text-accent">Связи</span> между расследованиями
             </h1>
             <p class="text-gray-400 mt-1">Анализ скрытых связей между объектами исследования</p>
         </div>
@@ -95,7 +95,7 @@
             <button onclick="runAnalysis()" id="btn-analyze" class="btn btn-primary">
                 Анализировать
             </button>
-            <a href="/investigations" class="px-4 py-2 bg-bg-panel border border-violet-200 text-gray-300 rounded-lg hover:border-violet transition text-sm">
+            <a href="/investigations" class="px-4 py-2 bg-bg-panel border border-accent-200 text-gray-300 rounded-lg hover:border-accent-bright transition text-sm">
                 Расследования
             </a>
         </div>
@@ -125,14 +125,14 @@
             <!-- Controls -->
             <div class="controls-bar mt-4 flex flex-wrap gap-4 items-center">
                 <label class="flex items-center gap-2 text-sm text-gray-300">
-                    <input type="checkbox" id="physics-toggle" checked class="accent-violet">
+                    <input type="checkbox" id="physics-toggle" checked class="accent-blue-600">
                     Физика
                 </label>
                 <label class="flex items-center gap-2 text-sm text-gray-300">
-                    <input type="checkbox" id="labels-toggle" checked class="accent-violet">
+                    <input type="checkbox" id="labels-toggle" checked class="accent-blue-600">
                     Подписи
                 </label>
-                <div class="border-l border-violet-200 h-5 mx-2"></div>
+                <div class="border-l border-accent-200 h-5 mx-2"></div>
                 <!-- Filter chips -->
                 <span class="text-xs text-gray-500 mr-1">Фильтр:</span>
                 <button class="filter-chip active" data-filter="all" onclick="filterEdges('all', this)">Все</button>
@@ -151,20 +151,20 @@
             <div class="side-panel">
                 <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wider">Расследования</h3>
                 <div class="flex gap-2 mb-3">
-                    <button onclick="selectAll(true)" class="text-xs text-violet hover:text-violet-bright transition">Выбрать все</button>
+                    <button onclick="selectAll(true)" class="text-xs text-accent hover:text-accent-bright transition">Выбрать все</button>
                     <span class="text-gray-600">|</span>
-                    <button onclick="selectAll(false)" class="text-xs text-violet hover:text-violet-bright transition">Сбросить</button>
+                    <button onclick="selectAll(false)" class="text-xs text-accent hover:text-accent-bright transition">Сбросить</button>
                 </div>
                 <div class="space-y-1 max-h-64 overflow-y-auto" id="inv-list">
                     {% for inv in investigations %}
                     <label class="inv-checkbox-item">
-                        <input type="checkbox" class="inv-check accent-violet" value="{{ inv.id }}" checked>
+                        <input type="checkbox" class="inv-check accent-blue-600" value="{{ inv.id }}" checked>
                         <div class="flex items-center gap-2 min-w-0">
                             {% if inv.confirmed_profile_obj and inv.confirmed_profile_obj.photo_url %}
-                            <img src="{{ inv.confirmed_profile_obj.photo_url }}" class="w-7 h-7 rounded-full border border-violet-200 flex-shrink-0" onerror="this.style.display='none'">
+                            <img src="{{ inv.confirmed_profile_obj.photo_url }}" class="w-7 h-7 rounded-full border border-accent-200 flex-shrink-0" onerror="this.style.display='none'">
                             {% else %}
-                            <div class="w-7 h-7 rounded-full bg-violet-200 flex items-center justify-center flex-shrink-0">
-                                <span class="text-xs text-violet font-bold">{{ (inv.input_name or '?')[0] }}</span>
+                            <div class="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
+                                <span class="text-xs text-accent font-bold">{{ (inv.input_name or '?')[0] }}</span>
                             </div>
                             {% endif %}
                             <span class="text-sm text-gray-300 truncate">{{ inv.input_name or 'Без имени' }}</span>
@@ -191,7 +191,7 @@
                         <span class="text-sm text-gray-400">Один работодатель</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="legend-line" style="background: #8b5cf6;"></span>
+                        <span class="legend-line" style="background: #3b4ff0;"></span>
                         <span class="text-sm text-gray-400">Друг друга</span>
                     </div>
                     <div class="flex items-center gap-2">
@@ -256,7 +256,7 @@ function runAnalysis() {
     container.innerHTML = `
         <div class="flex items-center justify-center h-full">
             <div class="text-center">
-                <svg class="animate-spin w-8 h-8 mx-auto text-violet mb-3" fill="none" viewBox="0 0 24 24">
+                <svg class="animate-spin w-8 h-8 mx-auto text-accent mb-3" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -334,7 +334,7 @@ function renderGraph(container, nodes, edges) {
             borderWidth: 3,
             shadow: {
                 enabled: true,
-                color: 'rgba(139, 92, 246, 0.3)',
+                color: 'rgba(59, 79, 240, 0.3)',
                 size: 12
             }
         },
@@ -457,9 +457,9 @@ function showNodeInfo(node, edges) {
     const nodeEdges = edges.filter(e => e.from === node.id || e.to === node.id);
     let html = `
         <div class="space-y-2">
-            ${node.image ? `<img src="${node.image}" class="w-14 h-14 rounded-full border-2 border-violet-200 mb-2" onerror="this.style.display='none'">` : ''}
+            ${node.image ? `<img src="${node.image}" class="w-14 h-14 rounded-full border-2 border-accent-200 mb-2" onerror="this.style.display='none'">` : ''}
             <p class="text-white font-medium">${escapeHtml(node.label)}</p>
-            <p class="text-sm text-gray-400">Связей: <span class="text-violet font-semibold">${nodeEdges.length}</span></p>
+            <p class="text-sm text-gray-400">Связей: <span class="text-accent font-semibold">${nodeEdges.length}</span></p>
         </div>
     `;
     document.getElementById('details-content').innerHTML = html;
@@ -489,13 +489,13 @@ function updateSummary(summary, connections) {
             </div>
             <div class="flex justify-between text-sm">
                 <span class="text-gray-400">Найдено связей:</span>
-                <span class="text-violet font-semibold">${summary.total_connections}</span>
+                <span class="text-accent font-semibold">${summary.total_connections}</span>
             </div>
     `;
 
     if (summary.strongest_connection) {
         html += `
-            <div class="border-t border-violet-100 pt-3 mt-3">
+            <div class="border-t border-accent-100 pt-3 mt-3">
                 <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Сильнейшая связь</p>
                 <p class="text-sm text-white">${escapeHtml(summary.strongest_connection.names)}</p>
                 <p class="text-xs text-gray-400 mt-1">Вес: ${summary.strongest_connection.score.toFixed(1)}</p>
@@ -505,7 +505,7 @@ function updateSummary(summary, connections) {
 
     // Type breakdown
     if (summary.connection_types && Object.keys(summary.connection_types).length > 0) {
-        html += `<div class="border-t border-violet-100 pt-3 mt-3">
+        html += `<div class="border-t border-accent-100 pt-3 mt-3">
             <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">По типам</p>`;
         const typeLabels = {
             'mutual_friend': 'Общие друзья',
@@ -559,7 +559,7 @@ function getTypeColor(type) {
         'shared_contact': '#ef4444',
         'mutual_friend': '#3b82f6',
         'same_employer': '#22c55e',
-        'friend_of_friend': '#8b5cf6',
+        'friend_of_friend': '#3b4ff0',
         'same_group': '#a855f7',
         'same_city_age': '#f59e0b'
     };

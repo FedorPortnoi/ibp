@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Фаза 3: Глубокое расследование - {{ investigation.input_name }} - IBP{% endblock %}
+{% block title %}Фаза 3: Глубокое расследование - {{ investigation.input_name }} - СЛЕД{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-8">
     <!-- Header -->
     <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-violet mb-2 font-display">Фаза 3: Глубокое расследование</h1>
+        <h1 class="text-3xl font-bold text-accent mb-2 font-display">Фаза 3: Глубокое расследование</h1>
         <p class="text-gray-400">Поиск в бизнес-реестрах, судебных базах и анализ рисков</p>
     </div>
 
@@ -26,27 +26,27 @@
             <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">3</div>
             <span class="ml-2 text-green-400 font-medium">Контакты</span>
         </div>
-        <div class="w-8 h-px bg-violet"></div>
+        <div class="w-8 h-px bg-accent"></div>
         <div class="flex items-center">
-            <div class="w-8 h-8 rounded-full bg-violet flex items-center justify-center text-white font-bold text-sm">4</div>
-            <span class="ml-2 text-violet font-medium">Глубокий анализ</span>
+            <div class="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-bold text-sm">4</div>
+            <span class="ml-2 text-accent font-medium">Глубокий анализ</span>
         </div>
     </div>
 
     <!-- Profile Summary -->
     {% if profile %}
-    <div class="bg-bg-panel rounded-xl border border-violet-200 p-6 mb-8">
+    <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6 mb-8">
         <div class="flex items-center space-x-6">
             {% if profile.photo_url %}
-            <img src="{{ profile.photo_url }}" alt="" class="w-20 h-20 rounded-full object-cover border-4 border-violet">
+            <img src="{{ profile.photo_url }}" alt="" class="w-20 h-20 rounded-full object-cover border-4 border-accent">
             {% else %}
-            <div class="w-20 h-20 rounded-full bg-violet flex items-center justify-center text-2xl text-white font-bold">
+            <div class="w-20 h-20 rounded-full bg-accent flex items-center justify-center text-2xl text-white font-bold">
                 {{ profile.first_name[0] if profile.first_name else '?' }}
             </div>
             {% endif %}
             <div>
                 <h2 class="text-xl font-bold text-white">{{ profile.full_name }}</h2>
-                <p class="text-violet">@{{ profile.username or profile.platform_id }}</p>
+                <p class="text-accent">@{{ profile.username or profile.platform_id }}</p>
                 {% if profile.city %}
                 <p class="text-gray-400 text-sm mt-1">{{ profile.city }}</p>
                 {% endif %}
@@ -56,21 +56,21 @@
     {% endif %}
 
     <!-- Investigation Container -->
-    <div class="bg-bg-panel rounded-xl border border-violet-200 p-6" id="investigationContainer">
+    <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6" id="investigationContainer">
         <!-- Loading State -->
         <div class="text-center py-8" id="loadingState">
             <div class="text-5xl mb-4">
-                <svg class="w-16 h-16 mx-auto text-violet animate-spin" fill="none" viewBox="0 0 24 24">
+                <svg class="w-16 h-16 mx-auto text-accent animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
             </div>
-            <p class="text-violet font-semibold text-lg" id="statusText">Инициализация глубокого расследования...</p>
+            <p class="text-accent font-semibold text-lg" id="statusText">Инициализация глубокого расследования...</p>
             <p class="text-gray-500 text-sm mt-2" id="progressText">Подготовка поиска</p>
 
             <!-- Progress Bar -->
             <div class="w-full max-w-md mx-auto mt-4 bg-bg-dark rounded-full h-2 overflow-hidden">
-                <div class="h-full bg-violet rounded-full transition-all duration-300" id="progressBar" style="width: 0%"></div>
+                <div class="h-full bg-accent rounded-full transition-all duration-300" id="progressBar" style="width: 0%"></div>
             </div>
 
             <!-- Log Container -->
@@ -85,7 +85,7 @@
             <p class="text-green-400 font-semibold text-lg">Расследование завершено!</p>
             <p class="text-gray-400 mt-2" id="resultsText">Анализ завершён</p>
             <a href="/phase3/buratino/results/{{ investigation.id }}"
-               class="inline-block mt-6 bg-violet hover:bg-violet-dim text-white font-semibold py-3 px-8 rounded-lg transition-colors">
+               class="inline-block mt-6 bg-accent hover:bg-accent-dim text-white font-semibold py-3 px-8 rounded-lg transition-colors">
                 Просмотр результатов
             </a>
         </div>
@@ -96,7 +96,7 @@
             <p class="text-red-400 font-semibold text-lg">Расследование не удалось</p>
             <p class="text-gray-400 mt-2" id="errorText">Неизвестная ошибка</p>
             <button onclick="startInvestigation()"
-                    class="inline-block mt-6 bg-violet hover:bg-violet-dim text-white font-semibold py-3 px-8 rounded-lg transition-colors">
+                    class="inline-block mt-6 bg-accent hover:bg-accent-dim text-white font-semibold py-3 px-8 rounded-lg transition-colors">
                 Повторить
             </button>
         </div>
@@ -104,18 +104,18 @@
 
     <!-- What We're Searching For -->
     <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
-            <div class="text-violet text-2xl mb-2">&#127970;</div>
+        <div class="bg-bg-panel/50 rounded-lg p-4 border border-white/[0.06]">
+            <div class="text-accent text-2xl mb-2">&#127970;</div>
             <h3 class="text-white font-semibold">Бизнес-реестры</h3>
             <p class="text-gray-500 text-sm">Поиск в реестрах ФНС (ЕГРЮЛ/ЕГРИП)</p>
         </div>
-        <div class="bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
-            <div class="text-violet text-2xl mb-2">&#9878;</div>
+        <div class="bg-bg-panel/50 rounded-lg p-4 border border-white/[0.06]">
+            <div class="text-accent text-2xl mb-2">&#9878;</div>
             <h3 class="text-white font-semibold">Судебные дела</h3>
             <p class="text-gray-500 text-sm">Поиск судебных актов (sudact.ru, arbitr.ru)</p>
         </div>
-        <div class="bg-bg-panel/50 rounded-lg p-4 border border-violet-100">
-            <div class="text-violet text-2xl mb-2">&#9888;</div>
+        <div class="bg-bg-panel/50 rounded-lg p-4 border border-white/[0.06]">
+            <div class="text-accent text-2xl mb-2">&#9888;</div>
             <h3 class="text-white font-semibold">Оценка рисков</h3>
             <p class="text-gray-500 text-sm">Оценка потенциальных рисков и тревожных сигналов</p>
         </div>
@@ -172,7 +172,7 @@
             // Update log
             if (data.messages && data.messages.length > 0) {
                 const logHtml = data.messages.slice(-10).map(m =>
-                    `<p class="text-xs font-mono ${m.type === 'error' ? 'text-red-400' : m.type === 'success' ? 'text-green-400' : 'text-violet'}">[${new Date(m.time).toLocaleTimeString()}] ${m.text}</p>`
+                    `<p class="text-xs font-mono ${m.type === 'error' ? 'text-red-400' : m.type === 'success' ? 'text-green-400' : 'text-accent'}">[${new Date(m.time).toLocaleTimeString()}] ${m.text}</p>`
                 ).join('');
                 document.getElementById('logContainer').innerHTML = logHtml;
             }

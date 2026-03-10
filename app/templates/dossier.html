@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}IBP - Досье: {{ target_name }}{% endblock %}
+{% block title %}СЛЕД - Досье: {{ target_name }}{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dossier.css') }}">
@@ -15,7 +15,7 @@
     <div class="flex items-center justify-between mb-6 no-print">
         <div>
             <h1 class="text-2xl font-bold text-text-primary font-display">
-                <span class="text-violet">Досье</span>
+                <span class="text-accent">Досье</span>
             </h1>
             <p class="text-text-dim text-sm mt-1">Профессиональный отчёт расследования</p>
         </div>
@@ -47,7 +47,7 @@
         <div class="cover-header">
             <div class="cover-branding">
                 <div>
-                    <div class="cover-logo">IBP</div>
+                    <div class="cover-logo">СЛЕД</div>
                     <div class="cover-subtitle">Досье расследования</div>
                 </div>
             </div>
@@ -324,7 +324,7 @@
                     <div class="friend-meta">
                         {{ friend.platform|default('') }}{% if friend.city %}, {{ friend.city }}{% endif %}
                         {% if friend.centrality_score %}
-                        <span style="margin-left:8px;font-size:10px;color:var(--violet);">CS: {{ '%.2f'|format(friend.centrality_score) }}</span>
+                        <span style="margin-left:8px;font-size:10px;color:var(--accent);">CS: {{ '%.2f'|format(friend.centrality_score) }}</span>
                         {% endif %}
                     </div>
                 </div>
@@ -620,7 +620,7 @@
 
     {# ---- Footer ---- #}
     <div class="dossier-footer">
-        <div>IBP - Identity-Based Profiler | ID: {{ investigation_id }} | {{ generated_at.strftime('%d.%m.%Y %H:%M') }}</div>
+        <div>СЛЕД - Identity-Based Profiler | ID: {{ investigation_id }} | {{ generated_at.strftime('%d.%m.%Y %H:%M') }}</div>
         <div style="margin-top:4px;">Только для авторизованного использования. Конфиденциальный документ.</div>
     </div>
 

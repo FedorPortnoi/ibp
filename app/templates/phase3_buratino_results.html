@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Фаза 3: Результаты - {{ investigation.input_name }} - IBP{% endblock %}
+{% block title %}Фаза 3: Результаты - {{ investigation.input_name }} - СЛЕД{% endblock %}
 
 {% block content %}
 <div class="max-w-6xl mx-auto px-4 py-8">
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
         <div>
-            <h1 class="text-2xl font-bold text-violet font-display">Фаза 3: Результаты расследования</h1>
+            <h1 class="text-2xl font-bold text-accent font-display">Фаза 3: Результаты расследования</h1>
             <p class="text-gray-400">Бизнес-реестры, судебные дела, исполнительные производства и оценка рисков</p>
         </div>
         <div class="flex space-x-3">
@@ -22,19 +22,19 @@
 
     <!-- Profile Summary -->
     {% if profile %}
-    <div class="bg-bg-panel rounded-xl border border-violet-200 p-6 mb-8">
+    <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6 mb-8">
         <div class="flex items-center space-x-6">
             {% if profile.photo_url %}
-            <img src="{{ profile.photo_url }}" alt="" class="w-16 h-16 rounded-full object-cover border-2 border-violet">
+            <img src="{{ profile.photo_url }}" alt="" class="w-16 h-16 rounded-full object-cover border-2 border-accent">
             {% else %}
-            <div class="w-16 h-16 rounded-full bg-violet flex items-center justify-center text-xl text-white font-bold">
+            <div class="w-16 h-16 rounded-full bg-accent flex items-center justify-center text-xl text-white font-bold">
                 {{ investigation.input_name[0] }}
             </div>
             {% endif %}
             <div class="flex-1">
                 <h2 class="text-xl font-bold text-white">{{ investigation.input_name }}</h2>
                 {% if profile %}
-                <p class="text-violet">{{ profile.platform }} - @{{ profile.username or profile.platform_id }}</p>
+                <p class="text-accent">{{ profile.platform }} - @{{ profile.username or profile.platform_id }}</p>
                 {% endif %}
             </div>
             <span class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-sm">
@@ -49,7 +49,7 @@
     <div class="flex items-center gap-4 mb-8">
         {% set score = risk_score %}
         {% include 'partials/risk_score_widget.html' %}
-        <a href="/risk-report/{{ investigation.id }}" class="text-sm text-violet hover:text-violet-bright transition-colors">
+        <a href="/risk-report/{{ investigation.id }}" class="text-sm text-accent hover:text-accent-bright transition-colors">
             Подробный отчёт скоринга &rarr;
         </a>
     </div>
@@ -66,23 +66,23 @@
     {% endfor %}
 
     <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
-            <div class="text-3xl font-bold text-violet">{{ business_records|length }}</div>
+        <div class="bg-bg-panel rounded-lg border border-white/[0.08] p-4 text-center">
+            <div class="text-3xl font-bold text-accent">{{ business_records|length }}</div>
             <div class="text-gray-500 text-sm">Бизнес-реестры</div>
         </div>
-        <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
-            <div class="text-3xl font-bold text-violet">{{ court_records|length }}</div>
+        <div class="bg-bg-panel rounded-lg border border-white/[0.08] p-4 text-center">
+            <div class="text-3xl font-bold text-accent">{{ court_records|length }}</div>
             <div class="text-gray-500 text-sm">Судебные дела</div>
         </div>
-        <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
-            <div class="text-3xl font-bold text-violet">{{ enforcement_proceedings|length }}</div>
+        <div class="bg-bg-panel rounded-lg border border-white/[0.08] p-4 text-center">
+            <div class="text-3xl font-bold text-accent">{{ enforcement_proceedings|length }}</div>
             <div class="text-gray-500 text-sm">Записи ФССП</div>
         </div>
-        <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
+        <div class="bg-bg-panel rounded-lg border border-white/[0.08] p-4 text-center">
             <div class="text-3xl font-bold text-green-400">{{ ns_stats.director_count }}</div>
             <div class="text-gray-500 text-sm">Руководящие роли</div>
         </div>
-        <div class="bg-bg-panel rounded-lg border border-violet-200 p-4 text-center">
+        <div class="bg-bg-panel rounded-lg border border-white/[0.08] p-4 text-center">
             <div class="text-3xl font-bold {% if risk_indicators|length > 3 %}text-red-400{% elif risk_indicators|length > 0 %}text-yellow-400{% else %}text-green-400{% endif %}">
                 {{ risk_indicators|length }}
             </div>
@@ -155,7 +155,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Business Records -->
-        <div class="bg-bg-panel rounded-xl border border-violet-200 p-6">
+        <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6">
             <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
                 <span class="mr-2">&#127970;</span>
                 Бизнес-реестры (ЕГРЮЛ)
@@ -165,7 +165,7 @@
             {% if business_records %}
             <div class="space-y-3 max-h-[500px] overflow-y-auto">
                 {% for record in business_records %}
-                <div class="bg-bg-dark rounded-lg border border-violet-100 p-4">
+                <div class="bg-bg-dark rounded-lg border border-white/[0.06] p-4">
                     <div class="flex items-start justify-between">
                         <div class="flex-1 min-w-0">
                             <h4 class="font-semibold text-white text-sm leading-tight">{{ record.company_name }}</h4>
@@ -213,7 +213,7 @@
         </div>
 
         <!-- Court Records -->
-        <div class="bg-bg-panel rounded-xl border border-violet-200 p-6">
+        <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6">
             <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
                 <span class="mr-2">&#9878;</span>
                 Судебные дела
@@ -223,7 +223,7 @@
             {% if court_records %}
             <div class="space-y-3 max-h-[500px] overflow-y-auto">
                 {% for case in court_records %}
-                <div class="bg-bg-dark rounded-lg border border-violet-100 p-4">
+                <div class="bg-bg-dark rounded-lg border border-white/[0.06] p-4">
                     <div class="flex items-start justify-between">
                         <div class="flex-1">
                             <h4 class="font-semibold text-white text-sm">{{ case.case_number }}</h4>
@@ -238,13 +238,13 @@
                         </span>
                     </div>
                     {% if case.category %}
-                    <p class="text-sm text-violet mt-2">{{ case.category_display }}</p>
+                    <p class="text-sm text-accent mt-2">{{ case.category_display }}</p>
                     {% endif %}
                     {% if case.subcategory %}
                     <p class="text-gray-500 text-xs mt-1">{{ case.subcategory }}</p>
                     {% endif %}
                     {% if case.source_url %}
-                    <a href="{{ case.source_url }}" target="_blank" rel="noopener" class="text-xs text-violet hover:underline mt-1 inline-block">Источник</a>
+                    <a href="{{ case.source_url }}" target="_blank" rel="noopener" class="text-xs text-accent hover:underline mt-1 inline-block">Источник</a>
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -261,7 +261,7 @@
 
     <!-- FSSP Enforcement Proceedings -->
     {% if enforcement_proceedings %}
-    <div class="bg-bg-panel rounded-xl border border-violet-200 p-6 mt-6">
+    <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6 mt-6">
         <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
             <span class="mr-2">&#128176;</span>
             Исполнительные производства (ФССП)
@@ -306,7 +306,7 @@
 
     <!-- Manual Search Links -->
     {% if manual_search_links %}
-    <div class="bg-bg-panel rounded-xl border border-violet-200 p-6 mt-6">
+    <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6 mt-6">
         <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
             <span class="mr-2">&#128279;</span>
             Ссылки для ручного поиска
@@ -316,14 +316,14 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {% for link in manual_search_links %}
             <a href="{{ link.url }}" target="_blank" rel="noopener"
-               class="flex items-center p-3 bg-bg-dark rounded-lg border border-violet-100 hover:border-violet transition-colors group">
+               class="flex items-center p-3 bg-bg-dark rounded-lg border border-white/[0.06] hover:border-accent transition-colors group">
                 <div class="flex-1 min-w-0">
-                    <p class="text-white font-medium text-sm group-hover:text-violet transition-colors">{{ link.name }}</p>
+                    <p class="text-white font-medium text-sm group-hover:text-accent transition-colors">{{ link.name }}</p>
                     {% if link.description %}
                     <p class="text-gray-500 text-xs truncate">{{ link.description }}</p>
                     {% endif %}
                 </div>
-                <span class="text-violet ml-2 flex-shrink-0">&#8599;</span>
+                <span class="text-accent ml-2 flex-shrink-0">&#8599;</span>
             </a>
             {% endfor %}
         </div>
@@ -331,7 +331,7 @@
     {% endif %}
 
     <!-- Risk Assessment Summary -->
-    <div class="bg-bg-panel rounded-xl border border-violet-200 p-6 mt-6">
+    <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6 mt-6">
         <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
             <span class="mr-2">&#128202;</span>
             Итоговая оценка
@@ -387,7 +387,7 @@
 
     <!-- Navigation -->
     <div class="flex items-center justify-between mt-8">
-        <a href="/phase2/buratino/results/{{ investigation.id }}" class="text-violet hover:text-violet-bright">
+        <a href="/phase2/buratino/results/{{ investigation.id }}" class="text-accent hover:text-accent-bright">
             &#8592; Назад к Фазе 2
         </a>
         <div class="flex space-x-3">

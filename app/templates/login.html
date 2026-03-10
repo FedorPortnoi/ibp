@@ -3,79 +3,661 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IBP - Требуется авторизация</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <title>СЛЕД — Требуется авторизация</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --accent: #3b4ff0;
+            --accent-dim: #2a3cd4;
+            --bg: #050508;
+            --panel: #0e0e14;
+            --border: rgba(255,255,255,0.08);
+            --text: #f0f1fa;
+            --text-dim: #55566a;
+            --text-muted: #3a3b4a;
+        }
 
         body {
-            background: #030014;
-            color: #e0e0e0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Outfit', system-ui, sans-serif;
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        body.preloading {
             overflow: hidden;
         }
 
+        /* Subtle grid pattern */
         body::before {
             content: '';
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
+            inset: 0;
             background:
-                linear-gradient(rgba(139, 92, 246, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px);
-            background-size: 50px 50px;
+                linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+            background-size: 80px 80px;
             z-index: 0;
+            animation: gridDrift 18s linear infinite;
+        }
+
+        /* Accent glow in background */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(59, 79, 240, 0.06) 0%, transparent 70%);
+            z-index: 0;
+            pointer-events: none;
+            animation: glowFloat 8s ease-in-out infinite;
         }
 
         .login-container {
             position: relative;
-            z-index: 1;
             width: 100%;
-            max-width: 420px;
+            max-width: 400px;
             padding: 20px;
+            margin: 0 auto;
+        }
+
+        .page-shell {
+            opacity: 0;
+            transition: opacity 0.6s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        .page-shell.visible {
+            opacity: 1;
+        }
+
+        .preloader {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        .preloader.done {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .preloader-center {
+            width: 240px;
+            max-width: calc(100vw - 48px);
+            text-align: center;
+        }
+
+        .preloader-brand {
+            font-family: 'Outfit', system-ui, sans-serif;
+            font-size: clamp(34px, 6.2vw, 56px);
+            font-weight: 500;
+            letter-spacing: 0;
+            color: #f4f4ff;
+            margin-bottom: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.16em;
+            font-kerning: none;
+        }
+
+        .preloader-track {
+            width: 100%;
+            height: 40px;
+            background: #2b2d35;
+            overflow: hidden;
+        }
+
+        .preloader-fill {
+            height: 100%;
+            width: 0%;
+            background: #efefef;
+            transition: width 0.05s linear;
+        }
+
+        .preloader-counter {
+            position: fixed;
+            left: 14px;
+            bottom: 10px;
+            font-family: 'Outfit', system-ui, sans-serif;
+            font-size: clamp(88px, 20vw, 180px);
+            font-weight: 200;
+            line-height: 0.9;
+            letter-spacing: -0.03em;
+            color: #efefef;
+            z-index: 1001;
+            user-select: none;
+        }
+
+        .hero-screen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 48px 20px;
+            background: #ededed;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .hero-corner-name {
+            position: absolute;
+            top: clamp(18px, 3vw, 32px);
+            left: clamp(18px, 3vw, 36px);
+            z-index: 1;
+            font-family: 'Outfit', system-ui, sans-serif;
+            font-size: clamp(22px, 3.5vw, 37px);
+            font-weight: 500;
+            letter-spacing: -0.02em;
+            line-height: 1;
+            color: #0c0d10;
+            user-select: none;
+        }
+
+        .hero-brand {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-title {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(8px, 1.2vw, 18px);
+            opacity: 0;
+            transform: translateY(10px);
+            animation: revealUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.08s forwards;
+            text-decoration: none;
+        }
+
+        .hero-char {
+            position: relative;
+            display: inline-block;
+            height: clamp(112px, 27vw, 410px);
+            overflow-x: visible;
+            overflow-y: hidden;
+        }
+
+        .hero-char-track {
+            display: flex;
+            flex-direction: column;
+            animation: charShift 4.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+        }
+
+        .hero-char:nth-child(2) .hero-char-track { animation-delay: 0.1s; }
+        .hero-char:nth-child(3) .hero-char-track { animation-delay: 0.2s; }
+        .hero-char:nth-child(4) .hero-char-track { animation-delay: 0.3s; }
+
+        .hero-face {
+            display: block;
+            height: clamp(112px, 27vw, 410px);
+            font-size: clamp(102px, 27vw, 410px);
+            font-weight: 600;
+            letter-spacing: -0.025em;
+            line-height: 0.85;
+            color: #050505;
+            user-select: none;
+            text-transform: uppercase;
+        }
+
+        .hero-face.alt {
+            color: #1a1a1d;
+            opacity: 0.86;
+        }
+        .hero-subtitle {
+            font-family: 'IBM Plex Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-size: 11px;
+            color: #8f8f94;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: revealUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+        }
+
+        .hero-menu-btn {
+            position: absolute;
+            top: clamp(18px, 3vw, 32px);
+            right: clamp(18px, 3vw, 36px);
+            z-index: 1;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            height: 48px;
+            padding: 0 18px 0 22px;
+            border-radius: 999px;
+            border: 1px solid rgba(0,0,0,0.08);
+            background: #f3f3f4;
+            color: #111214;
+            font-family: 'Outfit', system-ui, sans-serif;
+            font-size: 18px;
+            font-weight: 500;
+            text-decoration: none;
+            letter-spacing: -0.01em;
+            transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .hero-menu-btn:hover {
+            transform: translateY(-1px);
+            background: #ffffff;
+            border-color: rgba(0,0,0,0.14);
+        }
+
+        .hero-menu-icon {
+            width: 12px;
+            display: inline-flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .hero-menu-icon span {
+            display: block;
+            width: 100%;
+            height: 2px;
+            border-radius: 2px;
+            background: #111214;
+        }
+
+        .hero-dropdown {
+            position: absolute;
+            top: calc(clamp(18px, 3vw, 32px) + 58px);
+            right: clamp(18px, 3vw, 36px);
+            width: min(280px, calc(100vw - 32px));
+            padding: 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: linear-gradient(160deg, rgba(44, 47, 56, 0.7) 0%, rgba(26, 28, 34, 0.74) 48%, rgba(18, 19, 24, 0.78) 100%);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            box-shadow: 0 14px 36px rgba(0,0,0,0.26);
+            z-index: 3;
+            opacity: 0;
+            transform: translateY(-8px) scale(0.98);
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .hero-dropdown.open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+
+        .hero-dropdown-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin: 0;
+            padding: 0;
+        }
+
+        .hero-dropdown-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 42px;
+            padding: 0 10px;
+            border-radius: 10px;
+            text-decoration: none;
+            color: #eef1ff;
+            font-size: 24px;
+            letter-spacing: -0.02em;
+            font-weight: 400;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .hero-dropdown-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: #ffffff;
+        }
+
+        .hero-dropdown-check {
+            width: 14px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .hero-dropdown-link.active .hero-dropdown-check {
+            opacity: 1;
+        }
+
+        .hero-scroll {
+            position: absolute;
+            left: 50%;
+            bottom: 20px;
+            transform: translateX(-50%);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #a0a0a5;
+            z-index: 1;
+        }
+
+        .auth-screen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 0;
+        }
+
+        .intel-section {
+            position: relative;
+            min-height: 100vh;
+            background: #01050b;
+            color: #e9f0ff;
+            overflow: hidden;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .intel-matrix {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.38;
+        }
+
+        .intel-face-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .intel-face {
+            position: absolute;
+            inset: 0;
+            background-position: center 42%;
+            background-size: cover;
+            opacity: 0;
+            transition: opacity 1.2s ease;
+            filter: saturate(0.72) contrast(1.15) brightness(0.42);
+        }
+
+        .intel-face.active {
+            opacity: 0.93;
+        }
+
+        .intel-overlay {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(90% 65% at 38% 58%, rgba(72, 126, 240, 0.26) 0%, rgba(4,8,16,0.2) 52%, rgba(2,5,12,0.86) 100%),
+                linear-gradient(180deg, rgba(1,3,8,0.2) 0%, rgba(1,3,8,0.88) 100%);
+        }
+
+        .intel-grid {
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(rgba(109, 156, 255, 0.11) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(109, 156, 255, 0.08) 1px, transparent 1px);
+            background-size: 82px 82px;
+            mix-blend-mode: screen;
+            opacity: 0.18;
+        }
+
+        .intel-topbar {
+            position: absolute;
+            top: 48px;
+            left: 56px;
+            right: 56px;
+            z-index: 4;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .intel-brand {
+            color: #f4f8ff;
+            font-size: clamp(34px, 3.2vw, 52px);
+            letter-spacing: 0.08em;
+            font-weight: 400;
+            line-height: 1;
+            text-transform: uppercase;
+            text-decoration: none;
+        }
+
+        .intel-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .intel-pill {
+            height: 48px;
+            padding: 0 24px;
+            border-radius: 999px;
+            border: 1px solid rgba(237, 242, 255, 0.2);
+            background: rgba(6, 12, 25, 0.8);
+            color: #f0f4ff;
+            font-family: 'Outfit', system-ui, sans-serif;
+            font-size: 24px;
+            font-weight: 500;
+            letter-spacing: 0;
+            display: inline-flex;
+            align-items: center;
+            text-transform: uppercase;
+            text-decoration: none;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .intel-pill:hover {
+            background: rgba(18, 28, 48, 0.92);
+            border-color: rgba(237, 242, 255, 0.35);
+            transform: translateY(-1px);
+        }
+
+        .intel-pill.light {
+            background: rgba(234, 238, 247, 0.95);
+            color: #121722;
+            border-color: rgba(234, 238, 247, 0.9);
+        }
+
+        .intel-pill.icon {
+            width: 48px;
+            padding: 0;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 20px;
+            text-transform: none;
+            letter-spacing: 0;
+            background: rgba(237, 242, 255, 0.94);
+            color: #101724;
+            border-color: rgba(237, 242, 255, 0.92);
+        }
+
+        .intel-pill.icon:hover {
+            background: rgba(247, 250, 255, 0.98);
+            border-color: rgba(247, 250, 255, 0.98);
+        }
+
+        .intel-pill .pill-dot {
+            margin-left: 10px;
+            opacity: 0.7;
+            line-height: 1;
+        }
+
+        .scan-bands {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .scan-band {
+            position: absolute;
+            left: 7.2%;
+            width: 59%;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            overflow: hidden;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            letter-spacing: 0.28em;
+            color: rgba(227, 239, 255, 0.88);
+            text-shadow: 0 0 18px rgba(168, 211, 255, 0.45);
+            animation: scanFloat 6.4s ease-in-out infinite;
+        }
+
+        .scan-band::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 1px;
+            background: rgba(190, 214, 255, 0.36);
+            transform: translateY(-50%);
+        }
+
+        .scan-band span {
+            position: relative;
+            z-index: 1;
+            background: linear-gradient(90deg, transparent 0%, rgba(2,5,12,0.26) 10%, rgba(2,5,12,0.24) 90%, transparent 100%);
+            padding-right: 12px;
+        }
+
+        .scan-band.band-1 { top: 29%; animation-delay: 0s; }
+        .scan-band.band-2 { top: 44.5%; animation-delay: 1.2s; }
+        .scan-band.band-3 { top: 63%; animation-delay: 2.1s; }
+
+        .intel-content {
+            position: relative;
+            z-index: 3;
+            display: grid;
+            grid-template-columns: 1fr minmax(280px, 420px);
+            gap: clamp(16px, 4vw, 54px);
+            align-items: start;
+            min-height: 100vh;
+            padding: clamp(118px, 12vw, 154px) clamp(38px, 5vw, 70px) clamp(30px, 4vw, 58px);
+        }
+
+        .intel-left {
+            min-height: 360px;
+        }
+
+        .intel-markers {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            color: rgba(229, 239, 255, 0.75);
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: 0.08em;
+        }
+
+        .intel-markers span {
+            position: absolute;
+        }
+
+        .intel-markers .m1 { top: 44%; left: 4%; }
+        .intel-markers .m2 { top: 44%; left: 50%; }
+        .intel-markers .m3 { top: 44%; right: 4%; }
+
+        .intel-right h2 {
+            font-family: 'Outfit', system-ui, sans-serif;
+            font-size: clamp(64px, 10vw, 110px);
+            line-height: 0.9;
+            letter-spacing: 0.28em;
+            font-weight: 400;
+            color: #f7f9ff;
+            margin-bottom: 18px;
+            text-align: right;
+            text-transform: uppercase;
+        }
+
+        .intel-right p {
+            max-width: 430px;
+            margin-left: auto;
+            font-size: clamp(13px, 1.15vw, 18px);
+            line-height: 1.38;
+            color: rgba(238, 244, 255, 0.92);
         }
 
         .login-card {
-            background: rgba(17, 10, 31, 0.95);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            border-radius: 16px;
-            padding: 40px;
-            box-shadow:
-                0 0 40px rgba(139, 92, 246, 0.1),
-                0 0 80px rgba(139, 92, 246, 0.05);
-            backdrop-filter: blur(10px);
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 48px 40px;
         }
 
         .logo {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
         }
 
-        .logo-icon {
-            font-size: 48px;
-            margin-bottom: 12px;
-            display: block;
+        .logo-mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: rgba(59, 79, 240, 0.1);
+            border: 1px solid rgba(59, 79, 240, 0.15);
+            margin-bottom: 20px;
         }
 
-        .logo h1 {
-            font-family: 'Orbitron', monospace;
-            font-size: 28px;
-            font-weight: 900;
-            background: linear-gradient(135deg, #8b5cf6, #a78bfa, #c4b5fd);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: 3px;
+        .logo-mark svg {
+            width: 24px;
+            height: 24px;
+            color: var(--accent);
+        }
+
+        .logo h1, .logo .logo-title-link {
+            font-size: 32px;
+            font-weight: 400;
+            letter-spacing: -0.02em;
+            color: var(--text);
+            opacity: 0;
+            transform: translateY(10px);
+            animation: revealUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+            text-decoration: none;
+            display: inline-block;
         }
 
         .logo p {
-            color: #6b7280;
-            font-size: 13px;
-            margin-top: 6px;
-            letter-spacing: 1px;
+            font-family: 'IBM Plex Mono', monospace;
+            color: var(--text-dim);
+            font-size: 11px;
+            margin-top: 8px;
+            letter-spacing: 0.1em;
             text-transform: uppercase;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: revealUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
         }
 
         .form-group {
@@ -84,49 +666,64 @@
 
         .form-group label {
             display: block;
-            color: #9ca3af;
-            font-size: 12px;
+            font-family: 'IBM Plex Mono', monospace;
+            color: var(--text-dim);
+            font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.1em;
             margin-bottom: 8px;
         }
 
         .password-input {
             width: 100%;
-            padding: 14px 16px;
-            background: rgba(3, 0, 20, 0.8);
-            border: 1px solid rgba(139, 92, 246, 0.2);
-            border-radius: 10px;
-            color: #e0e0e0;
+            padding: 14px 18px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            color: var(--text);
+            font-family: 'Outfit', sans-serif;
             font-size: 16px;
             outline: none;
-            transition: all 0.3s ease;
+            transition: border-color 0.3s, box-shadow 0.3s;
         }
 
         .password-input:focus {
-            border-color: rgba(139, 92, 246, 0.6);
-            box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(59, 79, 240, 0.1);
         }
 
         .password-input::placeholder {
-            color: #4b5563;
+            color: var(--text-muted);
         }
 
         .remember-row {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-bottom: 24px;
+            gap: 10px;
+            margin-bottom: 28px;
         }
 
         .remember-row input[type="checkbox"] {
-            accent-color: #8b5cf6;
-            width: 16px;
-            height: 16px;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 1.5px solid rgba(255,255,255,0.15);
+            border-radius: 5px;
+            background: var(--bg);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .remember-row input[type="checkbox"]:checked {
+            background: var(--accent);
+            border-color: var(--accent);
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
         }
 
         .remember-row label {
-            color: #6b7280;
+            color: var(--text-dim);
             font-size: 13px;
             cursor: pointer;
         }
@@ -134,33 +731,31 @@
         .login-btn {
             width: 100%;
             padding: 14px;
-            background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+            background: var(--accent);
             border: none;
-            border-radius: 10px;
+            border-radius: 100px;
             color: white;
-            font-family: 'Orbitron', monospace;
-            font-size: 14px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            text-transform: uppercase;
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .login-btn:hover {
-            background: linear-gradient(135deg, #6d28d9, #7c3aed);
-            box-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
+            background: var(--accent-dim);
+            box-shadow: 0 0 40px rgba(59, 79, 240, 0.3);
             transform: translateY(-1px);
         }
 
         .login-btn:active {
-            transform: translateY(0);
+            transform: translateY(0) scale(0.98);
         }
 
         .error-msg {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 8px;
+            background: rgba(248, 113, 113, 0.08);
+            border: 1px solid rgba(248, 113, 113, 0.2);
+            border-radius: 12px;
             padding: 12px 16px;
             margin-bottom: 20px;
             color: #f87171;
@@ -170,27 +765,237 @@
 
         .footer {
             text-align: center;
-            margin-top: 20px;
-            color: #374151;
-            font-size: 11px;
+            margin-top: 24px;
+            font-family: 'IBM Plex Mono', monospace;
+            color: var(--text-muted);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
+        .marquee {
+            margin-top: 18px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.02);
         }
 
-        .logo-icon {
-            animation: pulse 3s ease-in-out infinite;
+        .marquee-track {
+            display: flex;
+            width: max-content;
+            animation: marquee 16s linear infinite;
         }
+
+        .marquee-item {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #7c7ea0;
+            padding: 10px 20px;
+            white-space: nowrap;
+        }
+
+        /* Entry animation */
+        .login-card {
+            animation: cardEntry 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes cardEntry {
+            from { opacity: 0; transform: translateY(20px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes revealUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes marquee {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+
+        @keyframes glowFloat {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-48%, -52%) scale(1.06); }
+        }
+
+        @keyframes gridDrift {
+            from { background-position: 0 0, 0 0; }
+            to { background-position: 80px 40px, 40px 80px; }
+        }
+
+        @keyframes charShift {
+            0%, 18% { transform: translateY(0%); }
+            24%, 62% { transform: translateY(-50%); }
+            68%, 100% { transform: translateY(0%); }
+        }
+
+        @keyframes scanFloat {
+            0%, 100% { transform: translateY(0); opacity: 0.62; }
+            50% { transform: translateY(-12px); opacity: 1; }
+        }
+
+        @media (max-width: 860px) {
+            .hero-screen {
+                align-items: flex-start;
+                padding-top: 120px;
+            }
+
+            .hero-corner-name {
+                top: 24px;
+                left: 18px;
+                font-size: clamp(17px, 6vw, 27px);
+            }
+
+            .hero-scroll {
+                bottom: 14px;
+            }
+
+            .intel-topbar {
+                top: 18px;
+                left: 18px;
+                right: 18px;
+            }
+
+            .intel-brand {
+                font-size: 22px;
+                letter-spacing: 0.06em;
+            }
+
+            .intel-actions {
+                gap: 8px;
+            }
+
+            .intel-pill {
+                height: 34px;
+                padding: 0 13px;
+                font-size: 11px;
+            }
+
+            .intel-pill.icon {
+                width: 34px;
+                font-size: 14px;
+            }
+
+            .intel-content {
+                grid-template-columns: 1fr;
+                padding: 92px 24px 24px;
+            }
+
+            .intel-right h2 {
+                text-align: left;
+                letter-spacing: 0.15em;
+                margin-top: 20px;
+                margin-bottom: 14px;
+            }
+
+            .intel-right p {
+                margin-left: 0;
+                max-width: 100%;
+                font-size: 17px;
+            }
+
+            .scan-band {
+                width: 84%;
+                left: 8%;
+                font-size: 10px;
+                letter-spacing: 0.2em;
+            }
+        }
+
     </style>
 </head>
-<body>
+<body class="preloading">
+    <div class="preloader" id="preloader" aria-hidden="true">
+        <div class="preloader-center">
+            <div class="preloader-brand"><span>С</span><span>Л</span><span>Е</span><span>Д</span></div>
+            <div class="preloader-track">
+                <div class="preloader-fill" id="preloaderFill"></div>
+            </div>
+        </div>
+        <div class="preloader-counter" id="preloaderCounter">000</div>
+    </div>
+
+    <div class="page-shell" id="pageShell">
+    <section class="hero-screen" id="top">
+        <div class="hero-corner-name">Штирлиц</div>
+        <div class="hero-brand" aria-label="Герой СЛЕД">
+            <a href="/logout" class="hero-title" aria-label="СЛЕД">
+                <span class="hero-char"><span class="hero-char-track"><span class="hero-face">С</span><span class="hero-face alt">С</span></span></span>
+                <span class="hero-char"><span class="hero-char-track"><span class="hero-face">Л</span><span class="hero-face alt">Л</span></span></span>
+                <span class="hero-char"><span class="hero-char-track"><span class="hero-face">Е</span><span class="hero-face alt">Е</span></span></span>
+                <span class="hero-char"><span class="hero-char-track"><span class="hero-face">Д</span><span class="hero-face alt">Д</span></span></span>
+            </a>
+            <p class="hero-subtitle">Профайлер личности</p>
+        </div>
+
+        <button type="button" class="hero-menu-btn" aria-label="Открыть меню" id="heroMenuBtn" aria-expanded="false" aria-controls="heroDropdown">
+            <span>МЕНЮ</span>
+            <span class="hero-menu-icon" aria-hidden="true"><span></span><span></span><span></span></span>
+        </button>
+
+        <div class="hero-dropdown" id="heroDropdown" role="menu" aria-hidden="true">
+            <ul class="hero-dropdown-list">
+                <li><a class="hero-dropdown-link" href="#top" role="menuitem"><span class="hero-dropdown-check"></span><span>Регистрация</span></a></li>
+                <li><a class="hero-dropdown-link" href="#top" role="menuitem"><span class="hero-dropdown-check"></span><span>Инфо</span></a></li>
+                <li><a class="hero-dropdown-link" href="#top" role="menuitem"><span class="hero-dropdown-check"></span><span>О проекте</span></a></li>
+                <li><a class="hero-dropdown-link active" href="#auth" role="menuitem"><span class="hero-dropdown-check"></span><span>Вход</span></a></li>
+            </ul>
+        </div>
+
+        <div class="hero-scroll">Прокрутите до входа</div>
+    </section>
+
+    <section class="intel-section" id="about">
+        <canvas class="intel-matrix" id="intelMatrix" aria-hidden="true"></canvas>
+        <div class="intel-topbar">
+            <a href="/logout" class="intel-brand">LUSION</a>
+            <div class="intel-actions">
+                <a href="#about" class="intel-pill icon">~</a>
+                <a href="#about" class="intel-pill">Let's Talk <span class="pill-dot">•</span></a>
+                <a href="#top" class="intel-pill light">Menu <span class="pill-dot">••</span></a>
+            </div>
+        </div>
+        <div class="intel-face-layer" aria-hidden="true">
+            <div class="intel-face active" style="background-image:url('{{ url_for('static', filename='img/about_face_1.png') }}')"></div>
+            <div class="intel-overlay"></div>
+            <div class="intel-grid"></div>
+        </div>
+
+        <div class="scan-bands" aria-hidden="true">
+            <div class="scan-band band-1"><span id="scanText1"></span></div>
+            <div class="scan-band band-2"><span id="scanText2"></span></div>
+            <div class="scan-band band-3"><span id="scanText3"></span></div>
+        </div>
+
+        <div class="intel-content">
+            <div class="intel-left">
+                <div class="intel-markers">
+                    <span class="m1">+</span>
+                    <span class="m2">+</span>
+                    <span class="m3">+</span>
+                </div>
+            </div>
+            <aside class="intel-right">
+                <h2>TEAM</h2>
+                <p>As a result of our diverse experience, we are able to think creatively and find new solutions to problems, providing clients with memorable, purpose-driven experiences that cut through the noise and connect where it matters.</p>
+            </aside>
+        </div>
+    </section>
+
+    <section class="auth-screen" id="auth">
     <div class="login-container">
         <div class="login-card">
             <div class="logo">
-                <span class="logo-icon">&#x1f512;</span>
-                <h1>IBP</h1>
+                <div class="logo-mark">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="m21 21-4.35-4.35"/>
+                    </svg>
+                </div>
+                <a href="/logout" class="logo-title-link">СЛЕД</a>
                 <p>Требуется авторизация</p>
             </div>
 
@@ -203,7 +1008,7 @@
                 <div class="form-group">
                     <label>Пароль</label>
                     <input type="password" name="password" class="password-input"
-                           placeholder="Введите мастер-пароль" autofocus required>
+                           placeholder="Введите мастер-пароль" required>
                 </div>
 
                 <div class="remember-row">
@@ -216,8 +1021,157 @@
         </div>
 
         <div class="footer">
-            IBP - Платформа OSINT-расследований | Только авторизованный доступ
+            СЛЕД &mdash; Профайлер личности
+        </div>
+
+        <div class="marquee" aria-hidden="true">
+            <div class="marquee-track">
+                <span class="marquee-item">Продолжайте прокрутку</span>
+                <span class="marquee-item">Продолжайте прокрутку</span>
+                <span class="marquee-item">Продолжайте прокрутку</span>
+                <span class="marquee-item">Продолжайте прокрутку</span>
+                <span class="marquee-item">Продолжайте прокрутку</span>
+                <span class="marquee-item">Продолжайте прокрутку</span>
+                <span class="marquee-item">Продолжайте прокрутку</span>
+                <span class="marquee-item">Продолжайте прокрутку</span>
+            </div>
         </div>
     </div>
+    </section>
+    </div>
+
+    <script>
+        (function () {
+            const preloader = document.getElementById('preloader');
+            const fill = document.getElementById('preloaderFill');
+            const counter = document.getElementById('preloaderCounter');
+            const shell = document.getElementById('pageShell');
+            const totalMs = 5200;
+            const start = performance.now();
+
+            function step(now) {
+                const progress = Math.min((now - start) / totalMs, 1);
+                const value = Math.floor(progress * 100);
+                fill.style.width = value + '%';
+                counter.textContent = String(value).padStart(3, '0');
+
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                    return;
+                }
+
+                counter.textContent = '100';
+                preloader.classList.add('done');
+                shell.classList.add('visible');
+                document.body.classList.remove('preloading');
+            }
+
+            requestAnimationFrame(step);
+        })();
+    </script>
+    <script>
+        (function () {
+            const btn = document.getElementById('heroMenuBtn');
+            const dropdown = document.getElementById('heroDropdown');
+            if (!btn || !dropdown) return;
+
+            function setOpen(open) {
+                dropdown.classList.toggle('open', open);
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                dropdown.setAttribute('aria-hidden', open ? 'false' : 'true');
+            }
+
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                setOpen(!dropdown.classList.contains('open'));
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+                    setOpen(false);
+                }
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') setOpen(false);
+            });
+        })();
+    </script>
+    <script>
+        (function () {
+            const faces = Array.from(document.querySelectorAll('.intel-face'));
+            if (faces.length > 1) {
+                let active = 0;
+                setInterval(function () {
+                    faces[active].classList.remove('active');
+                    active = (active + 1) % faces.length;
+                    faces[active].classList.add('active');
+                }, 6000);
+            }
+
+            const chars = '01ABCDEFGHIJKLMNOPQRSTUVWXYZАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ';
+            function randomLine(len) {
+                let out = '';
+                for (let i = 0; i < len; i += 1) out += chars[Math.floor(Math.random() * chars.length)];
+                return out;
+            }
+
+            const scanEls = [document.getElementById('scanText1'), document.getElementById('scanText2'), document.getElementById('scanText3')].filter(Boolean);
+            function updateScan() {
+                scanEls.forEach(function (el) {
+                    el.textContent = randomLine(28);
+                });
+            }
+            updateScan();
+            setInterval(updateScan, 900);
+
+            const canvas = document.getElementById('intelMatrix');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            let w = 0;
+            let h = 0;
+            let columns = 0;
+            let drops = [];
+            const fontSize = 16;
+
+            function resize() {
+                const rect = canvas.getBoundingClientRect();
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                w = Math.max(2, Math.floor(rect.width * dpr));
+                h = Math.max(2, Math.floor(rect.height * dpr));
+                canvas.width = w;
+                canvas.height = h;
+                canvas.style.width = rect.width + 'px';
+                canvas.style.height = rect.height + 'px';
+                columns = Math.floor(w / (fontSize * dpr));
+                drops = Array(columns).fill(0).map(function () { return Math.floor(Math.random() * (h / (fontSize * dpr))); });
+            }
+
+            function draw() {
+                ctx.fillStyle = 'rgba(2, 6, 14, 0.12)';
+                ctx.fillRect(0, 0, w, h);
+                ctx.fillStyle = 'rgba(166, 203, 255, 0.66)';
+                ctx.font = (fontSize * (Math.min(window.devicePixelRatio || 1, 2))) + 'px "IBM Plex Mono", monospace';
+
+                for (let i = 0; i < drops.length; i += 1) {
+                    const ch = chars[Math.floor(Math.random() * chars.length)];
+                    const x = i * fontSize * (Math.min(window.devicePixelRatio || 1, 2));
+                    const y = drops[i] * fontSize * (Math.min(window.devicePixelRatio || 1, 2));
+                    ctx.fillText(ch, x, y);
+                    if (y > h && Math.random() > 0.975) {
+                        drops[i] = 0;
+                    }
+                    drops[i] += 1;
+                }
+                requestAnimationFrame(draw);
+            }
+
+            resize();
+            window.addEventListener('resize', resize);
+            requestAnimationFrame(draw);
+        })();
+    </script>
 </body>
 </html>

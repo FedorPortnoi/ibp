@@ -4,12 +4,12 @@
   Requires: score (dict with .score, .category_ru, .color, .investigation_id)
 #}
 {% if score %}
-<div class="risk-score-widget inline-flex items-center gap-3 bg-bg-panel border border-violet-200 rounded-xl px-4 py-3 cursor-pointer hover:border-violet-400 transition-all"
+<div class="risk-score-widget inline-flex items-center gap-3 bg-bg-panel border border-white/[0.08] rounded-xl px-4 py-3 cursor-pointer hover:border-accent transition-all"
      onclick="window.location.href='/risk-report/{{ score.investigation_id }}'">
     <!-- Circular score badge -->
     <div class="relative w-14 h-14 flex-shrink-0">
         <svg class="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-            <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(139,92,246,0.15)" stroke-width="4"/>
+            <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(59,79,240,0.15)" stroke-width="4"/>
             <circle cx="28" cy="28" r="24" fill="none"
                     stroke="{{ score.color }}"
                     stroke-width="4"

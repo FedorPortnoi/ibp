@@ -1,126 +1,135 @@
 /* =============================================================================
-   IBP Design System - CSS Variables
+   СЛЕД Design System — Variables
+   Inspired by lusion.co: monochrome foundation, single accent, generous space
    ============================================================================= */
 
 :root {
   /* -------------------------------------------------------------------------
-     Backgrounds
+     Backgrounds — near-black with cool undertone
      ------------------------------------------------------------------------- */
-  --bg-deep: #030014;        /* Deepest background - almost black with purple tint */
-  --bg-dark: #0a0618;        /* Main background */
-  --bg-panel: #110a1f;       /* Panel/card background */
-  --bg-panel-hover: #1a0f2e; /* Panel hover state */
+  --bg-deep: #050508;
+  --bg-dark: #0a0a0f;
+  --bg-panel: #111118;
+  --bg-panel-hover: #18181f;
+  --bg-elevated: #1e1e28;
 
   /* -------------------------------------------------------------------------
-     Primary Colors (Violet)
+     Primary Accent — vibrant blue (lusion-inspired)
      ------------------------------------------------------------------------- */
-  --violet: #8b5cf6;         /* Primary accent */
-  --violet-dim: #7c3aed;     /* Darker violet */
-  --violet-bright: #a78bfa;  /* Lighter violet */
-
-  /* -------------------------------------------------------------------------
-     Secondary Colors
-     ------------------------------------------------------------------------- */
-  --purple: #a855f7;         /* Secondary accent */
-  --pink: #ec4899;           /* Highlight/attention */
-  --indigo: #6366f1;         /* Tertiary accent */
+  --accent: #3b4ff0;
+  --accent-dim: #2a3cd4;
+  --accent-bright: #6b7cf5;
+  --accent-subtle: rgba(59, 79, 240, 0.08);
+  --accent-muted: rgba(59, 79, 240, 0.15);
 
   /* -------------------------------------------------------------------------
      Semantic Colors
      ------------------------------------------------------------------------- */
-  --success: #22c55e;        /* Green - verified/found */
-  --warning: #f59e0b;        /* Orange - caution */
-  --error: #ef4444;          /* Red - errors */
-  --info: #3b82f6;           /* Blue - informational */
+  --success: #34d399;
+  --warning: #fbbf24;
+  --error: #f87171;
+  --info: #60a5fa;
+
+  /* Legacy violet aliases for backward compat */
+  --violet: var(--accent);
+  --violet-dim: var(--accent-dim);
+  --violet-bright: var(--accent-bright);
 
   /* -------------------------------------------------------------------------
-     Text Colors
+     Text — off-white hierarchy
      ------------------------------------------------------------------------- */
-  --text-primary: #f8fafc;   /* White text */
-  --text-secondary: #cbd5e1; /* Gray text */
-  --text-dim: #64748b;       /* Dimmed text */
-  --text-muted: #475569;     /* Very dim text */
+  --text-primary: #f0f1fa;
+  --text-secondary: #8b8d9e;
+  --text-dim: #55566a;
+  --text-muted: #3a3b4a;
 
   /* -------------------------------------------------------------------------
-     Borders
+     Borders — barely visible
      ------------------------------------------------------------------------- */
-  --border-subtle: rgba(139, 92, 246, 0.1);   /* Subtle violet border */
-  --border-default: rgba(139, 92, 246, 0.2);  /* Default border */
-  --border-bright: rgba(139, 92, 246, 0.4);   /* Bright border on hover */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-bright: rgba(255, 255, 255, 0.18);
 
   /* -------------------------------------------------------------------------
      Shadows & Glows
      ------------------------------------------------------------------------- */
-  --glow-violet: 0 0 20px rgba(139, 92, 246, 0.4);
-  --glow-violet-intense: 0 0 30px rgba(139, 92, 246, 0.6);
-  --glow-pink: 0 0 20px rgba(236, 72, 153, 0.4);
-  --glow-success: 0 0 15px rgba(34, 197, 94, 0.4);
-  --glow-error: 0 0 15px rgba(239, 68, 68, 0.4);
+  --glow-accent: 0 0 30px rgba(59, 79, 240, 0.25);
+  --glow-accent-intense: 0 0 50px rgba(59, 79, 240, 0.35);
+  --glow-success: 0 0 20px rgba(52, 211, 153, 0.25);
+  --glow-error: 0 0 20px rgba(248, 113, 113, 0.25);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  /* Legacy aliases */
+  --glow-violet: var(--glow-accent);
+  --glow-violet-intense: var(--glow-accent-intense);
 
-  /* -------------------------------------------------------------------------
-     Gradients
-     ------------------------------------------------------------------------- */
-  --gradient-primary: linear-gradient(135deg, #8b5cf6, #ec4899);
-  --gradient-secondary: linear-gradient(135deg, #6366f1, #8b5cf6);
-  --gradient-panel: linear-gradient(180deg, rgba(139, 92, 246, 0.05), transparent);
-  --gradient-bg: linear-gradient(135deg, #030014 0%, #0a0618 50%, #030014 100%);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
 
   /* -------------------------------------------------------------------------
      Typography
      ------------------------------------------------------------------------- */
-  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-  --font-display: 'Orbitron', sans-serif;
+  --font-body: 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  --font-display: 'Outfit', system-ui, sans-serif;
 
-  --font-size-xs: 0.75rem;   /* 12px */
-  --font-size-sm: 0.875rem;  /* 14px */
-  --font-size-base: 1rem;    /* 16px */
-  --font-size-lg: 1.125rem;  /* 18px */
-  --font-size-xl: 1.25rem;   /* 20px */
-  --font-size-2xl: 1.5rem;   /* 24px */
-  --font-size-3xl: 1.875rem; /* 30px */
-  --font-size-4xl: 2.25rem;  /* 36px */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 2rem;
+  --font-size-4xl: 2.75rem;
+  --font-size-5xl: 3.5rem;
 
-  --line-height-tight: 1.2;
+  --line-height-tight: 1.1;
+  --line-height-snug: 1.25;
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.75;
 
   /* -------------------------------------------------------------------------
      Spacing
      ------------------------------------------------------------------------- */
-  --space-xs: 0.25rem;  /* 4px */
-  --space-sm: 0.5rem;   /* 8px */
-  --space-md: 1rem;     /* 16px */
-  --space-lg: 1.5rem;   /* 24px */
-  --space-xl: 2rem;     /* 32px */
-  --space-2xl: 3rem;    /* 48px */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 5rem;
 
   /* -------------------------------------------------------------------------
      Border Radius
      ------------------------------------------------------------------------- */
-  --radius-sm: 0.25rem;  /* 4px */
-  --radius-md: 0.5rem;   /* 8px */
-  --radius-lg: 0.75rem;  /* 12px */
-  --radius-xl: 1rem;     /* 16px */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 100px;
   --radius-full: 9999px;
 
   /* -------------------------------------------------------------------------
      Transitions
      ------------------------------------------------------------------------- */
   --transition-fast: 150ms ease;
-  --transition-normal: 250ms ease;
-  --transition-slow: 400ms ease;
+  --transition-normal: 300ms ease;
+  --transition-slow: 500ms ease;
+  --transition-smooth: 400ms cubic-bezier(0.16, 1, 0.3, 1);
 
   /* -------------------------------------------------------------------------
-     Z-Index Scale
+     Z-Index
      ------------------------------------------------------------------------- */
   --z-dropdown: 100;
   --z-sticky: 200;
   --z-modal: 300;
   --z-toast: 400;
   --z-tooltip: 500;
+
+  /* -------------------------------------------------------------------------
+     Layout
+     ------------------------------------------------------------------------- */
+  --content-width: 1080px;
+  --padding-x: max(5vw, 24px);
+  --global-border-radius: 20px;
 }

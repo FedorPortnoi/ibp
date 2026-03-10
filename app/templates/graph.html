@@ -1,19 +1,19 @@
 {% extends "base.html" %}
-{% block title %}Граф связей - IBP{% endblock %}
+{% block title %}Граф связей - СЛЕД{% endblock %}
 
 {% block head %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/vis-network.min.css" rel="stylesheet">
 <style>
     #graph-container {
         height: 650px;
-        border: 1px solid rgba(139, 92, 246, 0.2);
+        border: 1px solid rgba(59, 79, 240, 0.2);
         border-radius: 16px;
         background: linear-gradient(135deg, rgba(3, 0, 20, 0.95) 0%, rgba(17, 10, 31, 0.95) 100%);
     }
 
     .info-panel {
         background: rgba(17, 10, 31, 0.9);
-        border: 1px solid rgba(139, 92, 246, 0.2);
+        border: 1px solid rgba(59, 79, 240, 0.2);
         border-radius: 12px;
         padding: 16px;
     }
@@ -32,14 +32,14 @@
     }
 
     .node-detail {
-        border-top: 1px solid rgba(139, 92, 246, 0.15);
+        border-top: 1px solid rgba(59, 79, 240, 0.15);
         padding-top: 12px;
         margin-top: 12px;
     }
 
     .controls-panel {
         background: rgba(17, 10, 31, 0.9);
-        border: 1px solid rgba(139, 92, 246, 0.2);
+        border: 1px solid rgba(59, 79, 240, 0.2);
         border-radius: 12px;
         padding: 12px 16px;
     }
@@ -52,17 +52,17 @@
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-2xl font-bold text-white font-display">
-                <span class="text-violet">Граф</span> связей
+                <span class="text-accent">Граф</span> связей
             </h1>
             {% if investigation %}
             <p class="text-gray-400 mt-1">{{ investigation.input_name }}</p>
             {% endif %}
         </div>
         <div class="flex gap-3">
-            <button onclick="resetView()" class="px-4 py-2 bg-bg-panel border border-violet-200 text-gray-300 rounded-lg hover:border-violet transition text-sm">
+            <button onclick="resetView()" class="px-4 py-2 bg-bg-panel border border-accent-200 text-gray-300 rounded-lg hover:border-accent transition text-sm">
                 Сбросить вид
             </button>
-            <a href="javascript:history.back()" class="px-4 py-2 bg-violet-200 text-violet rounded-lg hover:bg-violet-400 transition text-sm">
+            <a href="javascript:history.back()" class="px-4 py-2 bg-accent/20 text-accent rounded-lg hover:bg-accent/40 transition text-sm">
                 Назад
             </a>
         </div>
@@ -76,11 +76,11 @@
             <!-- Controls -->
             <div class="controls-panel mt-4 flex flex-wrap gap-4 items-center">
                 <label class="flex items-center gap-2 text-sm text-gray-300">
-                    <input type="checkbox" id="physics-toggle" checked class="accent-violet">
+                    <input type="checkbox" id="physics-toggle" checked class="accent-blue-600">
                     Физика
                 </label>
                 <label class="flex items-center gap-2 text-sm text-gray-300">
-                    <input type="checkbox" id="labels-toggle" checked class="accent-violet">
+                    <input type="checkbox" id="labels-toggle" checked class="accent-blue-600">
                     Подписи
                 </label>
                 <div class="flex-1"></div>
@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
     container.innerHTML = `
         <div class="flex items-center justify-center h-full">
             <div class="text-center">
-                <svg class="animate-spin w-8 h-8 mx-auto text-violet mb-3" fill="none" viewBox="0 0 24 24">
+                <svg class="animate-spin w-8 h-8 mx-auto text-accent mb-3" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     borderWidth: 2,
                     shadow: {
                         enabled: true,
-                        color: 'rgba(139, 92, 246, 0.3)',
+                        color: 'rgba(59, 79, 240, 0.3)',
                         size: 10
                     }
                 },
@@ -235,8 +235,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     width: 2,
                     color: {
                         color: '#666666',
-                        highlight: '#8b5cf6',
-                        hover: '#a78bfa'
+                        highlight: '#3b4ff0',
+                        hover: '#6b7cf5'
                     },
                     font: {
                         color: '#94a3b8',
@@ -332,9 +332,9 @@ function showNodeDetails(node) {
     const html = `
         <div class="space-y-2">
             <p class="text-white font-medium">${node.label || 'Unknown'}</p>
-            <p class="text-sm text-gray-400">Тип: <span class="text-violet">${node.group || 'Unknown'}</span></p>
+            <p class="text-sm text-gray-400">Тип: <span class="text-accent">${node.group || 'Unknown'}</span></p>
             ${node.image ? `
-                <img src="${node.image}" alt="" class="w-16 h-16 rounded-full mt-2 border-2 border-violet-200" onerror="this.style.display='none'">
+                <img src="${node.image}" alt="" class="w-16 h-16 rounded-full mt-2 border-2 border-accent-200" onerror="this.style.display='none'">
             ` : ''}
             <div class="node-detail">
                 <p class="text-xs text-gray-500 break-all">ID: ${node.id}</p>

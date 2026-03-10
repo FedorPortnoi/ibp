@@ -1,22 +1,22 @@
 {% extends "base.html" %}
-{% block title %}Проверка — {{ full_name }} — IBP{% endblock %}
+{% block title %}Проверка — {{ full_name }} — СЛЕД{% endblock %}
 
 {% block head %}
 <style>
     .stage-item { transition: all 0.3s ease; }
-    .stage-item.active { border-color: rgba(139, 92, 246, 0.5); background: rgba(139, 92, 246, 0.05); }
-    .stage-item.done { border-color: rgba(34, 197, 94, 0.3); }
-    .stage-item.done .stage-icon { color: #22c55e; }
-    .stage-item.paused { border-color: rgba(245, 158, 11, 0.5); background: rgba(245, 158, 11, 0.05); }
+    .stage-item.active { border-color: var(--accent); background: var(--accent-subtle); }
+    .stage-item.done { border-color: rgba(52, 211, 153, 0.25); }
+    .stage-item.done .stage-icon { color: var(--success); }
+    .stage-item.paused { border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.04); }
     .stage-item.active .stage-icon { animation: pulse-icon 1.5s infinite; }
     @keyframes pulse-icon { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     .log-entry { animation: fadeIn 0.2s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
     .confirmation-banner {
-        background: rgba(245, 158, 11, 0.08);
-        border: 1px solid rgba(245, 158, 11, 0.3);
-        border-radius: 12px;
-        padding: 20px;
+        background: rgba(251, 191, 36, 0.06);
+        border: 1px solid rgba(251, 191, 36, 0.25);
+        border-radius: var(--radius-xl);
+        padding: 24px;
         text-align: center;
     }
 </style>
@@ -27,18 +27,19 @@
 
     <!-- Header -->
     <div class="text-center mb-8">
-        <h1 class="text-2xl font-bold text-white mb-1 font-display">Проверка кандидата</h1>
-        <p class="text-violet text-lg font-medium">{{ full_name }}</p>
+        <div class="mono-label mb-3">Pipeline Active</div>
+        <h1 class="text-2xl font-normal text-white mb-1 tracking-tight">Проверка кандидата</h1>
+        <p class="text-accent text-lg">{{ full_name }}</p>
     </div>
 
     <!-- Progress Bar -->
     <div class="mb-8">
         <div class="flex items-center justify-between text-sm mb-2">
             <span id="progress-label" class="text-gray-400">Инициализация...</span>
-            <span id="progress-pct" class="text-violet font-mono font-semibold">0%</span>
+            <span id="progress-pct" class="text-accent font-mono">0%</span>
         </div>
-        <div class="h-2 bg-bg-dark rounded-full overflow-hidden border border-violet-100">
-            <div id="progress-bar" class="h-full bg-violet rounded-full transition-all duration-500" style="width: 0%"></div>
+        <div class="progress">
+            <div id="progress-bar" class="progress-bar animated" style="width: 0%"></div>
         </div>
     </div>
 
@@ -56,7 +57,7 @@
 
     <!-- Stages (8 stages) -->
     <div class="space-y-3 mb-8">
-        <div id="stage-gov" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
+        <div id="stage-gov" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-white/[0.06] bg-bg-panel">
             <span class="stage-icon text-lg text-gray-500">&#x1F3DB;&#xFE0F;</span>
             <div class="flex-1">
                 <div class="text-sm font-medium text-gray-300">Реестры</div>
@@ -64,7 +65,7 @@
             </div>
             <span id="stage-gov-status" class="text-xs text-gray-600">ожидание</span>
         </div>
-        <div id="stage-security" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
+        <div id="stage-security" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-white/[0.06] bg-bg-panel">
             <span class="stage-icon text-lg text-gray-500">&#x1F6E1;&#xFE0F;</span>
             <div class="flex-1">
                 <div class="text-sm font-medium text-gray-300">Безопасность</div>
@@ -72,7 +73,7 @@
             </div>
             <span id="stage-security-status" class="text-xs text-gray-600">ожидание</span>
         </div>
-        <div id="stage-social" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
+        <div id="stage-social" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-white/[0.06] bg-bg-panel">
             <span class="stage-icon text-lg text-gray-500">&#x1F4F1;</span>
             <div class="flex-1">
                 <div class="text-sm font-medium text-gray-300">Соцсети</div>
@@ -80,7 +81,7 @@
             </div>
             <span id="stage-social-status" class="text-xs text-gray-600">ожидание</span>
         </div>
-        <div id="stage-contacts" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
+        <div id="stage-contacts" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-white/[0.06] bg-bg-panel">
             <span class="stage-icon text-lg text-gray-500">&#x1F4E7;</span>
             <div class="flex-1">
                 <div class="text-sm font-medium text-gray-300">Контакты</div>
@@ -88,7 +89,7 @@
             </div>
             <span id="stage-contacts-status" class="text-xs text-gray-600">ожидание</span>
         </div>
-        <div id="stage-deep" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
+        <div id="stage-deep" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-white/[0.06] bg-bg-panel">
             <span class="stage-icon text-lg text-gray-500">&#x1F50D;</span>
             <div class="flex-1">
                 <div class="text-sm font-medium text-gray-300">Глубокий анализ</div>
@@ -96,7 +97,7 @@
             </div>
             <span id="stage-deep-status" class="text-xs text-gray-600">ожидание</span>
         </div>
-        <div id="stage-behavioral" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
+        <div id="stage-behavioral" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-white/[0.06] bg-bg-panel">
             <span class="stage-icon text-lg text-gray-500">&#x1F4CA;</span>
             <div class="flex-1">
                 <div class="text-sm font-medium text-gray-300">Поведение</div>
@@ -104,7 +105,7 @@
             </div>
             <span id="stage-behavioral-status" class="text-xs text-gray-600">ожидание</span>
         </div>
-        <div id="stage-risk" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
+        <div id="stage-risk" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-white/[0.06] bg-bg-panel">
             <span class="stage-icon text-lg text-gray-500">&#x26A0;&#xFE0F;</span>
             <div class="flex-1">
                 <div class="text-sm font-medium text-gray-300">Риски</div>
@@ -112,7 +113,7 @@
             </div>
             <span id="stage-risk-status" class="text-xs text-gray-600">ожидание</span>
         </div>
-        <div id="stage-report" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-violet-100 bg-bg-panel">
+        <div id="stage-report" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-white/[0.06] bg-bg-panel">
             <span class="stage-icon text-lg text-gray-500">&#x1F4C4;</span>
             <div class="flex-1">
                 <div class="text-sm font-medium text-gray-300">Отчёт</div>
@@ -123,7 +124,7 @@
     </div>
 
     <!-- Log -->
-    <div class="bg-bg-panel rounded-lg border border-violet-100 p-4">
+    <div class="bg-bg-panel rounded-lg border border-white/[0.06] p-4">
         <h3 class="text-sm font-semibold text-gray-400 mb-3">Журнал проверки</h3>
         <div id="log-container" class="space-y-1 max-h-48 overflow-y-auto text-xs font-mono">
             <div class="text-gray-600">Запуск проверки...</div>
@@ -133,10 +134,10 @@
     <!-- Complete Actions (hidden until done) -->
     <div id="complete-actions" class="hidden mt-6 text-center space-y-3">
         <a id="dossier-link" href="#"
-           class="inline-block w-full px-6 py-3 bg-violet hover:bg-violet-dim text-white font-semibold rounded-lg transition">
+           class="inline-block w-full px-6 py-3 bg-accent hover:bg-accent-dim text-white font-semibold rounded-lg transition">
             Открыть досье
         </a>
-        <a href="/phase1/new" class="inline-block text-sm text-gray-500 hover:text-violet-bright transition">
+        <a href="/phase1/new" class="inline-block text-sm text-gray-500 hover:text-accent-bright transition">
             &larr; Новая проверка
         </a>
     </div>
@@ -145,7 +146,7 @@
     <div id="error-state" class="hidden mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-center">
         <p class="text-red-400 font-medium mb-2">Ошибка проверки</p>
         <p id="error-message" class="text-sm text-gray-400"></p>
-        <a href="/phase1/new" class="inline-block mt-3 text-sm text-violet hover:text-violet-bright">Попробовать снова</a>
+        <a href="/phase1/new" class="inline-block mt-3 text-sm text-accent hover:text-accent-bright">Попробовать снова</a>
     </div>
 </div>
 {% endblock %}
@@ -195,7 +196,7 @@ function updateStages(currentStage) {
             } else {
                 el.classList.add('active');
                 statusEl.textContent = 'выполняется...';
-                statusEl.className = 'text-xs text-violet';
+                statusEl.className = 'text-xs text-accent';
             }
             passedCurrent = true;
         } else if (!passedCurrent) {

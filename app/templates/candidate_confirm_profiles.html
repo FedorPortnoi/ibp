@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Подтверждение профиля — {{ check.full_name }} — IBP{% endblock %}
+{% block title %}Подтверждение профиля — {{ check.full_name }} — СЛЕД{% endblock %}
 
 {% block head %}
 <style>
@@ -18,12 +18,12 @@
         position: relative;
     }
     .profile-card:hover {
-        border-color: rgba(139, 92, 246, 0.4);
+        border-color: rgba(59, 79, 240, 0.4);
     }
     .profile-card.checked {
-        border-color: #8b5cf6;
-        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
-        background: rgba(139, 92, 246, 0.06);
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(59, 79, 240, 0.3);
+        background: rgba(59, 79, 240, 0.06);
     }
     .profile-card .check-indicator {
         position: absolute;
@@ -40,8 +40,8 @@
         transition: all 0.2s;
     }
     .profile-card.checked .check-indicator {
-        border-color: #8b5cf6;
-        background: #8b5cf6;
+        border-color: var(--accent);
+        background: var(--accent);
     }
     .profile-avatar-lg {
         width: 56px;
@@ -55,7 +55,7 @@
         width: 56px;
         height: 56px;
         border-radius: 50%;
-        background: rgba(139, 92, 246, 0.15);
+        background: rgba(59, 79, 240, 0.15);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -76,10 +76,10 @@
     .bottom-bar {
         position: sticky;
         bottom: 0;
-        background: rgba(10, 6, 24, 0.95);
-        border-top: 1px solid rgba(139, 92, 246, 0.2);
+        background: rgba(5, 5, 8, 0.95);
+        border-top: 1px solid var(--border-default);
         padding: 16px 0;
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(20px);
         z-index: 50;
     }
 </style>
@@ -180,7 +180,7 @@
                     {% if profile.url %}
                         <div class="mt-2">
                             <a href="{{ profile.url }}" target="_blank" rel="noopener"
-                               class="text-xs text-violet hover:text-violet-bright transition"
+                               class="text-xs text-accent hover:text-accent-bright transition"
                                onclick="event.stopPropagation(); event.preventDefault(); window.open(this.href, '_blank');">
                                 Открыть профиль &#x2197;
                             </a>
@@ -195,7 +195,7 @@
         <div class="bottom-bar">
             <div class="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button type="submit" id="confirm-btn"
-                        class="px-8 py-3 bg-violet hover:bg-violet-dim text-white font-semibold rounded-lg transition">
+                        class="px-8 py-3 bg-accent hover:bg-accent-dim text-white font-semibold rounded-lg transition">
                     Подтвердить выбранные
                 </button>
                 <button type="submit" id="skip-btn"

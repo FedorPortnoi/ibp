@@ -13,8 +13,8 @@
     }
 
     /* Header */
-    .header { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #7c3aed; }
-    .header-brand { font-size: 10px; color: #7c3aed; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
+    .header { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #2a3cd4; }
+    .header-brand { font-size: 10px; color: #2a3cd4; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
     .header h1 { font-size: 22px; color: #111; margin-bottom: 4px; }
     .header-meta { font-size: 10px; color: #666; }
     .header-meta span { margin-right: 12px; }
@@ -103,7 +103,7 @@
 
 {# ================================================================ HEADER #}
 <div class="header">
-    <div class="header-brand">IBP &mdash; ДОСЬЕ КАНДИДАТА</div>
+    <div class="header-brand">СЛЕД &mdash; ДОСЬЕ КАНДИДАТА</div>
     <h1>{{ check.full_name }}</h1>
     <div class="header-meta">
         {% if check.date_of_birth %}<span>{{ check.date_of_birth.strftime('%d.%m.%Y') }}</span>{% endif %}
@@ -519,7 +519,7 @@
 <div class="footer">
     Данные получены из открытых источников.
     Результат проверки не является юридическим документом и носит информационный характер.<br>
-    Сгенерировано: {{ generated_date }} | IBP v1.0
+    Сгенерировано: {{ generated_date }} | СЛЕД v1.0
 </div>
 
 </body>
