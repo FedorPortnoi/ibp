@@ -1,0 +1,1197 @@
+{
+  "summary": {
+    "total": 60,
+    "passed": 48,
+    "failed": 8,
+    "expected_rejects": 4,
+    "bugs_count": 8
+  },
+  "results": [
+    {
+      "cycle": 38,
+      "candidate": "Будущий Ребёнок Тестович",
+      "category": "edge_data",
+      "note": "Future DOB",
+      "status": "EXPECTED_REJECT",
+      "verdict": "EXPECTED_REJECT",
+      "error": "Correctly rejected: Дата рождения не может быть в будущем",
+      "duration": 0.19492769241333008,
+      "dossier_sections": [],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 41,
+      "candidate": "Фальшивый ИНН Тестович",
+      "category": "edge_data",
+      "note": "Invalid INN checksum",
+      "status": "EXPECTED_REJECT",
+      "verdict": "EXPECTED_REJECT",
+      "error": "Correctly rejected: Контрольная сумма ИНН некорректна",
+      "duration": 0.19920587539672852,
+      "dossier_sections": [],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 48,
+      "candidate": "Ошибочный ИНН Тестович",
+      "category": "edge_data",
+      "note": "10-digit INN bad checksum",
+      "status": "EXPECTED_REJECT",
+      "verdict": "EXPECTED_REJECT",
+      "error": "Correctly rejected: Контрольная сумма ИНН некорректна",
+      "duration": 0.1957530975341797,
+      "dossier_sections": [],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 56,
+      "candidate": "АААААААААААААААААААААААААААААААААААААААААААААААААААААААААААААААААААААААААААААААА",
+      "category": "security",
+      "note": "255-char single-word name",
+      "status": "EXPECTED_REJECT",
+      "verdict": "EXPECTED_REJECT",
+      "error": "Correctly rejected: Укажите полное имя (минимум имя и фамилия)",
+      "duration": 0.18759775161743164,
+      "dossier_sections": [],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 1,
+      "candidate": "Иванов Сергей Петрович",
+      "category": "minimal",
+      "note": "Minimal required fields",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 69.40817594528198,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 2,
+      "candidate": "Петрова Елена Александровна",
+      "category": "minimal",
+      "note": "Minimal required fields",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 74.52519345283508,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 3,
+      "candidate": "Сидоров Дмитрий Николаевич",
+      "category": "minimal",
+      "note": "Minimal required fields",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 127.32723999023438,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 5,
+      "candidate": "Новиков Алексей Владимирович",
+      "category": "minimal",
+      "note": "Minimal required fields",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 54.02377986907959,
+      "dossier_sections": [],
+      "dossier_issues": [
+        "Redirected to progress page (worker affinity)"
+      ]
+    },
+    {
+      "cycle": 6,
+      "candidate": "Морозова Ольга Сергеевна",
+      "category": "minimal",
+      "note": "Minimal required fields",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 127.93643188476562,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 4,
+      "candidate": "Козлова Анна Михайловна",
+      "category": "minimal",
+      "note": "Minimal required fields",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 152.6636927127838,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 7,
+      "candidate": "Волков Андрей Игоревич",
+      "category": "minimal",
+      "note": "Minimal required fields",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 59.09815168380737,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 9,
+      "candidate": "Лебедев Михаил Андреевич",
+      "category": "minimal",
+      "note": "Minimal required fields",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 76.12389969825745,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 8,
+      "candidate": "Соколова Наталья Викторовна",
+      "category": "minimal",
+      "note": "Minimal required fields",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 295.48063802719116,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 12,
+      "candidate": "Егорова Мария Олеговна",
+      "category": "minimal",
+      "note": "Minimal required fields",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 93.16741681098938,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 10,
+      "candidate": "Попова Екатерина Дмитриевна",
+      "category": "minimal",
+      "note": "Minimal required fields",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 101.94136595726013,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 11,
+      "candidate": "Кузнецов Владимир Юрьевич",
+      "category": "minimal",
+      "note": "Minimal required fields",
+      "status": "FAIL",
+      "verdict": "FAIL",
+      "error": "Pipeline error: 1 (of 3) futures unfinished",
+      "duration": 145.20669198036194,
+      "dossier_sections": [],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 13,
+      "candidate": "Баженов Роман Андреевич",
+      "category": "full",
+      "note": "All fields populated",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 143.95453596115112,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 14,
+      "candidate": "Вишневская Дарья Олеговна",
+      "category": "full",
+      "note": "All fields populated",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 158.3347988128662,
+      "dossier_sections": [],
+      "dossier_issues": [
+        "Redirected to progress page (worker affinity)"
+      ]
+    },
+    {
+      "cycle": 15,
+      "candidate": "Грачёв Артём Сергеевич",
+      "category": "full",
+      "note": "All fields populated",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 172.39415788650513,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 18,
+      "candidate": "Жукова Полина Максимовна",
+      "category": "full",
+      "note": "All fields populated",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 102.9321928024292,
+      "dossier_sections": [],
+      "dossier_issues": [
+        "Redirected to progress page (worker affinity)"
+      ]
+    },
+    {
+      "cycle": 16,
+      "candidate": "Денисова Виктория Павловна",
+      "category": "full",
+      "note": "All fields populated",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 245.55801486968994,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 17,
+      "candidate": "Ермаков Кирилл Дмитриевич",
+      "category": "full",
+      "note": "All fields populated",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 477.5146019458771,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 20,
+      "candidate": "Ильина Софья Андреевна",
+      "category": "full",
+      "note": "All fields populated",
+      "status": "FAIL",
+      "verdict": "FAIL",
+      "error": "Pipeline error: 1 (of 3) futures unfinished",
+      "duration": 243.52919101715088,
+      "dossier_sections": [],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 19,
+      "candidate": "Захаров Тимур Русланович",
+      "category": "full",
+      "note": "All fields populated",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 262.16657614707947,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 21,
+      "candidate": "Калашников Данил Викторович",
+      "category": "full",
+      "note": "All fields populated",
+      "status": "FAIL",
+      "verdict": "FAIL",
+      "error": "Pipeline error: 1 (of 3) futures unfinished",
+      "duration": 284.1309349536896,
+      "dossier_sections": [],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 23,
+      "candidate": "Медведев Артур Артёмович",
+      "category": "full",
+      "note": "All fields populated",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 72.41960763931274,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 24,
+      "candidate": "Никитина Варвара Ильинична",
+      "category": "full",
+      "note": "All fields populated",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 90.50380969047546,
+      "dossier_sections": [],
+      "dossier_issues": [
+        "Redirected to progress page (worker affinity)"
+      ]
+    },
+    {
+      "cycle": 22,
+      "candidate": "Лазарева Алиса Романовна",
+      "category": "full",
+      "note": "All fields populated",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 128.38624668121338,
+      "dossier_sections": [],
+      "dossier_issues": [
+        "Redirected to progress page (worker affinity)"
+      ]
+    },
+    {
+      "cycle": 26,
+      "candidate": "Абдурахманов Рустам Абдулмуталлибович",
+      "category": "edge_name",
+      "note": "Very long patronymic",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 62.934800148010254,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 25,
+      "candidate": "Ёлкин Семён Артёмович",
+      "category": "edge_name",
+      "note": "Ё character",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 83.97311496734619,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 27,
+      "candidate": "Петрова-Водкина Елизавета Сергеевна",
+      "category": "edge_name",
+      "note": "Hyphenated surname",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 102.69707727432251,
+      "dossier_sections": [],
+      "dossier_issues": [
+        "Redirected to progress page (worker affinity)"
+      ]
+    },
+    {
+      "cycle": 29,
+      "candidate": "Оглы Мамедов Рашид Гусейнович",
+      "category": "edge_name",
+      "note": "Four words",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 174.86996388435364,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 30,
+      "candidate": "  Иванов   Пётр   Сидорович  ",
+      "category": "edge_name",
+      "note": "Extra whitespace",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 259.0731246471405,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 28,
+      "candidate": "Ким Александр",
+      "category": "edge_name",
+      "note": "No patronymic (2 words)",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 290.2158682346344,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 33,
+      "candidate": "Цветкова Аэлита Радиевна",
+      "category": "edge_name",
+      "note": "Rare first name",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 148.7546730041504,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 31,
+      "candidate": "иванов пётр сидорович",
+      "category": "edge_name",
+      "note": "All lowercase",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 167.7713963985443,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 32,
+      "candidate": "СМИРНОВ АЛЕКСАНДР БОРИСОВИЧ",
+      "category": "edge_name",
+      "note": "All uppercase",
+      "status": "FAIL",
+      "verdict": "FAIL",
+      "error": "Pipeline error: 1 (of 3) futures unfinished",
+      "duration": 178.4538974761963,
+      "dossier_sections": [],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 35,
+      "candidate": "Мюллер Ганс Фридрихович",
+      "category": "edge_name",
+      "note": "German origin",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 116.1618320941925,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 36,
+      "candidate": "Ан Ольга Петровна",
+      "category": "edge_name",
+      "note": "2-letter surname",
+      "status": "FAIL",
+      "verdict": "FAIL",
+      "error": "Pipeline error: 1 (of 3) futures unfinished",
+      "duration": 162.0597472190857,
+      "dossier_sections": [],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 34,
+      "candidate": "Белый Саша Константинович",
+      "category": "edge_name",
+      "note": "Diminutive as legal name",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 168.69897627830505,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 37,
+      "candidate": "Тестов Иван Петрович",
+      "category": "edge_data",
+      "note": "10-digit company INN",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 128.36627626419067,
+      "dossier_sections": [],
+      "dossier_issues": [
+        "Redirected to progress page (worker affinity)"
+      ]
+    },
+    {
+      "cycle": 40,
+      "candidate": "Древний Старец Мудрецович",
+      "category": "edge_data",
+      "note": "Age exactly 100",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 162.31894159317017,
+      "dossier_sections": [],
+      "dossier_issues": [
+        "Redirected to progress page (worker affinity)"
+      ]
+    },
+    {
+      "cycle": 39,
+      "candidate": "Молодой Студент Тестович",
+      "category": "edge_data",
+      "note": "Age exactly 16",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 211.26373028755188,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 42,
+      "candidate": "Безпробелов Паспорт Тестович",
+      "category": "edge_data",
+      "note": "Passport without space",
+      "status": "FAIL",
+      "verdict": "FAIL",
+      "error": "Pipeline error: 1 (of 3) futures unfinished",
+      "duration": 141.91408395767212,
+      "dossier_sections": [],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 44,
+      "candidate": "Безплюсов Телефон Тестович",
+      "category": "edge_data",
+      "note": "Phone 8-format",
+      "status": "FAIL",
+      "verdict": "FAIL",
+      "error": "Pipeline error: 1 (of 3) futures unfinished",
+      "duration": 146.22864508628845,
+      "dossier_sections": [],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 43,
+      "candidate": "Спробелов Паспорт Тестович",
+      "category": "edge_data",
+      "note": "Passport with space",
+      "status": "FAIL",
+      "verdict": "FAIL",
+      "error": "Pipeline error: 1 (of 3) futures unfinished",
+      "duration": 150.84105229377747,
+      "dossier_sections": [],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 46,
+      "candidate": "Пустой Опционал Тестович",
+      "category": "edge_data",
+      "note": "Empty optional strings",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 82.89395046234131,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 45,
+      "candidate": "Длинный Адрес Тестович",
+      "category": "edge_data",
+      "note": "Very long address (500+ chars)",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 131.7417449951172,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 47,
+      "candidate": "Сложный Емейл Тестович",
+      "category": "edge_data",
+      "note": "Email with + and dots",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 159.97384881973267,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 50,
+      "candidate": "Иванов'; DROP TABLE candidate_check;-- Петрович",
+      "category": "security",
+      "note": "SQL injection in name",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 123.03303551673889,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 51,
+      "candidate": "Нормальный Человек Тестович",
+      "category": "security",
+      "note": "XSS in address",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 141.4437975883484,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 49,
+      "candidate": "<script>alert(\"xss\")</script> Тестов Кандидат",
+      "category": "security",
+      "note": "XSS in name (tags stripped)",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 179.17049431800842,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 53,
+      "candidate": "Тестов‮ Обратный Тексттест",
+      "category": "security",
+      "note": "RTL override in name",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 65.58534693717957,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 54,
+      "candidate": "Иванов Сергей Петрович",
+      "category": "stress",
+      "note": "Rapid re-submission",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 139.0598120689392,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 52,
+      "candidate": "Иванов​ Пётр​ Сергеевич",
+      "category": "security",
+      "note": "Zero-width chars in name",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 189.95514154434204,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 58,
+      "candidate": "Иванов\tПётр\tСергеевич",
+      "category": "security",
+      "note": "Tabs in name",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 81.89223647117615,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 55,
+      "candidate": "Иванов Сергей Петрович",
+      "category": "stress",
+      "note": "Duplicate INN of cycle 1",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 172.95497179031372,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 57,
+      "candidate": "Иванов\nПётр\nСергеевич",
+      "category": "security",
+      "note": "Newlines in name",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 186.6311490535736,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 59,
+      "candidate": "Иванов и Петров Тестовичи",
+      "category": "security",
+      "note": "Ampersand in name",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 58.72299885749817,
+      "dossier_sections": [
+        "identity",
+        "business",
+        "courts",
+        "fssp",
+        "bankruptcy",
+        "sanctions",
+        "social",
+        "contacts",
+        "risk"
+      ],
+      "dossier_issues": []
+    },
+    {
+      "cycle": 60,
+      "candidate": "Тестов Огнеопасный Кандидатович",
+      "category": "security",
+      "note": "Control: normal name",
+      "status": "PASS",
+      "verdict": "PASS",
+      "error": null,
+      "duration": 59.492530822753906,
+      "dossier_sections": [],
+      "dossier_issues": [
+        "Redirected to progress page (worker affinity)"
+      ]
+    }
+  ],
+  "bugs": [
+    {
+      "cycle": 11,
+      "candidate": "Кузнецов Владимир Юрьевич",
+      "category": "minimal",
+      "note": "Minimal required fields",
+      "error": "Pipeline error: 1 (of 3) futures unfinished"
+    },
+    {
+      "cycle": 20,
+      "candidate": "Ильина Софья Андреевна",
+      "category": "full",
+      "note": "All fields populated",
+      "error": "Pipeline error: 1 (of 3) futures unfinished"
+    },
+    {
+      "cycle": 21,
+      "candidate": "Калашников Данил Викторович",
+      "category": "full",
+      "note": "All fields populated",
+      "error": "Pipeline error: 1 (of 3) futures unfinished"
+    },
+    {
+      "cycle": 32,
+      "candidate": "СМИРНОВ АЛЕКСАНДР БОРИСОВИЧ",
+      "category": "edge_name",
+      "note": "All uppercase",
+      "error": "Pipeline error: 1 (of 3) futures unfinished"
+    },
+    {
+      "cycle": 36,
+      "candidate": "Ан Ольга Петровна",
+      "category": "edge_name",
+      "note": "2-letter surname",
+      "error": "Pipeline error: 1 (of 3) futures unfinished"
+    },
+    {
+      "cycle": 42,
+      "candidate": "Безпробелов Паспорт Тестович",
+      "category": "edge_data",
+      "note": "Passport without space",
+      "error": "Pipeline error: 1 (of 3) futures unfinished"
+    },
+    {
+      "cycle": 44,
+      "candidate": "Безплюсов Телефон Тестович",
+      "category": "edge_data",
+      "note": "Phone 8-format",
+      "error": "Pipeline error: 1 (of 3) futures unfinished"
+    },
+    {
+      "cycle": 43,
+      "candidate": "Спробелов Паспорт Тестович",
+      "category": "edge_data",
+      "note": "Passport with space",
+      "error": "Pipeline error: 1 (of 3) futures unfinished"
+    }
+  ]
+}

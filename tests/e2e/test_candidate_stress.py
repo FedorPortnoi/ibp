@@ -331,7 +331,8 @@ class CandidateStressTest:
         # Use fetch() instead of page.goto() to avoid gunicorn worker
         # affinity issues where dossier URL redirects to progress page
         # on a different worker that doesn't know the task.
-        for attempt in range(3):
+        r = {}
+        for attempt in range(5):
             try:
                 r = page.evaluate("""async (cid) => {
                     const resp = await fetch('/candidate/dossier/' + cid);
@@ -341,14 +342,22 @@ class CandidateStressTest:
                         url: resp.url,
                         content: text.toLowerCase(),
                         length: text.length,
+                        redirected: resp.redirected,
                     };
                 }""", check_id)
-                if r.get("status") == 200 and r.get("length", 0) > 1000:
+                # Good response: 200 with real dossier content (not progress redirect)
+                is_dossier = (
+                    r.get("status") == 200
+                    and r.get("length", 0) > 5000
+                    and "/progress/" not in r.get("url", "")
+                    and "досье" in r.get("content", "")
+                )
+                if is_dossier:
                     break
-                if attempt < 2:
+                if attempt < 4:
                     time.sleep(3)
             except Exception:
-                if attempt < 2:
+                if attempt < 4:
                     time.sleep(3)
                 else:
                     return {"sections": [], "issues": ["fetch error"]}
