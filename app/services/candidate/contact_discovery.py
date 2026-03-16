@@ -863,38 +863,43 @@ class ContactDiscoveryService:
                     email_candidates=[{'email': e} for e in emails_to_check[1:]],
                 ))
 
-            for future in as_completed(futures, timeout=30):
-                try:
-                    results = future.result(timeout=15)
-                    for r in (results or []):
-                        if r.data_type == 'email' and r.value:
-                            email_lower = r.value.lower()
-                            if not any(e.email == email_lower for e in self.found_emails):
-                                score = _get_score('breach_api')
-                                self.found_emails.append(DiscoveredEmail(
-                                    email=email_lower,
-                                    source='breach_api',
-                                    confidence=_score_to_label(score),
-                                    verified=r.verified,
-                                    profile_name=r.source_name,
-                                    confidence_score=score,
-                                    sources=['breach_api'],
-                                ))
-                        elif r.data_type == 'phone' and r.value:
-                            normalized = normalize_phone(r.value)
-                            if normalized and not any(p.number == normalized for p in self.found_phones):
-                                score = _get_score('breach_api')
-                                self.found_phones.append(DiscoveredPhone(
-                                    number=normalized,
-                                    source='breach_api',
-                                    confidence=_score_to_label(score),
-                                    profile_name=r.source_name,
-                                    raw_value=r.value,
-                                    confidence_score=score,
-                                    sources=['breach_api'],
-                                ))
-                except Exception as e:
-                    logger.warning(f"Breach API query error: {e}")
+            try:
+                for future in as_completed(futures, timeout=30):
+                    try:
+                        results = future.result(timeout=15)
+                        for r in (results or []):
+                            if r.data_type == 'email' and r.value:
+                                email_lower = r.value.lower()
+                                if not any(e.email == email_lower for e in self.found_emails):
+                                    score = _get_score('breach_api')
+                                    self.found_emails.append(DiscoveredEmail(
+                                        email=email_lower,
+                                        source='breach_api',
+                                        confidence=_score_to_label(score),
+                                        verified=r.verified,
+                                        profile_name=r.source_name,
+                                        confidence_score=score,
+                                        sources=['breach_api'],
+                                    ))
+                            elif r.data_type == 'phone' and r.value:
+                                normalized = normalize_phone(r.value)
+                                if normalized and not any(p.number == normalized for p in self.found_phones):
+                                    score = _get_score('breach_api')
+                                    self.found_phones.append(DiscoveredPhone(
+                                        number=normalized,
+                                        source='breach_api',
+                                        confidence=_score_to_label(score),
+                                        profile_name=r.source_name,
+                                        raw_value=r.value,
+                                        confidence_score=score,
+                                        sources=['breach_api'],
+                                    ))
+                    except Exception as e:
+                        logger.warning("Breach API query error: %s", e)
+            except TimeoutError:
+                logger.warning("Breach API: some queries timed out (30s)")
+                for f in futures:
+                    f.cancel()
 
     # ── Step 7: LeakDB Cross-Reference ─────────────────────────────────
 

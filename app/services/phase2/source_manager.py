@@ -148,17 +148,23 @@ class SourceManager:
                 for source in active_sources
             }
 
-            for future in as_completed(future_to_source, timeout=self.timeout):
-                source = future_to_source[future]
-                try:
-                    results = future.result(timeout=self.timeout)
-                    if results:
-                        all_results.extend(results)
-                        logger.info(
-                            f"Source {source.name}: returned {len(results)} results"
-                        )
-                except Exception as e:
-                    logger.warning(f"Source {source.name} failed: {e}")
+            try:
+                for future in as_completed(future_to_source, timeout=self.timeout):
+                    source = future_to_source[future]
+                    try:
+                        results = future.result(timeout=self.timeout)
+                        if results:
+                            all_results.extend(results)
+                            logger.info(
+                                "Source %s: returned %d results",
+                                source.name, len(results),
+                            )
+                    except Exception as e:
+                        logger.warning("Source %s failed: %s", source.name, e)
+            except TimeoutError:
+                logger.warning("Source manager: some sources timed out (%ds)", self.timeout)
+                for f in future_to_source:
+                    f.cancel()
 
         # Deduplicate
         deduped = self._deduplicate(all_results)

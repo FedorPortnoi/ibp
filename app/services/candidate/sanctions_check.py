@@ -186,16 +186,21 @@ class SanctionsService:
                 self._check_mvd_wanted, full_name,
             )] = 'mvd_live'
 
-            for future in as_completed(futures, timeout=60):
-                source = futures[future]
-                try:
-                    result = future.result(timeout=30)
-                    if isinstance(result, list):
-                        results.extend(result)
-                    elif result is not None:
-                        results.append(result)
-                except Exception as e:
-                    logger.warning(f"Sanctions check '{source}' failed: {e}")
+            try:
+                for future in as_completed(futures, timeout=60):
+                    source = futures[future]
+                    try:
+                        result = future.result(timeout=30)
+                        if isinstance(result, list):
+                            results.extend(result)
+                        elif result is not None:
+                            results.append(result)
+                    except Exception as e:
+                        logger.warning("Sanctions check '%s' failed: %s", source, e)
+            except TimeoutError:
+                logger.warning("Sanctions: some checks timed out (60s)")
+                for f in futures:
+                    f.cancel()
 
         # Deduplicate: if both OpenSanctions and live scraper found something,
         # prefer the more detailed result but keep both source names
