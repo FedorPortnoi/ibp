@@ -142,6 +142,8 @@ class Config:
 
     # Session
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
 
     # Output
     IDENTITY_CARDS_FOLDER = os.path.join(BASE_DIR, 'app', 'static', 'identity_cards')
@@ -157,7 +159,7 @@ class ProductionConfig(Config):
     """Production configuration."""
     DEBUG = False
     TESTING = False
-    SESSION_COOKIE_SECURE = False  # Render handles HTTPS at edge
+    SESSION_COOKIE_SECURE = True
 
 
 class TestingConfig(Config):

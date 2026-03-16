@@ -8,6 +8,7 @@ import os
 import logging
 import datetime
 from functools import wraps
+from urllib.parse import urlparse
 from flask import (
     Blueprint, request, render_template, redirect,
     url_for, session, flash, current_app, jsonify
@@ -51,7 +52,7 @@ def login_required(f):
         if not session.get('authenticated'):
             if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'error': 'Требуется авторизация', 'redirect': '/login'}), 401
-            session['next_url'] = request.url
+            session['next_url'] = request.path
             return redirect(url_for('auth.login'))
 
         return f(*args, **kwargs)
@@ -88,6 +89,13 @@ def login():
             logger.info("User authenticated successfully")
 
             next_url = session.pop('next_url', None)
+            # Validate next_url is a safe relative path (prevent open redirect)
+            if next_url:
+                parsed = urlparse(next_url)
+                if parsed.netloc or parsed.scheme:
+                    next_url = None
+                elif next_url.startswith('//'):
+                    next_url = None
             return redirect(next_url or url_for('main.dashboard'))
         else:
             error = 'Неверный пароль'

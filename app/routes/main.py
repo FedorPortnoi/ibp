@@ -13,9 +13,14 @@ logger = logging.getLogger('ibp.routes.main')
 
 @main_bp.route('/health')
 def health_check():
-    """Health check with service status."""
+    """Health check endpoint.
+
+    Returns minimal status for unauthenticated requests (load balancer / uptime monitor).
+    Returns detailed service status only for authenticated users.
+    """
     import os
     import subprocess
+    from flask import session
     from app import db as _db
 
     # Database connectivity
@@ -26,7 +31,11 @@ def health_check():
     except Exception:
         pass
 
-    # Git version (or VERSION file)
+    # Unauthenticated: minimal response (for load balancers / uptime monitors)
+    if not session.get('authenticated'):
+        return jsonify({'status': 'ok' if db_ok else 'degraded'}), 200 if db_ok else 503
+
+    # Authenticated: full details
     version = 'unknown'
     try:
         result = subprocess.run(
@@ -41,14 +50,12 @@ def health_check():
             with open(version_file) as f:
                 version = f.read().strip()
 
-    # Key service status
     services = {
         'vk_token': bool(os.environ.get('VK_SERVICE_TOKEN')),
         'telegram': bool(os.environ.get('TELEGRAM_API_ID') and os.environ.get('TELEGRAM_API_HASH')),
         'ok_token': bool(os.environ.get('OK_SESSION_TOKEN')),
     }
 
-    # OpenSanctions API reachable?
     opensanctions_ok = False
     try:
         from app.services.candidate.opensanctions_service import OpenSanctionsService
@@ -56,7 +63,6 @@ def health_check():
     except Exception:
         pass
 
-    # Local security data files present?
     data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'data')
     local_data = {
         'mvd_wanted': os.path.exists(os.path.join(data_dir, 'mvd_wanted.json')),
@@ -81,28 +87,22 @@ def index():
 
 @main_bp.route('/about')
 def about():
-    """About page — what СЛЕД is and how it works."""
-    return render_template('about.html')
+    return redirect(url_for('main.index'))
 
 
 @main_bp.route('/services')
 def services():
-    """Services page — pipeline capabilities breakdown."""
-    return render_template('services.html')
+    return redirect(url_for('main.index'))
 
 
 @main_bp.route('/projects')
 def projects():
-    """Projects page — recent candidate checks."""
-    from app.models.candidate_check import CandidateCheck
-    checks = CandidateCheck.query.order_by(CandidateCheck.created_at.desc()).limit(20).all()
-    return render_template('projects.html', checks=checks)
+    return redirect(url_for('candidate.history'))
 
 
 @main_bp.route('/contact')
 def contact():
-    """Contact/access page."""
-    return render_template('contact.html')
+    return redirect(url_for('main.index'))
 
 
 @main_bp.route('/dashboard')
@@ -113,26 +113,7 @@ def dashboard():
 
 @main_bp.route('/investigations')
 def investigations_list():
-    """Show list of all past investigations."""
-    from app.models import Investigation, SocialProfile
-
-    investigations = Investigation.query.order_by(Investigation.created_at.desc()).all()
-
-    # Enhance with confirmed profile data (single query instead of N+1)
-    inv_ids = [inv.id for inv in investigations]
-    confirmed_profiles = {}
-    if inv_ids:
-        profiles = SocialProfile.query.filter(
-            SocialProfile.investigation_id.in_(inv_ids),
-            SocialProfile.is_confirmed == True
-        ).all()
-        for p in profiles:
-            if p.investigation_id not in confirmed_profiles:
-                confirmed_profiles[p.investigation_id] = p
-    for inv in investigations:
-        inv.confirmed_profile_obj = confirmed_profiles.get(inv.id)
-
-    return render_template('investigations_list.html', investigations=investigations)
+    return redirect(url_for('candidate.history'))
 
 
 # ============================================

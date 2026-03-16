@@ -122,6 +122,12 @@ class SherlockSearchService:
         username = username.strip()
         results = []
 
+        username = username.replace('/', '').replace('\\', '').replace('\0', '')
+        username = username.replace('..', '').replace('~', '')
+        if not username or len(username) < 2:
+            logger.warning(f"Username rejected after sanitization")
+            return []
+
         try:
             import tempfile
             with tempfile.TemporaryDirectory() as tmpdir:

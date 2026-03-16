@@ -122,7 +122,7 @@ def create_app(config_name=None):
             if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'error': 'Требуется авторизация', 'redirect': '/login'}), 401
             if 'favicon' not in request.path and not request.path.startswith('/static'):
-                session['next_url'] = request.url
+                session['next_url'] = request.path
             return redirect(url_for('auth.login'))
 
     # Security headers on all responses
@@ -131,6 +131,8 @@ def create_app(config_name=None):
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com; "

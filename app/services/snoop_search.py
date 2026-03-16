@@ -285,8 +285,13 @@ class SnoopSearchService:
             logger.warning(f"Invalid username: {username}")
             return []
 
-        # Clean username
+        # Clean username — strip path traversal and shell-dangerous chars
         username = username.strip()
+        username = username.replace('/', '').replace('\\', '').replace('\0', '')
+        username = username.replace('..', '').replace('~', '')
+        if not username or len(username) < 2:
+            logger.warning(f"Username rejected after sanitization")
+            return []
 
         results = []
 
