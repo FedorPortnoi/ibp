@@ -525,14 +525,15 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     _search_fssp, effective_name, check.date_of_birth, check.region,
                 )
 
-                for future in as_completed(
-                    [future_biz, future_courts, future_fssp],
-                    timeout=120,
-                ):
+                all_futures = [future_biz, future_courts, future_fssp]
+                completed_futures = set()
+
+                def _process_future(future):
+                    nonlocal biz_records, court_records, fssp_records
+                    nonlocal sources_checked, sources_with_results
                     try:
                         if future is future_biz:
                             biz_records = future.result(timeout=60)
-                            # Merge with Stage 0 EGRUL INN results
                             if egrul_inn_records:
                                 existing_keys = {
                                     (r.get('inn', '') or '') + (r.get('ogrn', '') or '')
@@ -582,17 +583,37 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
                     except Exception as e:
                         if future is future_biz:
-                            logger.warning(f"ЕГРЮЛ search failed: {e}")
+                            logger.warning("ЕГРЮЛ search failed: %s", e)
                             task.add_message('ЕГРЮЛ: источник недоступен', 'warning')
-                            sources_checked += 1
                         elif future is future_courts:
-                            logger.warning(f"Court search failed: {e}")
+                            logger.warning("Court search failed: %s", e)
                             task.add_message('Суды: источник недоступен', 'warning')
-                            sources_checked += 1
                         elif future is future_fssp:
-                            logger.warning(f"ФССП search failed: {e}")
+                            logger.warning("ФССП search failed: %s", e)
                             task.add_message('ФССП: источник недоступен', 'warning')
-                            sources_checked += 1
+                        sources_checked += 1
+
+                try:
+                    for future in as_completed(all_futures, timeout=120):
+                        completed_futures.add(future)
+                        _process_future(future)
+                except TimeoutError:
+                    # Some futures didn't finish in 120s — process completed
+                    # ones and mark timed-out ones as unavailable
+                    timed_out = [f for f in all_futures if f not in completed_futures]
+                    logger.warning(
+                        "Gov registries: %d/%d futures timed out",
+                        len(timed_out), len(all_futures),
+                    )
+                    for future in timed_out:
+                        future.cancel()
+                        if future is future_biz:
+                            task.add_message('ЕГРЮЛ: таймаут (120с)', 'warning')
+                        elif future is future_courts:
+                            task.add_message('Суды: таймаут (120с)', 'warning')
+                        elif future is future_fssp:
+                            task.add_message('ФССП: таймаут (120с)', 'warning')
+                        sources_checked += 1
 
             # Demo fallback for Stage 1
             if _is_demo_mode() and not biz_records and not court_records:
