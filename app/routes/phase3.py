@@ -12,7 +12,7 @@ import threading
 from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify
 
-from app import db
+from app import db, limiter
 
 phase3_bp = Blueprint('phase3', __name__, url_prefix='/phase3')
 logger = logging.getLogger(__name__)
@@ -144,6 +144,7 @@ def index(investigation_id):
 
 
 @phase3_bp.route('/start', methods=['POST'])
+@limiter.limit("5 per minute")
 def start_investigation():
     """Start Phase 3 investigation (async)."""
     try:
@@ -151,7 +152,7 @@ def start_investigation():
         if not data:
             return jsonify({'error': 'Данные не предоставлены'}), 400
 
-        target_name = data.get('target_name', '')
+        target_name = (data.get('target_name') or '').strip()[:255]
         if not target_name:
             return jsonify({'error': 'Имя объекта обязательно'}), 400
 
@@ -211,6 +212,7 @@ def get_results(task_id):
 # Direct API endpoints for individual services
 
 @phase3_bp.route('/api/business-search', methods=['POST'])
+@limiter.limit("10 per minute")
 def api_business_search():
     """Search business registries."""
     try:
@@ -235,6 +237,7 @@ def api_business_search():
 
 
 @phase3_bp.route('/api/court-search', methods=['POST'])
+@limiter.limit("10 per minute")
 def api_court_search():
     """Search court records."""
     try:
@@ -334,6 +337,7 @@ def buratino_page(investigation_id):
 
 
 @phase3_bp.route('/api/buratino/start/<investigation_id>', methods=['POST'])
+@limiter.limit("5 per minute")
 def start_buratino_investigation(investigation_id):
     """Start Phase 3 investigation for a Buratino-flow investigation."""
     from flask import current_app

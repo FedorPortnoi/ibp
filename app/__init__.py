@@ -125,6 +125,25 @@ def create_app(config_name=None):
                 session['next_url'] = request.path
             return redirect(url_for('auth.login'))
 
+        # Activity-based session timeout (default 1h inactivity)
+        import datetime as _dt
+        last_active = session.get('last_active')
+        if last_active:
+            try:
+                last_dt = _dt.datetime.fromisoformat(last_active)
+                # Ensure timezone-aware comparison
+                if last_dt.tzinfo is None:
+                    last_dt = last_dt.replace(tzinfo=_dt.timezone.utc)
+                idle_limit = int(os.environ.get('IBP_SESSION_TIMEOUT', 3600))
+                if (_dt.datetime.now(_dt.timezone.utc) - last_dt).total_seconds() > idle_limit:
+                    session.clear()
+                    if request.is_json:
+                        return jsonify({'error': 'Сессия истекла', 'redirect': '/login'}), 401
+                    return redirect(url_for('auth.login'))
+            except (ValueError, TypeError):
+                pass
+        session['last_active'] = _dt.datetime.now(_dt.timezone.utc).isoformat()
+
     # Security headers on all responses
     @app.after_request
     def set_security_headers(response):

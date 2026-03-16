@@ -183,12 +183,17 @@ candidate_tasks = {}
 
 
 def cleanup_old_tasks(task_store, max_age_seconds=3600):
-    """Remove completed tasks older than max_age_seconds."""
+    """Remove completed tasks older than max_age_seconds and stale running tasks."""
     now = datetime.now()
-    expired = [
-        task_id for task_id, task in task_store.items()
-        if task.completed_at and (now - task.completed_at).total_seconds() > max_age_seconds
-    ]
+    expired = []
+    for task_id, task in task_store.items():
+        # Remove completed tasks after max_age_seconds
+        if task.completed_at and (now - task.completed_at).total_seconds() > max_age_seconds:
+            expired.append(task_id)
+        # Remove stuck/running tasks after 4x max_age (prevent memory leak)
+        elif hasattr(task, 'started_at') and task.started_at:
+            if (now - task.started_at).total_seconds() > max_age_seconds * 4:
+                expired.append(task_id)
     for task_id in expired:
         del task_store[task_id]
 

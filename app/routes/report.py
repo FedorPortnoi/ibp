@@ -216,6 +216,7 @@ def get_investigation_data(investigation_id):
 
 
 @report_bp.route('/generate', methods=['POST'])
+@limiter.limit("10 per minute")
 def generate():
     """Generate identity card HTML from investigation data."""
     try:

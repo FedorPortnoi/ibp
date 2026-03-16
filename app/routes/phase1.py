@@ -10,7 +10,7 @@ import os
 import uuid
 from datetime import datetime
 
-from app import db
+from app import db, limiter
 from app.models import Investigation, SocialProfile
 
 phase1_bp = Blueprint('phase1', __name__, url_prefix='/phase1')
@@ -46,6 +46,7 @@ def index():
 
 
 @phase1_bp.route('/new', methods=['GET', 'POST'])
+@limiter.limit("10 per minute", methods=["POST"])
 def new_investigation():
     """
     Start a new Buratino-style investigation.
@@ -243,6 +244,7 @@ def reject_profile(investigation_id, profile_id):
 
 
 @phase1_bp.route('/api/search/<investigation_id>/refresh', methods=['POST'])
+@limiter.limit("10 per minute")
 def refresh_search(investigation_id):
     """
     Refresh VK search with new parameters.
@@ -295,6 +297,7 @@ def get_upload(filename):
 
 
 @phase1_bp.route('/photo-search', methods=['POST'])
+@limiter.limit("5 per minute")
 def photo_search():
     """
     Photo-first investigation: upload photo -> face search -> results.

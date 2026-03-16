@@ -6,6 +6,7 @@ Root URL routing, investigations list, VK token management
 
 import logging
 from flask import Blueprint, redirect, url_for, render_template, jsonify, request
+from app import limiter
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger('ibp.routes.main')
@@ -139,13 +140,18 @@ def vk_callback():
 @main_bp.route('/vk/save-token', methods=['POST'])
 def vk_save_token():
     """Save VK token received from OAuth callback."""
+    import re as _re
     data = request.get_json()
     if not data or not data.get('token'):
         return jsonify({'error': 'Токен не предоставлен'}), 400
 
     token = data['token'].strip()
-    if len(token) < 10:
+    if len(token) < 10 or len(token) > 500:
         return jsonify({'error': 'Недействительный токен'}), 400
+
+    # VK tokens are alphanumeric with dots/dashes only
+    if not _re.match(r'^[a-zA-Z0-9._\-]+$', token):
+        return jsonify({'error': 'Недействительный формат токена'}), 400
 
     from app.utils.vk_token_manager import save_token, get_token_status
     save_token(token)
@@ -165,6 +171,7 @@ def vk_token_status():
 # ============================================
 
 @main_bp.route('/api/investigations/<investigation_id>', methods=['DELETE'])
+@limiter.limit("10 per minute")
 def delete_investigation(investigation_id):
     """Delete an investigation and all related records."""
     from app import db

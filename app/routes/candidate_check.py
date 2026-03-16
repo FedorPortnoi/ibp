@@ -21,6 +21,15 @@ candidate_bp = Blueprint('candidate', __name__, url_prefix='/candidate')
 logger = logging.getLogger(__name__)
 
 
+def _safe_filename(name_slug: str) -> str:
+    """Sanitize a string for safe use in Content-Disposition filenames."""
+    # Remove any characters that could break headers or enable injection
+    safe = re.sub(r'[^\w\-.]', '_', name_slug)
+    # Collapse multiple underscores
+    safe = re.sub(r'_+', '_', safe).strip('_')
+    return safe[:100] or 'candidate'
+
+
 @candidate_bp.route('/start', methods=['POST'])
 @limiter.limit("10 per minute")
 def start_check():
@@ -129,6 +138,12 @@ def start_check():
     # --- Start background pipeline ---
     # Cleanup old completed tasks before adding new ones
     cleanup_old_tasks(candidate_tasks)
+
+    # Limit concurrent running tasks to prevent resource exhaustion
+    active_count = sum(1 for t in candidate_tasks.values()
+                       if not hasattr(t, 'completed') or not t.completed)
+    if active_count >= 10:
+        return _error('Слишком много активных проверок. Дождитесь завершения текущих.', 429)
 
     task_id = uuid.uuid4().hex
     task = CandidateTaskStatus(task_id, check_id, full_name)
@@ -315,6 +330,7 @@ def history():
 
 
 @candidate_bp.route('/delete/<check_id>', methods=['POST'])
+@limiter.limit("10 per minute")
 def delete_check(check_id):
     """Delete a candidate check record."""
     check = CandidateCheck.query.get(check_id)
@@ -345,7 +361,7 @@ def export_json(check_id):
         name_slug = parts[0] if parts else 'candidate'
 
     date_str = datetime.utcnow().strftime('%Y-%m-%d')
-    filename = f"dossier_{name_slug}_{date_str}.json"
+    filename = f"dossier_{_safe_filename(name_slug)}_{date_str}.json"
 
     dossier = {
         'meta': {
@@ -425,7 +441,7 @@ def export_pdf(check_id):
         name_slug = parts[0] if parts else 'candidate'
 
     date_str = datetime.utcnow().strftime('%Y-%m-%d')
-    filename = f"dossier_{name_slug}_{date_str}.pdf"
+    filename = f"dossier_{_safe_filename(name_slug)}_{date_str}.pdf"
 
     # Format duration
     duration_display = ''

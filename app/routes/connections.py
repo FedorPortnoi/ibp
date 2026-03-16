@@ -6,6 +6,7 @@ Blueprint for analyzing and visualizing connections between investigations.
 
 import logging
 from flask import Blueprint, render_template, jsonify, request
+from app import limiter
 
 connections_bp = Blueprint('connections', __name__)
 logger = logging.getLogger('ibp.routes.connections')
@@ -29,6 +30,7 @@ def connections_page():
 
 
 @connections_bp.route('/api/connections/analyze', methods=['POST'])
+@limiter.limit("10 per minute")
 def analyze_connections():
     """Run cross-investigation connection analysis.
 

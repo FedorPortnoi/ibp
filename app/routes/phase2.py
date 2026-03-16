@@ -12,7 +12,7 @@ import threading
 import uuid
 from datetime import datetime
 
-from app import db
+from app import db, limiter
 from app.services.phase2.combined_search import Phase2CombinedSearch, Phase2Results
 
 phase2_bp = Blueprint('phase2', __name__, url_prefix='/phase2')
@@ -155,6 +155,7 @@ def phase2_page():
 
 
 @phase2_bp.route('/start', methods=['POST'])
+@limiter.limit("5 per minute")
 def start_investigation():
     """
     Start Phase 2 investigation (async).
@@ -191,18 +192,25 @@ def start_investigation():
         if not target_name:
             return jsonify({'error': 'Имя объекта обязательно'}), 400
 
-        # Resolve photo path if provided
+        # Resolve photo path if provided — ONLY from uploads directory
         actual_photo_path = None
         if target_photo_path:
-            # Handle both relative and absolute paths
+            upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+            if not os.path.isabs(upload_folder):
+                upload_folder = os.path.join(current_app.root_path, upload_folder)
+
             if target_photo_path.startswith('/phase1/uploads/'):
                 filename = target_photo_path.replace('/phase1/uploads/', '')
-                upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
-                if not os.path.isabs(upload_folder):
-                    upload_folder = os.path.join(current_app.root_path, upload_folder)
-                actual_photo_path = os.path.join(upload_folder, filename)
-            elif os.path.exists(target_photo_path):
-                actual_photo_path = target_photo_path
+            else:
+                # Extract just the filename, reject path traversal
+                filename = os.path.basename(target_photo_path)
+
+            if filename:
+                from werkzeug.utils import secure_filename as _sf
+                safe_name = _sf(filename)
+                candidate = os.path.join(upload_folder, safe_name)
+                if os.path.exists(candidate) and os.path.realpath(candidate).startswith(os.path.realpath(upload_folder)):
+                    actual_photo_path = candidate
 
         # Cleanup old completed tasks before adding new ones
         _cleanup_old_tasks(phase2_tasks)
@@ -926,7 +934,7 @@ def start_buratino_analysis(investigation_id):
 
                 except Exception as e:
                     logger.warning(f"Email verification error: {e}")
-                    task.add_message(f'Ошибка проверки email: {str(e)[:60]}', 'warning')
+                    task.add_message('Ошибка проверки email', 'warning')
                     # Fallback: add only top-priority candidates
                     fallback_count = 0
                     for candidate in email_candidates[:20]:

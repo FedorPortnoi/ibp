@@ -6,12 +6,14 @@ API and page routes for automated risk scoring.
 
 import logging
 from flask import Blueprint, render_template, jsonify, request
+from app import limiter
 
 scoring_bp = Blueprint('scoring', __name__)
 logger = logging.getLogger('ibp.routes.scoring')
 
 
 @scoring_bp.route('/api/scoring/calculate', methods=['POST'])
+@limiter.limit("10 per minute")
 def calculate_score():
     """Calculate and store risk score for an investigation."""
     from app.services.risk_scoring import calculate_risk_score

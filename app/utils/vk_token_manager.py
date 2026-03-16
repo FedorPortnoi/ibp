@@ -80,6 +80,13 @@ def get_token_status():
 
 def save_token(token):
     """Save token to .env file (update VK_TOKEN line, keep other lines)."""
+    # Sanitize token: strip newlines, carriage returns, and null bytes to prevent injection
+    token = token.replace('\n', '').replace('\r', '').replace('\0', '').strip()
+    # VK tokens are alphanumeric with possible dots/dashes — reject anything suspicious
+    if not re.match(r'^[a-zA-Z0-9._\-]+$', token):
+        logger.warning("Rejected VK token with unexpected characters")
+        return
+
     env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..', '.env')
 
     lines = []

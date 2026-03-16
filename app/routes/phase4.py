@@ -4,7 +4,7 @@ Agent 6 - Frontend/Database
 """
 import logging
 from flask import Blueprint, render_template, jsonify, request
-from app import db
+from app import db, limiter
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,7 @@ def people_search():
 
 
 @phase4_bp.route('/api/search/people', methods=['POST'])
+@limiter.limit("10 per minute")
 def api_people_search():
     """
     API endpoint for cross-platform people search.
@@ -53,10 +54,10 @@ def api_people_search():
         )
         return jsonify(results)
     except ImportError as e:
-        # Orchestrator not yet created by Agent 1 - return placeholder
+        logger.warning(f"Search orchestrator import error: {e}")
         return jsonify({
             'status': 'pending',
-            'message': f'Search orchestrator import error: {e}',
+            'message': 'Модуль поиска недоступен',
             'profiles': [],
             'stats': {
                 'total_found': 0,
@@ -85,30 +86,11 @@ def show_graph(investigation_id):
         from app.models.investigation import Investigation
         investigation = Investigation.query.get(investigation_id)
         if not investigation:
-            # Return a simple page if investigation not found
-            return '''
-            <html>
-            <head><title>Расследование не найдено</title></head>
-            <body style="background:#1a1a2e;color:#eee;font-family:sans-serif;padding:40px;">
-                <h1>Расследование не найдено</h1>
-                <p>Расследование с ID {} не существует.</p>
-                <a href="/search/people" style="color:#e94560;">Назад к поиску</a>
-            </body>
-            </html>
-            '''.format(investigation_id), 404
+            return render_template('errors/404.html'), 404
         return render_template('graph.html', investigation=investigation)
     except Exception as e:
         logger.error(f"Graph load error for investigation {investigation_id}: {e}", exc_info=True)
-        return f'''
-        <html>
-        <head><title>Ошибка</title></head>
-        <body style="background:#1a1a2e;color:#eee;font-family:sans-serif;padding:40px;">
-            <h1>Ошибка загрузки графа</h1>
-            <p>Внутренняя ошибка сервера</p>
-            <a href="/search/people" style="color:#e94560;">Назад к поиску</a>
-        </body>
-        </html>
-        ''', 500
+        return render_template('errors/500.html'), 500
 
 
 @phase4_bp.route('/api/investigation/<investigation_id>/graph-data')

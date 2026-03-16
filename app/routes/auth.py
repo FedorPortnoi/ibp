@@ -21,15 +21,26 @@ logger = logging.getLogger('ibp.auth')
 auth_bp = Blueprint('auth', __name__)
 
 
+_cached_password_hash = None
+_cached_password_source = None
+
+
 def get_password_hash():
-    """Get the password hash from environment."""
+    """Get the password hash from environment. Cached to avoid re-hashing on every request."""
+    global _cached_password_hash, _cached_password_source
+
     pw_hash = os.environ.get('IBP_PASSWORD_HASH', '').strip()
     if pw_hash:
         return pw_hash
 
     plain = os.environ.get('IBP_PASSWORD', '').strip()
     if plain:
-        return bcrypt.hashpw(plain.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        # Cache the hash so we don't call bcrypt.gensalt() on every login attempt
+        if _cached_password_hash and _cached_password_source == plain:
+            return _cached_password_hash
+        _cached_password_hash = bcrypt.hashpw(plain.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        _cached_password_source = plain
+        return _cached_password_hash
 
     return None
 
@@ -76,7 +87,11 @@ def login():
 
         pw_hash = get_password_hash()
         if pw_hash and bcrypt.checkpw(password.encode('utf-8'), pw_hash.encode('utf-8')):
+            # Preserve next_url before clearing session (prevents session fixation)
+            saved_next_url = session.get('next_url')
+            session.clear()
             session['authenticated'] = True
+            session['last_active'] = datetime.datetime.utcnow().isoformat()
             session.permanent = True
 
             if remember:
@@ -88,7 +103,7 @@ def login():
 
             logger.info("User authenticated successfully")
 
-            next_url = session.pop('next_url', None)
+            next_url = saved_next_url
             # Validate next_url is a safe relative path (prevent open redirect)
             if next_url:
                 parsed = urlparse(next_url)
