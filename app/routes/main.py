@@ -82,34 +82,17 @@ def health_check():
 
 @main_bp.route('/')
 def index():
-    """Home landing page."""
-    return render_template('home.html')
-
-
-@main_bp.route('/about')
-def about():
-    return redirect(url_for('main.index'))
-
-
-@main_bp.route('/services')
-def services():
-    return redirect(url_for('main.index'))
-
-
-@main_bp.route('/projects')
-def projects():
-    return redirect(url_for('candidate.history'))
-
-
-@main_bp.route('/contact')
-def contact():
-    return redirect(url_for('main.index'))
+    """Root — authenticated users go to new investigation, others to login."""
+    from flask import session as _session
+    if _session.get('authenticated'):
+        return redirect(url_for('phase1.new_investigation'))
+    return redirect(url_for('auth.login'))
 
 
 @main_bp.route('/dashboard')
 def dashboard():
-    """Dashboard - redirect to home."""
-    return redirect(url_for('main.index'))
+    """Dashboard — redirect to new investigation."""
+    return redirect(url_for('phase1.new_investigation'))
 
 
 @main_bp.route('/investigations')
