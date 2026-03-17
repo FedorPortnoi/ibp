@@ -1,0 +1,552 @@
+{% extends "base.html" %}
+{% block title %}СЛЕД - Фаза 3: Глубокое расследование{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+    .investigation-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    @media (max-width: 1024px) {
+        .investigation-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .result-section {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-default);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .section-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .section-count {
+        background: var(--accent);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .record-item {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
+        padding: 14px;
+        margin-bottom: 10px;
+        transition: border-color 0.2s;
+    }
+
+    .record-item:hover {
+        border-color: var(--accent-dim);
+    }
+
+    .record-title {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 6px;
+    }
+
+    .record-meta {
+        font-size: 12px;
+        color: var(--text-dim);
+    }
+
+    .record-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-right: 6px;
+    }
+
+    .badge-director { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+    .badge-founder { background: rgba(59, 79, 240, 0.2); color: #3b4ff0; }
+    .badge-plaintiff { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+    .badge-defendant { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+    .badge-active { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+    .badge-liquidated { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+    #map-container {
+        height: 400px;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--border-default);
+    }
+
+    .progress-container {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-default);
+        border-radius: 12px;
+        padding: 30px;
+        text-align: center;
+    }
+
+    .progress-bar {
+        height: 8px;
+        background: var(--bg-dark);
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 20px 0;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: var(--gradient-primary);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+
+    .progress-text {
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
+
+    .log-container {
+        background: var(--bg-dark);
+        border-radius: 8px;
+        padding: 15px;
+        max-height: 200px;
+        overflow-y: auto;
+        margin-top: 20px;
+        font-family: var(--font-mono);
+        font-size: 12px;
+    }
+
+    .log-entry {
+        padding: 4px 0;
+        color: var(--text-dim);
+    }
+
+    .log-entry.success { color: var(--success); }
+    .log-entry.warning { color: var(--warning); }
+    .log-entry.error { color: var(--error); }
+    .log-entry.info { color: var(--accent-bright); }
+
+    .sentiment-bar {
+        display: flex;
+        height: 8px;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 10px 0;
+    }
+
+    .sentiment-negative { background: #ef4444; }
+    .sentiment-neutral { background: #64748b; }
+    .sentiment-positive { background: #22c55e; }
+
+    .keyword-cloud {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .keyword {
+        background: rgba(59, 79, 240, 0.15);
+        color: var(--accent-bright);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+    }
+
+    .full-width { grid-column: 1 / -1; }
+
+    .empty-state {
+        text-align: center;
+        padding: 30px;
+        color: var(--text-muted);
+    }
+
+    .empty-state-icon {
+        font-size: 40px;
+        margin-bottom: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-text-primary font-display">
+                Фаза 3: <span class="text-accent">Глубокое расследование</span>
+            </h1>
+            <p class="text-text-dim mt-2">Бизнес-реестры, судебные дела, анализ местоположений</p>
+        </div>
+        <a href="/phase2/{{ investigation_id }}" class="btn btn-secondary">
+            Назад к Фазе 2
+        </a>
+    </div>
+
+    <!-- Progress Section (shown during investigation) -->
+    <div id="progress-section" class="progress-container mb-8">
+        <div class="text-4xl mb-4">🔍</div>
+        <h2 class="text-xl font-semibold text-text-primary mb-2">Глубокое расследование выполняется</h2>
+        <p class="progress-text" id="current-step">Инициализация...</p>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+        </div>
+
+        <p class="text-sm text-text-muted"><span id="percent-complete">0</span>% завершено</p>
+
+        <div class="log-container" id="log-container"></div>
+    </div>
+
+    <!-- Results Section (hidden until complete) -->
+    <div id="results-section" class="hidden">
+        <div class="investigation-grid">
+            <!-- Business Records -->
+            <div class="result-section">
+                <div class="section-header">
+                    <div class="section-title">
+                        <span>🏢</span> Бизнес-реестры
+                    </div>
+                    <span class="section-count" id="business-count">0</span>
+                </div>
+                <div id="business-records"></div>
+            </div>
+
+            <!-- Court Cases -->
+            <div class="result-section">
+                <div class="section-header">
+                    <div class="section-title">
+                        <span>⚖️</span> Судебные дела
+                    </div>
+                    <span class="section-count" id="court-count">0</span>
+                </div>
+                <div id="court-cases"></div>
+            </div>
+
+            <!-- Map Section -->
+            <div class="result-section full-width">
+                <div class="section-header">
+                    <div class="section-title">
+                        <span>📍</span> История местоположений
+                    </div>
+                    <span class="section-count" id="location-count">0</span>
+                </div>
+                <div id="map-container"></div>
+                <div id="location-timeline" class="mt-4"></div>
+            </div>
+
+            <!-- Text Analysis -->
+            <div class="result-section full-width">
+                <div class="section-header">
+                    <div class="section-title">
+                        <span>📊</span> Анализ текста
+                    </div>
+                </div>
+                <div id="text-analysis"></div>
+            </div>
+        </div>
+
+        <!-- Continue Button -->
+        <div class="text-center mt-8">
+            <a href="/report/{{ investigation_id }}" class="btn btn-primary btn-lg">
+                Создать карточку личности
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const investigationId = '{{ investigation_id }}';
+let map = null;
+let taskId = null;
+let pollInterval = null;
+
+// Start investigation when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Get data from sessionStorage (passed from Phase 2)
+    const phase3Input = sessionStorage.getItem('phase3_input');
+
+    if (phase3Input) {
+        try {
+            const data = JSON.parse(phase3Input);
+            startInvestigation(data);
+        } catch (e) {
+            console.error('Failed to parse Phase 3 input:', e);
+            showError('Не удалось загрузить данные расследования');
+        }
+    } else {
+        // No data - show instructions
+        document.getElementById('progress-section').innerHTML = `
+            <div class="text-4xl mb-4">📋</div>
+            <h2 class="text-xl font-semibold text-text-primary mb-2">Нет данных расследования</h2>
+            <p class="text-text-dim">Начните с Фазы 1</p>
+            <a href="/phase1" class="btn btn-primary mt-4">Начать новое расследование</a>
+        `;
+    }
+});
+
+function startInvestigation(data) {
+    addLog('Запуск глубокого расследования Фазы 3...', 'info');
+
+    fetch('/phase3/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.error) {
+            showError(result.error);
+            return;
+        }
+
+        taskId = result.task_id;
+        pollProgress();
+    })
+    .catch(error => {
+        showError('Не удалось начать расследование: ' + error.message);
+    });
+}
+
+function pollProgress() {
+    if (!taskId) return;
+
+    pollInterval = setInterval(() => {
+        fetch(`/phase3/progress/${taskId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    clearInterval(pollInterval);
+                    showError(data.error);
+                    return;
+                }
+
+                updateProgress(data);
+
+                if (data.is_complete) {
+                    clearInterval(pollInterval);
+                    loadResults();
+                }
+            })
+            .catch(error => {
+                console.error('Poll error:', error);
+            });
+    }, 1000);
+}
+
+function updateProgress(data) {
+    document.getElementById('current-step').textContent = data.current_step;
+    document.getElementById('progress-fill').style.width = data.percent_complete + '%';
+    document.getElementById('percent-complete').textContent = data.percent_complete;
+
+    // Add new log messages
+    const logContainer = document.getElementById('log-container');
+    data.messages.forEach(msg => {
+        const existing = logContainer.querySelector(`[data-time="${msg.time}"]`);
+        if (!existing) {
+            addLog(msg.text, msg.type, msg.time);
+        }
+    });
+}
+
+function addLog(text, type = 'info', time = null) {
+    const container = document.getElementById('log-container');
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+    if (time) entry.dataset.time = time;
+    container.appendChild(entry);
+    container.scrollTop = container.scrollHeight;
+}
+
+function loadResults() {
+    fetch(`/phase3/results/${taskId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showError(data.error);
+                return;
+            }
+
+            displayResults(data.results);
+        })
+        .catch(error => {
+            showError('Не удалось загрузить результаты: ' + error.message);
+        });
+}
+
+function displayResults(results) {
+    document.getElementById('progress-section').classList.add('hidden');
+    document.getElementById('results-section').classList.remove('hidden');
+
+    // Business Records
+    const businessContainer = document.getElementById('business-records');
+    const businessRecords = results.business_records || [];
+    document.getElementById('business-count').textContent = businessRecords.length;
+
+    if (businessRecords.length > 0) {
+        businessContainer.innerHTML = businessRecords.map(r => `
+            <div class="record-item">
+                <div class="record-title">${r.company_name || 'Неизвестная компания'}</div>
+                <div class="record-meta">
+                    <span class="record-badge badge-${r.role?.toLowerCase() || 'founder'}">${r.role || 'Неизвестно'}</span>
+                    ${r.inn ? `<span>INN: ${r.inn}</span>` : ''}
+                    ${r.status ? `<span class="record-badge badge-${r.status === 'Действующее' ? 'active' : 'liquidated'}">${r.status}</span>` : ''}
+                </div>
+            </div>
+        `).join('');
+    } else {
+        businessContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🏢</div>
+                <p>Бизнес-записи не найдены</p>
+            </div>
+        `;
+    }
+
+    // Court Cases
+    const courtContainer = document.getElementById('court-cases');
+    const courtCases = results.court_cases || [];
+    document.getElementById('court-count').textContent = courtCases.length;
+
+    if (courtCases.length > 0) {
+        courtContainer.innerHTML = courtCases.map(c => `
+            <div class="record-item">
+                <div class="record-title">${c.case_number || 'Неизвестное дело'}</div>
+                <div class="record-meta">
+                    <span class="record-badge badge-${c.role === 'истец' ? 'plaintiff' : 'defendant'}">${c.role || 'Участник'}</span>
+                    ${c.court_name ? `<span>${c.court_name}</span>` : ''}
+                    ${c.case_type ? `<span> | ${c.case_type}</span>` : ''}
+                </div>
+            </div>
+        `).join('');
+    } else {
+        courtContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">⚖️</div>
+                <p>Судебные дела не найдены</p>
+            </div>
+        `;
+    }
+
+    // Map
+    const mapData = results.map_data;
+    const locations = results.locations?.locations || [];
+    document.getElementById('location-count').textContent = locations.length;
+
+    if (mapData && mapData.markers && mapData.markers.length > 0) {
+        initMap(mapData);
+    } else {
+        document.getElementById('map-container').innerHTML = `
+            <div class="empty-state" style="height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                <div class="empty-state-icon">📍</div>
+                <p>Данные о местоположении недоступны</p>
+            </div>
+        `;
+    }
+
+    // Text Analysis
+    const textAnalysis = results.text_analysis;
+    const textContainer = document.getElementById('text-analysis');
+
+    if (textAnalysis) {
+        const sentiment = textAnalysis.sentiment || {};
+        const keywords = textAnalysis.keywords || [];
+
+        textContainer.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="text-sm font-semibold text-text-secondary mb-3">Анализ тональности</h4>
+                    <div class="sentiment-bar">
+                        <div class="sentiment-negative" style="width: ${Math.max(0, -sentiment.score * 50 + 50)}%"></div>
+                        <div class="sentiment-neutral" style="width: 0%"></div>
+                        <div class="sentiment-positive" style="width: ${Math.max(0, sentiment.score * 50 + 50)}%"></div>
+                    </div>
+                    <p class="text-sm text-text-dim">
+                        Общий: <strong class="text-text-primary">${sentiment.label || 'neutral'}</strong>
+                        (Оценка: ${(sentiment.score || 0).toFixed(2)})
+                    </p>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold text-text-secondary mb-3">Ключевые слова</h4>
+                    <div class="keyword-cloud">
+                        ${keywords.slice(0, 15).map(([word, count]) =>
+                            `<span class="keyword">${word} (${count})</span>`
+                        ).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        textContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <p>Анализ текста недоступен</p>
+            </div>
+        `;
+    }
+}
+
+function initMap(mapData) {
+    map = L.map('map-container').setView(mapData.center, mapData.zoom || 6);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Add markers
+    mapData.markers.forEach(m => {
+        const color = m.color || 'blue';
+        const icon = L.divIcon({
+            className: 'custom-marker',
+            html: `<div style="background: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
+            iconSize: [12, 12]
+        });
+
+        L.marker([m.lat, m.lng], { icon })
+            .addTo(map)
+            .bindPopup(m.popup);
+    });
+
+    // Fit bounds if multiple markers
+    if (mapData.markers.length > 1) {
+        const bounds = L.latLngBounds(mapData.markers.map(m => [m.lat, m.lng]));
+        map.fitBounds(bounds, { padding: [30, 30] });
+    }
+}
+
+function showError(message) {
+    document.getElementById('progress-section').innerHTML = `
+        <div class="text-4xl mb-4">❌</div>
+        <h2 class="text-xl font-semibold text-error mb-2">Расследование не удалось</h2>
+        <p class="text-text-dim">${message}</p>
+        <a href="/phase1" class="btn btn-primary mt-4">Начать сначала</a>
+    `;
+}
+</script>
+{% endblock %}

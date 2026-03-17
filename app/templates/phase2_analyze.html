@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Анализ профиля - {{ investigation.input_name }} - СЛЕД{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-accent mb-2 font-display">Фаза 2: Поиск контактов</h1>
+        <p class="text-gray-400">Извлечение контактов и построение социального графа</p>
+    </div>
+
+    <!-- Progress Steps -->
+    <div class="flex items-center justify-center mb-8 space-x-2">
+        <div class="flex items-center opacity-50">
+            <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">1</div>
+            <span class="ml-2 text-green-400 font-medium">Имя</span>
+        </div>
+        <div class="w-8 h-px bg-green-500"></div>
+        <div class="flex items-center opacity-50">
+            <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">2</div>
+            <span class="ml-2 text-green-400 font-medium">Профиль</span>
+        </div>
+        <div class="w-8 h-px bg-accent"></div>
+        <div class="flex items-center">
+            <div class="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-bold text-sm">3</div>
+            <span class="ml-2 text-accent font-medium">Анализ</span>
+        </div>
+        <div class="w-8 h-px bg-gray-600"></div>
+        <div class="flex items-center opacity-50">
+            <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-gray-400 font-bold text-sm">4</div>
+            <span class="ml-2 text-gray-500">Отчёт</span>
+        </div>
+    </div>
+
+    <!-- Profile Card -->
+    <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6 mb-8">
+        <div class="flex items-center space-x-6">
+            {% if profile.photo_url %}
+            <img src="{{ profile.photo_url }}" alt="" class="w-24 h-24 rounded-full object-cover border-4 border-accent">
+            {% else %}
+            <div class="w-24 h-24 rounded-full bg-accent flex items-center justify-center text-3xl text-white font-bold">
+                {{ profile.first_name[0] if profile.first_name else '?' }}
+            </div>
+            {% endif %}
+            <div>
+                <h2 class="text-2xl font-bold text-white">{{ profile.full_name }}</h2>
+                <p class="text-accent">@{{ profile.username or profile.platform_id }}</p>
+                {% if profile.city %}
+                <p class="text-gray-400 mt-1">{{ profile.city }}{% if profile.country %}, {{ profile.country }}{% endif %}</p>
+                {% endif %}
+                <a href="https://vk.com/id{{ profile.platform_id }}" target="_blank"
+                   class="inline-block mt-2 text-sm text-accent hover:text-accent-bright">
+                    Открыть профиль ВК
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Container -->
+    <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6" id="analysisContainer">
+        <div class="text-center py-8" id="loadingState">
+            <div class="animate-spin text-5xl mb-4">
+                <svg class="w-16 h-16 mx-auto text-accent" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+            <p class="text-accent font-semibold text-lg" id="statusText">Запуск анализа...</p>
+            <p class="text-gray-500 text-sm mt-2" id="progressText">Инициализация</p>
+
+            <!-- Progress Bar -->
+            <div class="w-full max-w-md mx-auto mt-4 bg-bg-dark rounded-full h-2 overflow-hidden">
+                <div class="h-full bg-accent rounded-full transition-all duration-300" id="progressBar" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Success State -->
+        <div class="text-center py-8 hidden" id="successState">
+            <div class="text-5xl mb-4">
+                <span class="text-green-500">&#10003;</span>
+            </div>
+            <p class="text-green-400 font-semibold text-lg">Анализ завершён!</p>
+            <p class="text-gray-400 mt-2" id="resultsText">Найдено 0 друзей</p>
+            <a href="/phase2/buratino/results/{{ investigation.id }}"
+               class="inline-block mt-6 bg-accent hover:bg-accent-dim text-white font-semibold py-3 px-8 rounded-lg transition-colors">
+                Просмотр результатов и социального графа
+            </a>
+        </div>
+
+        <!-- Error State -->
+        <div class="text-center py-8 hidden" id="errorState">
+            <div class="text-5xl mb-4">
+                <span class="text-red-500">!</span>
+            </div>
+            <p class="text-red-400 font-semibold text-lg">Ошибка анализа</p>
+            <p class="text-gray-400 mt-2" id="errorText">Неизвестная ошибка</p>
+            <button onclick="startAnalysis()"
+                    class="inline-block mt-6 bg-accent hover:bg-accent-dim text-white font-semibold py-3 px-8 rounded-lg transition-colors">
+                Повторить
+            </button>
+        </div>
+    </div>
+
+    <!-- What We're Looking For -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-bg-panel/50 rounded-lg p-4 border border-white/[0.06]">
+            <div class="text-accent text-2xl mb-2">&#128101;</div>
+            <h3 class="text-white font-semibold">Сеть друзей</h3>
+            <p class="text-gray-500 text-sm">Извлечение связей друзей для анализа социального графа</p>
+        </div>
+        <div class="bg-bg-panel/50 rounded-lg p-4 border border-white/[0.06]">
+            <div class="text-accent text-2xl mb-2">&#128222;</div>
+            <h3 class="text-white font-semibold">Телефоны</h3>
+            <p class="text-gray-500 text-sm">Поиск контактной информации в профиле и публикациях</p>
+        </div>
+        <div class="bg-bg-panel/50 rounded-lg p-4 border border-white/[0.06]">
+            <div class="text-accent text-2xl mb-2">&#128231;</div>
+            <h3 class="text-white font-semibold">Электронная почта</h3>
+            <p class="text-gray-500 text-sm">Обнаружение адресов электронной почты из различных источников</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const investigationId = '{{ investigation.id }}';
+    let taskId = null;
+    let pollInterval = null;
+
+    // Start analysis on page load
+    document.addEventListener('DOMContentLoaded', startAnalysis);
+
+    async function startAnalysis() {
+        // Reset UI
+        document.getElementById('loadingState').classList.remove('hidden');
+        document.getElementById('successState').classList.add('hidden');
+        document.getElementById('errorState').classList.add('hidden');
+        document.getElementById('progressBar').style.width = '0%';
+
+        try {
+            const response = await fetch(`/phase2/api/start-analysis/${investigationId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.task_id) {
+                taskId = data.task_id;
+                startPolling();
+            } else {
+                showError(data.error || 'Не удалось начать анализ');
+            }
+        } catch (error) {
+            showError('Ошибка сети: ' + error.message);
+        }
+    }
+
+    function startPolling() {
+        pollInterval = setInterval(checkProgress, 1000);
+    }
+
+    async function checkProgress() {
+        try {
+            const response = await fetch(`/phase2/progress/${taskId}`);
+            const data = await response.json();
+
+            // Update progress
+            document.getElementById('progressText').textContent = data.current_step || 'Обработка...';
+            document.getElementById('progressBar').style.width = (data.percent_complete || 0) + '%';
+
+            if (data.is_complete) {
+                clearInterval(pollInterval);
+
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    showSuccess(data);
+                }
+            }
+        } catch (error) {
+            console.error('Poll error:', error);
+        }
+    }
+
+    function showSuccess(data) {
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('successState').classList.remove('hidden');
+
+        // Fetch results to show count
+        fetch(`/phase2/results/${taskId}`)
+            .then(r => r.json())
+            .then(results => {
+                if (results.results) {
+                    const friendsCount = results.results.friends_count || 0;
+                    document.getElementById('resultsText').textContent = `Найдено ${friendsCount} друзей`;
+                }
+            })
+            .catch(() => {});
+    }
+
+    function showError(message) {
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('errorState').classList.remove('hidden');
+        document.getElementById('errorText').textContent = message;
+
+        if (pollInterval) {
+            clearInterval(pollInterval);
+        }
+    }
+</script>
+{% endblock %}

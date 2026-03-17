@@ -1,0 +1,523 @@
+{% extends "base.html" %}
+
+{% block title %}Фаза 2: Результаты - {{ investigation.input_name }} - СЛЕД{% endblock %}
+
+{% block head %}
+<!-- vis.js for social graph -->
+<script src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
+<style>
+    #social-graph {
+        width: 100%;
+        height: 500px;
+        border: 1px solid rgba(59, 79, 240, 0.3);
+        border-radius: 0.75rem;
+        background: linear-gradient(135deg, #1a1a2e 0%, #0d0d1a 100%);
+    }
+
+    .cluster-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .cluster-badge {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 9999px;
+        font-size: 0.75rem;
+    }
+
+    .cluster-dot {
+        width: 0.75rem;
+        height: 0.75rem;
+        border-radius: 50%;
+    }
+
+    .graph-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+        .graph-stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        #social-graph {
+            height: 400px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-accent font-display">Фаза 2: Результаты анализа</h1>
+            <p class="text-gray-400">Поиск контактов и анализ социальных связей</p>
+        </div>
+        <div class="flex space-x-3">
+            <a href="/phase3/buratino/{{ investigation.id }}" class="btn btn-primary">
+                Фаза 3: Глубокий анализ
+            </a>
+            <a href="/report/{{ investigation.id }}" class="btn btn-secondary">
+                Создать отчёт
+            </a>
+        </div>
+    </div>
+
+    <!-- Profile Summary -->
+    <div class="bg-bg-panel rounded-xl border border-accent-200 p-6 mb-8">
+        <div class="flex items-center space-x-6">
+            {% if profile and profile.photo_url %}
+            <img src="{{ profile.photo_url }}" alt="" class="w-20 h-20 rounded-full object-cover border-4 border-accent">
+            {% else %}
+            <div class="w-20 h-20 rounded-full bg-accent flex items-center justify-center text-2xl text-white font-bold">
+                {{ investigation.input_name[0] if investigation.input_name else '?' }}
+            </div>
+            {% endif %}
+            <div class="flex-1">
+                <h2 class="text-xl font-bold text-white">
+                    {% if profile %}{{ profile.full_name }}{% else %}{{ investigation.input_name }}{% endif %}
+                </h2>
+                {% if profile %}
+                <p class="text-accent">@{{ profile.username or profile.platform_id }}</p>
+                {% if profile.city %}
+                <p class="text-gray-400 text-sm">{{ profile.city }}</p>
+                {% endif %}
+                {% endif %}
+            </div>
+            <div class="text-right">
+                <span class="inline-block px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-sm">
+                    Фаза 2 завершена
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="graph-stats">
+        <div class="bg-bg-panel rounded-lg border border-accent-200 p-4 text-center">
+            <div class="text-3xl font-bold text-accent" id="stat-nodes">0</div>
+            <div class="text-gray-500 text-sm">Узлы сети</div>
+        </div>
+        <div class="bg-bg-panel rounded-lg border border-accent-200 p-4 text-center">
+            <div class="text-3xl font-bold text-accent" id="stat-edges">0</div>
+            <div class="text-gray-500 text-sm">Связи</div>
+        </div>
+        <div class="bg-bg-panel rounded-lg border border-accent-200 p-4 text-center">
+            <div class="text-3xl font-bold text-green-400" id="stat-clusters">0</div>
+            <div class="text-gray-500 text-sm">Сообщества</div>
+        </div>
+        <div class="bg-bg-panel rounded-lg border border-accent-200 p-4 text-center">
+            <div class="text-3xl font-bold text-accent" id="stat-density">0%</div>
+            <div class="text-gray-500 text-sm">Плотность сети</div>
+        </div>
+    </div>
+
+    <!-- Social Graph -->
+    <div class="bg-bg-panel rounded-xl border border-accent-200 p-6 mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-white flex items-center">
+                <span class="mr-2">&#128101;</span>
+                Граф социальных связей
+            </h3>
+            <div class="flex items-center space-x-2">
+                <button onclick="fitGraph()" class="text-sm text-accent hover:text-accent-bright px-3 py-1 border border-accent-200 rounded">
+                    Масштабировать
+                </button>
+                <button onclick="togglePhysics()" class="text-sm text-accent hover:text-accent-bright px-3 py-1 border border-accent-200 rounded" id="physicsBtn">
+                    Остановить физику
+                </button>
+            </div>
+        </div>
+
+        <!-- Graph Container -->
+        <div id="social-graph"></div>
+
+        <!-- Demo Mode Warning -->
+        <div id="demo-warning" class="hidden mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-yellow-400 text-sm">
+            <span class="mr-2">&#9888;</span>
+            Демо-режим: отображается пример графа. Подключите VK API для реальных данных.
+        </div>
+
+        <!-- Cluster Legend -->
+        <div class="cluster-legend" id="cluster-legend"></div>
+    </div>
+
+    <!-- Discovered Contacts -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <!-- Phone Numbers -->
+        <div class="bg-bg-panel rounded-xl border border-accent-200 p-6">
+            <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                <span class="mr-2">&#128222;</span>
+                Телефоны
+                <span class="ml-auto text-sm text-gray-500">{{ investigation.discovered_phones|length }} найдено</span>
+            </h3>
+            <div class="space-y-2">
+                {% if investigation.discovered_phones %}
+                    {% for phone in investigation.discovered_phones %}
+                    <div class="flex items-center justify-between p-3 bg-bg-dark rounded-lg border border-accent-200/20 {% if phone.confidence == 'high' %}border-green-500/30{% endif %}">
+                        <div>
+                            <span class="text-white font-mono">{{ phone.number }}</span>
+                            {% if phone.telegram_url %}
+                            <a href="{{ phone.telegram_url }}" target="_blank" rel="noopener"
+                               class="text-xs text-blue-400 hover:text-blue-300 ml-2" title="Открыть Telegram профиль">
+                                {{ phone.source }} &#8599;
+                            </a>
+                            {% else %}
+                            <span class="text-xs text-gray-500 ml-2">{{ phone.source }}</span>
+                            {% endif %}
+                            {% if phone.carrier or phone.region %}
+                            <div class="text-xs text-gray-500 mt-1">
+                                {% if phone.carrier %}{{ phone.carrier }}{% endif %}
+                                {% if phone.carrier and phone.region %} / {% endif %}
+                                {% if phone.region %}{{ phone.region }}{% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            {% if phone.confidence == 'high' %}
+                            <span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">&#10003; Подтверждён</span>
+                            {% elif phone.confidence == 'medium' %}
+                            <span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">Вероятно</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs rounded">Возможно</span>
+                            {% endif %}
+                            {% if phone.verified_on %}
+                            <span class="text-xs text-accent">{{ phone.verified_on|join(', ') }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <p class="text-gray-500 text-sm">Телефоны пока не обнаружены.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Email Addresses -->
+        <div class="bg-bg-panel rounded-xl border border-accent-200 p-6">
+            <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                <span class="mr-2">&#128231;</span>
+                Электронная почта
+                {% set ns = namespace(verified=0, total=0) %}
+                {% if investigation.discovered_emails %}
+                    {% for e in investigation.discovered_emails %}
+                        {% set ns.total = ns.total + 1 %}
+                        {% if e.verification in ['holehe_confirmed', 'smtp_verified', 'gravatar', 'breach_found'] %}
+                            {% set ns.verified = ns.verified + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                <span class="ml-auto text-sm">
+                    {% if ns.verified > 0 %}
+                    <span class="text-green-400">{{ ns.verified }} подтверждено</span>
+                    <span class="text-gray-500"> / {{ ns.total }} всего</span>
+                    {% else %}
+                    <span class="text-gray-500">{{ ns.total }} найдено</span>
+                    {% endif %}
+                </span>
+            </h3>
+            <div class="space-y-2">
+                {% if investigation.discovered_emails %}
+                    {# Verified emails first #}
+                    {% set ns2 = namespace(shown_separator=false) %}
+                    {% for email in investigation.discovered_emails %}
+                        {% set is_verified = email.verification in ['holehe_confirmed', 'smtp_verified', 'gravatar', 'breach_found'] %}
+                        {% if not is_verified and not ns2.shown_separator and ns.verified > 0 %}
+                            {% set ns2.shown_separator = true %}
+                            <div class="border-t border-accent-200/20 my-3 pt-1">
+                                <span class="text-xs text-gray-500">Не подтверждённые (шаблоны)</span>
+                            </div>
+                        {% endif %}
+                    <div class="flex items-center justify-between p-3 bg-bg-dark rounded-lg border border-accent-200/20 {% if email.verification == 'holehe_confirmed' %}border-emerald-500/40{% elif email.verification == 'smtp_verified' %}border-green-500/40{% elif email.verification == 'gravatar' %}border-blue-500/40{% elif email.verification == 'breach_found' %}border-red-500/40{% endif %}">
+                        <div class="flex-1 min-w-0">
+                            <span class="text-white font-mono text-sm">{{ email.email }}</span>
+                            <span class="text-xs text-gray-500 ml-2">{{ email.source }}</span>
+                        </div>
+                        <div class="flex items-center space-x-2 flex-shrink-0">
+                            {# Verification badge - priority order #}
+                            {% if email.verification == 'holehe_confirmed' %}
+                            <span class="px-2 py-0.5 bg-emerald-500/30 text-emerald-300 text-xs rounded font-medium">&#10003; Подтверждено</span>
+                            {% elif email.verification == 'smtp_verified' %}
+                            <span class="px-2 py-0.5 bg-green-500/30 text-green-300 text-xs rounded font-medium">&#10003; SMTP</span>
+                            {% elif email.verification == 'gravatar' %}
+                            <span class="px-2 py-0.5 bg-blue-500/30 text-blue-300 text-xs rounded font-medium">&#10003; Gravatar</span>
+                            {% elif email.verification == 'breach_found' %}
+                            <span class="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded">&#9888; Утечка</span>
+                            {% elif email.verification in ['catch_all_domain', 'likely'] %}
+                            <span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">Вероятно</span>
+                            {% elif email.verification == 'pattern' %}
+                            <span class="px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs rounded">Шаблон</span>
+                            {% endif %}
+                            {# Verified on services (truncated for readability) #}
+                            {% if email.verified_on %}
+                            <span class="text-xs text-accent truncate max-w-[140px]" title="{{ email.verified_on|join(', ') }}">{{ email.verified_on[:3]|join(', ') }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <p class="text-gray-500 text-sm">Адреса электронной почты пока не обнаружены.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Profiles -->
+    <div class="bg-bg-panel rounded-xl border border-accent-200 p-6 mb-8">
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+            <span class="mr-2">&#127760;</span>
+            Дополнительные профили
+            <span class="ml-auto text-sm text-gray-500">{{ investigation.alternate_accounts|length }} найдено</span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% if investigation.alternate_accounts %}
+                {% for account in investigation.alternate_accounts %}
+                <a href="{{ account.url }}" target="_blank" rel="noopener"
+                   class="flex items-center p-3 bg-bg-dark rounded-lg border border-accent-200/20 hover:border-accent transition-colors {% if account.platform == 'telegram' and account.confidence == 'high' %}border-blue-500/30{% endif %}">
+                    <div class="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center mr-3">
+                        {% if account.platform == 'telegram' %}
+                        <span class="text-lg">&#128172;</span>
+                        {% elif account.platform == 'instagram' %}
+                        <span class="text-lg">&#128247;</span>
+                        {% elif account.platform == 'twitter' %}
+                        <span class="text-lg">&#128038;</span>
+                        {% elif account.platform == 'facebook' %}
+                        <span class="text-lg">&#128100;</span>
+                        {% elif account.platform == 'github' %}
+                        <span class="text-lg">&#128187;</span>
+                        {% elif account.platform == 'youtube' %}
+                        <span class="text-lg">&#9654;</span>
+                        {% elif account.platform == 'website' %}
+                        <span class="text-lg">&#127760;</span>
+                        {% else %}
+                        <span class="text-lg">&#128279;</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center space-x-2">
+                            <p class="text-white font-medium capitalize">{{ account.platform }}</p>
+                            {% if account.platform == 'telegram' and account.confidence %}
+                                {% if account.confidence == 'high' %}
+                                <span class="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">&#10003;</span>
+                                {% elif account.confidence == 'low' %}
+                                <span class="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">?</span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        <p class="text-gray-400 text-sm truncate">
+                            {% if account.display_name %}{{ account.display_name }} — {% endif %}@{{ account.username or account.url }}
+                        </p>
+                        <p class="text-gray-500 text-xs">{{ account.source }}</p>
+                        {% if account.note %}
+                        <p class="text-yellow-500/70 text-xs mt-1">{{ account.note }}</p>
+                        {% endif %}
+                    </div>
+                    <span class="text-accent">&#8599;</span>
+                </a>
+                {% endfor %}
+            {% else %}
+            <p class="text-gray-500 text-sm col-span-full">Дополнительные профили пока не обнаружены.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="flex items-center justify-between">
+        <a href="/phase1/search/{{ investigation.id }}" class="text-accent hover:text-accent-bright">
+            &#8592; Назад к Фазе 1
+        </a>
+        <div class="flex space-x-4">
+            <a href="/phase3/buratino/{{ investigation.id }}" class="btn btn-primary">
+                Продолжить к Фазе 3 &#8594;
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const investigationId = '{{ investigation.id }}';
+    let network = null;
+    let physicsEnabled = true;
+
+    document.addEventListener('DOMContentLoaded', loadGraphData);
+
+    async function loadGraphData() {
+        try {
+            const response = await fetch(`/phase2/api/graph/${investigationId}`);
+            const data = await response.json();
+
+            if (data.error) {
+                console.error('Graph error:', data.error);
+                return;
+            }
+
+            // Show demo warning if needed
+            if (data.is_demo) {
+                document.getElementById('demo-warning').classList.remove('hidden');
+            }
+
+            // Update stats
+            updateStats(data.stats, data.clusters);
+
+            // Render graph
+            renderGraph(data.nodes, data.edges);
+
+            // Render cluster legend
+            renderClusterLegend(data.clusters);
+
+        } catch (error) {
+            console.error('Failed to load graph:', error);
+        }
+    }
+
+    function updateStats(stats, clusters) {
+        document.getElementById('stat-nodes').textContent = stats?.node_count || 0;
+        document.getElementById('stat-edges').textContent = stats?.edge_count || 0;
+        document.getElementById('stat-clusters').textContent = clusters?.length || 0;
+
+        const density = stats?.density || 0;
+        document.getElementById('stat-density').textContent = (density * 100).toFixed(1) + '%';
+    }
+
+    function renderGraph(nodes, edges) {
+        const container = document.getElementById('social-graph');
+
+        // Sanitize nodes: fall back to 'dot' if circularImage has no valid image
+        nodes = nodes.map(n => {
+            if (n.shape === 'circularImage' && !n.image) {
+                n.shape = 'dot';
+            }
+            return n;
+        });
+
+        const data = {
+            nodes: new vis.DataSet(nodes),
+            edges: new vis.DataSet(edges)
+        };
+
+        const options = {
+            nodes: {
+                shape: 'dot',
+                scaling: {
+                    min: 10,
+                    max: 50
+                },
+                font: {
+                    size: 12,
+                    face: 'Inter, sans-serif'
+                },
+                brokenImage: undefined,
+                shapeProperties: {
+                    useBorderWithImage: true,
+                    interpolation: false
+                },
+                color: {
+                    background: '#4dabf7',
+                    border: '#339af0',
+                    highlight: { background: '#4dabf7', border: '#fff' },
+                    hover: { background: '#4dabf7', border: '#fff' }
+                }
+            },
+            edges: {
+                width: 0.5,
+                smooth: {
+                    type: 'continuous'
+                }
+            },
+            physics: {
+                enabled: true,
+                barnesHut: {
+                    gravitationalConstant: -3000,
+                    centralGravity: 0.3,
+                    springLength: 95,
+                    springConstant: 0.04,
+                    damping: 0.09
+                },
+                stabilization: {
+                    enabled: true,
+                    iterations: 200,
+                    updateInterval: 25
+                }
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 200,
+                hideEdgesOnDrag: true,
+                hideEdgesOnZoom: true
+            },
+            layout: {
+                improvedLayout: true
+            }
+        };
+
+        try {
+            network = new vis.Network(container, data, options);
+        } catch (e) {
+            console.warn('Graph render failed with images, retrying without:', e.message);
+            // Fall back: convert all circularImage to dot
+            nodes.forEach(n => { if (n.shape === 'circularImage') n.shape = 'dot'; });
+            data.nodes = new vis.DataSet(nodes);
+            network = new vis.Network(container, data, options);
+        }
+
+        // Handle node click
+        network.on('click', function(params) {
+            if (params.nodes.length > 0) {
+                const nodeId = params.nodes[0];
+                const node = nodes.find(n => n.id === nodeId);
+                if (node && node.vkId) {
+                    // Could open profile in new tab
+                    console.log('Clicked node:', node);
+                }
+            }
+        });
+
+        // Stop physics after stabilization
+        network.on('stabilizationIterationsDone', function() {
+            network.setOptions({ physics: { enabled: false } });
+            physicsEnabled = false;
+            document.getElementById('physicsBtn').textContent = 'Возобновить физику';
+        });
+    }
+
+    function renderClusterLegend(clusters) {
+        const container = document.getElementById('cluster-legend');
+        if (!clusters || clusters.length === 0) return;
+
+        container.innerHTML = clusters.map(cluster => `
+            <div class="cluster-badge">
+                <div class="cluster-dot" style="background-color: ${cluster.color}"></div>
+                <span class="text-gray-400">${cluster.label} (${cluster.size})</span>
+            </div>
+        `).join('');
+    }
+
+    function fitGraph() {
+        if (network) {
+            network.fit({ animation: true });
+        }
+    }
+
+    function togglePhysics() {
+        if (!network) return;
+
+        physicsEnabled = !physicsEnabled;
+        network.setOptions({ physics: { enabled: physicsEnabled } });
+
+        document.getElementById('physicsBtn').textContent =
+            physicsEnabled ? 'Остановить физику' : 'Возобновить физику';
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,592 @@
+{% extends "base.html" %}
+{% block title %}Связи между расследованиями - СЛЕД{% endblock %}
+
+{% block head %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/vis-network.min.css" rel="stylesheet">
+<style>
+    #connections-graph {
+        height: 600px;
+        border: 1px solid rgba(59, 79, 240, 0.2);
+        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(3, 0, 20, 0.95) 0%, rgba(17, 10, 31, 0.95) 100%);
+    }
+
+    .side-panel {
+        background: rgba(17, 10, 31, 0.9);
+        border: 1px solid rgba(59, 79, 240, 0.2);
+        border-radius: 12px;
+        padding: 16px;
+    }
+
+    .inv-checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        transition: background 0.15s;
+        cursor: pointer;
+    }
+    .inv-checkbox-item:hover {
+        background: rgba(59, 79, 240, 0.1);
+    }
+
+    .edge-detail-card {
+        background: rgba(59, 79, 240, 0.05);
+        border: 1px solid rgba(59, 79, 240, 0.15);
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 8px;
+    }
+
+    .conn-type-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .controls-bar {
+        background: rgba(17, 10, 31, 0.9);
+        border: 1px solid rgba(59, 79, 240, 0.2);
+        border-radius: 12px;
+        padding: 12px 16px;
+    }
+
+    .legend-line {
+        width: 24px;
+        height: 3px;
+        border-radius: 2px;
+        display: inline-block;
+    }
+
+    .filter-chip {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.15s;
+        border: 1px solid rgba(59, 79, 240, 0.2);
+        background: transparent;
+        color: #94a3b8;
+    }
+    .filter-chip:hover, .filter-chip.active {
+        background: rgba(59, 79, 240, 0.2);
+        border-color: #3b4ff0;
+        color: #ffffff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-white font-display">
+                <span class="text-accent">Связи</span> между расследованиями
+            </h1>
+            <p class="text-gray-400 mt-1">Анализ скрытых связей между объектами исследования</p>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="runAnalysis()" id="btn-analyze" class="btn btn-primary">
+                Анализировать
+            </button>
+            <a href="/investigations" class="px-4 py-2 bg-bg-panel border border-accent-200 text-gray-300 rounded-lg hover:border-accent-bright transition text-sm">
+                Расследования
+            </a>
+        </div>
+    </div>
+
+    {% if investigations|length < 2 %}
+    <!-- Not enough investigations -->
+    <div class="side-panel text-center py-12">
+        <svg class="w-16 h-16 mx-auto text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+        </svg>
+        <p class="text-gray-400 text-lg mb-2">Недостаточно расследований</p>
+        <p class="text-gray-500 text-sm">Для анализа связей необходимо минимум 2 расследования.</p>
+        <a href="/phase1" class="btn btn-primary mt-4 inline-block">Начать новое расследование</a>
+    </div>
+    {% else %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Graph (3/4 width) -->
+        <div class="lg:col-span-3">
+            <div id="connections-graph">
+                <div class="flex items-center justify-center h-full">
+                    <p class="text-gray-500">Выберите расследования и нажмите "Анализировать"</p>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls-bar mt-4 flex flex-wrap gap-4 items-center">
+                <label class="flex items-center gap-2 text-sm text-gray-300">
+                    <input type="checkbox" id="physics-toggle" checked class="accent-blue-600">
+                    Физика
+                </label>
+                <label class="flex items-center gap-2 text-sm text-gray-300">
+                    <input type="checkbox" id="labels-toggle" checked class="accent-blue-600">
+                    Подписи
+                </label>
+                <div class="border-l border-accent-200 h-5 mx-2"></div>
+                <!-- Filter chips -->
+                <span class="text-xs text-gray-500 mr-1">Фильтр:</span>
+                <button class="filter-chip active" data-filter="all" onclick="filterEdges('all', this)">Все</button>
+                <button class="filter-chip" data-filter="mutual_friend" onclick="filterEdges('mutual_friend', this)">Общие друзья</button>
+                <button class="filter-chip" data-filter="same_employer" onclick="filterEdges('same_employer', this)">Работодатель</button>
+                <button class="filter-chip" data-filter="shared_contact" onclick="filterEdges('shared_contact', this)">Контакты</button>
+                <button class="filter-chip" data-filter="same_group" onclick="filterEdges('same_group', this)">Группы</button>
+                <div class="flex-1"></div>
+                <span class="text-xs text-gray-500" id="graph-stats"></span>
+            </div>
+        </div>
+
+        <!-- Side Panel (1/4 width) -->
+        <div class="space-y-4">
+            <!-- Investigation Selector -->
+            <div class="side-panel">
+                <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wider">Расследования</h3>
+                <div class="flex gap-2 mb-3">
+                    <button onclick="selectAll(true)" class="text-xs text-accent hover:text-accent-bright transition">Выбрать все</button>
+                    <span class="text-gray-600">|</span>
+                    <button onclick="selectAll(false)" class="text-xs text-accent hover:text-accent-bright transition">Сбросить</button>
+                </div>
+                <div class="space-y-1 max-h-64 overflow-y-auto" id="inv-list">
+                    {% for inv in investigations %}
+                    <label class="inv-checkbox-item">
+                        <input type="checkbox" class="inv-check accent-blue-600" value="{{ inv.id }}" checked>
+                        <div class="flex items-center gap-2 min-w-0">
+                            {% if inv.confirmed_profile_obj and inv.confirmed_profile_obj.photo_url %}
+                            <img src="{{ inv.confirmed_profile_obj.photo_url }}" class="w-7 h-7 rounded-full border border-accent-200 flex-shrink-0" onerror="this.style.display='none'">
+                            {% else %}
+                            <div class="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
+                                <span class="text-xs text-accent font-bold">{{ (inv.input_name or '?')[0] }}</span>
+                            </div>
+                            {% endif %}
+                            <span class="text-sm text-gray-300 truncate">{{ inv.input_name or 'Без имени' }}</span>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="side-panel">
+                <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wider">Типы связей</h3>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-2">
+                        <span class="legend-line" style="background: #ef4444;"></span>
+                        <span class="text-sm text-gray-400">Общий контакт</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="legend-line" style="background: #3b82f6;"></span>
+                        <span class="text-sm text-gray-400">Общий друг</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="legend-line" style="background: #22c55e;"></span>
+                        <span class="text-sm text-gray-400">Один работодатель</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="legend-line" style="background: #3b4ff0;"></span>
+                        <span class="text-sm text-gray-400">Друг друга</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="legend-line" style="background: #a855f7;"></span>
+                        <span class="text-sm text-gray-400">Общая группа</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="legend-line" style="background: #f59e0b;"></span>
+                        <span class="text-sm text-gray-400">Город + возраст</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary / Edge Details -->
+            <div class="side-panel" id="details-panel">
+                <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wider">Детали</h3>
+                <div id="details-content">
+                    <p class="text-sm text-gray-500">Нажмите на связь для просмотра деталей</p>
+                </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="side-panel" id="summary-panel" style="display:none;">
+                <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wider">Сводка</h3>
+                <div id="summary-content"></div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/vis-network.min.js"></script>
+<script>
+let network = null;
+let allNodes = [];
+let allEdges = [];
+let currentFilter = 'all';
+
+function getSelectedIds() {
+    const checks = document.querySelectorAll('.inv-check:checked');
+    return Array.from(checks).map(c => c.value);
+}
+
+function selectAll(checked) {
+    document.querySelectorAll('.inv-check').forEach(c => c.checked = checked);
+}
+
+function runAnalysis() {
+    const ids = getSelectedIds();
+    if (ids.length < 2) {
+        alert('Выберите минимум 2 расследования для анализа.');
+        return;
+    }
+
+    const container = document.getElementById('connections-graph');
+    const btn = document.getElementById('btn-analyze');
+    btn.disabled = true;
+    btn.textContent = 'Анализ...';
+
+    container.innerHTML = `
+        <div class="flex items-center justify-center h-full">
+            <div class="text-center">
+                <svg class="animate-spin w-8 h-8 mx-auto text-accent mb-3" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-gray-400">Анализ связей...</p>
+            </div>
+        </div>
+    `;
+
+    fetch('/api/connections/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ investigation_ids: ids })
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.textContent = 'Анализировать';
+
+        if (data.error) {
+            container.innerHTML = `<div class="flex items-center justify-center h-full"><p class="text-red-400">${data.error}</p></div>`;
+            return;
+        }
+
+        allNodes = data.nodes || [];
+        allEdges = data.edges || [];
+
+        // Update stats
+        document.getElementById('graph-stats').textContent =
+            `${allNodes.length} объектов, ${allEdges.length} связей`;
+
+        // Update summary
+        updateSummary(data.summary, data.connections);
+
+        if (allEdges.length === 0) {
+            container.innerHTML = `
+                <div class="flex items-center justify-center h-full">
+                    <div class="text-center">
+                        <svg class="w-16 h-16 mx-auto text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                        </svg>
+                        <p class="text-gray-400 mb-2">Связи не обнаружены</p>
+                        <p class="text-sm text-gray-500">Между выбранными расследованиями нет общих данных.</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        // Reset filter
+        currentFilter = 'all';
+        document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+        document.querySelector('[data-filter="all"]').classList.add('active');
+
+        renderGraph(container, allNodes, allEdges);
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.textContent = 'Анализировать';
+        container.innerHTML = `<div class="flex items-center justify-center h-full"><p class="text-red-400">Ошибка: ${err.message}</p></div>`;
+    });
+}
+
+function renderGraph(container, nodes, edges) {
+    container.innerHTML = '';
+
+    const options = {
+        nodes: {
+            shape: 'dot',
+            size: 35,
+            font: {
+                color: '#ffffff',
+                size: 14,
+                face: 'Inter, sans-serif'
+            },
+            borderWidth: 3,
+            shadow: {
+                enabled: true,
+                color: 'rgba(59, 79, 240, 0.3)',
+                size: 12
+            }
+        },
+        edges: {
+            width: 2,
+            font: {
+                color: '#94a3b8',
+                size: 11,
+                strokeWidth: 3,
+                strokeColor: '#030014',
+                face: 'Inter, sans-serif'
+            },
+            smooth: {
+                type: 'curvedCW',
+                roundness: 0.2
+            },
+            selectionWidth: 3
+        },
+        physics: {
+            enabled: true,
+            stabilization: {
+                iterations: 150,
+                updateInterval: 25
+            },
+            barnesHut: {
+                gravitationalConstant: -4000,
+                centralGravity: 0.5,
+                springLength: 200,
+                springConstant: 0.04,
+                damping: 0.09
+            }
+        },
+        interaction: {
+            hover: true,
+            tooltipDelay: 200,
+            hideEdgesOnDrag: false,
+            multiselect: false
+        }
+    };
+
+    const visData = {
+        nodes: new vis.DataSet(nodes),
+        edges: new vis.DataSet(edges)
+    };
+    network = new vis.Network(container, visData, options);
+
+    // Click on edge: show details
+    network.on('selectEdge', function(params) {
+        if (params.edges.length > 0) {
+            const edgeId = params.edges[0];
+            const edge = edges.find((e, idx) => {
+                // vis.js assigns numeric IDs; match by index
+                return idx + 1 === edgeId || e.id === edgeId;
+            });
+            // Fallback: get edge data from DataSet
+            const edgeData = visData.edges.get(edgeId);
+            if (edgeData && edgeData.details) {
+                showEdgeDetails(edgeData);
+            } else if (edge && edge.details) {
+                showEdgeDetails(edge);
+            }
+        }
+    });
+
+    // Click on node: show investigation info
+    network.on('selectNode', function(params) {
+        if (params.nodes.length > 0) {
+            const nodeId = params.nodes[0];
+            const node = nodes.find(n => n.id === nodeId);
+            if (node) {
+                showNodeInfo(node, edges);
+            }
+        }
+    });
+
+    // Click on empty area: reset details
+    network.on('deselectNode', function() {
+        resetDetails();
+    });
+    network.on('deselectEdge', function() {
+        resetDetails();
+    });
+}
+
+function showEdgeDetails(edge) {
+    const details = edge.details || [];
+    let html = '';
+
+    if (details.length === 0) {
+        html = `<p class="text-sm text-gray-400">${edge.title || 'Нет деталей'}</p>`;
+    } else {
+        details.forEach(d => {
+            const color = getTypeColor(d.type);
+            html += `
+                <div class="edge-detail-card">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="conn-type-badge" style="background: ${color}22; color: ${color};">${d.label}</span>
+                        <span class="text-xs text-gray-500">Вес: ${d.score.toFixed(1)}</span>
+                    </div>
+                    <p class="text-sm text-gray-300">${d.description}</p>
+                    ${d.evidence && d.evidence.length > 0 ? `
+                        <div class="mt-2">
+                            <p class="text-xs text-gray-500 mb-1">Доказательства:</p>
+                            <ul class="text-xs text-gray-400 space-y-0.5">
+                                ${d.evidence.slice(0, 5).map(e => `<li>- ${escapeHtml(e)}</li>`).join('')}
+                                ${d.evidence.length > 5 ? `<li class="text-gray-500">... и ещё ${d.evidence.length - 5}</li>` : ''}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        });
+    }
+
+    document.getElementById('details-content').innerHTML = html;
+}
+
+function showNodeInfo(node, edges) {
+    // Count connections for this node
+    const nodeEdges = edges.filter(e => e.from === node.id || e.to === node.id);
+    let html = `
+        <div class="space-y-2">
+            ${node.image ? `<img src="${node.image}" class="w-14 h-14 rounded-full border-2 border-accent-200 mb-2" onerror="this.style.display='none'">` : ''}
+            <p class="text-white font-medium">${escapeHtml(node.label)}</p>
+            <p class="text-sm text-gray-400">Связей: <span class="text-accent font-semibold">${nodeEdges.length}</span></p>
+        </div>
+    `;
+    document.getElementById('details-content').innerHTML = html;
+}
+
+function resetDetails() {
+    document.getElementById('details-content').innerHTML =
+        '<p class="text-sm text-gray-500">Нажмите на связь для просмотра деталей</p>';
+}
+
+function updateSummary(summary, connections) {
+    const panel = document.getElementById('summary-panel');
+    const content = document.getElementById('summary-content');
+
+    if (!summary || summary.total_connections === 0) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    panel.style.display = 'block';
+
+    let html = `
+        <div class="space-y-3">
+            <div class="flex justify-between text-sm">
+                <span class="text-gray-400">Расследований:</span>
+                <span class="text-white font-semibold">${summary.total_investigations}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+                <span class="text-gray-400">Найдено связей:</span>
+                <span class="text-accent font-semibold">${summary.total_connections}</span>
+            </div>
+    `;
+
+    if (summary.strongest_connection) {
+        html += `
+            <div class="border-t border-accent-100 pt-3 mt-3">
+                <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Сильнейшая связь</p>
+                <p class="text-sm text-white">${escapeHtml(summary.strongest_connection.names)}</p>
+                <p class="text-xs text-gray-400 mt-1">Вес: ${summary.strongest_connection.score.toFixed(1)}</p>
+            </div>
+        `;
+    }
+
+    // Type breakdown
+    if (summary.connection_types && Object.keys(summary.connection_types).length > 0) {
+        html += `<div class="border-t border-accent-100 pt-3 mt-3">
+            <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">По типам</p>`;
+        const typeLabels = {
+            'mutual_friend': 'Общие друзья',
+            'friend_of_friend': 'Друг друга',
+            'same_employer': 'Работодатель',
+            'same_group': 'Группы',
+            'same_city_age': 'Город + возраст',
+            'shared_contact': 'Контакты'
+        };
+        for (const [type, count] of Object.entries(summary.connection_types)) {
+            const color = getTypeColor(type);
+            html += `
+                <div class="flex justify-between items-center text-xs mb-1">
+                    <span class="text-gray-400">${typeLabels[type] || type}</span>
+                    <span class="conn-type-badge" style="background: ${color}22; color: ${color};">${count}</span>
+                </div>
+            `;
+        }
+        html += `</div>`;
+    }
+
+    html += `</div>`;
+    content.innerHTML = html;
+}
+
+function filterEdges(type, chipEl) {
+    if (!network || allEdges.length === 0) return;
+
+    currentFilter = type;
+
+    // Update chip styles
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chipEl.classList.add('active');
+
+    let filteredEdges;
+    if (type === 'all') {
+        filteredEdges = allEdges;
+    } else {
+        filteredEdges = allEdges.filter(e => {
+            if (!e.details) return false;
+            return e.details.some(d => d.type === type);
+        });
+    }
+
+    const container = document.getElementById('connections-graph');
+    renderGraph(container, allNodes, filteredEdges);
+}
+
+function getTypeColor(type) {
+    const colors = {
+        'shared_contact': '#ef4444',
+        'mutual_friend': '#3b82f6',
+        'same_employer': '#22c55e',
+        'friend_of_friend': '#3b4ff0',
+        'same_group': '#a855f7',
+        'same_city_age': '#f59e0b'
+    };
+    return colors[type] || '#64748b';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Physics toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const physToggle = document.getElementById('physics-toggle');
+    if (physToggle) {
+        physToggle.addEventListener('change', function() {
+            if (network) network.setOptions({ physics: { enabled: this.checked } });
+        });
+    }
+
+    const labelsToggle = document.getElementById('labels-toggle');
+    if (labelsToggle) {
+        labelsToggle.addEventListener('change', function() {
+            if (network) network.setOptions({ nodes: { font: { size: this.checked ? 14 : 0 } } });
+        });
+    }
+});
+</script>
+{% endblock %}

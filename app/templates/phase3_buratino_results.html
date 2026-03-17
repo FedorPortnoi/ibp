@@ -1,0 +1,403 @@
+{% extends "base.html" %}
+
+{% block title %}Фаза 3: Результаты - {{ investigation.input_name }} - СЛЕД{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-accent font-display">Фаза 3: Результаты расследования</h1>
+            <p class="text-gray-400">Бизнес-реестры, судебные дела, исполнительные производства и оценка рисков</p>
+        </div>
+        <div class="flex space-x-3">
+            <a href="/dossier/{{ investigation.id }}" class="btn btn-primary">
+                Создать досье
+            </a>
+            <a href="/report/{{ investigation.id }}" class="btn btn-secondary">
+                Карточка личности
+            </a>
+        </div>
+    </div>
+
+    <!-- Profile Summary -->
+    {% if profile %}
+    <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6 mb-8">
+        <div class="flex items-center space-x-6">
+            {% if profile.photo_url %}
+            <img src="{{ profile.photo_url }}" alt="" class="w-16 h-16 rounded-full object-cover border-2 border-accent">
+            {% else %}
+            <div class="w-16 h-16 rounded-full bg-accent flex items-center justify-center text-xl text-white font-bold">
+                {{ investigation.input_name[0] }}
+            </div>
+            {% endif %}
+            <div class="flex-1">
+                <h2 class="text-xl font-bold text-white">{{ investigation.input_name }}</h2>
+                {% if profile %}
+                <p class="text-accent">{{ profile.platform }} - @{{ profile.username or profile.platform_id }}</p>
+                {% endif %}
+            </div>
+            <span class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-sm">
+                Фаза 3 завершена
+            </span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Composite Risk Score Widget -->
+    {% if risk_score %}
+    <div class="flex items-center gap-4 mb-8">
+        {% set score = risk_score %}
+        {% include 'partials/risk_score_widget.html' %}
+        <a href="/risk-report/{{ investigation.id }}" class="text-sm text-accent hover:text-accent-bright transition-colors">
+            Подробный отчёт скоринга &rarr;
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Stats Overview -->
+    {% set ns_stats = namespace(director_count=0, defendant_count=0, liquidated_count=0) %}
+    {% for r in business_records %}
+        {% if r.role and r.role in ['director', 'Директор'] %}{% set ns_stats.director_count = ns_stats.director_count + 1 %}{% endif %}
+        {% if r.status and ('ликвид' in r.status|lower or 'liqui' in r.status|lower) %}{% set ns_stats.liquidated_count = ns_stats.liquidated_count + 1 %}{% endif %}
+    {% endfor %}
+    {% for c in court_records %}
+        {% if c.person_role and c.person_role in ['defendant', 'ответчик'] %}{% set ns_stats.defendant_count = ns_stats.defendant_count + 1 %}{% endif %}
+    {% endfor %}
+
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div class="bg-bg-panel rounded-lg border border-white/[0.08] p-4 text-center">
+            <div class="text-3xl font-bold text-accent">{{ business_records|length }}</div>
+            <div class="text-gray-500 text-sm">Бизнес-реестры</div>
+        </div>
+        <div class="bg-bg-panel rounded-lg border border-white/[0.08] p-4 text-center">
+            <div class="text-3xl font-bold text-accent">{{ court_records|length }}</div>
+            <div class="text-gray-500 text-sm">Судебные дела</div>
+        </div>
+        <div class="bg-bg-panel rounded-lg border border-white/[0.08] p-4 text-center">
+            <div class="text-3xl font-bold text-accent">{{ enforcement_proceedings|length }}</div>
+            <div class="text-gray-500 text-sm">Записи ФССП</div>
+        </div>
+        <div class="bg-bg-panel rounded-lg border border-white/[0.08] p-4 text-center">
+            <div class="text-3xl font-bold text-green-400">{{ ns_stats.director_count }}</div>
+            <div class="text-gray-500 text-sm">Руководящие роли</div>
+        </div>
+        <div class="bg-bg-panel rounded-lg border border-white/[0.08] p-4 text-center">
+            <div class="text-3xl font-bold {% if risk_indicators|length > 3 %}text-red-400{% elif risk_indicators|length > 0 %}text-yellow-400{% else %}text-green-400{% endif %}">
+                {{ risk_indicators|length }}
+            </div>
+            <div class="text-gray-500 text-sm">Флаги риска</div>
+        </div>
+    </div>
+
+    <!-- Risk Assessment (from backend risk_indicators) -->
+    {% if risk_indicators %}
+    <div class="bg-bg-panel rounded-xl border border-red-500/30 p-6 mb-8">
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+            <span class="mr-2">&#9888;</span>
+            Индикаторы риска
+            <span class="ml-auto text-sm">
+                {% set ns_risk = namespace(high=0, medium=0) %}
+                {% for ri in risk_indicators %}
+                    {% if ri.severity == 'high' %}{% set ns_risk.high = ns_risk.high + 1 %}{% endif %}
+                    {% if ri.severity == 'medium' %}{% set ns_risk.medium = ns_risk.medium + 1 %}{% endif %}
+                {% endfor %}
+                {% if ns_risk.high > 0 %}
+                <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs font-bold">ВЫСОКИЙ РИСК</span>
+                {% elif ns_risk.medium > 0 %}
+                <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs font-bold">СРЕДНИЙ РИСК</span>
+                {% else %}
+                <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs font-bold">НИЗКИЙ РИСК</span>
+                {% endif %}
+            </span>
+        </h3>
+
+        <div class="space-y-3">
+            {% for ri in risk_indicators %}
+            <div class="flex items-start p-3 bg-bg-dark rounded-lg border
+                {% if ri.severity == 'high' %}border-red-500/30{% elif ri.severity == 'medium' %}border-yellow-500/30{% else %}border-gray-500/20{% endif %}">
+                <span class="flex-shrink-0 mt-0.5 mr-3 w-2 h-2 rounded-full
+                    {% if ri.severity == 'high' %}bg-red-400{% elif ri.severity == 'medium' %}bg-yellow-400{% else %}bg-gray-400{% endif %}"></span>
+                <div class="flex-1">
+                    <div class="flex items-center justify-between">
+                        <span class="text-white text-sm font-medium">{{ ri.description }}</span>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2 py-0.5 rounded text-xs
+                                {% if ri.severity == 'high' %}bg-red-500/20 text-red-400
+                                {% elif ri.severity == 'medium' %}bg-yellow-500/20 text-yellow-400
+                                {% else %}bg-gray-500/20 text-gray-400{% endif %}">
+                                {{ ri.severity|upper }}
+                            </span>
+                            <span class="text-xs text-gray-500">{{ ri.category }}</span>
+                        </div>
+                    </div>
+                    {% if ri.details %}
+                    <p class="text-gray-500 text-xs mt-1">{{ ri.details }}</p>
+                    {% endif %}
+                    <p class="text-gray-600 text-xs mt-1">Источник: {{ ri.source }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <!-- No risks found -->
+    <div class="bg-bg-panel rounded-xl border border-green-500/30 p-6 mb-8">
+        <div class="flex items-center">
+            <span class="mr-3 text-2xl text-green-400">&#10003;</span>
+            <div>
+                <h3 class="text-lg font-semibold text-green-400">Индикаторы риска не обнаружены</h3>
+                <p class="text-gray-500 text-sm">В доступных записях не обнаружено тревожных закономерностей</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Business Records -->
+        <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6">
+            <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                <span class="mr-2">&#127970;</span>
+                Бизнес-реестры (ЕГРЮЛ)
+                <span class="ml-auto text-sm text-gray-500">{{ business_records|length }} найдено</span>
+            </h3>
+
+            {% if business_records %}
+            <div class="space-y-3 max-h-[500px] overflow-y-auto">
+                {% for record in business_records %}
+                <div class="bg-bg-dark rounded-lg border border-white/[0.06] p-4">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-semibold text-white text-sm leading-tight">{{ record.company_name }}</h4>
+                            <div class="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                                {% if record.inn %}
+                                <span class="text-gray-500 text-xs">INN: {{ record.inn }}</span>
+                                {% endif %}
+                                {% if record.ogrn %}
+                                <span class="text-gray-500 text-xs">OGRN: {{ record.ogrn }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <span class="flex-shrink-0 ml-2 px-2 py-1 rounded text-xs font-medium
+                            {% if record.role in ['director', 'Директор'] %}bg-green-500/20 text-green-400
+                            {% elif record.role in ['founder', 'Учредитель'] %}bg-purple-500/20 text-purple-400
+                            {% elif record.role == 'ИП' %}bg-blue-500/20 text-blue-400
+                            {% else %}bg-gray-500/20 text-gray-400{% endif %}">
+                            {{ record.role_display }}
+                        </span>
+                    </div>
+                    {% if record.status %}
+                    <p class="text-sm mt-2
+                        {% if 'ликвид' in record.status|lower or 'liqui' in record.status|lower %}text-red-400
+                        {% elif 'действ' in record.status|lower or 'active' in record.status|lower %}text-green-400
+                        {% else %}text-gray-400{% endif %}">
+                        {{ record.status }}
+                    </p>
+                    {% endif %}
+                    {% if record.address %}
+                    <p class="text-gray-500 text-xs mt-1 truncate" title="{{ record.address }}">{{ record.address }}</p>
+                    {% endif %}
+                    {% if record.registration_date %}
+                    <p class="text-gray-600 text-xs mt-1">Рег: {{ record.registration_date }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8 text-gray-500">
+                <div class="text-4xl mb-2">&#127970;</div>
+                <p>Бизнес-записи не найдены</p>
+                <p class="text-xs mt-1">Проверьте ссылки для ручного поиска ниже</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Court Records -->
+        <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6">
+            <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                <span class="mr-2">&#9878;</span>
+                Судебные дела
+                <span class="ml-auto text-sm text-gray-500">{{ court_records|length }} найдено</span>
+            </h3>
+
+            {% if court_records %}
+            <div class="space-y-3 max-h-[500px] overflow-y-auto">
+                {% for case in court_records %}
+                <div class="bg-bg-dark rounded-lg border border-white/[0.06] p-4">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-white text-sm">{{ case.case_number }}</h4>
+                            <p class="text-gray-500 text-sm">{{ case.court_name }}</p>
+                        </div>
+                        <span class="flex-shrink-0 ml-2 px-2 py-1 rounded text-xs font-medium
+                            {% if case.person_role in ['plaintiff', 'истец'] %}bg-blue-500/20 text-blue-400
+                            {% elif case.person_role in ['defendant', 'ответчик'] %}bg-red-500/20 text-red-400
+                            {% elif case.person_role in ['accused', 'обвиняемый'] %}bg-red-500/20 text-red-400
+                            {% else %}bg-gray-500/20 text-gray-400{% endif %}">
+                            {{ case.role_display }}
+                        </span>
+                    </div>
+                    {% if case.category %}
+                    <p class="text-sm text-accent mt-2">{{ case.category_display }}</p>
+                    {% endif %}
+                    {% if case.subcategory %}
+                    <p class="text-gray-500 text-xs mt-1">{{ case.subcategory }}</p>
+                    {% endif %}
+                    {% if case.source_url %}
+                    <a href="{{ case.source_url }}" target="_blank" rel="noopener" class="text-xs text-accent hover:underline mt-1 inline-block">Источник</a>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8 text-gray-500">
+                <div class="text-4xl mb-2">&#9878;</div>
+                <p>Судебные дела не найдены</p>
+                <p class="text-xs mt-1">sudact.ru требует JS-рендеринг (Playwright)</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- FSSP Enforcement Proceedings -->
+    {% if enforcement_proceedings %}
+    <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6 mt-6">
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+            <span class="mr-2">&#128176;</span>
+            Исполнительные производства (ФССП)
+            <span class="ml-auto text-sm text-gray-500">{{ enforcement_proceedings|length }} найдено</span>
+        </h3>
+
+        <div class="space-y-3 max-h-96 overflow-y-auto">
+            {% for proc in enforcement_proceedings %}
+            <div class="bg-bg-dark rounded-lg border border-yellow-500/20 p-4">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-white text-sm">{{ proc.debtor_name }}</h4>
+                        {% if proc.proceeding_number %}
+                        <p class="text-gray-500 text-xs">No: {{ proc.proceeding_number }}</p>
+                        {% endif %}
+                    </div>
+                    <span class="flex-shrink-0 ml-2 px-2 py-1 rounded text-xs font-medium
+                        {% if proc.status == 'На исполнении' %}bg-yellow-500/20 text-yellow-400
+                        {% else %}bg-gray-500/20 text-gray-400{% endif %}">
+                        {{ proc.status or 'Неизвестно' }}
+                    </span>
+                </div>
+                <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                    {% if proc.debt_type %}
+                    <span class="text-sm text-gray-400">Тип: {{ proc.debt_type }}</span>
+                    {% endif %}
+                    {% if proc.amount %}
+                    <span class="text-sm text-yellow-400 font-medium">Сумма: {{ proc.amount }} RUB</span>
+                    {% endif %}
+                </div>
+                {% if proc.department %}
+                <p class="text-gray-500 text-xs mt-1">Отдел: {{ proc.department }}</p>
+                {% endif %}
+                {% if proc.bailiff %}
+                <p class="text-gray-500 text-xs mt-1">Пристав: {{ proc.bailiff }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Manual Search Links -->
+    {% if manual_search_links %}
+    <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6 mt-6">
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+            <span class="mr-2">&#128279;</span>
+            Ссылки для ручного поиска
+            <span class="ml-auto text-sm text-gray-500">Проверьте результаты или используйте дополнительные источники</span>
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {% for link in manual_search_links %}
+            <a href="{{ link.url }}" target="_blank" rel="noopener"
+               class="flex items-center p-3 bg-bg-dark rounded-lg border border-white/[0.06] hover:border-accent transition-colors group">
+                <div class="flex-1 min-w-0">
+                    <p class="text-white font-medium text-sm group-hover:text-accent transition-colors">{{ link.name }}</p>
+                    {% if link.description %}
+                    <p class="text-gray-500 text-xs truncate">{{ link.description }}</p>
+                    {% endif %}
+                </div>
+                <span class="text-accent ml-2 flex-shrink-0">&#8599;</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Risk Assessment Summary -->
+    <div class="bg-bg-panel rounded-xl border border-white/[0.08] p-6 mt-6">
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+            <span class="mr-2">&#128202;</span>
+            Итоговая оценка
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Business Risk -->
+            <div class="bg-bg-dark rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-gray-400">Бизнес-риск</span>
+                    {% if ns_stats.liquidated_count > 2 %}
+                    <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs">ВЫСОКИЙ</span>
+                    {% elif ns_stats.liquidated_count > 0 %}
+                    <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">СРЕДНИЙ</span>
+                    {% else %}
+                    <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">НИЗКИЙ</span>
+                    {% endif %}
+                </div>
+                <p class="text-sm text-gray-500">{{ business_records|length }} компаний, {{ ns_stats.liquidated_count }} ликвидировано</p>
+            </div>
+
+            <!-- Legal Risk -->
+            <div class="bg-bg-dark rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-gray-400">Правовой риск</span>
+                    {% if ns_stats.defendant_count > 3 %}
+                    <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs">ВЫСОКИЙ</span>
+                    {% elif ns_stats.defendant_count > 0 %}
+                    <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">СРЕДНИЙ</span>
+                    {% else %}
+                    <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">НИЗКИЙ</span>
+                    {% endif %}
+                </div>
+                <p class="text-sm text-gray-500">{{ court_records|length }} дел, {{ ns_stats.defendant_count }} в качестве ответчика</p>
+            </div>
+
+            <!-- Financial Risk -->
+            <div class="bg-bg-dark rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-gray-400">Финансовый риск</span>
+                    {% if enforcement_proceedings|length > 2 %}
+                    <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs">ВЫСОКИЙ</span>
+                    {% elif enforcement_proceedings|length > 0 %}
+                    <span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">СРЕДНИЙ</span>
+                    {% else %}
+                    <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">НИЗКИЙ</span>
+                    {% endif %}
+                </div>
+                <p class="text-sm text-gray-500">{{ enforcement_proceedings|length }} исполнительных производств</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="flex items-center justify-between mt-8">
+        <a href="/phase2/buratino/results/{{ investigation.id }}" class="text-accent hover:text-accent-bright">
+            &#8592; Назад к Фазе 2
+        </a>
+        <div class="flex space-x-3">
+            <a href="/dossier/{{ investigation.id }}" class="btn btn-primary">
+                Создать досье &#8594;
+            </a>
+            <a href="/report/{{ investigation.id }}" class="btn btn-secondary">
+                Карточка личности
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
