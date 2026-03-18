@@ -60,16 +60,27 @@ class SanctionsResult:
 
 def _transliterate_simple(name: str) -> str:
     """
-    Simple Cyrillic → Latin transliteration for Interpol API queries.
+    Simple Cyrillic -> Latin transliteration for Interpol API queries.
     Uses the existing transliteration module if available,
     otherwise falls back to a basic mapping.
+
+    Always returns a proper Python str (never bytes, never '?'-corrupted).
     """
+    # Ensure input is a proper Unicode str, not bytes masquerading as str
+    if isinstance(name, bytes):
+        name = name.decode('utf-8', errors='replace')
+
     try:
         from app.services.phase1.transliteration import transliterate_russian
         variants = transliterate_russian(name, max_variants=1)
-        if variants:
+        if variants and variants[0].isascii():
             # Capitalize each word
             return ' '.join(w.capitalize() for w in variants[0].split())
+        elif variants:
+            logger.warning(
+                "[SanctionsCheck] transliterate_russian returned non-ASCII: %r",
+                variants[0],
+            )
     except Exception as e:
         logger.debug(f"[SanctionsCheck] Transliteration import failed, using fallback: {e}")
 
@@ -90,8 +101,10 @@ def _transliterate_simple(name: str) -> str:
             if ch.isupper() and mapped:
                 mapped = mapped[0].upper() + mapped[1:]
             result.append(mapped)
-        else:
+        elif ch.isascii():
+            # Keep ASCII characters (spaces, hyphens, Latin letters)
             result.append(ch)
+        # else: skip non-ASCII characters not in the transliteration table
     return ''.join(result)
 
 
@@ -571,12 +584,31 @@ class SanctionsService:
             forename = parts[1] if len(parts) > 1 else ''
             name = parts[0]
 
+            # Validate transliteration produced ASCII-safe text.
+            # If transliteration silently failed (e.g., locale/encoding issue),
+            # the values may still contain non-ASCII characters — fall back to
+            # the original Cyrillic name which requests encodes as valid UTF-8.
+            if not forename.isascii() or not name.isascii():
+                logger.warning(
+                    "[Interpol] Transliteration produced non-ASCII: "
+                    "forename=%r, name=%r — falling back to original Cyrillic",
+                    forename, name,
+                )
+                orig_parts = full_name.strip().split()
+                name = orig_parts[0]
+                forename = orig_parts[1] if len(orig_parts) > 1 else ''
+
             params = {
                 'forename': forename,
                 'name': name,
                 'nationality': 'RU',
                 'resultPerPage': 20,
             }
+
+            logger.debug(
+                "[Interpol] Request params: forename=%r, name=%r, url=%s",
+                forename, name, url,
+            )
 
             r = requests.get(
                 url,
@@ -589,6 +621,8 @@ class SanctionsService:
                 },
                 timeout=self.TIMEOUT,
             )
+
+            logger.debug("[Interpol] Final request URL: %s", r.url)
 
             if r.status_code == 403:
                 return SanctionsResult(
