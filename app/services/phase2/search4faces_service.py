@@ -294,63 +294,64 @@ def _search_via_playwright(image_data: bytes, filename: str, database: str, max_
 
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
-            page = browser.new_page(
-                user_agent=HEADERS['User-Agent'],
-                viewport={'width': 1280, 'height': 900},
-            )
-
-            # Navigate to the database search page
-            page.goto(page_url, wait_until='networkidle', timeout=30000)
-            time.sleep(1)
-
-            # Find the file input and upload the image
-            # Search4Faces uses <input type="file"> for photo upload
-            file_input = page.query_selector('input[type="file"]')
-            if not file_input:
-                # Try common selectors
-                for sel in ['input[accept*="image"]', '#photo', '#file', '.upload input']:
-                    file_input = page.query_selector(sel)
-                    if file_input:
-                        break
-
-            if not file_input:
-                browser.close()
-                logger.error("Search4Faces Playwright: no file input found on page")
-                return Search4FacesResults(
-                    success=False, matches=[], database_searched=database,
-                    error="No file input found on search page"
-                )
-
-            logger.info("Search4Faces Playwright: uploading image...")
-            file_input.set_input_files(temp_path)
-
-            # Wait for upload processing
-            time.sleep(2)
-
-            # Click the search/submit button
-            search_btn = page.query_selector('button[type="submit"], input[type="submit"], .search-btn, #search, button:has-text("Search"), button:has-text("Поиск")')
-            if search_btn:
-                search_btn.click()
-            else:
-                # Try pressing Enter as fallback
-                page.keyboard.press('Enter')
-
-            # Wait for results to load
-            logger.info("Search4Faces Playwright: waiting for results...")
             try:
-                # Wait for result cards or VK/OK links to appear
-                page.wait_for_selector(
-                    'a[href*="vk.com/"], a[href*="ok.ru/"], .result, [class*="result"]',
-                    timeout=45000
+                page = browser.new_page(
+                    user_agent=HEADERS['User-Agent'],
+                    viewport={'width': 1280, 'height': 900},
                 )
-                time.sleep(2)  # Extra wait for dynamic rendering
-            except Exception:
-                # Page might have loaded but with no results
-                logger.info("Search4Faces Playwright: no result elements appeared (may be no matches)")
 
-            # Get page content and parse
-            html = page.content()
-            browser.close()
+                # Navigate to the database search page
+                page.goto(page_url, wait_until='networkidle', timeout=30000)
+                time.sleep(1)
+
+                # Find the file input and upload the image
+                # Search4Faces uses <input type="file"> for photo upload
+                file_input = page.query_selector('input[type="file"]')
+                if not file_input:
+                    # Try common selectors
+                    for sel in ['input[accept*="image"]', '#photo', '#file', '.upload input']:
+                        file_input = page.query_selector(sel)
+                        if file_input:
+                            break
+
+                if not file_input:
+                    logger.error("Search4Faces Playwright: no file input found on page")
+                    return Search4FacesResults(
+                        success=False, matches=[], database_searched=database,
+                        error="No file input found on search page"
+                    )
+
+                logger.info("Search4Faces Playwright: uploading image...")
+                file_input.set_input_files(temp_path)
+
+                # Wait for upload processing
+                time.sleep(2)
+
+                # Click the search/submit button
+                search_btn = page.query_selector('button[type="submit"], input[type="submit"], .search-btn, #search, button:has-text("Search"), button:has-text("Поиск")')
+                if search_btn:
+                    search_btn.click()
+                else:
+                    # Try pressing Enter as fallback
+                    page.keyboard.press('Enter')
+
+                # Wait for results to load
+                logger.info("Search4Faces Playwright: waiting for results...")
+                try:
+                    # Wait for result cards or VK/OK links to appear
+                    page.wait_for_selector(
+                        'a[href*="vk.com/"], a[href*="ok.ru/"], .result, [class*="result"]',
+                        timeout=45000
+                    )
+                    time.sleep(2)  # Extra wait for dynamic rendering
+                except Exception as e:
+                    # Page might have loaded but with no results
+                    logger.info(f"Search4Faces Playwright: no result elements appeared (may be no matches): {e}")
+
+                # Get page content and parse
+                html = page.content()
+            finally:
+                browser.close()
 
         # Parse the results HTML
         matches = parse_search_results(html, database)
@@ -372,8 +373,8 @@ def _search_via_playwright(image_data: bytes, filename: str, database: str, max_
         if temp_path and os.path.exists(temp_path):
             try:
                 os.unlink(temp_path)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[Search4Faces] Temp file cleanup failed: {e}")
 
 
 # ── Main entry point ────────────────────────────────────────────────
@@ -585,8 +586,8 @@ def _extract_similarity_near(element) -> Optional[float]:
         if pct_match:
             val = float(pct_match.group(1))
             return val / 100.0 if val > 1.0 else val
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"[Search4Faces] Similarity extraction failed: {e}")
     return None
 
 

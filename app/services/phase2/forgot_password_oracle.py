@@ -726,7 +726,8 @@ class VKUsernameForgotChecker:
                                 'status': response.status,
                                 'body': body,
                             })
-                        except Exception:
+                        except Exception as e:
+                            logger.debug(f"[ForgotPasswordOracle] API response body read failed: {e}")
                             captured_api_responses.append({
                                 'url': url,
                                 'status': response.status,
@@ -736,7 +737,7 @@ class VKUsernameForgotChecker:
                 page.on('response', _on_response)
 
                 # Navigate to VK ID restore page
-                page.goto(self.RESTORE_URL, wait_until='networkidle')
+                page.goto(self.RESTORE_URL, wait_until='networkidle', timeout=30000)
                 time.sleep(random.uniform(1.0, 2.0))
 
                 body_text = page.locator('body').inner_text()
@@ -782,8 +783,8 @@ class VKUsernameForgotChecker:
                 # Wait for SPA to load the response
                 try:
                     page.wait_for_load_state('networkidle', timeout=15000)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"[ForgotPasswordOracle] networkidle wait timed out: {e}")
                 # Extra wait for SPA rendering
                 time.sleep(random.uniform(1.5, 3.0))
 
@@ -1417,8 +1418,8 @@ class TelegramChecker(ForgotPasswordChecker):
             finally:
                 try:
                     await client.disconnect()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"[ForgotPasswordOracle] Telegram disconnect error: {e}")
 
         try:
             # Run async code in a new event loop (safe from sync context)

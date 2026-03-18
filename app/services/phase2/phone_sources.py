@@ -306,8 +306,8 @@ class NumBusterChecker:
                 if comments_elem:
                     try:
                         result['reviews'] = int(re.search(r'\d+', comments_elem.get_text()).group())
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"[PhoneSources] Reviews parse failed: {e}")
 
                 return result if result else None
 
@@ -851,7 +851,8 @@ class OKPhoneSearcher:
                                                 'ok_profile': link,
                                                 'source': 'ok_web'
                                             }
-                except:
+                except Exception as e:
+                    logger.debug(f"[PhoneSources] OK.ru profile parse failed: {e}")
                     continue
 
         except Exception as e:
@@ -1124,7 +1125,8 @@ class TrueCallerChecker:
                                 # Check if it looks like a name (not phone number)
                                 if re.match(r'^[А-ЯЁA-Z][а-яёa-z]+', text):
                                     return {'name': text, 'source': url.split('/')[2]}
-                    except:
+                    except Exception as e:
+                        logger.debug(f"[PhoneSources] Alt service parse failed: {e}")
                         continue
 
         except Exception as e:
@@ -1318,8 +1320,8 @@ class SyncMeChecker:
                                 name = name_elem.get_text(strip=True)
                                 if re.match(r'^[А-ЯЁA-Z]', name):
                                     return {'name': name, 'source': '114.ru'}
-                except:
-                    pass
+                except Exception as e:
+                    logger.debug(f"[PhoneSources] 114.ru parse failed: {e}")
 
             # Try spravnik.com (Russian phone database)
             try:
@@ -1334,8 +1336,8 @@ class SyncMeChecker:
                         text = owner_elem.get_text(strip=True)
                         if re.match(r'^[А-ЯЁA-Z][а-яёa-z]+', text) and 'телефон' not in text.lower():
                             return {'name': text, 'source': 'spravnik'}
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"[PhoneSources] spravnik.com parse failed: {e}")
 
         except Exception as e:
             logger.debug(f"Alternative caller ID error: {e}")
@@ -1473,8 +1475,8 @@ class CallAppChecker:
                                 result.name_found = name
                                 result.confidence = 0.65
                                 result.details = {'source': 'phonenumber.to'}
-                except:
-                    pass
+                except Exception as e:
+                    logger.debug(f"[PhoneSources] phonenumber.to parse failed: {e}")
 
             # Try findandtrace.com
             if not result.name_found:
@@ -1491,8 +1493,8 @@ class CallAppChecker:
                             result.carrier = carrier_elem.get_text(strip=True)
                             result.confidence = 0.40
                             result.details = {'carrier': result.carrier}
-                except:
-                    pass
+                except Exception as e:
+                    logger.debug(f"[PhoneSources] findandtrace.com parse failed: {e}")
 
         except Exception as e:
             result.error = str(e)

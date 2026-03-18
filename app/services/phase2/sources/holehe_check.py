@@ -44,8 +44,8 @@ def _run_holehe_sync(email: str, timeout: float = 45.0) -> list:
             for website_func in websites:
                 try:
                     await website_func(email_addr, client, out)
-                except Exception:
-                    pass  # Individual module failures are expected
+                except Exception as e:
+                    logger.debug(f"[Holehe] Module {website_func.__name__} failed: {e}")
         return out
 
     # trio.run() blocks the calling thread, which is fine in our ThreadPoolExecutor

@@ -320,89 +320,89 @@ class BankruptcyService:
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
-                context = browser.new_context(
-                    user_agent=HEADERS['User-Agent'],
-                    locale='ru-RU',
-                )
-                page = context.new_page()
-                page.set_default_timeout(self.timeout * 1000)
-
-                # Navigate to search page
                 try:
-                    page.goto(
-                        self.SEARCH_URL,
-                        wait_until='networkidle',
-                        timeout=self.timeout * 1000,
+                    context = browser.new_context(
+                        user_agent=HEADERS['User-Agent'],
+                        locale='ru-RU',
                     )
-                except Exception as e:
-                    logger.debug(f"[BankruptcyService] networkidle timeout, falling back to domcontentloaded: {e}")
-                    page.goto(
-                        self.SEARCH_URL,
-                        wait_until='domcontentloaded',
-                        timeout=self.timeout * 1000,
+                    page = context.new_page()
+                    page.set_default_timeout(self.timeout * 1000)
+
+                    # Navigate to search page
+                    try:
+                        page.goto(
+                            self.SEARCH_URL,
+                            wait_until='networkidle',
+                            timeout=self.timeout * 1000,
+                        )
+                    except Exception as e:
+                        logger.debug(f"[BankruptcyService] networkidle timeout, falling back to domcontentloaded: {e}")
+                        page.goto(
+                            self.SEARCH_URL,
+                            wait_until='domcontentloaded',
+                            timeout=self.timeout * 1000,
+                        )
+                        page.wait_for_timeout(5000)
+
+                    # Select "Физические лица" (physical persons) tab/radio if present
+                    phys_tab = page.locator(
+                        'text=Физические лица, '
+                        'input[value="Физические лица"], '
+                        '#IsPhysical, '
+                        'label:has-text("Физические лица")'
                     )
+                    if phys_tab.count() > 0:
+                        try:
+                            phys_tab.first.click()
+                            page.wait_for_timeout(1000)
+                        except Exception as e:
+                            logger.debug(f"[BankruptcyService] Could not click physical persons tab: {e}")
+
+                    # Fill search field
+                    search_input = page.locator(
+                        '#ctl00_cphBody_tbSearchByAll, '
+                        'input[name*="tbSearch"], '
+                        'input[type="text"][class*="search"], '
+                        'input#SearchString, '
+                        'input[placeholder*="поиск"], '
+                        'input[placeholder*="ФИО"]'
+                    )
+                    if search_input.count() > 0:
+                        search_input.first.fill(full_name)
+                    else:
+                        logger.warning("ЕФРСБ Playwright: search input not found")
+                        return None
+
+                    page.wait_for_timeout(500)
+
+                    # Submit search
+                    submitted = False
+                    for sel in [
+                        '#ctl00_cphBody_btnSearch',
+                        'input[type="submit"]',
+                        'button[type="submit"]',
+                        'button:has-text("Найти")',
+                        'input[value="Найти"]',
+                        'a:has-text("Найти")',
+                    ]:
+                        btn = page.locator(sel)
+                        if btn.count() > 0:
+                            btn.first.click()
+                            submitted = True
+                            break
+
+                    if not submitted:
+                        # Try pressing Enter in the search field
+                        search_input.first.press('Enter')
+
+                    # Wait for results
                     page.wait_for_timeout(5000)
 
-                # Select "Физические лица" (physical persons) tab/radio if present
-                phys_tab = page.locator(
-                    'text=Физические лица, '
-                    'input[value="Физические лица"], '
-                    '#IsPhysical, '
-                    'label:has-text("Физические лица")'
-                )
-                if phys_tab.count() > 0:
-                    try:
-                        phys_tab.first.click()
-                        page.wait_for_timeout(1000)
-                    except Exception as e:
-                        logger.debug(f"[BankruptcyService] Could not click physical persons tab: {e}")
-
-                # Fill search field
-                search_input = page.locator(
-                    '#ctl00_cphBody_tbSearchByAll, '
-                    'input[name*="tbSearch"], '
-                    'input[type="text"][class*="search"], '
-                    'input#SearchString, '
-                    'input[placeholder*="поиск"], '
-                    'input[placeholder*="ФИО"]'
-                )
-                if search_input.count() > 0:
-                    search_input.first.fill(full_name)
-                else:
-                    logger.warning("ЕФРСБ Playwright: search input not found")
+                    # Parse results from page content
+                    html = page.content()
+                    records = self._parse_playwright_html(html)
+                finally:
                     browser.close()
-                    return None
-
-                page.wait_for_timeout(500)
-
-                # Submit search
-                submitted = False
-                for sel in [
-                    '#ctl00_cphBody_btnSearch',
-                    'input[type="submit"]',
-                    'button[type="submit"]',
-                    'button:has-text("Найти")',
-                    'input[value="Найти"]',
-                    'a:has-text("Найти")',
-                ]:
-                    btn = page.locator(sel)
-                    if btn.count() > 0:
-                        btn.first.click()
-                        submitted = True
-                        break
-
-                if not submitted:
-                    # Try pressing Enter in the search field
-                    search_input.first.press('Enter')
-
-                # Wait for results
-                page.wait_for_timeout(5000)
-
-                # Parse results from page content
-                html = page.content()
-                records = self._parse_playwright_html(html)
-
-                browser.close()
 
         except Exception as e:
             logger.warning(f"ЕФРСБ Playwright scraper error: {e}")

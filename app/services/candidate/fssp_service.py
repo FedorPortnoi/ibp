@@ -743,9 +743,9 @@ class FSSPService:
                     try:
                         page.wait_for_selector(form_sel, timeout=15000)
                         logger.debug("ФССП Playwright: form found on page")
-                    except Exception:
+                    except Exception as e:
                         logger.warning(
-                            "ФССП Playwright: form not found after page load"
+                            f"ФССП Playwright: form not found after page load: {e}"
                         )
                         return None
 
@@ -766,10 +766,10 @@ class FSSPService:
                                     value=region_code,
                                 )
                                 logger.debug(f"ФССП Playwright: selected region {region_code}")
-                            except Exception:
+                            except Exception as e:
                                 logger.debug(
                                     f"ФССП Playwright: could not select "
-                                    f"region {region_code}"
+                                    f"region {region_code}: {e}"
                                 )
 
                     # Fill name fields using multiple selector strategies
@@ -860,8 +860,8 @@ class FSSPService:
                             timeout=15000,
                         )
                         logger.debug("ФССП Playwright: results container appeared")
-                    except Exception:
-                        logger.debug("ФССП Playwright: no results container selector matched within 15s")
+                    except Exception as e:
+                        logger.debug(f"ФССП Playwright: no results container selector matched within 15s: {e}")
 
                     # Parse results from all pages
                     for page_num in range(self.max_pages):

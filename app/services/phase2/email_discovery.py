@@ -451,7 +451,8 @@ class EmailDiscoveryService:
 
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return None
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[EmailDiscovery] Holehe check failed: {e}")
             return None
 
     # ── SMTP Verification ────────────────────────────────────────────
@@ -603,8 +604,8 @@ class EmailDiscoveryService:
                             verified_on=verified_on_list[:5],
                             verification='gravatar'
                         )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[EmailDiscovery] Gravatar check failed for '{email}': {e}")
             return None
 
         # Check all in parallel with semaphore
@@ -662,8 +663,8 @@ class EmailDiscoveryService:
                                 verification='pattern'
                             ))
 
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[EmailDiscovery] MX validation failed for batch: {e}")
 
         return validated
 
@@ -677,13 +678,14 @@ class EmailDiscoveryService:
             try:
                 dns.resolver.resolve(domain, 'MX')
                 return True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[EmailDiscovery] MX resolve failed for {domain}: {e}")
 
             socket.getaddrinfo(f'mail.{domain}', 25)
             return True
 
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[EmailDiscovery] MX check failed for {domain}: {e}")
             return False
 
     # ── Profile Scraping ─────────────────────────────────────────────
@@ -777,8 +779,8 @@ class EmailDiscoveryService:
                                 verified_on=['yandex_collections'],
                                 verification='likely'
                             )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[EmailDiscovery] Yandex Collections check failed: {e}")
             return None
 
         for username in usernames:

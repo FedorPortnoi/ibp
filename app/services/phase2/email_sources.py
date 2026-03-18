@@ -424,7 +424,8 @@ def smtp_verify_email(email: str, timeout: int = 10) -> Dict:
             mx_records = dns.resolver.resolve(domain, 'MX')
             mx_host = str(sorted(mx_records, key=lambda x: x.preference)[0].exchange).rstrip('.')
             result['mx_record'] = mx_host
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[EmailSources] MX resolve fallback for {domain}: {e}")
             # Fallback to common MX patterns
             mx_host = f"mail.{domain}"
             result['mx_record'] = mx_host
@@ -653,7 +654,8 @@ def enhanced_smtp_verify(email: str, timeout: int = 10) -> Dict:
             # Fallback to common MX patterns
             mx_host = f"mail.{domain}"
             result['mx_record'] = mx_host
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[EmailSources] MX resolve fallback for {domain}: {e}")
             mx_host = f"mail.{domain}"
             result['mx_record'] = mx_host
 

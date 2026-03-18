@@ -111,7 +111,8 @@ def check_gravatar_exists(email: str) -> bool:
     try:
         response = requests.head(avatar_url, timeout=5)
         return response.status_code == 200
-    except Exception:
+    except Exception as e:
+        logger.debug(f"[Gravatar] Avatar check failed for '{email}': {e}")
         return False
 
 

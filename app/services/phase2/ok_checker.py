@@ -256,8 +256,8 @@ class OKChecker:
                     result.exists = True
                     result.raw_response = data
 
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[OKChecker] Profile API check failed: {e}")
 
         return result
 

@@ -671,8 +671,8 @@ class YandexImageSearch:
                 clean = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
                 return clean.rstrip('/')
 
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[FaceSearchAPI] URL cleanup failed: {e}")
 
         return None
 

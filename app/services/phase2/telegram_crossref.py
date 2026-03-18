@@ -203,8 +203,8 @@ class TelegramCrossRef:
                         if hasattr(full_user, 'about') and full_user.about:
                             profile.bio = full_user.about
                             profile.phones_in_bio = self._extract_phones_from_text(profile.bio)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"[TelegramCrossRef] Full user profile fetch failed: {e}")
 
                     # Phone from user object (only visible if in contacts)
                     if getattr(user, 'phone', None):

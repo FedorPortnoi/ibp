@@ -88,10 +88,12 @@ def _has_mx(domain: str) -> bool:
             try:
                 dns.resolver.resolve(domain, 'A')
                 result = True
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[EmailPattern] A record resolve failed for {domain}: {e}")
                 result = False
-        except Exception:
+        except Exception as e:
             # Network error, timeout, etc. — assume good to avoid false drops.
+            logger.debug(f"[EmailPattern] MX check network error for {domain}: {e}")
             result = True
     except ImportError:
         # dnspython not installed — skip filtering.

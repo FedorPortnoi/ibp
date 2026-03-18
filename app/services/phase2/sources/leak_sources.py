@@ -352,7 +352,8 @@ class LeakDB:
                         self.insert_batch(batch, batch_size=batch_size)
                         inserted += len(batch)
                         batch = []
-                except Exception:
+                except Exception as e:
+                    logger.debug(f"[LeakSources] Row parse error: {e}")
                     errors += 1
 
         if batch:
@@ -394,7 +395,8 @@ class LeakDB:
             return False
         try:
             return self.count() > 0
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[LeakDB] Existence check failed: {e}")
             return False
 
 
@@ -487,7 +489,8 @@ class VK2012LeakSource(BaseSource):
     def is_available(self) -> bool:
         try:
             return self._db.exists and self._db.count(self.SOURCE_TAG) > 0
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[LeakSources] is_available check failed: {e}")
             return False
 
     def load_csv(self, path: str, batch_size: int = 5000) -> Dict[str, int]:
@@ -593,7 +596,8 @@ class GetContactLeakSource(BaseSource):
     def is_available(self) -> bool:
         try:
             return self._db.exists and self._db.count(self.SOURCE_TAG) > 0
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[LeakSources] is_available check failed: {e}")
             return False
 
     def load_csv(self, path: str, batch_size: int = 5000) -> Dict[str, int]:
@@ -720,7 +724,8 @@ class TelcoLeakSource(BaseSource):
     def is_available(self) -> bool:
         try:
             return self._db.exists and self._db.count(self.SOURCE_TAG) > 0
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[LeakSources] is_available check failed: {e}")
             return False
 
     def load_csv(self, path: str, carrier: str = 'unknown',
@@ -926,7 +931,8 @@ class LeakSourceManager:
         for src in self._sources:
             try:
                 count = self._db.count(src.SOURCE_TAG)
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[LeakSources] Count failed for {src.SOURCE_TAG}: {e}")
                 count = 0
             info.append({
                 'name': src.name,

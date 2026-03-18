@@ -191,8 +191,8 @@ class VideoAnalyzer:
             # Cleanup downloaded video
             try:
                 os.remove(local_path)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[VideoAnalyzer] Temp video cleanup failed: {e}")
 
         result.analysis_time = time.time() - start_time
         return result

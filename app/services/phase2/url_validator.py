@@ -4,9 +4,12 @@ URL and Username Validator for Phase 2
 Filters out garbage URLs, reserved usernames, and validates real social profiles.
 """
 
+import logging
 import re
 from typing import Optional, Set, List, Dict
 from urllib.parse import urlparse
+
+logger = logging.getLogger(__name__)
 
 # ============================================================================
 # BLACKLISTS - These are NEVER real profiles/usernames
@@ -215,8 +218,8 @@ def extract_username_from_url(url: str, platform: str = None) -> Optional[str]:
                 candidate = parts[-1] or (parts[-2] if len(parts) > 1 else None)
                 if candidate and len(candidate) >= 3:
                     return candidate
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"[URLValidator] Username extraction failed for '{url}': {e}")
 
     return None
 

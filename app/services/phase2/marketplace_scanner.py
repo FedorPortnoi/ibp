@@ -294,7 +294,7 @@ class AvitoScanner(MarketplaceScanner):
                 )
 
                 # Navigate to search results
-                page.goto(search_url, wait_until='domcontentloaded')
+                page.goto(search_url, wait_until='domcontentloaded', timeout=30000)
                 time.sleep(random.uniform(2.0, 4.0))
 
                 # Check for anti-bot / CAPTCHA
@@ -337,7 +337,7 @@ class AvitoScanner(MarketplaceScanner):
     def _extract_listing_phone(self, page, listing_url: str,
                                result: ScannerResult):
         """Navigate to a single Avito listing and extract the phone number."""
-        page.goto(listing_url, wait_until='domcontentloaded')
+        page.goto(listing_url, wait_until='domcontentloaded', timeout=30000)
         time.sleep(random.uniform(1.5, 3.0))
 
         listing = MarketplaceListing(source=self.name, url=listing_url)

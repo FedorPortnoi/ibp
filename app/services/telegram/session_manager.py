@@ -45,7 +45,8 @@ class TelegramSessionManager:
         try:
             from . import config
             return config.is_configured()
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[TelegramSession] Config check failed: {e}")
             return False
 
     @classmethod
@@ -174,7 +175,8 @@ class TelegramSessionManager:
             if not cls._client.is_connected():
                 return False
             return await cls._client.is_user_authorized()
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[TelegramSession] Auth check failed: {e}")
             return False
 
     @classmethod

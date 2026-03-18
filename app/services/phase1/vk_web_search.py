@@ -521,18 +521,20 @@ class VKWebSearch:
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
-                context = browser.new_context(
-                    storage_state=STATE_FILE,
-                    locale='ru-RU',
-                    user_agent=USER_AGENTS[0],
-                )
-                page = context.new_page()
-                page.on('response', _capture)
+                try:
+                    context = browser.new_context(
+                        storage_state=STATE_FILE,
+                        locale='ru-RU',
+                        user_agent=USER_AGENTS[0],
+                    )
+                    page = context.new_page()
+                    page.on('response', _capture)
 
-                # Navigate to any VK page — VK issues a web token on load
-                page.goto('https://vk.com/feed', wait_until='domcontentloaded', timeout=20000)
-                page.wait_for_timeout(5000)
-                browser.close()
+                    # Navigate to any VK page — VK issues a web token on load
+                    page.goto('https://vk.com/feed', wait_until='domcontentloaded', timeout=20000)
+                    page.wait_for_timeout(5000)
+                finally:
+                    browser.close()
 
         except Exception as e:
             logger.warning(f"VKWebSearch: web token extraction error: {e}")
@@ -1084,26 +1086,27 @@ def save_vk_session():
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context(locale='ru-RU')
-        page = context.new_page()
-
-        page.goto('https://vk.com', wait_until='domcontentloaded')
-
-        print("\nWaiting for you to log in... (close browser when done)")
-
         try:
-            page.wait_for_event('close', timeout=600000)
-        except Exception as e:
-            logger.debug(f"[VKWebSearch] Manual login wait ended: {e}")
+            context = browser.new_context(locale='ru-RU')
+            page = context.new_page()
 
-        context.storage_state(path=STATE_FILE)
-        print(f"\nSession saved to: {STATE_FILE}")
-        print("VK search will now work automatically!")
+            page.goto('https://vk.com', wait_until='domcontentloaded', timeout=30000)
 
-        try:
-            browser.close()
-        except Exception as e:
-            logger.debug(f"[VKWebSearch] Browser close after manual login: {e}")
+            print("\nWaiting for you to log in... (close browser when done)")
+
+            try:
+                page.wait_for_event('close', timeout=600000)
+            except Exception as e:
+                logger.debug(f"[VKWebSearch] Manual login wait ended: {e}")
+
+            context.storage_state(path=STATE_FILE)
+            print(f"\nSession saved to: {STATE_FILE}")
+            print("VK search will now work automatically!")
+        finally:
+            try:
+                browser.close()
+            except Exception as e:
+                logger.debug(f"[VKWebSearch] Browser close after manual login: {e}")
 
 
 if __name__ == '__main__':

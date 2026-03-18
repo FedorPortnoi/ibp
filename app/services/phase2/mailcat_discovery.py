@@ -248,7 +248,8 @@ class MailcatEmailDiscovery:
                 import dns.resolver
                 mx_records = dns.resolver.resolve(domain, 'MX')
                 mx_server = str(mx_records[0].exchange).rstrip('.')
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[MailcatDiscovery] MX resolve failed for {domain}: {e}")
                 mx_server = f'mx.{domain}'
 
         try:
