@@ -247,7 +247,23 @@ class VKWebSearch:
         4. Screen name guessing (ONLY if < 10 VERIFIED results after filtering)
 
         Each profile is a dict with VK API user fields (same format as users.get).
+
+        The query may contain a patronymic (3+ tokens, Russian LFP convention).
+        We strip the patronymic for VK API calls (VK only handles first + last)
+        but keep the original query for name order detection in verification.
         """
+        # VK API users.search only handles first + last name.
+        # Patronymic (3rd token in Russian LFP names) causes 0 results.
+        # Strip it from the API query but keep full name for matching.
+        original_query = query
+        query_tokens = query.strip().split()
+        if len(query_tokens) >= 3:
+            # Russian convention: Last First Patronymic -> send "Last First" to VK
+            vk_query = f"{query_tokens[0]} {query_tokens[1]}"
+            logger.info(f"VKWebSearch: stripped patronymic: '{query}' -> '{vk_query}'")
+        else:
+            vk_query = query
+
         all_user_ids = []
         seen_ids = set()
         id_methods = {}  # Track discovery method per user ID
@@ -261,7 +277,8 @@ class VKWebSearch:
 
         # Step 1: People search (most accurate — searches real name fields)
         web_search_ids = self._playwright_search(
-            query,
+            vk_query,
+            original_query=original_query,
             birth_day=birth_day,
             birth_month=birth_month,
             birth_year=birth_year,
@@ -269,13 +286,13 @@ class VKWebSearch:
         _add_ids(web_search_ids, 'people_search')
 
         # Step 2: Newsfeed search (supplementary — finds post authors)
-        newsfeed_ids = self._newsfeed_search(query)
+        newsfeed_ids = self._newsfeed_search(vk_query)
         _add_ids(newsfeed_ids, 'newsfeed')
 
         # Step 3: Enrich and verify results from people search + newsfeed
         verified_profiles = []
         if all_user_ids:
-            verified_profiles = self._enrich_profiles(all_user_ids, query)
+            verified_profiles = self._enrich_profiles(all_user_ids, original_query)
 
         # Step 4: Screen name guessing — only if very few verified results
         if len(verified_profiles) < 3:
@@ -283,13 +300,13 @@ class VKWebSearch:
                 f"VKWebSearch: only {len(verified_profiles)} verified results from "
                 f"people/newsfeed ({len(seen_ids)} raw IDs), trying screen name guessing..."
             )
-            guessed_ids = self._guess_screen_names(query)
+            guessed_ids = self._guess_screen_names(original_query)
             new_ids = [uid for uid in guessed_ids if uid not in seen_ids]
             if new_ids:
                 for uid in new_ids:
                     seen_ids.add(uid)
                     id_methods[uid] = 'screen_name'
-                extra_profiles = self._enrich_profiles(new_ids, query)
+                extra_profiles = self._enrich_profiles(new_ids, original_query)
                 for p in extra_profiles:
                     p['discovery_method'] = id_methods.get(p.get('id'), 'screen_name')
                 verified_profiles.extend(extra_profiles)
@@ -433,6 +450,7 @@ class VKWebSearch:
     def _playwright_search(
         self,
         query: str,
+        original_query: Optional[str] = None,
         birth_day: Optional[int] = None,
         birth_month: Optional[int] = None,
         birth_year: Optional[int] = None,
@@ -445,6 +463,11 @@ class VKWebSearch:
         2. If expired/missing: start Playwright, load session, capture web token
         3. If no session exists: auto-login first
         4. Call users.search with the web token (full user-level access)
+
+        Args:
+            query: VK API search query (2 tokens, patronymic stripped).
+            original_query: Full original query for name order detection
+                (3 tokens = LFP). Falls back to query if not provided.
 
         Returns list of VK user IDs.
         """
@@ -466,6 +489,7 @@ class VKWebSearch:
         # Step 3: Call users.search with the web token
         return self._users_search_with_token(
             web_token, query,
+            original_query=original_query,
             birth_day=birth_day,
             birth_month=birth_month,
             birth_year=birth_year,
@@ -552,6 +576,7 @@ class VKWebSearch:
 
     def _users_search_with_token(
         self, token: str, query: str,
+        original_query: Optional[str] = None,
         birth_day: Optional[int] = None,
         birth_month: Optional[int] = None,
         birth_year: Optional[int] = None,
@@ -563,10 +588,20 @@ class VKWebSearch:
         1. Real human profiles (no bots/deleted/communities)
         2. Name verification (fuzzy match against query)
 
+        Args:
+            token: VK web token for users.search.
+            query: VK API search query (2 tokens, patronymic stripped).
+            original_query: Full original query for name order detection
+                (3 tokens = LFP). Falls back to query if not provided.
+
         Returns all verified user IDs (no artificial cap).
         """
         if not self._session:
             return []
+
+        # Use original query (with patronymic) for name order detection,
+        # but stripped query for VK API call
+        name_query = original_query or query
 
         try:
             search_params = {
@@ -611,7 +646,8 @@ class VKWebSearch:
             human_items = [item for item in items if self._is_real_human_profile(item)]
 
             # Step 2: Apply name verification — detect name order from query
-            search_first, search_last = _parse_query_names(query)
+            # Use original query (with patronymic) for correct LFP name order detection
+            search_first, search_last = _parse_query_names(name_query)
             if search_first and search_last:
                 verified_items = [
                     item for item in human_items
@@ -986,10 +1022,16 @@ class VKWebSearch:
 
         return user_ids
 
-    def _enrich_profiles(self, user_ids: List[int], query: str) -> List[Dict]:
+    def _enrich_profiles(self, user_ids: List[int], query: str, original_query: Optional[str] = None) -> List[Dict]:
         """
         Enrich a list of VK user IDs with full profile data using users.get.
         Works with service token (permanent, never expires).
+
+        Args:
+            user_ids: VK user IDs to enrich.
+            query: Search query (may be 2-token stripped or full 3-token).
+            original_query: Full original query for name order detection
+                (3 tokens = LFP). Falls back to query if not provided.
 
         Returns list of VK API user dicts filtered/sorted by name match.
         """
@@ -1037,7 +1079,9 @@ class VKWebSearch:
 
         # Filter: verify each profile's actual name matches the search query
         # Uses fuzzy matching with transliteration + diminutive support
-        search_first, search_last = _parse_query_names(query)
+        # Use original query (with patronymic) for correct LFP name order detection
+        name_query = original_query or query
+        search_first, search_last = _parse_query_names(name_query)
         if search_first and search_last:
             filtered = []
             for p in profiles:

@@ -514,11 +514,14 @@ class BuratinoVKSearch:
         all_profiles_by_id: Dict[int, VKProfileResult] = {}
 
         # ── PRIMARY: VKWebSearch (web token users.search + newsfeed + screen name) ──
+        # Pass FULL query (with patronymic) to VKWebSearch — it handles
+        # patronymic stripping internally and uses the full name for
+        # correct LFP name order detection in verification.
         try:
             from app.services.phase1.vk_web_search import VKWebSearch
             web_searcher = VKWebSearch(service_token=self.token)
             raw_profiles, _ = web_searcher.search(
-                vk_query,
+                query,
                 birth_day=birth_day,
                 birth_month=birth_month,
                 birth_year=birth_year,

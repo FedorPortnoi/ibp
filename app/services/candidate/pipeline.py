@@ -435,8 +435,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                                             'company_name': company.get('name', ''),
                                             'co_founders': co_founders[:10],
                                         })
-                            except Exception:
-                                pass  # Non-critical, continue
+                            except Exception as e:
+                                logger.warning(f"Stage 0 co-founder lookup for {company_inn} failed: {e}")
                 except Exception as e:
                     logger.warning(f"Stage 0 business network analysis failed: {e}")
 

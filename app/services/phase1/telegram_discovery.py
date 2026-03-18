@@ -6,7 +6,9 @@ Finds Telegram accounts for a target using three sequential methods:
   A) VK Cross-Reference — check t.me/{vk_screen_name} for each screen_name
      passed from the frontend (extracted from VK search results).
   B) Username Guessing — generate candidate usernames from name, check t.me.
+     Uses ThreadPoolExecutor (5 workers) with 20s total budget.
   C) Telethon Directory Search — search Telegram's user directory by name.
+     Skipped entirely if no Telethon session file exists.
 
 Frontend sends VK screen_names AFTER VK search completes, so Method A uses
 real VK results instead of running a duplicate VK search.
@@ -16,6 +18,8 @@ import logging
 import os
 import re
 import time
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
@@ -38,6 +42,9 @@ class TelegramDiscoveryService:
     MAX_TELETHON_RESULTS = 100   # Max results from Telethon Method C
     MAX_TOTAL_RESULTS = 100      # Hard cap on total results
     CHECK_DELAY = 0.35           # Seconds between t.me requests
+    METHOD_B_BUDGET = 20.0       # Max seconds for Method B total
+    METHOD_B_WORKERS = 5         # Concurrent workers for Method B
+    METHOD_B_CHECK_TIMEOUT = 5   # HTTP timeout per t.me check in Method B (seconds)
 
     def __init__(self):
         from app.services.phase2.telegram_crossref import TelegramCrossRef
@@ -214,55 +221,176 @@ class TelegramDiscoveryService:
         """
         Generate plausible Telegram usernames from the name,
         check each on t.me, verify display name matches.
+
+        Uses ThreadPoolExecutor with per-worker rate limiting and a total
+        budget of METHOD_B_BUDGET seconds.  Each HTTP request uses the
+        shorter METHOD_B_CHECK_TIMEOUT instead of the default 10s.
         """
         candidates = self._generate_telegram_candidates(first_name, last_name, birth_year=birth_year)
         # Remove already checked usernames
         candidates = [c for c in candidates if c.lower() not in already_checked]
+        for c in candidates:
+            already_checked.add(c.lower())
 
-        logger.info(f"TG Method B (guessing): checking {len(candidates)} candidates...")
+        logger.info(f"TG Method B (guessing): checking {len(candidates)} candidates with {self.METHOD_B_WORKERS} workers, {self.METHOD_B_BUDGET}s budget...")
+
+        if not candidates:
+            return []
 
         found = []
-        for candidate in candidates:
-            already_checked.add(candidate.lower())
-            tg_profile = self._checker.check_username_web(candidate)
+        found_lock = threading.Lock()
+        budget_start = time.monotonic()
 
-            if tg_profile.exists and tg_profile.is_personal:
-                match = self._score_name_match(
-                    first_name, last_name, tg_profile.display_name
-                )
-                score = match['score']
+        # Per-worker rate limiting: each worker tracks its own last-request time
+        # so CHECK_DELAY is preserved within each worker thread (no overlapping
+        # requests from the same worker) while allowing parallelism across workers.
+        worker_last_request = {}
+        rate_lock = threading.Lock()
 
-                if score >= 0.6:
-                    confidence = 'высокая'
-                    source = 'Шаблон → TG: имя совпадает'
-                elif score >= 0.3:
-                    confidence = 'средняя'
-                    if 'first_name_only' in match.get('method', ''):
-                        source = 'Шаблон → TG: только имя'
-                    else:
-                        source = 'Шаблон → TG: частичное совпадение'
+        def _check_one(candidate: str) -> Optional[Dict]:
+            """Check a single username candidate.  Returns profile dict or None."""
+            # Respect budget
+            if time.monotonic() - budget_start > self.METHOD_B_BUDGET:
+                return None
+
+            # Per-worker rate limiting (keyed by thread name)
+            tid = threading.current_thread().name
+            with rate_lock:
+                last = worker_last_request.get(tid, 0.0)
+            elapsed = time.monotonic() - last
+            if elapsed < self.CHECK_DELAY:
+                time.sleep(self.CHECK_DELAY - elapsed)
+
+            # Re-check budget after sleep
+            if time.monotonic() - budget_start > self.METHOD_B_BUDGET:
+                return None
+
+            # Use a dedicated requests call with the shorter timeout
+            try:
+                tg_profile = self._check_username_web_fast(candidate, timeout=self.METHOD_B_CHECK_TIMEOUT)
+            finally:
+                with rate_lock:
+                    worker_last_request[tid] = time.monotonic()
+
+            if tg_profile is None or not tg_profile.exists or not tg_profile.is_personal:
+                return None
+
+            match = self._score_name_match(
+                first_name, last_name, tg_profile.display_name
+            )
+            score = match['score']
+
+            if score >= 0.6:
+                confidence = 'высокая'
+                source = 'Шаблон → TG: имя совпадает'
+            elif score >= 0.3:
+                confidence = 'средняя'
+                if 'first_name_only' in match.get('method', ''):
+                    source = 'Шаблон → TG: только имя'
                 else:
-                    confidence = 'низкая'
-                    source = 'Шаблон → TG: имя не совпадает'
+                    source = 'Шаблон → TG: частичное совпадение'
+            else:
+                confidence = 'низкая'
+                source = 'Шаблон → TG: имя не совпадает'
 
-                profile_dict = self._to_dict(
-                    tg_profile,
-                    confidence=confidence,
-                    source=source,
-                )
-                found.append(profile_dict)
-                logger.info(
-                    f"TG Method B: found @{candidate} — "
-                    f"\"{tg_profile.display_name}\" "
-                    f"(score={score:.2f}, {confidence}) [{source}]"
-                )
+            profile_dict = self._to_dict(
+                tg_profile,
+                confidence=confidence,
+                source=source,
+            )
+            logger.info(
+                f"TG Method B: found @{candidate} — "
+                f"\"{tg_profile.display_name}\" "
+                f"(score={score:.2f}, {confidence}) [{source}]"
+            )
+            return profile_dict
+
+        # Run checks concurrently with a hard budget cap
+        checked_count = 0
+        remaining_budget = self.METHOD_B_BUDGET - (time.monotonic() - budget_start)
+        with ThreadPoolExecutor(max_workers=self.METHOD_B_WORKERS, thread_name_prefix='tg_b') as pool:
+            futures = {pool.submit(_check_one, c): c for c in candidates}
+            try:
+                for future in as_completed(futures, timeout=max(remaining_budget, 0.1)):
+                    checked_count += 1
+                    try:
+                        result = future.result(timeout=1)
+                        if result is not None:
+                            with found_lock:
+                                found.append(result)
+                    except Exception:
+                        pass
+            except TimeoutError:
+                # Budget exhausted — cancel remaining futures
+                for f in futures:
+                    f.cancel()
+                logger.info(f"TG Method B: budget exhausted after {self.METHOD_B_BUDGET}s, checked {checked_count}/{len(candidates)}")
 
         # Sort: высокая first, then средняя, then низкая
         confidence_order = {'высокая': 0, 'средняя': 1, 'низкая': 2}
         found.sort(key=lambda p: confidence_order.get(p.get('confidence', ''), 3))
 
-        logger.info(f"TG Method B (guessing): checked {len(candidates)}, found {len(found)}")
+        elapsed = time.monotonic() - budget_start
+        logger.info(f"TG Method B (guessing): checked {checked_count}/{len(candidates)} in {elapsed:.1f}s, found {len(found)}")
         return found
+
+    def _check_username_web_fast(self, username: str, timeout: int = 5):
+        """
+        Lightweight t.me check with a custom (shorter) timeout.
+        Delegates to the checker's check_username_web but overrides the
+        HTTP timeout.  Does NOT call the checker's _rate_limit() because
+        Method B manages its own per-worker rate limiting.
+        """
+        from app.services.phase2.telegram_crossref import TelegramProfile
+        username = username.lstrip('@').strip()
+        if not username or len(username) < 2:
+            return TelegramProfile(error='Username too short')
+        if username.startswith('id') and username[2:].isdigit():
+            return TelegramProfile(error='Numeric VK ID, not a username')
+
+        try:
+            url = f'https://t.me/{username}'
+            resp = self._checker.session.get(url, timeout=timeout)
+            if resp.status_code != 200:
+                return TelegramProfile(error=f'HTTP {resp.status_code}')
+
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            title_div = soup.find('div', class_='tgme_page_title')
+            if not title_div:
+                return TelegramProfile(exists=False, username=username)
+
+            profile = TelegramProfile(exists=True, username=username)
+            profile.display_name = title_div.get_text(strip=True).rstrip('\u2714').strip()
+
+            desc_div = soup.find('div', class_='tgme_page_description')
+            if desc_div:
+                profile.bio = desc_div.get_text(strip=True)
+
+            extra_div = soup.find('div', class_='tgme_page_extra')
+            extra_text = extra_div.get_text(strip=True) if extra_div else ''
+            action_div = soup.find('div', class_='tgme_page_action')
+            action_text = action_div.get_text(strip=True) if action_div else ''
+
+            is_channel = 'subscriber' in extra_text.lower()
+            is_group = 'member' in extra_text.lower()
+            is_bot = 'Start Bot' in action_text or 'bot' in action_text.lower()
+            profile.is_personal = not is_channel and not is_group and not is_bot
+
+            photo_div = soup.find('div', class_='tgme_page_photo')
+            if photo_div:
+                img = photo_div.find('img')
+                if img and img.get('src'):
+                    profile.photo_url = img['src']
+
+            if profile.bio:
+                profile.phones_in_bio = self._checker._extract_phones_from_text(profile.bio)
+
+            return profile
+
+        except Exception as e:
+            logger.debug(f"TG Method B fast check error for @{username}: {e}")
+            return TelegramProfile(error=str(e), username=username)
 
     # ─────────────────────────────────────────────────────────────
     # Method C: Telethon Directory Search
@@ -277,6 +405,10 @@ class TelegramDiscoveryService:
         """
         Use Telethon's contacts.SearchRequest to find Telegram users by name.
         Searches Cyrillic name, diminutive variants, and Latin transliteration.
+
+        Skipped entirely if:
+        - Telethon credentials are not configured
+        - Telethon session file does not exist (avoids waiting for auth prompt)
         """
         api_id = os.environ.get('TELEGRAM_API_ID', '')
         api_hash = os.environ.get('TELEGRAM_API_HASH', '')
@@ -286,16 +418,22 @@ class TelegramDiscoveryService:
             logger.info("TG Method C: Telethon credentials not configured, skipping")
             return []
 
+        # Pre-check: skip if session file doesn't exist (avoids connection/auth delays)
+        session_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            '..', '..', '..', 'tg_session'
+        )
+        session_file = os.path.join(session_dir, 'ibp_session.session')
+        if not os.path.exists(session_file):
+            logger.info("TG Method C: Telethon session file not found, skipping (run: python scripts/auth_telegram.py)")
+            return []
+
         try:
             import asyncio
             from telethon import TelegramClient
             from telethon.tl.functions.contacts import SearchRequest
             from telethon.errors import FloodWaitError
 
-            session_dir = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                '..', '..', '..', 'tg_session'
-            )
             os.makedirs(session_dir, exist_ok=True)
             session_path = os.path.join(session_dir, 'ibp_session')
 

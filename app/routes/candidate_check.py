@@ -503,14 +503,16 @@ def export_pdf(check_id):
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
-            page.set_content(html_str, wait_until='networkidle')
-            pdf_bytes = page.pdf(
-                format='A4',
-                margin={'top': '1.5cm', 'bottom': '2cm', 'left': '1.5cm', 'right': '1.5cm'},
-                print_background=True,
-            )
-            browser.close()
+            try:
+                page = browser.new_page()
+                page.set_content(html_str, wait_until='networkidle')
+                pdf_bytes = page.pdf(
+                    format='A4',
+                    margin={'top': '1.5cm', 'bottom': '2cm', 'left': '1.5cm', 'right': '1.5cm'},
+                    print_background=True,
+                )
+            finally:
+                browser.close()
     except Exception as e:
         logger.error(f"PDF generation failed for check {check_id}: {e}")
         return jsonify({'error': 'Ошибка генерации PDF. Используйте кнопку "Печать".'}), 500
