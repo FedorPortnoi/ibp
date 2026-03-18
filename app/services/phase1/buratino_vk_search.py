@@ -496,9 +496,19 @@ class BuratinoVKSearch:
         if not target_name:
             target_name = query
 
+        # VK API users.search only handles first + last name.
+        # Patronymic (3rd token in Russian LFP names) causes 0 results.
+        # Strip it from the API query but keep full name for matching.
+        vk_query = query
+        query_tokens = query.strip().split()
+        if len(query_tokens) >= 3:
+            # Russian convention: Last First Patronymic → send "Last First" to VK
+            vk_query = f"{query_tokens[0]} {query_tokens[1]}"
+            logger.info(f"VK search: stripped patronymic: '{query}' -> '{vk_query}'")
+
         # ── Demo mode ──
         if self._demo_mode:
-            return self._demo_search(query, city, age_from, age_to, count, target_name)
+            return self._demo_search(vk_query, city, age_from, age_to, count, target_name)
 
         all_profiles_by_id: Dict[int, VKProfileResult] = {}
 
@@ -507,7 +517,7 @@ class BuratinoVKSearch:
             from app.services.phase1.vk_web_search import VKWebSearch
             web_searcher = VKWebSearch(service_token=self.token)
             raw_profiles, _ = web_searcher.search(
-                query,
+                vk_query,
                 birth_day=birth_day,
                 birth_month=birth_month,
                 birth_year=birth_year,
@@ -521,6 +531,49 @@ class BuratinoVKSearch:
             logger.info(f"VK search: {len(all_profiles_by_id)} matching profiles for '{query}'")
         except Exception as e:
             logger.warning(f"VK web search failed: {e}")
+
+        # ── FALLBACK: Direct users.search with VK_USER_TOKEN ──
+        # VKWebSearch may return 0 if the web token is expired/missing.
+        # VK_USER_TOKEN (from OAuth) can also call users.search.
+        if not all_profiles_by_id and self.session:
+            user_token = os.environ.get("VK_USER_TOKEN") or os.environ.get("VK_TOKEN")
+            if user_token:
+                try:
+                    self._rate_limit()
+                    params = {
+                        'q': vk_query,
+                        'count': 100,
+                        'fields': ','.join(self.PROFILE_FIELDS),
+                        'access_token': user_token,
+                        'v': self.API_VERSION,
+                    }
+                    if birth_year:
+                        params['birth_year'] = birth_year
+                    resp = self.session.post(
+                        f"{self.API_BASE_URL}/users.search",
+                        data=params, timeout=15,
+                    )
+                    data = resp.json()
+                    if 'error' in data:
+                        err = data['error']
+                        logger.warning(
+                            f"VK users.search fallback error {err.get('error_code')}: "
+                            f"{err.get('error_msg')}"
+                        )
+                    else:
+                        items = data.get('response', {}).get('items', [])
+                        for item in items:
+                            vk_id = item.get('id')
+                            if vk_id and vk_id not in all_profiles_by_id:
+                                profile = self._parse_profile(item, target_name)
+                                if profile.name_match:
+                                    all_profiles_by_id[vk_id] = profile
+                        logger.info(
+                            f"VK fallback users.search: {len(items)} raw, "
+                            f"{len(all_profiles_by_id)} matched for '{query}'"
+                        )
+                except Exception as e:
+                    logger.warning(f"VK users.search fallback error: {e}")
 
         # ── Apply filters ──
         if city or age_from or age_to:
