@@ -58,7 +58,7 @@ When `VK_SERVICE_TOKEN` is unset, VK returns fake profiles. OK.ru returns demo p
 app/
   __init__.py              # App factory, 13 blueprints, extensions
   models/
-    candidate_check.py     # PRIMARY — 33+ fields, 9-stage JSON properties
+    candidate_check.py     # PRIMARY — 53 fields (incl. 7 task tracking), 9-stage JSON properties
     investigation.py       # Legacy Buratino model
     social_profile.py      # VK/OK/TG profiles linked to Investigation
     friend.py              # Social graph connections
@@ -197,7 +197,7 @@ tests/
 
 | Model | Table | Purpose |
 |-------|-------|---------|
-| `CandidateCheck` | `candidate_checks` | **Primary** — 33+ fields, JSON properties for all 9 stages |
+| `CandidateCheck` | `candidate_checks` | **Primary** — 53 fields (incl. 7 task tracking), JSON properties for all 9 stages |
 | `Investigation` | `investigations` | Legacy Buratino — multi-phase investigation |
 | `SocialProfile` | `social_profiles` | VK/OK/TG profiles linked to Investigation |
 | `Friend` | `friends` | Social graph with centrality_score, community_id |
@@ -226,8 +226,11 @@ tests/
 ## Async Task Pattern
 
 All long-running operations run in background threads:
-- `CandidateTaskStatus` / `Phase2TaskStatus` / `Phase3TaskStatus` — in-memory progress objects
-- Frontend polls `GET /candidate/progress/<task_id>/status` for live JSON updates
+- `CandidateTaskStatus` — in-memory progress objects **+ DB-backed** for cross-worker visibility
+- Task progress persisted to `CandidateCheck` model (7 `task_*` columns) via `_sync_to_db()` on every `task.update()` call
+- Frontend polls `GET /candidate/progress/<task_id>/status` — reads in-memory first, falls back to DB (gunicorn multi-worker safe)
+- `task_id` stored on `CandidateCheck` with indexed column for fast cross-worker lookup
+- Auto-migration adds task columns to existing databases on startup (`_migrate_task_columns()`)
 - Cancel via status flag. Auto-cleanup after 3600s.
 - Max 10 concurrent candidate checks.
 
@@ -347,6 +350,8 @@ Use `-p no:faulthandler` on Windows to avoid I/O capture bugs.
 8. **Rusprofile anti-bot**: 403/429 under load. Falls through to nalog.ru EGRUL.
 9. **Forgot-password oracle geo-blocking**: Gosuslugi/Sberbank skipped unless `ENABLE_GEO_RESTRICTED_CHECKERS=1`.
 10. **Many legacy templates deleted**: Phase 1-3 routes render templates that no longer exist on disk. Only candidate pipeline templates are current.
+11. **Interpol API intermittent 502**: Returns 502/503 under load. Handled with graceful fallback message (fixed March 2026).
+12. **sudact.ru selector changes**: Site structure changes periodically. Court scraper uses 6 alternative selectors with retry (fixed March 2026).
 
 ## Deprecated Code (still functional)
 
