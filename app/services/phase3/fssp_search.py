@@ -275,8 +275,8 @@ class FSSPSearch:
                             'url': response.url,
                             'body': body.decode('utf-8', errors='replace'),
                         })
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"[FSSPSearch] AJAX response parse failed: {e}")
 
             page.on('response', on_response)
 

@@ -350,7 +350,8 @@ class BuratinoVKSearch:
         try:
             from transliterate import translit
             return translit(text, 'ru', reversed=True).lower()
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[VKSearch] Transliteration fallback: {e}")
             # Basic transliteration fallback
             table = {
                 'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e',
@@ -866,8 +867,8 @@ class BuratinoVKSearch:
                                 if uid not in all_profiles:
                                     resolved_ids.append(uid)
                             time.sleep(0.35)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug(f"[VKSearch] resolveScreenName failed: {e}")
 
                     # Enrich resolved IDs (name verification applied inside _enrich_profiles)
                     if resolved_ids:

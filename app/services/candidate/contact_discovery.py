@@ -1409,7 +1409,8 @@ class ContactDiscoveryService:
         token, aes_key, device_id = credentials
         try:
             api = GetContactAPI(token=token, aes_key=aes_key, device_id=device_id or '14130e29cebe9c39')
-        except Exception:
+        except Exception as e:
+            logger.warning(f"[ContactDiscovery] GetContact API init failed: {e}")
             return None
 
         for candidate in candidates:

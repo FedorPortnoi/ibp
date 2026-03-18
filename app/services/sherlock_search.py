@@ -41,8 +41,8 @@ def _resolve_sherlock() -> Optional[str]:
         )
         if result.returncode == 0:
             return 'cli'
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"[Sherlock] CLI not found: {e}")
 
     # 2. Python module
     try:
@@ -52,8 +52,8 @@ def _resolve_sherlock() -> Optional[str]:
         )
         if result.returncode == 0:
             return 'module'
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"[Sherlock] Module not found: {e}")
 
     # 3. OSINT_TOOLS_DIR
     osint_dir = os.environ.get('OSINT_TOOLS_DIR')

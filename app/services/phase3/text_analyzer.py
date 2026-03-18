@@ -187,8 +187,8 @@ class TextAnalyzer:
                     else:
                         dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
                     posting_times.append(dt.hour)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"[TextAnalyzer] Date parse failed for '{date_str}': {e}")
 
             # Tokenize and collect words
             words = self._tokenize(text)
@@ -252,8 +252,8 @@ class TextAnalyzer:
                 parsed = self.morph.parse(word)
                 if parsed:
                     return parsed[0].normal_form
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[TextAnalyzer] Lemmatize failed for '{word}': {e}")
         return word
 
     def _analyze_sentiment(self, words: List[str]) -> SentimentResult:

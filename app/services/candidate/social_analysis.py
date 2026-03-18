@@ -305,8 +305,8 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
         if task_status_callback:
             try:
                 task_status_callback('social_analysis', msg, pct)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[SocialAnalysis] Status callback failed: {e}")
 
     # Get profiles to work with
     confirmed = check.confirmed_profiles or check.social_media_profiles or []

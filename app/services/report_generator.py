@@ -92,7 +92,8 @@ class ReportGenerator:
         if isinstance(profiles, str):
             try:
                 profiles = json.loads(profiles)
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[ReportGenerator] Failed to parse profiles JSON: {e}")
                 profiles = []
         data.profiles = profiles[:10]
 
@@ -101,7 +102,8 @@ class ReportGenerator:
         if isinstance(aliases, str):
             try:
                 aliases = json.loads(aliases)
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[ReportGenerator] Failed to parse aliases JSON: {e}")
                 aliases = []
         data.aliases = list(set(aliases))[:10]
 
@@ -110,7 +112,8 @@ class ReportGenerator:
         if isinstance(phones, str):
             try:
                 phones = json.loads(phones)
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[ReportGenerator] Failed to parse phones JSON: {e}")
                 phones = []
         data.phones = [p.get('number', p) if isinstance(p, dict) else str(p) for p in phones][:5]
 
@@ -119,7 +122,8 @@ class ReportGenerator:
         if isinstance(emails, str):
             try:
                 emails = json.loads(emails)
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[ReportGenerator] Failed to parse emails JSON: {e}")
                 emails = []
         data.emails = [e.get('email', e) if isinstance(e, dict) else str(e) for e in emails][:5]
 
@@ -128,7 +132,8 @@ class ReportGenerator:
         if isinstance(business, str):
             try:
                 business = json.loads(business)
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[ReportGenerator] Failed to parse business JSON: {e}")
                 business = []
         data.companies = business
 
@@ -137,7 +142,8 @@ class ReportGenerator:
         if isinstance(courts, str):
             try:
                 courts = json.loads(courts)
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[ReportGenerator] Failed to parse courts JSON: {e}")
                 courts = []
         data.court_cases = courts
 
@@ -146,7 +152,8 @@ class ReportGenerator:
         if isinstance(enforcement, str):
             try:
                 enforcement = json.loads(enforcement)
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[ReportGenerator] Failed to parse enforcement JSON: {e}")
                 enforcement = []
         data.enforcement_records = enforcement
 
@@ -155,7 +162,8 @@ class ReportGenerator:
         if isinstance(connections, str):
             try:
                 connections = json.loads(connections)
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[ReportGenerator] Failed to parse connections JSON: {e}")
                 connections = []
         data.social_connections = connections[:10]
         data.friends_count = investigation.get('friends_count', 0) or 0
@@ -165,7 +173,8 @@ class ReportGenerator:
         if isinstance(risks, str):
             try:
                 risks = json.loads(risks)
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[ReportGenerator] Failed to parse risks JSON: {e}")
                 risks = []
         data.risk_indicators = risks
 

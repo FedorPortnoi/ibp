@@ -627,8 +627,8 @@ class RiskScorer:
                                 'Неактивный профиль: нет постов более 12 месяцев',
                                 details=f'Последний пост: {days_since} дней назад',
                             ))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"[RiskScorer] Error parsing activity dates: {e}")
 
         return flags
 

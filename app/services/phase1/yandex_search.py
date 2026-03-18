@@ -171,8 +171,8 @@ class YandexNameSearch:
             # Close context (not browser — keep singleton alive)
             try:
                 context.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[YandexSearch] Context close failed: {e}")
 
             return profiles
 
@@ -181,8 +181,8 @@ class YandexNameSearch:
             if page:
                 try:
                     page.context.close()
-                except Exception:
-                    pass
+                except Exception as close_err:
+                    logger.debug(f"[YandexSearch] Context close during error: {close_err}")
             return []
 
     @classmethod
@@ -198,8 +198,8 @@ class YandexNameSearch:
             if cls._playwright:
                 try:
                     cls._playwright.stop()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"[YandexSearch] Playwright stop failed: {e}")
 
             cls._playwright = sync_playwright().start()
             cls._browser = cls._playwright.chromium.launch(
@@ -226,8 +226,8 @@ class YandexNameSearch:
             url = page.url.lower()
             if 'captcha' in url or 'showcaptcha' in url:
                 return True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[YandexSearch] Captcha URL check failed: {e}")
 
         # Check for captcha-related elements in DOM
         captcha_selectors = [
@@ -243,7 +243,8 @@ class YandexNameSearch:
                 el = page.locator(sel).first
                 if el.is_visible(timeout=500):
                     return True
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[YandexSearch] Captcha selector '{sel}' check failed: {e}")
                 continue
 
         # Check page text for confirmation prompts
@@ -251,8 +252,8 @@ class YandexNameSearch:
             body_text = page.locator('body').inner_text(timeout=1000)
             if any(s in body_text for s in ['Подтвердите', 'не робот', 'I\'m not a robot']):
                 return True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[YandexSearch] Body text captcha check failed: {e}")
 
         return False
 
@@ -263,8 +264,8 @@ class YandexNameSearch:
             for _ in range(3):
                 page.evaluate('window.scrollBy(0, window.innerHeight * 0.8)')
                 page.wait_for_timeout(random.randint(800, 1500))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[YandexSearch] Scroll failed: {e}")
 
     def _parse_people_cards(
         self,
@@ -618,14 +619,14 @@ class YandexNameSearch:
         if cls._browser:
             try:
                 cls._browser.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[YandexSearch] Browser close on shutdown: {e}")
             cls._browser = None
         if cls._playwright:
             try:
                 cls._playwright.stop()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[YandexSearch] Playwright stop on shutdown: {e}")
             cls._playwright = None
         logger.info("Yandex Playwright: browser shut down")
 

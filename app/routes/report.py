@@ -11,7 +11,7 @@ from datetime import datetime
 import json
 import io
 
-from app import limiter
+from app import limiter, csrf
 
 report_bp = Blueprint('report', __name__, url_prefix='/report')
 logger = logging.getLogger(__name__)
@@ -216,6 +216,7 @@ def get_investigation_data(investigation_id):
 
 
 @report_bp.route('/generate', methods=['POST'])
+@csrf.exempt
 @limiter.limit("10 per minute")
 def generate():
     """Generate identity card HTML from investigation data."""
@@ -261,11 +262,12 @@ def generate():
 
 
 @report_bp.route('/download/html', methods=['POST'])
+@csrf.exempt
 @limiter.limit("5 per minute")
 def download_html():
     """Download identity card as HTML file."""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             return jsonify({'error': 'Данные не предоставлены'}), 400
 
@@ -288,11 +290,12 @@ def download_html():
 
 
 @report_bp.route('/download/pdf', methods=['POST'])
+@csrf.exempt
 @limiter.limit("5 per minute")
 def download_pdf():
     """Download investigation report as PDF."""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             return jsonify({'error': 'Данные не предоставлены'}), 400
 
@@ -318,11 +321,12 @@ def download_pdf():
 
 
 @report_bp.route('/download/json', methods=['POST'])
+@csrf.exempt
 @limiter.limit("5 per minute")
 def download_json():
     """Download investigation data as JSON."""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data:
             return jsonify({'error': 'Данные не предоставлены'}), 400
 

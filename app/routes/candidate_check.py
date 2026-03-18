@@ -118,6 +118,8 @@ def start_check():
 
     # --- Create DB record ---
     check_id = uuid.uuid4().hex
+    task_id = uuid.uuid4().hex
+
     check = CandidateCheck(
         id=check_id,
         full_name=full_name,
@@ -131,6 +133,8 @@ def start_check():
         email=email or None,
         status='pending',
         check_mode=check_mode,
+        task_id=task_id,
+        task_started_at=datetime.utcnow(),
     )
     db.session.add(check)
     db.session.commit()
@@ -145,7 +149,6 @@ def start_check():
     if active_count >= 10:
         return _error('Слишком много активных проверок. Дождитесь завершения текущих.', 429)
 
-    task_id = uuid.uuid4().hex
     task = CandidateTaskStatus(task_id, check_id, full_name)
     candidate_tasks[task_id] = task
 
@@ -174,34 +177,48 @@ def start_check():
 @candidate_bp.route('/progress/<task_id>')
 def progress_page(task_id):
     """Render progress page — polls /candidate/progress/<task_id>/status via JS."""
+    # Try in-memory first (same worker)
     task = candidate_tasks.get(task_id)
-    if not task:
-        return render_template('errors/404.html'), 404
+    if task:
+        return render_template(
+            'candidate_progress.html',
+            task_id=task_id,
+            check_id=task.check_id,
+            full_name=task.full_name,
+        )
 
-    return render_template(
-        'candidate_progress.html',
-        task_id=task_id,
-        check_id=task.check_id,
-        full_name=task.full_name,
-    )
+    # DB fallback (cross-worker)
+    check = CandidateCheck.query.filter_by(task_id=task_id).first()
+    if check:
+        return render_template(
+            'candidate_progress.html',
+            task_id=task_id,
+            check_id=check.id,
+            full_name=check.full_name,
+        )
+
+    return render_template('errors/404.html'), 404
 
 
 @candidate_bp.route('/progress/<task_id>/status')
 def progress_status(task_id):
     """JSON polling endpoint for progress updates — 8 stages."""
+    # Try in-memory first (most up-to-date on same worker)
     task = candidate_tasks.get(task_id)
-    if not task:
+    if task:
+        data = task.to_dict()
+        check = CandidateCheck.query.get(task.check_id)
+        if check and check.status == 'awaiting_confirmation':
+            data['status'] = 'awaiting_confirmation'
+            data['confirmation_url'] = f'/candidate/confirm/{check.id}'
+        return jsonify(data)
+
+    # DB fallback (cross-worker — reads progress from DB)
+    check = CandidateCheck.query.filter_by(task_id=task_id).first()
+    if not check:
         return jsonify({'error': 'Задача не найдена'}), 404
 
-    data = task.to_dict()
-
-    # Handle awaiting_confirmation status
-    check = CandidateCheck.query.get(task.check_id)
-    if check and check.status == 'awaiting_confirmation':
-        data['status'] = 'awaiting_confirmation'
-        data['confirmation_url'] = f'/candidate/confirm/{check.id}'
-
-    return jsonify(data)
+    return jsonify(check.task_status_dict())
 
 
 @candidate_bp.route('/confirm/<check_id>')
@@ -213,6 +230,8 @@ def confirm_profiles(check_id):
         for tid, t in candidate_tasks.items():
             if t.check_id == check_id:
                 return redirect(f'/candidate/progress/{tid}')
+        if check.task_id and check.status in ('pending', 'running'):
+            return redirect(f'/candidate/progress/{check.task_id}')
         return redirect(url_for('candidate.dossier_page', check_id=check.id))
 
     profiles = check.social_media_profiles or []
@@ -249,6 +268,8 @@ def submit_confirmation(check_id):
     for tid, t in candidate_tasks.items():
         if t.check_id == check_id:
             return redirect(f'/candidate/progress/{tid}')
+    if check.task_id:
+        return redirect(f'/candidate/progress/{check.task_id}')
     return redirect(url_for('candidate.dossier_page', check_id=check.id))
 
 
@@ -282,11 +303,15 @@ def dossier_page(check_id):
 
     # If still running, redirect to progress page
     if check.status in ('pending', 'running', 'awaiting_confirmation'):
+        if check.status == 'awaiting_confirmation':
+            return redirect(f'/candidate/confirm/{check_id}')
+        # Try in-memory first
         for tid, t in candidate_tasks.items():
             if t.check_id == check_id:
-                if check.status == 'awaiting_confirmation':
-                    return redirect(f'/candidate/confirm/{check_id}')
                 return redirect(f'/candidate/progress/{tid}')
+        # DB fallback: use stored task_id
+        if check.task_id:
+            return redirect(f'/candidate/progress/{check.task_id}')
 
     # Format duration
     duration_display = ''

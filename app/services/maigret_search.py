@@ -42,8 +42,8 @@ def _resolve_maigret() -> Optional[str]:
         )
         if result.returncode == 0:
             return 'module'
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"[Maigret] Module not found: {e}")
 
     # 2. OSINT_TOOLS_DIR
     osint_dir = os.environ.get('OSINT_TOOLS_DIR')

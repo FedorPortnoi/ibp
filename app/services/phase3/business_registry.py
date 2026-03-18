@@ -101,17 +101,19 @@ class BusinessRegistrySearch:
         if not name:
             return results
 
-        logger.info(f"Searching business records for: {name}")
+        logger.info(f"Business registry search: name='{name}', limit={limit}")
 
         # Source 1: nalog.ru EGRUL (primary — official, reliable)
         try:
             nalog_results = self._search_nalog_egrul(name, limit)
             results.extend(nalog_results)
-            logger.info(f"nalog.ru EGRUL found {len(nalog_results)} records")
+            logger.info(f"nalog.ru EGRUL: {len(nalog_results)} records")
+            for r in nalog_results[:3]:
+                logger.info(f"  nalog.ru: {r.company_name} | INN: {r.inn} | {r.role}")
         except Exception as e:
             logger.warning(f"nalog.ru EGRUL search failed: {e}")
 
-        # Source 2: Rusprofile (fallback)
+        # Source 2: Rusprofile (fallback if nalog.ru returned few results)
         if len(results) < 3:
             time.sleep(0.5)
             try:
@@ -516,20 +518,122 @@ class BusinessRegistrySearch:
 
         A personal INN (12 digits) can be linked to multiple ИП/companies.
         Returns all matches, not just the first.
+        Falls back to Rusprofile if nalog.ru is unreachable.
         """
         if not inn or not inn.isdigit():
             return []
 
+        logger.info(f"INN search: querying nalog.ru for INN {inn[:4]}***")
+
+        # Primary: nalog.ru EGRUL
         try:
             results = self._search_nalog_egrul(inn, limit=50)
-            # Mark INN-based results as high confidence
-            for r in results:
-                r.confidence = "high"
-            return results
+            if results:
+                for r in results:
+                    r.confidence = "high"
+                logger.info(f"INN search: nalog.ru returned {len(results)} records")
+                return results
+            logger.info("INN search: nalog.ru returned 0 records")
         except Exception as e:
-            logger.warning(f"INN search failed: {e}")
+            logger.warning(f"INN search nalog.ru failed: {e}")
+
+        # Fallback: Rusprofile by INN
+        logger.info(f"INN search: falling back to Rusprofile for INN {inn[:4]}***")
+        try:
+            rp_results = self._search_rusprofile_by_inn(inn)
+            if rp_results:
+                for r in rp_results:
+                    r.confidence = "high"
+                logger.info(f"INN search: Rusprofile returned {len(rp_results)} records")
+                return rp_results
+            logger.info("INN search: Rusprofile returned 0 records")
+        except Exception as e:
+            logger.warning(f"INN search Rusprofile fallback failed: {e}")
 
         return []
+
+    def _search_rusprofile_by_inn(self, inn: str) -> List[BusinessRecord]:
+        """Search Rusprofile by INN — fallback when nalog.ru is unreachable."""
+        results = []
+        search_url = f"{self.RUSPROFILE_BASE}/search?query={inn}"
+
+        try:
+            response = self.session.get(search_url, timeout=self.timeout)
+            if response.status_code in (403, 429):
+                logger.warning(f"Rusprofile INN search blocked (HTTP {response.status_code})")
+                return results
+            if response.status_code != 200:
+                return results
+
+            soup = BeautifulSoup(response.text, 'lxml')
+
+            # Rusprofile INN search returns company cards directly
+            company_items = soup.select('.company-item, .list-element')
+            for item in company_items[:10]:
+                try:
+                    record = self._parse_rusprofile_inn_result(item, inn)
+                    if record:
+                        results.append(record)
+                except Exception as e:
+                    logger.debug(f"Parse Rusprofile INN item error: {e}")
+
+        except requests.RequestException as e:
+            logger.warning(f"Rusprofile INN search failed: {e}")
+
+        return results
+
+    def _parse_rusprofile_inn_result(self, item, search_inn: str) -> Optional[BusinessRecord]:
+        """Parse a Rusprofile search result item for INN-based search."""
+        try:
+            link = item.select_one('a.company-item__title, a.list-element__title')
+            if not link:
+                return None
+
+            company_name = link.get_text(strip=True)
+            if not company_name:
+                return None
+
+            href = link.get('href', '')
+            url = f"{self.RUSPROFILE_BASE}{href}" if href else ""
+
+            # Status
+            status_elem = item.select_one('.company-item__status.is_red, .list-element__text.danger')
+            if status_elem and 'ликвидир' in status_elem.get_text(strip=True).lower():
+                status = "Ликвидировано"
+            else:
+                status = "Действующее"
+
+            # INN, OGRN from info row
+            info_text = item.get_text()
+            inn_m = re.search(r'ИНН[:\s]*(\d{10,12})', info_text)
+            inn = inn_m.group(1) if inn_m else search_inn
+            ogrn_m = re.search(r'ОГРН(?:ИП)?[:\s]*(\d{13,15})', info_text)
+            ogrn = ogrn_m.group(1) if ogrn_m else ""
+            date_m = re.search(r'(?:Дата регистрации|Зарегистрирован)[:\s]*([\d.]+)', info_text)
+            reg_date = date_m.group(1) if date_m else ""
+
+            # Address
+            addr_elem = item.select_one('.company-item__text, .list-element__address')
+            address = addr_elem.get_text(strip=True) if addr_elem else ""
+
+            company_type = self._detect_company_type(company_name)
+
+            return BusinessRecord(
+                company_name=company_name,
+                inn=inn,
+                ogrn=ogrn,
+                role="Связан",
+                status=status,
+                registration_date=reg_date,
+                address=address,
+                source="Rusprofile.ru",
+                url=url,
+                confidence="high",
+                company_type=company_type,
+            )
+        except Exception as e:
+            logger.debug(f"Parse Rusprofile INN result error: {e}")
+            return None
 
     @staticmethod
     def get_manual_search_urls(name: str) -> List[Dict[str, str]]:

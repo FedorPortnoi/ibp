@@ -334,7 +334,8 @@ class BankruptcyService:
                         wait_until='networkidle',
                         timeout=self.timeout * 1000,
                     )
-                except Exception:
+                except Exception as e:
+                    logger.debug(f"[BankruptcyService] networkidle timeout, falling back to domcontentloaded: {e}")
                     page.goto(
                         self.SEARCH_URL,
                         wait_until='domcontentloaded',
@@ -353,8 +354,8 @@ class BankruptcyService:
                     try:
                         phys_tab.first.click()
                         page.wait_for_timeout(1000)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"[BankruptcyService] Could not click physical persons tab: {e}")
 
                 # Fill search field
                 search_input = page.locator(

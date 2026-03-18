@@ -31,7 +31,8 @@ def _format_date(dt_str):
         else:
             dt = dt_str
         return dt.strftime('%d.%m.%Y')
-    except Exception:
+    except Exception as e:
+        logger.debug(f"[DossierGenerator] Date format failed for '{dt_str}': {e}")
         return str(dt_str)
 
 
@@ -45,7 +46,8 @@ def _format_datetime(dt_str):
         else:
             dt = dt_str
         return dt.strftime('%d.%m.%Y %H:%M')
-    except Exception:
+    except Exception as e:
+        logger.debug(f"[DossierGenerator] Datetime format failed for '{dt_str}': {e}")
         return str(dt_str)
 
 
@@ -60,7 +62,8 @@ def _safe_json(value, default=None):
     if isinstance(value, str):
         try:
             return json.loads(value)
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[DossierGenerator] JSON parse failed: {e}")
             return default
     return default
 

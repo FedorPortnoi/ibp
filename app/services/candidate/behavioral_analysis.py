@@ -232,8 +232,8 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
         if task_status_callback:
             try:
                 task_status_callback('behavioral', msg, pct)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[BehavioralAnalysis] Status callback failed: {e}")
 
     from app.utils.vk_token_manager import get_vk_token
     # wall.get requires user token (private data)

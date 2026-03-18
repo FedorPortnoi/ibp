@@ -15,6 +15,7 @@ Stages:
 8. Report Generation (dossier + identity card)                [93-100%]
 """
 
+import json
 import logging
 import os
 import time
@@ -199,7 +200,11 @@ def cleanup_old_tasks(task_store, max_age_seconds=3600):
 
 
 class CandidateTaskStatus:
-    """Progress tracker for a running candidate check."""
+    """Progress tracker for a running candidate check.
+
+    Maintains in-memory state AND syncs progress to the DB so that
+    any gunicorn worker can serve the progress endpoint (Bug #1 fix).
+    """
 
     def __init__(self, task_id: str, check_id: str, full_name: str):
         self.task_id = task_id
@@ -215,6 +220,11 @@ class CandidateTaskStatus:
         self.completed_at = None
         self.error = None
         self.cancelled = False
+        self._check = None  # Bound CandidateCheck for DB persistence
+
+    def bind_check(self, check):
+        """Bind to a CandidateCheck instance for DB persistence."""
+        self._check = check
 
     def add_message(self, text: str, msg_type: str = 'info'):
         self.messages.append({
@@ -228,6 +238,27 @@ class CandidateTaskStatus:
         self.current_step = step
         self.percent_complete = percent
         self.add_message(step)
+        self._sync_to_db()
+
+    def _sync_to_db(self):
+        """Persist progress to DB for cross-worker visibility."""
+        if not self._check:
+            return
+        try:
+            from app import db
+            self._check.task_progress = self.percent_complete
+            self._check.task_stage = self.current_stage
+            self._check.task_message = self.current_step
+            self._check.task_error = self.error
+            self._check.task_log = self.messages[-40:]
+            db.session.commit()
+        except Exception as e:
+            logger.debug(f"Task progress DB sync: {e}")
+            try:
+                from app import db
+                db.session.rollback()
+            except Exception:
+                pass
 
     def to_dict(self):
         if self.error:
@@ -272,6 +303,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             task.error = 'Check record not found'
             return
 
+        task.bind_check(check)
         check.status = 'running'
         db.session.commit()
 
@@ -299,11 +331,17 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             # Step 0.1 — ЕГРЮЛ Direct Lookup by INN
             egrul_inn_records = []
+            logger.info(
+                f"Stage 0: Starting identity confirmation. "
+                f"INN='{check.inn}', name='{check.full_name}', "
+                f"demo_mode={_is_demo_mode()}"
+            )
             if check.inn:
                 task.update('identity', 'ЕГРЮЛ — поиск по ИНН...', 2)
                 try:
                     from app.services.phase3.business_registry import BusinessRegistrySearch
                     searcher = BusinessRegistrySearch(timeout=30)
+                    logger.info(f"Stage 0: Calling search_by_inn('{check.inn}')")
                     inn_results = searcher.search_by_inn(check.inn)
                     if inn_results:
                         egrul_inn_records = [r.to_dict() for r in inn_results]
@@ -435,6 +473,12 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             # ══════════════════════════════════════════════
             # STAGE 1: GOVERNMENT REGISTRIES [8-18%]
             # ══════════════════════════════════════════════
+            logger.info(
+                f"Stage 1: Starting government registries. "
+                f"effective_name='{effective_name}', INN='{check.inn}', "
+                f"demo_mode={_is_demo_mode()}, "
+                f"VK_SERVICE_TOKEN={'set' if os.environ.get('VK_SERVICE_TOKEN') else 'NOT SET'}"
+            )
             task.update('gov_registries', 'Проверка государственных реестров...', 10)
 
             biz_records = []
@@ -448,14 +492,26 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 searcher = BusinessRegistrySearch(timeout=30)
 
                 # By name (always)
+                logger.info(f"Stage 1 ЕГРЮЛ: searching by name '{full_name}'")
                 name_results = searcher.search_by_name(full_name)
                 if name_results:
                     records = [r.to_dict() for r in name_results]
+                    logger.info(f"Stage 1 ЕГРЮЛ by name: {len(records)} records")
+                    for r in records[:3]:
+                        logger.info(
+                            f"  ЕГРЮЛ: {r.get('company_name', '?')} | "
+                            f"INN: {r.get('inn', 'N/A')} | "
+                            f"Source: {r.get('source', 'N/A')}"
+                        )
+                else:
+                    logger.info("Stage 1 ЕГРЮЛ by name: 0 records")
 
                 # By INN (if provided) — more precise, deduplicate against name results
                 if inn:
+                    logger.info(f"Stage 1 ЕГРЮЛ: searching by INN '{inn}'")
                     inn_results = searcher.search_by_inn(inn)
                     if inn_results:
+                        logger.info(f"Stage 1 ЕГРЮЛ by INN: {len(inn_results)} records")
                         existing_keys = {
                             (r.get('inn', '') or '') + (r.get('ogrn', '') or '')
                             for r in records
@@ -466,6 +522,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             if key not in existing_keys:
                                 records.append(d)
                                 existing_keys.add(key)
+                    else:
+                        logger.info("Stage 1 ЕГРЮЛ by INN: 0 records")
 
                 return records
 
@@ -473,12 +531,22 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 """Search court records — sudact.ru + casebook.ru."""
                 records = []
                 # Primary: sudact.ru (general + arbitration, works globally)
+                logger.info(f"Stage 1 Courts: searching sudact.ru for '{full_name}'")
                 try:
                     from app.services.phase3.court_search import CourtRecordSearch
                     searcher = CourtRecordSearch(timeout=30)
                     results = searcher.search_by_name(full_name)
                     if results:
                         records = [r.to_dict() for r in results]
+                        logger.info(f"Stage 1 Courts sudact.ru: {len(records)} cases")
+                        for r in records[:3]:
+                            logger.info(
+                                f"  Court: {r.get('case_number', '?')} | "
+                                f"{r.get('court_name', 'N/A')[:40]} | "
+                                f"Source: {r.get('source', 'N/A')}"
+                            )
+                    else:
+                        logger.info("Stage 1 Courts sudact.ru: 0 cases")
                 except Exception as e:
                     logger.warning(f"Sudact court search failed: {e}")
 
@@ -621,7 +689,12 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         sources_checked += 1
 
             # Demo fallback for Stage 1
+            logger.info(
+                f"Stage 1 results: biz={len(biz_records)}, courts={len(court_records)}, "
+                f"fssp={len(fssp_records)}, demo_mode={_is_demo_mode()}"
+            )
             if _is_demo_mode() and not biz_records and not court_records:
+                logger.info("Stage 1: Using DEMO fallback (no real data + demo mode)")
                 demo_biz, demo_courts, demo_fssp, demo_bankruptcy = _get_demo_gov_data(effective_name)
                 biz_records = demo_biz
                 court_records = demo_courts
@@ -1263,7 +1336,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             task.error = str(e)
             task.add_message(f'Ошибка: {e}', 'error')
             check.status = 'error'
-            db.session.commit()
+            task._sync_to_db()
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
 
 def _pause():

@@ -300,5 +300,6 @@ class OpenSanctionsService:
                 timeout=5,
             )
             return resp.status_code < 500
-        except Exception:
+        except Exception as e:
+            logger.warning(f"[OpenSanctions] Reachability check failed: {e}")
             return False

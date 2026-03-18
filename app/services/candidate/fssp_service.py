@@ -228,7 +228,7 @@ class FSSPService:
         """
         parts = full_name.strip().split()
         if len(parts) < 2:
-            logger.warning(f"ФССП: need at least 2 name parts, got: {full_name}")
+            logger.warning(f"ФССП: need at least 2 name parts, got: '{full_name}'")
             return []
 
         last_name = parts[0]
@@ -237,45 +237,76 @@ class FSSPService:
         dob = self._format_dob(date_of_birth) if date_of_birth else ''
         region_code = self._resolve_region(region)
 
+        logger.info(
+            f"ФССП search: name='{last_name} {first_name} {patronymic}'.strip(), "
+            f"dob='{dob}', region='{region}' (code={region_code}), "
+            f"api_token={'set' if self.api_token else 'not set'}, "
+            f"playwright={'available' if PLAYWRIGHT_AVAILABLE else 'unavailable'}"
+        )
+
         # Strategy 1: Official API
         if self.api_token:
+            logger.info("ФССП Strategy 1/4: trying official API (api-ip.fssp.gov.ru)")
             try:
                 records = self._search_api(
                     last_name, first_name, patronymic, dob, region_code,
                 )
                 if records is not None:  # None = API error; [] = no results
+                    logger.info(f"ФССП Strategy 1 (API): success, {len(records)} records")
                     return records
+                else:
+                    logger.info("ФССП Strategy 1 (API): returned None (API error), falling through")
             except Exception as e:
-                logger.warning(f"ФССП API error: {e}")
+                logger.warning(f"ФССП Strategy 1 (API): exception: {e}")
+        else:
+            logger.info("ФССП Strategy 1/4: skipped (no FSSP_API_TOKEN)")
 
         # Strategy 2: Direct AJAX call (may hit CAPTCHA)
+        logger.info("ФССП Strategy 2/4: trying AJAX (is-go.fssp.gov.ru)")
         try:
             records = self._search_ajax(
                 last_name, first_name, patronymic, dob, region_code,
             )
             if records is not None:
+                logger.info(f"ФССП Strategy 2 (AJAX): success, {len(records)} records")
                 return records
+            else:
+                logger.info("ФССП Strategy 2 (AJAX): returned None (CAPTCHA or parse error), falling through")
         except Exception as e:
-            logger.warning(f"ФССП AJAX error: {e}")
+            logger.warning(f"ФССП Strategy 2 (AJAX): exception: {e}")
 
         # Strategy 3: Playwright web form scraper (with retry)
         if PLAYWRIGHT_AVAILABLE:
+            logger.info("ФССП Strategy 3/4: trying Playwright web form scraper (up to 2 attempts)")
             for attempt in range(1, 3):
                 try:
                     records = self._search_playwright(
                         last_name, first_name, patronymic, dob, region_code,
                     )
                     if records is not None:
+                        logger.info(
+                            f"ФССП Strategy 3 (Playwright): success on attempt {attempt}, "
+                            f"{len(records)} records"
+                        )
                         return records
+                    else:
+                        logger.info(
+                            f"ФССП Strategy 3 (Playwright): attempt {attempt}/2 returned None "
+                            f"(CAPTCHA or page load failure)"
+                        )
                 except Exception as e:
-                    logger.warning(f"ФССП Playwright error (attempt {attempt}/2): {e}")
-                    if attempt < 2:
-                        time.sleep(3)
+                    logger.warning(f"ФССП Strategy 3 (Playwright): attempt {attempt}/2 exception: {e}")
+                if attempt < 2:
+                    logger.debug("ФССП Strategy 3 (Playwright): waiting 3s before retry")
+                    time.sleep(3)
         else:
-            logger.info("Playwright not available — skipping web form scraper")
+            logger.info("ФССП Strategy 3/4: skipped (Playwright not available)")
 
         # Strategy 4: Return manual URL as a record
-        logger.info("ФССП: automated search blocked by CAPTCHA, providing manual URL")
+        logger.info(
+            "ФССП Strategy 4/4: all automated strategies failed, "
+            "returning manual fallback URL (source='manual')"
+        )
         return self._manual_fallback(last_name, first_name, patronymic, dob, region_code)
 
     def get_manual_url(
@@ -308,37 +339,41 @@ class FSSPService:
             params['birthdate'] = dob
 
         # Step 1: submit search
+        api_url = f'{self.API_BASE}/search/physical'
+        logger.debug(f"ФССП API: submitting search to {api_url}")
         try:
             r = self.session.get(
-                f'{self.API_BASE}/search/physical',
+                api_url,
                 params=params,
                 timeout=self.timeout,
             )
         except requests.RequestException as e:
-            logger.warning(f"ФССП API request failed: {e}")
+            logger.warning(f"ФССП API: request failed (possibly SSL or network): {e}")
             return None
 
         if r.status_code != 200:
-            logger.warning(f"ФССП API status {r.status_code}")
+            logger.warning(f"ФССП API: unexpected status {r.status_code}")
             return None
 
         try:
             data = r.json()
         except (ValueError, KeyError):
-            logger.warning("ФССП API: invalid JSON response")
+            logger.warning(f"ФССП API: invalid JSON response ({len(r.text)} bytes)")
             return None
 
         if data.get('exception'):
-            logger.warning(f"ФССП API exception: {data['exception']}")
+            logger.warning(f"ФССП API: server exception: {data['exception']}")
             return None
 
         task_id = data.get('response', {}).get('task')
         if not task_id:
-            logger.warning("ФССП API: no task_id in response")
+            logger.warning(f"ФССП API: no task_id in response: {data}")
             return None
 
+        logger.debug(f"ФССП API: search submitted, task_id={task_id}, polling for results")
+
         # Step 2: poll for results (up to 30s)
-        for _ in range(10):
+        for poll_num in range(10):
             time.sleep(3)
             try:
                 r2 = self.session.get(
@@ -347,24 +382,28 @@ class FSSPService:
                     timeout=self.timeout,
                 )
                 if r2.status_code != 200:
+                    logger.debug(f"ФССП API: poll {poll_num + 1}/10 status {r2.status_code}")
                     continue
 
                 result = r2.json()
                 status = result.get('response', {}).get('status')
 
                 if status == 0:  # completed
-                    return self._parse_api_results(result)
+                    records = self._parse_api_results(result)
+                    logger.debug(f"ФССП API: task completed, parsed {len(records)} records")
+                    return records
                 elif status == 1:  # still processing
+                    logger.debug(f"ФССП API: poll {poll_num + 1}/10 — still processing")
                     continue
                 else:
-                    logger.warning(f"ФССП API task status: {status}")
+                    logger.warning(f"ФССП API: unexpected task status {status}")
                     return None
 
             except Exception as e:
-                logger.warning(f"ФССП API poll error: {e}")
+                logger.warning(f"ФССП API: poll {poll_num + 1}/10 error: {e}")
                 continue
 
-        logger.warning("ФССП API: task polling timed out")
+        logger.warning("ФССП API: task polling timed out after 30s")
         return None
 
     def _parse_api_results(self, data: dict) -> List[FSSPRecord]:
@@ -414,9 +453,10 @@ class FSSPService:
         """
         # Visit main page first to establish cookies
         try:
-            self.session.get(self.WEB_URL, timeout=10)
-        except requests.RequestException:
-            pass
+            cookie_resp = self.session.get(self.WEB_URL, timeout=10)
+            logger.debug(f"ФССП AJAX: cookie prefetch status {cookie_resp.status_code}")
+        except requests.RequestException as e:
+            logger.debug(f"ФССП AJAX: cookie prefetch failed (non-fatal): {e}")
 
         time.sleep(1)
 
@@ -437,6 +477,7 @@ class FSSPService:
 
         self.session.headers['Referer'] = self.WEB_URL
 
+        logger.debug(f"ФССП AJAX: requesting {self.AJAX_URL}")
         try:
             r = self.session.get(
                 self.AJAX_URL,
@@ -444,13 +485,15 @@ class FSSPService:
                 timeout=self.timeout,
             )
         except requests.RequestException as e:
-            logger.warning(f"ФССП AJAX request failed: {e}")
+            logger.warning(f"ФССП AJAX: request failed: {e}")
             return None
 
         if r.status_code != 200:
+            logger.warning(f"ФССП AJAX: unexpected status {r.status_code}")
             return None
 
         text = r.text.strip()
+        logger.debug(f"ФССП AJAX: response {len(text)} bytes")
 
         # Response is JSONP: ({"data":"<html>","err":"","e":""});
         if text.startswith('(') and text.endswith(');'):
@@ -461,22 +504,36 @@ class FSSPService:
         try:
             payload = json.loads(text)
         except (json.JSONDecodeError, ValueError):
-            logger.warning("ФССП AJAX: cannot parse JSONP response")
+            logger.warning(f"ФССП AJAX: cannot parse JSONP response (first 200 chars: {text[:200]})")
             return None
 
+        # Check for errors in the payload
+        err = payload.get('err', '')
+        if err:
+            logger.warning(f"ФССП AJAX: server returned error: {err}")
+
         html = unescape(payload.get('data', ''))
+        logger.debug(f"ФССП AJAX: decoded HTML data {len(html)} bytes")
 
         # Check for CAPTCHA
         if 'captcha-popup' in html and 'display: block' in html:
-            logger.info("ФССП AJAX: CAPTCHA required")
-            return None  # Signal to fall back to manual
+            logger.info("ФССП AJAX: CAPTCHA required — cannot proceed")
+            return None  # Signal to fall back to next strategy
+
+        # Additional CAPTCHA markers
+        if 'captchaVisualImage' in html or 'код с картинки' in html.lower():
+            logger.info("ФССП AJAX: CAPTCHA markers detected in response")
+            return None
 
         # Check for "no results"
         if not html or 'Ничего не найдено' in html or len(html) < 100:
+            logger.info(f"ФССП AJAX: no results found (html_len={len(html)})")
             return []
 
         # Parse the HTML results
-        return self._parse_ajax_html(html)
+        records = self._parse_ajax_html(html)
+        logger.debug(f"ФССП AJAX: parsed {len(records)} records from HTML")
+        return records
 
     def _parse_ajax_html(self, html: str) -> List[FSSPRecord]:
         """Parse results HTML from the AJAX response."""
@@ -637,196 +694,213 @@ class FSSPService:
         Returns None if CAPTCHA blocks access or page fails to load.
         Returns [] if no results found.
         """
-        logger.info("ФССП Playwright: starting web form scraper")
+        logger.info(f"ФССП Playwright: starting web form scraper for {last_name} {first_name}")
         records = []
 
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
-                context = browser.new_context(
-                    user_agent=(
-                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                        'AppleWebKit/537.36 (KHTML, like Gecko) '
-                        'Chrome/121.0.0.0 Safari/537.36'
-                    ),
-                    locale='ru-RU',
-                )
-                page = context.new_page()
-                page.set_default_timeout(self.timeout * 1000)
-
-                # Navigate to search page — use networkidle to ensure
-                # all JS (form rendering, region dropdown) is loaded
                 try:
-                    page.goto(
-                        self.WEB_URL,
-                        wait_until='networkidle',
-                        timeout=self.timeout * 1000,
+                    context = browser.new_context(
+                        user_agent=(
+                            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                            'AppleWebKit/537.36 (KHTML, like Gecko) '
+                            'Chrome/121.0.0.0 Safari/537.36'
+                        ),
+                        locale='ru-RU',
                     )
-                except Exception:
-                    # networkidle may timeout on slow sites — try
-                    # domcontentloaded as fallback
-                    page.goto(
-                        self.WEB_URL,
-                        wait_until='domcontentloaded',
-                        timeout=self.timeout * 1000,
-                    )
-                    page.wait_for_timeout(5000)
+                    page = context.new_page()
+                    page.set_default_timeout(self.timeout * 1000)
 
-                # Wait for the form to render (the form or any input)
-                form_sel = (
-                    '#last_name, input[name="is[last_name]"], '
-                    '#ip_form input[type="text"]'
-                )
-                try:
-                    page.wait_for_selector(form_sel, timeout=15000)
-                except Exception:
-                    logger.warning(
-                        "ФССП Playwright: form not found after page load"
-                    )
-                    browser.close()
-                    return None
-
-                # Ensure "Поиск физических лиц" radio is selected (r1)
-                r1 = page.locator('#r1')
-                if r1.count() > 0 and not r1.is_checked():
-                    r1.click()
-                    page.wait_for_timeout(500)
-
-                # Select region from dropdown
-                if region_code and region_code != '-1':
-                    region_select = page.locator(
-                        '#region_id, select[name*="region"]'
-                    )
-                    if region_select.count() > 0:
-                        try:
-                            region_select.first.select_option(
-                                value=region_code,
-                            )
-                        except Exception:
-                            logger.debug(
-                                f"ФССП Playwright: could not select "
-                                f"region {region_code}"
-                            )
-
-                # Fill name fields using multiple selector strategies
-                self._pw_fill(page, '#last_name', last_name)
-                self._pw_fill(page, '#first_name', first_name)
-                if patronymic:
-                    self._pw_fill(page, '#patronymic', patronymic)
-
-                # Fill date of birth
-                if dob:
-                    self._pw_fill(page, '#date', dob)
-
-                page.wait_for_timeout(500)
-
-                # Submit the form
-                submitted = False
-                for sel in ['#btn-sbm', 'input[type="submit"]',
-                            'button[type="submit"]']:
-                    btn = page.locator(sel)
-                    if btn.count() > 0:
-                        btn.first.click()
-                        submitted = True
-                        break
-                if not submitted:
-                    # JS-submit as last resort
-                    page.evaluate(
-                        '(() => {'
-                        '  var f = document.getElementById("ip_form");'
-                        '  if (f) f.submit();'
-                        '})()'
-                    )
-
-                # Wait for response — either results or CAPTCHA
-                page.wait_for_timeout(5000)
-
-                # Check for CAPTCHA — multiple detection methods:
-                # 1) CAPTCHA popup div visible
-                # 2) "Введите код с картинки" text on page
-                # 3) captchaVisualImage element present
-                html_snapshot = page.content()
-                captcha_markers = [
-                    'captcha-popup',
-                    'Введите код с картинки',
-                    'captchaVisualImage',
-                    'captchaCodeId',
-                    'ncapcha',
-                ]
-                if any(m in html_snapshot for m in captcha_markers):
-                    # Verify it's actually visible (not just hidden HTML)
-                    captcha_visible = page.evaluate(
-                        '(() => {'
-                        '  var el = document.getElementById('
-                        '    "captcha-popup"'
-                        '  );'
-                        '  if (!el) return false;'
-                        '  var s = el.style.display || '
-                        '    window.getComputedStyle(el).display;'
-                        '  return s !== "none";'
-                        '})()'
-                    )
-                    if captcha_visible:
-                        logger.warning(
-                            "ФССП Playwright: CAPTCHA detected, "
-                            "cannot proceed automatically"
+                    # Navigate to search page — use networkidle to ensure
+                    # all JS (form rendering, region dropdown) is loaded
+                    logger.debug(f"ФССП Playwright: navigating to {self.WEB_URL}")
+                    try:
+                        page.goto(
+                            self.WEB_URL,
+                            wait_until='networkidle',
+                            timeout=self.timeout * 1000,
                         )
-                        browser.close()
+                    except Exception as nav_err:
+                        # networkidle may timeout on slow sites — try
+                        # domcontentloaded as fallback
+                        logger.debug(
+                            f"ФССП Playwright: networkidle timed out ({nav_err}), "
+                            f"retrying with domcontentloaded"
+                        )
+                        page.goto(
+                            self.WEB_URL,
+                            wait_until='domcontentloaded',
+                            timeout=self.timeout * 1000,
+                        )
+                        page.wait_for_timeout(5000)
+
+                    # Wait for the form to render (the form or any input)
+                    form_sel = (
+                        '#last_name, input[name="is[last_name]"], '
+                        '#ip_form input[type="text"]'
+                    )
+                    try:
+                        page.wait_for_selector(form_sel, timeout=15000)
+                        logger.debug("ФССП Playwright: form found on page")
+                    except Exception:
+                        logger.warning(
+                            "ФССП Playwright: form not found after page load"
+                        )
                         return None
 
-                # Also check if CAPTCHA text appeared in dynamic
-                # content (AJAX response injected into page)
-                page_text = page.evaluate(
-                    'document.body ? document.body.innerText : ""'
-                )
-                if 'код с картинки' in page_text.lower():
-                    logger.warning(
-                        "ФССП Playwright: CAPTCHA text detected"
-                    )
-                    browser.close()
-                    return None
+                    # Ensure "Поиск физических лиц" radio is selected (r1)
+                    r1 = page.locator('#r1')
+                    if r1.count() > 0 and not r1.is_checked():
+                        r1.click()
+                        page.wait_for_timeout(500)
 
-                # Wait for results table to appear
-                try:
-                    page.wait_for_selector(
-                        'table.results-frame, .iss-result, '
-                        '#iss-result, .results',
-                        timeout=15000,
-                    )
-                except Exception:
-                    pass
+                    # Select region from dropdown
+                    if region_code and region_code != '-1':
+                        region_select = page.locator(
+                            '#region_id, select[name*="region"]'
+                        )
+                        if region_select.count() > 0:
+                            try:
+                                region_select.first.select_option(
+                                    value=region_code,
+                                )
+                                logger.debug(f"ФССП Playwright: selected region {region_code}")
+                            except Exception:
+                                logger.debug(
+                                    f"ФССП Playwright: could not select "
+                                    f"region {region_code}"
+                                )
 
-                # Parse results from all pages
-                for page_num in range(self.max_pages):
-                    html = page.content()
-                    page_records = self._parse_playwright_page(html)
-                    records.extend(page_records)
+                    # Fill name fields using multiple selector strategies
+                    self._pw_fill(page, '#last_name', last_name)
+                    self._pw_fill(page, '#first_name', first_name)
+                    if patronymic:
+                        self._pw_fill(page, '#patronymic', patronymic)
 
-                    if page_num >= self.max_pages - 1:
-                        break
+                    # Fill date of birth
+                    if dob:
+                        self._pw_fill(page, '#date', dob)
 
-                    # Try to find and click "next page" link
-                    next_link = page.locator(
-                        'a.pagination-next, a:has-text("»"), '
-                        'a:has-text("Следующая"), .next a, '
-                        '[class*="pag"] a:has-text(">")'
-                    )
-                    if next_link.count() > 0:
-                        try:
-                            next_link.first.click()
-                            page.wait_for_timeout(3000)
-                        except Exception:
+                    page.wait_for_timeout(500)
+
+                    # Submit the form
+                    submitted = False
+                    for sel in ['#btn-sbm', 'input[type="submit"]',
+                                'button[type="submit"]']:
+                        btn = page.locator(sel)
+                        if btn.count() > 0:
+                            btn.first.click()
+                            submitted = True
+                            logger.debug(f"ФССП Playwright: form submitted via '{sel}'")
                             break
-                    else:
-                        break
+                    if not submitted:
+                        # JS-submit as last resort
+                        logger.debug("ФССП Playwright: submitting form via JS")
+                        page.evaluate(
+                            '(() => {'
+                            '  var f = document.getElementById("ip_form");'
+                            '  if (f) f.submit();'
+                            '})()'
+                        )
 
-                browser.close()
+                    # Wait for response — either results or CAPTCHA
+                    page.wait_for_timeout(5000)
+
+                    # Check for CAPTCHA — multiple detection methods:
+                    # 1) CAPTCHA popup div visible
+                    # 2) "Введите код с картинки" text on page
+                    # 3) captchaVisualImage element present
+                    html_snapshot = page.content()
+                    captcha_markers = [
+                        'captcha-popup',
+                        'Введите код с картинки',
+                        'captchaVisualImage',
+                        'captchaCodeId',
+                        'ncapcha',
+                    ]
+                    detected_markers = [m for m in captcha_markers if m in html_snapshot]
+                    if detected_markers:
+                        logger.debug(f"ФССП Playwright: CAPTCHA markers in HTML: {detected_markers}")
+                        # Verify it's actually visible (not just hidden HTML)
+                        captcha_visible = page.evaluate(
+                            '(() => {'
+                            '  var el = document.getElementById('
+                            '    "captcha-popup"'
+                            '  );'
+                            '  if (!el) return false;'
+                            '  var s = el.style.display || '
+                            '    window.getComputedStyle(el).display;'
+                            '  return s !== "none";'
+                            '})()'
+                        )
+                        if captcha_visible:
+                            logger.warning(
+                                "ФССП Playwright: CAPTCHA popup is visible, "
+                                "cannot proceed automatically"
+                            )
+                            return None
+
+                    # Also check if CAPTCHA text appeared in dynamic
+                    # content (AJAX response injected into page)
+                    page_text = page.evaluate(
+                        'document.body ? document.body.innerText : ""'
+                    )
+                    if 'код с картинки' in page_text.lower():
+                        logger.warning(
+                            "ФССП Playwright: CAPTCHA text detected in page body"
+                        )
+                        return None
+
+                    # Wait for results table to appear
+                    try:
+                        page.wait_for_selector(
+                            'table.results-frame, .iss-result, '
+                            '#iss-result, .results',
+                            timeout=15000,
+                        )
+                        logger.debug("ФССП Playwright: results container appeared")
+                    except Exception:
+                        logger.debug("ФССП Playwright: no results container selector matched within 15s")
+
+                    # Parse results from all pages
+                    for page_num in range(self.max_pages):
+                        html = page.content()
+                        page_records = self._parse_playwright_page(html)
+                        records.extend(page_records)
+                        logger.debug(
+                            f"ФССП Playwright: page {page_num + 1} yielded "
+                            f"{len(page_records)} records"
+                        )
+
+                        if page_num >= self.max_pages - 1:
+                            break
+
+                        # Try to find and click "next page" link
+                        next_link = page.locator(
+                            'a.pagination-next, a:has-text("»"), '
+                            'a:has-text("Следующая"), .next a, '
+                            '[class*="pag"] a:has-text(">")'
+                        )
+                        if next_link.count() > 0:
+                            try:
+                                next_link.first.click()
+                                page.wait_for_timeout(3000)
+                            except Exception as e:
+                                logger.debug(f"[FSSP] Pagination click failed: {e}")
+                                break
+                        else:
+                            break
+                finally:
+                    browser.close()
+                    logger.debug("ФССП Playwright: browser closed")
 
         except Exception as e:
             logger.warning(f"ФССП Playwright scraper error: {e}")
             return None
 
         if not records:
+            logger.info("ФССП Playwright: no proceedings found (empty results)")
             return []
 
         logger.info(

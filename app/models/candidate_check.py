@@ -86,6 +86,15 @@ class CandidateCheck(db.Model):
     _red_flags = db.Column('red_flags', db.Text, default='[]')
     red_flag_count = db.Column(db.Integer, default=0)
 
+    # Task tracking (DB-backed for cross-worker visibility)
+    task_id = db.Column(db.String(36), nullable=True, index=True)
+    task_progress = db.Column(db.Integer, default=0)
+    task_stage = db.Column(db.String(50), default='')
+    task_message = db.Column(db.String(500), default='')
+    _task_log = db.Column('task_log', db.Text, default='[]')
+    task_error = db.Column(db.Text, nullable=True)
+    task_started_at = db.Column(db.DateTime, nullable=True)
+
     # Meta
     sources_checked = db.Column(db.Integer, default=0)
     sources_with_results = db.Column(db.Integer, default=0)
@@ -257,6 +266,15 @@ class CandidateCheck(db.Model):
     def identity_confirmation(self, value):
         self._identity_confirmation = self._dump_json(value)
 
+    # task_log
+    @property
+    def task_log(self):
+        return self._load_json(self._task_log, [])
+
+    @task_log.setter
+    def task_log(self, value):
+        self._task_log = self._dump_json(value)
+
     # --- Computed properties ---
 
     @property
@@ -295,6 +313,35 @@ class CandidateCheck(db.Model):
             'first': parts[1] if len(parts) > 1 else '',
             'patronymic': parts[2] if len(parts) > 2 else '',
         }
+
+    def task_status_dict(self):
+        """Build progress status dict from DB fields (cross-worker fallback)."""
+        if self.task_error:
+            status = 'error'
+        elif self.status == 'awaiting_confirmation':
+            status = 'awaiting_confirmation'
+        elif self.status in ('complete', 'error'):
+            status = self.status
+        else:
+            status = 'running'
+
+        data = {
+            'task_id': self.task_id,
+            'check_id': self.id,
+            'status': status,
+            'full_name': self.full_name,
+            'current_stage': self.task_stage or '',
+            'current_step': self.task_message or '',
+            'percent_complete': self.task_progress or 0,
+            'messages': self.task_log or [],
+            'error': self.task_error,
+            'is_complete': status in ('complete', 'error', 'cancelled'),
+        }
+
+        if status == 'awaiting_confirmation':
+            data['confirmation_url'] = f'/candidate/confirm/{self.id}'
+
+        return data
 
     def to_dict(self):
         return {

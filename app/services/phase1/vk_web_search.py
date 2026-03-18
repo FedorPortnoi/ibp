@@ -105,7 +105,8 @@ def verify_profile_name_matches_query(profile: dict, search_first: str, search_l
         def _to_latin(text):
             try:
                 return translit(text, 'ru', reversed=True).lower()
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[VKWebSearch] translit failed for '{text}': {e}")
                 return text
     except ImportError:
         _table = {
@@ -183,8 +184,8 @@ def _get_cached_token() -> Optional[str]:
             logger.info("VKWebSearch: cached web token expired, will refresh")
             return None
         return token
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"[VKWebSearch] Failed to load cached token: {e}")
     return None
 
 
@@ -333,7 +334,8 @@ class VKWebSearch:
             from transliterate import translit
             first_lat = translit(first_name, 'ru', reversed=True).lower()
             last_lat = translit(last_name, 'ru', reversed=True).lower()
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[VKWebSearch] Transliteration fallback: {e}")
             # Manual basic transliteration fallback
             first_lat = self._basic_translit(first_name)
             last_lat = self._basic_translit(last_name)
@@ -380,8 +382,8 @@ class VKWebSearch:
                 if result and result.get('type') == 'user':
                     user_ids.append(result['object_id'])
                 time.sleep(0.35)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[VKWebSearch] resolveScreenName failed for '{name}': {e}")
 
         logger.info(f"VKWebSearch screen names: resolved {len(user_ids)} user IDs from {len(candidates)} candidates for '{query}'")
         return user_ids
@@ -513,8 +515,8 @@ class VKWebSearch:
                         token_result['token'] = inner['access_token']
                         token_result['expires'] = inner.get('expires', 0)
                         token_result['user_id'] = inner.get('user_id', 0)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"[VKWebSearch] Token capture parse error: {e}")
 
         try:
             with sync_playwright() as p:
@@ -770,8 +772,8 @@ class VKWebSearch:
             except Exception as e:
                 try:
                     browser.close()
-                except Exception:
-                    pass
+                except Exception as close_err:
+                    logger.debug(f"[VKWebSearch] Browser close failed during error handling: {close_err}")
                 raise
 
     @staticmethod
@@ -792,7 +794,8 @@ class VKWebSearch:
                 el = page.locator(sel).first
                 if el.is_visible(timeout=500):
                     return True
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[VKWebSearch] Captcha selector '{sel}' check failed: {e}")
                 continue
         return False
 
@@ -826,7 +829,8 @@ class VKWebSearch:
                 if el.is_visible(timeout=1500):
                     el.click()
                     return
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[VKWebSearch] Sign-in selector '{sel}' failed: {e}")
                 continue
 
     @staticmethod
@@ -846,7 +850,8 @@ class VKWebSearch:
                     el.click()
                     el.fill(login_value)
                     return True
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[VKWebSearch] Login field selector '{sel}' failed: {e}")
                 continue
 
         # Fallback: try any visible text input that isn't password/hidden
@@ -856,8 +861,8 @@ class VKWebSearch:
                 inputs.first.click()
                 inputs.first.fill(login_value)
                 return True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[VKWebSearch] Login field fallback failed: {e}")
 
         return False
 
@@ -870,7 +875,8 @@ class VKWebSearch:
             pw.click()
             pw.fill(password)
             return True
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[VKWebSearch] Password field failed: {e}")
             return False
 
     @staticmethod
@@ -892,14 +898,15 @@ class VKWebSearch:
                 if btn.is_visible(timeout=1000):
                     btn.click()
                     return
-            except Exception:
+            except Exception as e:
+                logger.debug(f"[VKWebSearch] Submit selector '{sel}' failed: {e}")
                 continue
 
         # Fallback: press Enter on the focused element
         try:
             page.keyboard.press('Enter')
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[VKWebSearch] Keyboard Enter fallback failed: {e}")
 
     def _newsfeed_search(self, query: str) -> List[int]:
         """
@@ -972,8 +979,8 @@ class VKWebSearch:
                 if result and result.get('type') == 'user':
                     user_ids.append(result['object_id'])
                 time.sleep(0.35)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[VKWebSearch] resolveScreenName failed for '{name}': {e}")
 
         return user_ids
 
@@ -1086,8 +1093,8 @@ def save_vk_session():
 
         try:
             page.wait_for_event('close', timeout=600000)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[VKWebSearch] Manual login wait ended: {e}")
 
         context.storage_state(path=STATE_FILE)
         print(f"\nSession saved to: {STATE_FILE}")
@@ -1095,8 +1102,8 @@ def save_vk_session():
 
         try:
             browser.close()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[VKWebSearch] Browser close after manual login: {e}")
 
 
 if __name__ == '__main__':

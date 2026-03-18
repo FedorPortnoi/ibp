@@ -105,28 +105,28 @@ class CourtRecordSearch:
         if not name:
             return results
 
-        logger.info(f"Searching court records for: {name}")
+        logger.info(f"Court search: starting for '{name}' (Playwright={'available' if PLAYWRIGHT_AVAILABLE else 'unavailable'})")
 
         # Try sudact.ru with Playwright (JS-rendered)
         if PLAYWRIGHT_AVAILABLE:
             try:
                 sudact_results = self._search_sudact_playwright(name, limit)
                 results.extend(sudact_results)
-                logger.info(f"Sudact (Playwright) found {len(sudact_results)} cases")
+                logger.info(f"Court search: Sudact Playwright returned {len(sudact_results)} cases")
             except Exception as e:
-                logger.warning(f"Sudact Playwright search failed: {e}")
+                logger.warning(f"Court search: Sudact Playwright failed with error: {e}")
         else:
-            logger.info("Playwright not available — sudact.ru requires JS rendering, skipping")
+            logger.info("Court search: Playwright not available — sudact.ru requires JS rendering, skipping")
 
-        # Try basic requests as secondary approach
+        # Try basic requests as secondary/fallback approach
         if not results:
+            logger.info("Court search: trying basic requests fallback for sudact.ru")
             try:
                 sudact_basic = self._search_sudact_basic(name, limit)
                 results.extend(sudact_basic)
-                if sudact_basic:
-                    logger.info(f"Sudact (basic) found {len(sudact_basic)} cases")
+                logger.info(f"Court search: Sudact basic returned {len(sudact_basic)} cases")
             except Exception as e:
-                logger.warning(f"Sudact basic search failed: {e}")
+                logger.warning(f"Court search: Sudact basic failed with error: {e}")
 
         # Deduplicate by case number
         seen = set()
@@ -137,53 +137,145 @@ class CourtRecordSearch:
                 seen.add(key)
                 unique.append(case)
 
+        logger.info(f"Court search: total {len(unique)} unique cases for '{name}'")
         return unique[:limit]
 
-    def _search_sudact_playwright(self, name: str, limit: int) -> List[CourtCase]:
+    def _search_sudact_playwright(self, name: str, limit: int, max_retries: int = 2) -> List[CourtCase]:
         """Search sudact.ru using Playwright for JS rendering."""
         results = []
 
-        try:
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                page = browser.new_page()
-                page.set_default_timeout(self.timeout * 1000)
+        # Build the full search URL with all required parameters
+        params = {
+            'regular-txt': name,
+            'regular-case_doc': '',
+            'regular-lawchunkinfo': '',
+            'regular-date_from': '',
+            'regular-date_to': '',
+            'regular-workflow_stage': '',
+            'regular-area': '',
+            'regular-court': '',
+            'regular-judge': '',
+            '_': '',
+        }
+        url = f"{self.SUDACT_BASE}/regular/doc/?{urlencode(params)}"
+        logger.info(f"Sudact Playwright: fetching URL: {url}")
 
-                url = f"{self.SUDACT_BASE}/regular/doc/?regular-txt={quote(name)}"
-                page.goto(url)
+        for attempt in range(1, max_retries + 1):
+            try:
+                with sync_playwright() as p:
+                    browser = p.chromium.launch(headless=True)
+                    try:
+                        page = browser.new_page()
+                        page.set_default_timeout(self.timeout * 1000)
 
-                # Wait for results to render - sudact uses ul.results > li structure
-                try:
-                    page.wait_for_selector('ul.results li a[href*="/doc/"]', timeout=15000)
-                except Exception:
-                    # No results or timeout - try waiting a bit more
-                    import time
+                        page.goto(url, wait_until='domcontentloaded', timeout=self.timeout * 1000)
+
+                        # Wait for results to render — try multiple selectors
+                        # sudact.ru may use different result structures
+                        result_selectors = [
+                            'ul.results li a[href*="/doc/"]',
+                            '.bsr-item',
+                            '#resultTable tr',
+                            '.result-item',
+                            'a[href*="/regular/doc/"]',
+                            '.search-results',
+                        ]
+
+                        found_selector = None
+                        for sel in result_selectors:
+                            try:
+                                page.wait_for_selector(sel, timeout=8000)
+                                found_selector = sel
+                                logger.debug(f"Sudact Playwright: matched selector '{sel}' on attempt {attempt}")
+                                break
+                            except Exception as e:
+                                logger.debug(f"[CourtSearch] Selector '{sel}' not found: {e}")
+                                continue
+
+                        if not found_selector:
+                            # No selector matched — wait a bit for late-loading JS content
+                            logger.debug(f"Sudact Playwright: no result selector matched on attempt {attempt}, waiting 5s for JS")
+                            page.wait_for_timeout(5000)
+
+                        # Get rendered HTML
+                        html = page.content()
+                    finally:
+                        browser.close()
+
+                soup = BeautifulSoup(html, 'lxml')
+
+                # Parse result list items — try multiple selectors in priority order
+                # 1. Standard ul.results > li
+                items = soup.select('ul.results > li')
+                if items:
+                    logger.debug(f"Sudact Playwright: found {len(items)} items via 'ul.results > li'")
+                    for item in items[:limit]:
+                        case = self._parse_sudact_list_item(item, name)
+                        if case:
+                            results.append(case)
+
+                # 2. BSR items (alternative layout)
+                if not results:
+                    items = soup.select('.bsr-item')
+                    if items:
+                        logger.debug(f"Sudact Playwright: found {len(items)} items via '.bsr-item'")
+                        for item in items[:limit]:
+                            case = self._parse_sudact_list_item(item, name)
+                            if case:
+                                results.append(case)
+
+                # 3. Result table rows
+                if not results:
+                    items = soup.select('#resultTable tr')
+                    if items:
+                        logger.debug(f"Sudact Playwright: found {len(items)} rows via '#resultTable tr'")
+                        for item in items[:limit]:
+                            case = self._parse_sudact_item(item, name)
+                            if case:
+                                results.append(case)
+
+                # 4. Fallback: try document links directly
+                if not results:
+                    doc_links = soup.select('a[href*="/doc/"]')
+                    if doc_links:
+                        logger.debug(f"Sudact Playwright: found {len(doc_links)} doc links via 'a[href*=\"/doc/\"]'")
+                        for link in doc_links[:limit]:
+                            case = self._parse_sudact_doc_link(link, name)
+                            if case:
+                                results.append(case)
+
+                # 5. Broad fallback: any link to /regular/doc/
+                if not results:
+                    doc_links = soup.select('a[href*="/regular/doc/"]')
+                    if doc_links:
+                        logger.debug(f"Sudact Playwright: found {len(doc_links)} links via 'a[href*=\"/regular/doc/\"]'")
+                        for link in doc_links[:limit]:
+                            case = self._parse_sudact_doc_link(link, name)
+                            if case:
+                                results.append(case)
+
+                if results:
+                    logger.info(f"Sudact Playwright: found {len(results)} cases on attempt {attempt}")
+                    return results
+
+                # Log page content size for debugging if no results
+                page_text = soup.get_text(strip=True)
+                logger.debug(
+                    f"Sudact Playwright attempt {attempt}/{max_retries}: "
+                    f"no results parsed from {len(html)} bytes HTML, "
+                    f"{len(page_text)} chars text content"
+                )
+
+                if attempt < max_retries:
+                    logger.info(f"Sudact Playwright: retrying in 3s (attempt {attempt}/{max_retries})")
                     time.sleep(3)
 
-                # Get rendered HTML
-                html = page.content()
-                browser.close()
+            except Exception as e:
+                logger.warning(f"Sudact Playwright error (attempt {attempt}/{max_retries}): {e}")
+                if attempt < max_retries:
+                    time.sleep(3)
 
-            soup = BeautifulSoup(html, 'lxml')
-
-            # Parse result list items (ul.results > li)
-            items = soup.select('ul.results > li')
-            for item in items[:limit]:
-                case = self._parse_sudact_list_item(item, name)
-                if case:
-                    results.append(case)
-
-            # Fallback: try document links directly
-            if not results:
-                doc_links = soup.select('a[href*="/doc/"]')
-                for link in doc_links[:limit]:
-                    case = self._parse_sudact_doc_link(link, name)
-                    if case:
-                        results.append(case)
-
-        except Exception as e:
-            logger.warning(f"Sudact Playwright error: {e}")
-
+        logger.info(f"Sudact Playwright: returning {len(results)} results after {max_retries} attempts")
         return results
 
     def _parse_sudact_list_item(self, item, search_name: str) -> Optional[CourtCase]:
@@ -280,41 +372,79 @@ class CourtRecordSearch:
                 url=url,
                 confidence="medium"
             )
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[CourtSearch] Failed to parse sudact list item: {e}")
             return None
 
     def _search_sudact_basic(self, name: str, limit: int) -> List[CourtCase]:
         """Search sudact.ru with basic requests (limited — JS-rendered content)."""
         results = []
 
-        try:
-            params = {
-                'regular-txt': name,
-                'regular-case_doc': '',
-                'regular-doc_type': '',
-                'regular-date_from': '',
-                'regular-date_to': '',
-                'regular-court': '',
-                'regular-region': '',
-            }
+        # Use the same parameter set as the Playwright method
+        params = {
+            'regular-txt': name,
+            'regular-case_doc': '',
+            'regular-lawchunkinfo': '',
+            'regular-date_from': '',
+            'regular-date_to': '',
+            'regular-workflow_stage': '',
+            'regular-area': '',
+            'regular-court': '',
+            'regular-judge': '',
+            '_': '',
+        }
 
+        url = f"{self.SUDACT_BASE}/regular/doc/"
+        logger.info(f"Sudact basic: fetching {url} with name='{name}'")
+
+        try:
             response = self.session.get(
-                f"{self.SUDACT_BASE}/regular/doc",
+                url,
                 params=params,
                 timeout=self.timeout
             )
 
+            logger.debug(f"Sudact basic: HTTP {response.status_code}, {len(response.text)} bytes")
+
             if response.status_code != 200:
+                logger.warning(f"Sudact basic: unexpected status {response.status_code}")
                 return results
 
             soup = BeautifulSoup(response.text, 'lxml')
 
-            # Try to find any result elements
-            items = soup.select('#resultTable tr, .result-item, .bsr-item, .doc-item')
-            for item in items[:limit]:
-                case = self._parse_sudact_item(item, name)
-                if case:
-                    results.append(case)
+            # Try multiple selectors — sudact.ru may use different structures
+            selector_groups = [
+                ('ul.results > li', 'list items'),
+                ('#resultTable tr', 'table rows'),
+                ('.bsr-item', 'BSR items'),
+                ('.result-item', 'result items'),
+                ('.doc-item', 'doc items'),
+            ]
+
+            for selector, label in selector_groups:
+                items = soup.select(selector)
+                if items:
+                    logger.debug(f"Sudact basic: found {len(items)} {label} via '{selector}'")
+                    for item in items[:limit]:
+                        case = self._parse_sudact_item(item, name)
+                        if not case:
+                            case = self._parse_sudact_list_item(item, name)
+                        if case:
+                            results.append(case)
+                    if results:
+                        break
+
+            # Fallback: doc links
+            if not results:
+                doc_links = soup.select('a[href*="/doc/"]')
+                if doc_links:
+                    logger.debug(f"Sudact basic: found {len(doc_links)} doc links as fallback")
+                    for link in doc_links[:limit]:
+                        case = self._parse_sudact_doc_link(link, name)
+                        if case:
+                            results.append(case)
+
+            logger.info(f"Sudact basic: parsed {len(results)} cases (note: JS-rendered content may be missing)")
 
         except requests.RequestException as e:
             logger.warning(f"Sudact basic request failed: {e}")

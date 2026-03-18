@@ -182,6 +182,36 @@ def create_app(config_name=None):
     # Create database tables
     with app.app_context():
         db.create_all()
+        _migrate_task_columns(db)
         logger.info("Database tables created successfully")
 
     return app
+
+
+def _migrate_task_columns(db_instance):
+    """Add task tracking columns to candidate_checks if missing (SQLite safe)."""
+    columns = [
+        ('task_id', 'VARCHAR(36)'),
+        ('task_progress', 'INTEGER DEFAULT 0'),
+        ('task_stage', 'VARCHAR(50)'),
+        ('task_message', 'VARCHAR(500)'),
+        ('task_log', 'TEXT'),
+        ('task_error', 'TEXT'),
+        ('task_started_at', 'DATETIME'),
+    ]
+    for col_name, col_type in columns:
+        try:
+            db_instance.session.execute(
+                db_instance.text(f'ALTER TABLE candidate_checks ADD COLUMN {col_name} {col_type}')
+            )
+            db_instance.session.commit()
+        except Exception:
+            db_instance.session.rollback()
+    # Add index on task_id for fast cross-worker lookups
+    try:
+        db_instance.session.execute(
+            db_instance.text('CREATE INDEX IF NOT EXISTS ix_candidate_checks_task_id ON candidate_checks (task_id)')
+        )
+        db_instance.session.commit()
+    except Exception:
+        db_instance.session.rollback()

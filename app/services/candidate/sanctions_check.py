@@ -70,8 +70,8 @@ def _transliterate_simple(name: str) -> str:
         if variants:
             # Capitalize each word
             return ' '.join(w.capitalize() for w in variants[0].split())
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"[SanctionsCheck] Transliteration import failed, using fallback: {e}")
 
     # Fallback basic transliteration
     table = {
@@ -596,6 +596,16 @@ class SanctionsService:
                     checked=False,
                     found=False,
                     error='API заблокировал запрос (403)',
+                    url='https://www.interpol.int/en/How-we-work/Notices/View-Red-Notices',
+                )
+
+            if r.status_code in (502, 503, 504):
+                logger.warning(f"Interpol API returned {r.status_code}")
+                return SanctionsResult(
+                    source_name='Интерпол',
+                    checked=False,
+                    found=False,
+                    error='Сервис временно недоступен',
                     url='https://www.interpol.int/en/How-we-work/Notices/View-Red-Notices',
                 )
 
