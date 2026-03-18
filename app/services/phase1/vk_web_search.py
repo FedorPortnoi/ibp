@@ -56,6 +56,28 @@ USER_AGENTS = [
 STATE_FILE = os.path.join(SESSION_DIR, 'state.json')
 TOKEN_FILE = os.path.join(SESSION_DIR, 'web_token.json')
 
+
+def _parse_query_names(query: str) -> Tuple[str, str]:
+    """
+    Extract (first_name, last_name) from a search query, handling both
+    Russian convention (Last First Patronymic) and Western (First Last).
+
+    Russian names with 3+ tokens are always LFP: "Судин Артем Алексеевич"
+    → first="артем", last="судин".
+
+    Two-token queries could be either order. We try both against VK profiles
+    later, but default to First Last since that's what VK search forms use.
+    """
+    parts = query.lower().split()
+    if len(parts) >= 3:
+        # Russian convention: Фамилия Имя Отчество (Last First Patronymic)
+        return parts[1], parts[0]  # (first_name, last_name)
+    elif len(parts) == 2:
+        # Ambiguous — default First Last but callers can try both
+        return parts[0], parts[1]
+    else:
+        return parts[0] if parts else '', ''
+
 def verify_profile_name_matches_query(profile: dict, search_first: str, search_last: str) -> bool:
     """
     Strict name matching for VK profile verification.
@@ -154,8 +176,13 @@ def _get_cached_token() -> Optional[str]:
             data = _json.load(f)
         expires = data.get('expires', 0)
         token = data.get('access_token', '')
-        if token and time.time() < expires - 60:  # 60s safety margin
-            return token
+        if not token:
+            return None
+        # Reject expired tokens
+        if time.time() >= expires - 60:  # 60s safety margin
+            logger.info("VKWebSearch: cached web token expired, will refresh")
+            return None
+        return token
     except Exception:
         pass
     return None
@@ -299,8 +326,7 @@ class VKWebSearch:
         if len(query_parts) < 2:
             return []
 
-        first_name = query_parts[0]
-        last_name = query_parts[1]
+        first_name, last_name = _parse_query_names(query)
 
         # Transliterate Cyrillic → Latin
         try:
@@ -546,11 +572,8 @@ class VKWebSearch:
                 'access_token': token,
                 'v': self.VK_API_VERSION,
             }
-            # Add DOB filters if provided (VK API supports these)
-            if birth_day:
-                search_params['birth_day'] = birth_day
-            if birth_month:
-                search_params['birth_month'] = birth_month
+            # Only use birth_year as pre-filter (least restrictive).
+            # birth_day/birth_month exclude profiles with hidden DOB.
             if birth_year:
                 search_params['birth_year'] = birth_year
 
@@ -583,11 +606,9 @@ class VKWebSearch:
             # Step 1: Filter for real human profiles
             human_items = [item for item in items if self._is_real_human_profile(item)]
 
-            # Step 2: Apply name verification
-            query_parts = query.lower().split()
-            if len(query_parts) >= 2:
-                search_first = query_parts[0]
-                search_last = query_parts[1]
+            # Step 2: Apply name verification — detect name order from query
+            search_first, search_last = _parse_query_names(query)
+            if search_first and search_last:
                 verified_items = [
                     item for item in human_items
                     if verify_profile_name_matches_query(item, search_first, search_last)
@@ -598,7 +619,8 @@ class VKWebSearch:
             user_ids = [item['id'] for item in verified_items if 'id' in item]
             logger.info(
                 f"VKWebSearch users.search: {total} total, {len(items)} raw, "
-                f"{len(human_items)} human, {len(user_ids)} verified for '{query}'"
+                f"{len(human_items)} human, {len(user_ids)} verified for '{query}' "
+                f"(parsed first={search_first!r}, last={search_last!r})"
             )
             return user_ids
 
@@ -1006,11 +1028,8 @@ class VKWebSearch:
 
         # Filter: verify each profile's actual name matches the search query
         # Uses fuzzy matching with transliteration + diminutive support
-        query_parts = query.lower().split()
-        if len(query_parts) >= 2:
-            search_first = query_parts[0]
-            search_last = query_parts[1]
-
+        search_first, search_last = _parse_query_names(query)
+        if search_first and search_last:
             filtered = []
             for p in profiles:
                 fn = p.get('first_name', '')
@@ -1021,7 +1040,8 @@ class VKWebSearch:
                 else:
                     logger.warning(
                         f"  \u2717 REJECTED fake match: '{fn} {ln}' (id{p.get('id', '?')}) "
-                        f"doesn't match search '{query}'"
+                        f"doesn't match search '{query}' "
+                        f"(parsed first={search_first!r}, last={search_last!r})"
                     )
             profiles = filtered
 

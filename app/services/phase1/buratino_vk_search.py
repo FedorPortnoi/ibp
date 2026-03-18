@@ -246,6 +246,10 @@ class BuratinoVKSearch:
         """Calculate name similarity score (0-100). Handles Cyrillic/Latin.
 
         Uses part-based matching: first name and last name are scored independently.
+        Handles both name orders:
+        - "Артем Судин" (First Last — VK/Western convention)
+        - "Судин Артем Алексеевич" (Last First Patronymic — Russian convention)
+
         CRITICAL: first name must match for a high overall score — last-name-only
         matches are capped at 45% to prevent false positives like
         "Maxim Kozlov" matching search "Артём Козлов".
@@ -272,16 +276,32 @@ class BuratinoVKSearch:
                 SequenceMatcher(None, target_lat, found_lat).ratio(),
             ) * 100
 
-        # Two-part name: score first name and last name independently
-        target_first_lat = target_parts[0]
-        target_last_lat = target_parts[-1]
+        # Detect name order for target.
+        # Russian convention (3+ tokens): Last First Patronymic
+        # VK/Western (2 tokens): First Last
+        if len(target_parts) >= 3:
+            # LFP: target[0]=last, target[1]=first, target[2]=patronymic
+            target_first_lat = target_parts[1]
+            target_last_lat = target_parts[0]
+            target_first_cyr = target_parts_cyr[1]
+            target_last_cyr = target_parts_cyr[0]
+        else:
+            # FL: target[0]=first, target[-1]=last
+            target_first_lat = target_parts[0]
+            target_last_lat = target_parts[-1]
+            target_first_cyr = target_parts_cyr[0]
+            target_last_cyr = target_parts_cyr[-1]
+
+        # VK returns "First Last" always
         found_first_lat = found_parts[0]
         found_last_lat = found_parts[-1]
+        found_first_cyr = found_parts_cyr[0]
+        found_last_cyr = found_parts_cyr[-1]
 
         # -- Last name score (0.0 - 1.0) --
         last_score = max(
             SequenceMatcher(None, target_last_lat, found_last_lat).ratio(),
-            SequenceMatcher(None, target_parts_cyr[-1], found_parts_cyr[-1]).ratio(),
+            SequenceMatcher(None, target_last_cyr, found_last_cyr).ratio(),
         )
         # Substring match bonus
         if (len(target_last_lat) >= 3 and len(found_last_lat) >= 3
@@ -291,7 +311,7 @@ class BuratinoVKSearch:
         # -- First name score (0.0 - 1.0) --
         first_score = max(
             SequenceMatcher(None, target_first_lat, found_first_lat).ratio(),
-            SequenceMatcher(None, target_parts_cyr[0], found_parts_cyr[0]).ratio(),
+            SequenceMatcher(None, target_first_cyr, found_first_cyr).ratio(),
         )
         # Substring match bonus
         if (len(target_first_lat) >= 3 and len(found_first_lat) >= 3
@@ -301,8 +321,8 @@ class BuratinoVKSearch:
         # Diminutive matching: check if first names share a common formal root
         try:
             from app.services.phase1.russian_diminutives import get_all_name_variants
-            search_variants = set(v.lower() for v in get_all_name_variants(target_parts_cyr[0]))
-            profile_variants = set(v.lower() for v in get_all_name_variants(found_parts_cyr[0]))
+            search_variants = set(v.lower() for v in get_all_name_variants(target_first_cyr))
+            profile_variants = set(v.lower() for v in get_all_name_variants(found_first_cyr))
             if search_variants & profile_variants:
                 first_score = max(first_score, 0.90)
         except ImportError:
