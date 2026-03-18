@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 def _safe_filename(name_slug: str) -> str:
     """Sanitize a string for safe use in Content-Disposition filenames."""
     # Remove any characters that could break headers or enable injection
-    safe = re.sub(r'[^\w\-.]', '_', name_slug)
+    safe = re.sub(r'[^a-zA-Z0-9_\-.]', '_', name_slug)
     # Collapse multiple underscores
     safe = re.sub(r'_+', '_', safe).strip('_')
     return safe[:100] or 'candidate'
