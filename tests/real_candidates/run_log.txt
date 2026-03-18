@@ -1,0 +1,164 @@
+======================================================================
+IBP REAL CANDIDATE TEST -- 2026-03-18T11:00:53.906441
+Target: https://shtirletzsled.ru
+Candidates: 5
+======================================================================
+Logged in successfully
+
+======================================================================
+CANDIDATE 1/5: Судин Артем Алексеевич
+DOB: 1990-11-29 | INN: 232308435186
+Notes: Known: 2015 admin arrest for fleeing car accident
+======================================================================
+  Submitting to pipeline...
+  Pipeline started: task_id=5f1d4d5f15554cffa2e813fcf9448375
+  [ 12%] gov_registries -- {'text': 'ЕГРЮЛ: найдено 20 записей', 'time': '2026-03-18T19:01:03.205036', 'type': 'success'}
+  [ 31%] social -- {'text': 'VK — поиск профилей...', 'time': '2026-03-18T19:02:28.243070', 'type': 'info'}
+  [ 44%] contacts -- {'text': 'Поиск контактных данных...', 'time': '2026-03-18T19:07:22.631829', 'type': 'info'}
+  [ 83%] behavioral -- {'text': 'Поведенческий анализ завершён', 'time': '2026-03-18T19:09:39.029331', 'type': 'info'}
+  [100%] complete -- {'text': 'Проверено 16 источников за 526.8с. Уровень риска: НИЗКИЙ РИСК', 'time': '2026-03-18T19:09:41.236807', 'type': 'success'}
+  Pipeline complete!
+  Fetching dossier (check_id=5ae05b82077d420d8b757c3593b4df8a)...
+  JSON export returned 502
+  Dossier HTML loaded (62235 bytes)
+
+  Waiting 10s before next candidate...
+
+======================================================================
+CANDIDATE 2/5: Стасюк Сергей Анатольевич
+DOB: 1967-10-31 | INN: 233500829075
+Notes: HR says clean
+======================================================================
+  Submitting to pipeline...
+  Pipeline started: task_id=98a006380e7e4d3287cd07f84bf29a8d
+  [  2%] identity -- {'text': 'ЕГРЮЛ — поиск по ИНН...', 'time': '2026-03-18T19:09:57.034756', 'type': 'info'}
+  [ 12%] gov_registries -- {'text': 'ЕГРЮЛ + Суды + ФССП — параллельный поиск...', 'time': '2026-03-18T19:10:02.555873', 'type': 'info'}
+  [ 31%] social -- {'text': 'VK — поиск профилей...', 'time': '2026-03-18T19:11:29.966604', 'type': 'info'}
+  [ 44%] contacts -- {'text': 'Поиск контактных данных...', 'time': '2026-03-18T19:16:12.742838', 'type': 'info'}
+  [ 72%] social_analysis -- {'text': 'Социальный анализ завершён', 'time': '2026-03-18T19:18:48.443268', 'type': 'info'}
+  [100%] complete -- {'text': 'Проверено 16 источников за 534.6с. Уровень риска: НИЗКИЙ РИСК', 'time': '2026-03-18T19:18:51.652206', 'type': 'success'}
+  Pipeline complete!
+  Fetching dossier (check_id=238e66092c3e431db358225856028411)...
+  JSON export returned 502
+  Dossier HTML loaded (61202 bytes)
+
+  Waiting 10s before next candidate...
+
+======================================================================
+CANDIDATE 3/5: Таячкова Марина Вячеславовна
+DOB: 1980-10-30 | INN: 233501519037
+Notes: Known: admin responsibility for refusing medical exam
+======================================================================
+  Submitting to pipeline...
+  Pipeline started: task_id=03dc2d0031784b84b8ae0ada5e01f870
+  [  2%] identity -- {'text': 'ЕГРЮЛ — поиск по ИНН...', 'time': '2026-03-18T19:19:05.646910', 'type': 'info'}
+  [ 12%] gov_registries -- {'text': 'ЕГРЮЛ: найдено 20 записей', 'time': '2026-03-18T19:19:14.305188', 'type': 'success'}
+  [ 31%] social -- {'text': 'VK — поиск профилей...', 'time': '2026-03-18T19:20:38.747242', 'type': 'info'}
+  [ 44%] contacts -- {'text': 'Поиск контактных данных...', 'time': '2026-03-18T19:25:16.998699', 'type': 'info'}
+  [100%] complete -- {'text': 'Проверено 16 источников за 502.3с. Уровень риска: НИЗКИЙ РИСК', 'time': '2026-03-18T19:27:27.983272', 'type': 'success'}
+  Pipeline complete!
+  Fetching dossier (check_id=6876e32c043e487881b70d7178a4710a)...
+  JSON export returned 502
+  Dossier HTML loaded (62708 bytes)
+
+  Waiting 10s before next candidate...
+
+======================================================================
+CANDIDATE 4/5: Калмыков Александр Николаевич
+DOB: 1960-03-19 | INN: NONE
+Notes: No INN — tests pipeline with missing INN
+======================================================================
+  Submitting to pipeline...
+  Failed to start: https://shtirletzsled.ru/candidate/start
+
+  Waiting 10s before next candidate...
+
+======================================================================
+CANDIDATE 5/5: Левченко Надежда Александровна
+DOB: 1982-09-13 | INN: 233506450100
+Notes: HR says clean
+======================================================================
+  Submitting to pipeline...
+  Pipeline started: task_id=3ee845af8e1a40a79cd7a2111a225eaf
+  [  2%] identity -- {'text': 'ЕГРЮЛ — поиск по ИНН...', 'time': '2026-03-18T19:28:29.548205', 'type': 'info'}
+  [ 12%] gov_registries -- {'text': 'ЕГРЮЛ: найдено 19 записей', 'time': '2026-03-18T19:28:38.353500', 'type': 'success'}
+  [ 31%] social -- {'text': 'VK — поиск профилей...', 'time': '2026-03-18T19:30:02.733413', 'type': 'info'}
+  [ 44%] contacts -- {'text': 'Поиск контактных данных...', 'time': '2026-03-18T19:35:38.584566', 'type': 'info'}
+  [100%] complete -- {'text': 'Проверено 16 источников за 565.9с. Уровень риска: НИЗКИЙ РИСК', 'time': '2026-03-18T19:37:55.458570', 'type': 'success'}
+  Pipeline complete!
+  Fetching dossier (check_id=55cbe38ce78d4266a9242a8158bd2a6f)...
+  JSON export returned 502
+  Dossier HTML loaded (61644 bytes)
+
+
+======================================================================
+FINAL REPORT -- 5 REAL CANDIDATES
+======================================================================
+
+Results:
+  Completed: 4
+  Failed: 1
+  Rejected: 0
+  Avg duration: 440.1s
+
+======================================================================
+DATA SOURCE ANALYSIS -- What's REAL vs DEMO
+======================================================================
+  business       : (no classification)
+  courts         : (no classification)
+  fssp           : (no classification)
+  sanctions      : (no classification)
+  social         : (no classification)
+  contacts       : (no classification)
+  deep_social    : (no classification)
+  behavioral     : (no classification)
+
+======================================================================
+RED FLAGS FOUND
+======================================================================
+
+  Судин Артем Алексеевич:  () score=, 0 flags
+
+  Стасюк Сергей Анатольевич:  () score=, 0 flags
+
+  Таячкова Марина Вячеславовна:  () score=, 0 flags
+
+  Левченко Надежда Александровна:  () score=, 0 flags
+
+======================================================================
+PER-CANDIDATE SUMMARY
+======================================================================
+
+  Судин Артем Алексеевич
+    Status: COMPLETE_NO_JSON | Duration: 532s | Risk: 
+    Business: 0 | Courts: 0 | Social: 0
+    Phones: 0 | Emails: 0 | Username accounts: 0
+    Red flags: 0
+
+  Стасюк Сергей Анатольевич
+    Status: COMPLETE_NO_JSON | Duration: 539s | Risk: 
+    Business: 0 | Courts: 0 | Social: 0
+    Phones: 0 | Emails: 0 | Username accounts: 0
+    Red flags: 0
+
+  Таячкова Марина Вячеславовна
+    Status: COMPLETE_NO_JSON | Duration: 542s | Risk: 
+    Business: 0 | Courts: 0 | Social: 0
+    Phones: 0 | Emails: 0 | Username accounts: 0
+    Red flags: 0
+
+  Калмыков Александр Николаевич
+    Status: FAILED_TO_START | Duration: 2s | Risk: 
+    Business: 0 | Courts: 0 | Social: 0
+    Phones: 0 | Emails: 0 | Username accounts: 0
+    Red flags: 0
+    Error: Unexpected URL: https://shtirletzsled.ru/candidate/start (status 400)
+
+  Левченко Надежда Александровна
+    Status: COMPLETE_NO_JSON | Duration: 586s | Risk: 
+    Business: 0 | Courts: 0 | Social: 0
+    Phones: 0 | Emails: 0 | Username accounts: 0
+    Red flags: 0
+
+
+Full results saved to: C:\Users\fedor\ibp\tests\real_candidates\real_candidate_results.json

@@ -1,0 +1,230 @@
+{
+  "timestamp": "2026-03-18T11:38:15.753072",
+  "base_url": "https://shtirletzsled.ru",
+  "candidates_tested": 5,
+  "results": [
+    {
+      "candidate": "Судин Артем Алексеевич",
+      "inn": "232308435186",
+      "status": "COMPLETE",
+      "error": null,
+      "duration": 532.4219124317169,
+      "stages": {
+        "identity": {
+          "inn_confirmed": true,
+          "confirmed_name": ""
+        },
+        "business": {
+          "count": 20,
+          "data_type": "REAL"
+        },
+        "courts": {
+          "count": 0,
+          "data_type": "EMPTY"
+        },
+        "fssp": {
+          "count": 0,
+          "data_type": "EMPTY"
+        },
+        "sanctions": {
+          "opensanctions": "clear",
+          "interpol": "clear",
+          "mvd_local": "not_loaded",
+          "extremist_local": "not_loaded"
+        },
+        "social": {
+          "count": 0,
+          "data_type": "EMPTY"
+        },
+        "contacts": {
+          "phones": 0,
+          "emails": 0
+        },
+        "deep_social": {
+          "face_matches": 0,
+          "username_accounts": 0,
+          "graph_nodes": 0
+        },
+        "behavioral": {
+          "geo_locations": 0,
+          "has_text_analysis": false,
+          "timeline_entries": 0
+        }
+      },
+      "dossier": {},
+      "red_flags": [],
+      "risk_level": "НИЗКИЙ РИСК",
+      "check_id": "5ae05b82077d420d8b757c3593b4df8a"
+    },
+    {
+      "candidate": "Стасюк Сергей Анатольевич",
+      "inn": "233500829075",
+      "status": "COMPLETE",
+      "error": null,
+      "duration": 538.6354310512543,
+      "stages": {
+        "identity": {
+          "inn_confirmed": true,
+          "confirmed_name": ""
+        },
+        "business": {
+          "count": 19,
+          "data_type": "REAL"
+        },
+        "courts": {
+          "count": 0,
+          "data_type": "EMPTY"
+        },
+        "fssp": {
+          "count": 0,
+          "data_type": "EMPTY"
+        },
+        "sanctions": {
+          "opensanctions": "clear",
+          "interpol": "clear",
+          "mvd_local": "not_loaded",
+          "extremist_local": "not_loaded"
+        },
+        "social": {
+          "count": 0,
+          "data_type": "EMPTY"
+        },
+        "contacts": {
+          "phones": 0,
+          "emails": 0
+        },
+        "deep_social": {
+          "face_matches": 0,
+          "username_accounts": 0,
+          "graph_nodes": 0
+        },
+        "behavioral": {
+          "geo_locations": 0,
+          "has_text_analysis": false,
+          "timeline_entries": 0
+        }
+      },
+      "dossier": {},
+      "red_flags": [],
+      "risk_level": "НИЗКИЙ РИСК",
+      "check_id": "238e66092c3e431db358225856028411"
+    },
+    {
+      "candidate": "Таячкова Марина Вячеславовна",
+      "inn": "233501519037",
+      "status": "COMPLETE",
+      "error": null,
+      "duration": 541.6369009017944,
+      "stages": {
+        "identity": {
+          "inn_confirmed": true,
+          "confirmed_name": ""
+        },
+        "business": {
+          "count": 20,
+          "data_type": "REAL"
+        },
+        "courts": {
+          "count": 0,
+          "data_type": "EMPTY"
+        },
+        "fssp": {
+          "count": 0,
+          "data_type": "EMPTY"
+        },
+        "sanctions": {
+          "opensanctions": "clear",
+          "interpol": "clear",
+          "mvd_local": "not_loaded",
+          "extremist_local": "not_loaded"
+        },
+        "social": {
+          "count": 0,
+          "data_type": "EMPTY"
+        },
+        "contacts": {
+          "phones": 0,
+          "emails": 0
+        },
+        "deep_social": {
+          "face_matches": 0,
+          "username_accounts": 0,
+          "graph_nodes": 0
+        },
+        "behavioral": {
+          "geo_locations": 0,
+          "has_text_analysis": false,
+          "timeline_entries": 0
+        }
+      },
+      "dossier": {},
+      "red_flags": [],
+      "risk_level": "НИЗКИЙ РИСК",
+      "check_id": "6876e32c043e487881b70d7178a4710a"
+    },
+    {
+      "candidate": "Калмыков Александр Николаевич",
+      "inn": "",
+      "status": "FAILED_TO_START",
+      "error": "Unexpected URL: https://shtirletzsled.ru/candidate/start (status 400)",
+      "duration": 1.9421947002410889,
+      "stages": {},
+      "dossier": {},
+      "red_flags": [],
+      "risk_level": ""
+    },
+    {
+      "candidate": "Левченко Надежда Александровна",
+      "inn": "233506450100",
+      "status": "COMPLETE",
+      "error": null,
+      "duration": 585.6874778270721,
+      "stages": {
+        "identity": {
+          "inn_confirmed": true,
+          "confirmed_name": ""
+        },
+        "business": {
+          "count": 19,
+          "data_type": "REAL"
+        },
+        "courts": {
+          "count": 0,
+          "data_type": "EMPTY"
+        },
+        "fssp": {
+          "count": 0,
+          "data_type": "EMPTY"
+        },
+        "sanctions": {
+          "opensanctions": "clear",
+          "interpol": "clear",
+          "mvd_local": "not_loaded",
+          "extremist_local": "not_loaded"
+        },
+        "social": {
+          "count": 0,
+          "data_type": "EMPTY"
+        },
+        "contacts": {
+          "phones": 0,
+          "emails": 0
+        },
+        "deep_social": {
+          "face_matches": 0,
+          "username_accounts": 0,
+          "graph_nodes": 0
+        },
+        "behavioral": {
+          "geo_locations": 0,
+          "has_text_analysis": false,
+          "timeline_entries": 0
+        }
+      },
+      "dossier": {},
+      "red_flags": [],
+      "risk_level": "НИЗКИЙ РИСК",
+      "check_id": "55cbe38ce78d4266a9242a8158bd2a6f"
+    }
+  ]
+}
