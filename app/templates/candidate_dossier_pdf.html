@@ -464,7 +464,7 @@
 <div style="margin-bottom:6px;">
     <span class="lbl">Ключевые слова:</span>
     {% for kw in text_analysis.get('keywords', [])[:15] %}
-        {% set kw_text = kw if kw is string else kw.get('word', kw.get('text', '')) %}
+        {% set kw_text = kw if kw is string else (kw[0] if kw is iterable and kw is not mapping else kw.get('word', kw.get('text', ''))) %}
         {% if kw_text %}{{ kw_text }}{% if not loop.last %}, {% endif %}{% endif %}
     {% endfor %}
 </div>
@@ -473,10 +473,15 @@
 {% if text_analysis.get('topics') %}
 <div style="margin-bottom:6px;">
     <span class="lbl">Темы:</span>
-    {% for topic in text_analysis.get('topics', [])[:5] %}
-        {% set t = topic if topic is string else topic.get('name', topic.get('text', '')) %}
-        {% if t %}{{ t }}{% if not loop.last %}; {% endif %}{% endif %}
-    {% endfor %}
+    {% set topics_data = text_analysis.get('topics', {}) %}
+    {% if topics_data is mapping %}
+        {% for topic_name in topics_data %}{% if loop.index <= 5 %}{{ topic_name }}{% if not loop.last %}; {% endif %}{% endif %}{% endfor %}
+    {% else %}
+        {% for topic in topics_data[:5] %}
+            {% set t = topic if topic is string else (topic[0] if topic is iterable and topic is not mapping else topic.get('name', topic.get('text', ''))) %}
+            {% if t %}{{ t }}{% if not loop.last %}; {% endif %}{% endif %}
+        {% endfor %}
+    {% endif %}
 </div>
 {% endif %}
 
