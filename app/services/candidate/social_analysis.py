@@ -400,9 +400,18 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
                 center_profile = next(
                     (p for p in confirmed if p.get('platform') == 'vk'), {}
                 )
+                # Build center node data; fall back to check.full_name
+                # to avoid empty label when VK profile lacks first/last name.
+                c_first = center_profile.get('first_name', '')
+                c_last = center_profile.get('last_name', '')
+                if not c_first and not c_last and check.full_name:
+                    parts = check.full_name.strip().split()
+                    # Russian order: Фамилия Имя Отчество
+                    c_last = parts[0] if parts else ''
+                    c_first = parts[1] if len(parts) > 1 else ''
                 center_data = {
-                    'first_name': center_profile.get('first_name', ''),
-                    'last_name': center_profile.get('last_name', ''),
+                    'first_name': c_first,
+                    'last_name': c_last,
                     'photo_100': center_profile.get('photo_url', ''),
                     'city': {'title': center_profile.get('city', '')} if center_profile.get('city') else None,
                 }

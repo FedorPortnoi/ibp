@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 RUSSIAN_STOP_WORDS = {
     'и', 'в', 'во', 'не', 'что', 'он', 'на', 'я', 'с', 'со', 'как', 'а', 'то', 'все',
     'она', 'так', 'его', 'но', 'да', 'ты', 'к', 'у', 'же', 'вы', 'за', 'бы', 'по',
-    'только', 'её', 'мне', 'было', 'вот', 'от', 'меня', 'ещё', 'нет', 'о', 'из', 'ему',
+    'только', 'её', 'мне', 'было', 'вот', 'от', 'меня', 'ещё', 'еще', 'нет', 'о', 'из', 'ему',
     'теперь', 'когда', 'уже', 'вам', 'ни', 'быть', 'был', 'была', 'были', 'есть',
     'их', 'если', 'для', 'или', 'при', 'до', 'того', 'чем', 'об', 'под', 'над',
     'после', 'где', 'сам', 'себя', 'тот', 'эти', 'эта', 'это', 'этот', 'который',
@@ -25,10 +25,30 @@ RUSSIAN_STOP_WORDS = {
     'своё', 'свои', 'наш', 'наша', 'наше', 'наши', 'ваш', 'ваша', 'ваше', 'ваши',
     'кто', 'чего', 'кого', 'чему', 'кому', 'чём', 'ком', 'какой', 'какая', 'какое',
     'какие', 'такой', 'такая', 'такое', 'такие', 'один', 'одна', 'одно', 'одни',
+    'два', 'две', 'три', 'они', 'оно', 'будет', 'нужно',
     'весь', 'вся', 'всё', 'сам', 'сама', 'само', 'сами', 'самый', 'самая', 'самое',
     'самые', 'чтобы', 'потому', 'тогда', 'можно', 'надо', 'даже', 'ведь', 'более',
-    'менее', 'очень', 'тоже', 'также', 'хотя', 'конечно', 'вообще', 'просто'
+    'менее', 'очень', 'тоже', 'также', 'хотя', 'конечно', 'вообще', 'просто',
+    'каждый', 'мы',
 }
+
+# English stop words
+ENGLISH_STOP_WORDS = {
+    'the', 'and', 'or', 'is', 'are', 'was', 'were', 'in', 'on', 'at', 'to', 'for',
+    'of', 'by', 'with', 'from', 'out', 'up', 'not', 'but', 'if', 'it', 'he', 'she',
+    'they', 'we', 'you', 'an', 'a', 'this', 'that', 'be', 'has', 'have', 'had',
+    'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might',
+    'shall', 'can', 'been', 'being', 'am', 'about', 'into', 'through', 'during',
+    'before', 'after', 'above', 'below', 'between', 'each', 'all', 'any', 'both',
+    'few', 'more', 'most', 'other', 'some', 'such', 'than', 'too', 'very', 'just',
+    'own', 'same', 'so', 'no', 'nor', 'only', 'over', 'also', 'back', 'even',
+    'still', 'new', 'because', 'its', 'his', 'her', 'their', 'our', 'my', 'your',
+    'what', 'which', 'who', 'whom', 'how', 'when', 'where', 'why', 'here', 'there',
+    'then', 'once', 'again', 'further', 'while', 'now',
+}
+
+# Combined stop words for filtering after lemmatization
+ALL_STOP_WORDS = RUSSIAN_STOP_WORDS | ENGLISH_STOP_WORDS
 
 # Sentiment words (simplified Russian sentiment lexicon)
 POSITIVE_WORDS = {
@@ -36,7 +56,23 @@ POSITIVE_WORDS = {
     'радость', 'счастье', 'любовь', 'успех', 'победа', 'праздник', 'красиво',
     'супер', 'класс', 'круто', 'молодец', 'спасибо', 'благодарю', 'нравится',
     'люблю', 'обожаю', 'восторг', 'рад', 'рада', 'счастлив', 'счастлива',
-    'веселье', 'улыбка', 'смех', 'добро', 'мир', 'дружба', 'семья', 'лучший'
+    'веселье', 'улыбка', 'смех', 'добро', 'мир', 'дружба', 'семья', 'лучший',
+    # Common colloquial / expressive positive words
+    'классный', 'классно', 'клёвый', 'клёво', 'кайф', 'кайфовый', 'кайфово',
+    'божественно', 'божественный', 'величайший', 'великий', 'прекрасный',
+    'прекрасного', 'прекрасная', 'прекрасное',
+    'ахуенный', 'ахуенно', 'охуенный', 'охуенно', 'заебись',
+    'шикарно', 'шикарный', 'потрясающе', 'потрясающий', 'невероятно',
+    'невероятный', 'изумительно', 'изумительный', 'бесподобно', 'бесподобный',
+    'восхитительно', 'восхитительный', 'блестяще', 'блестящий', 'идеально',
+    'идеальный', 'превосходно', 'превосходный', 'офигенно', 'офигенный',
+    'обалденно', 'обалденный', 'волшебно', 'волшебный', 'сказочно', 'сказочный',
+    'роскошно', 'роскошный', 'великолепный', 'чудесный', 'замечательный',
+    'удивительно', 'удивительный', 'талантливо', 'талантливый', 'гениально',
+    'гениальный', 'феноменально', 'феноменальный', 'топ', 'топовый', 'огонь',
+    'бомба', 'лучше', 'лучшая', 'лучшее', 'лучшие', 'красавчик', 'красотка',
+    'умница', 'молодчина', 'браво', 'ура', 'здорово', 'славно', 'мощно',
+    'мощный', 'крутой', 'крутая', 'крутое', 'хороший', 'хорошая', 'хорошее',
 }
 
 NEGATIVE_WORDS = {
@@ -242,7 +278,7 @@ class TextAnalyzer:
         # Split and filter
         words = text.lower().split()
         # Remove stop words and short words
-        words = [w for w in words if len(w) > 2 and w not in RUSSIAN_STOP_WORDS]
+        words = [w for w in words if len(w) > 2 and w not in ALL_STOP_WORDS]
         return words
 
     def _lemmatize(self, word: str) -> str:
@@ -316,6 +352,9 @@ class TextAnalyzer:
         if self.morph:
             words = [self._lemmatize(w) for w in words]
 
+        # Filter stopwords again after lemmatization (lemmatized forms may be stopwords)
+        words = [w for w in words if w not in ALL_STOP_WORDS]
+
         # Count frequencies
         word_counts = Counter(words)
 
@@ -372,6 +411,9 @@ class TextAnalyzer:
         # Get word frequencies
         if self.morph:
             words = [self._lemmatize(w) for w in words]
+
+        # Filter stopwords after lemmatization
+        words = [w for w in words if w not in ALL_STOP_WORDS]
 
         word_counts = Counter(words)
 

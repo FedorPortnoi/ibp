@@ -195,9 +195,8 @@ class SanctionsService:
             futures[executor.submit(
                 self._check_rosfinmonitoring, full_name,
             )] = 'rosfinmonitoring'
-            futures[executor.submit(
-                self._check_mvd_wanted, full_name,
-            )] = 'mvd_live'
+            # Note: _check_mvd_wanted removed — duplicate of _check_mvd_local
+            # (both check МВД розыск at https://xn--b1aew.xn--p1ai/wanted)
 
             try:
                 for future in as_completed(futures, timeout=60):

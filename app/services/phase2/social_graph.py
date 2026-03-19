@@ -144,7 +144,11 @@ class SocialGraphBuilder:
 
         city = None
         if isinstance(data.get("city"), dict):
-            city = data["city"].get("title")
+            raw_title = data["city"].get("title")
+            # Guard against nested dicts (e.g. {'title': {'id':2,'title':'...'}})
+            city = raw_title['title'] if isinstance(raw_title, dict) else raw_title
+        elif data.get("city"):
+            city = str(data["city"])
 
         full_name = f"{data.get('first_name', '')} {data.get('last_name', '')}".strip()
 
@@ -224,11 +228,22 @@ class SocialGraphBuilder:
             if isinstance(vk_id, str):
                 vk_id = int(vk_id)
 
+            # Normalize city: VK API returns {'id': N, 'title': '...'} but
+            # Friend model/dict may have a plain string.  _add_node expects
+            # data['city'] to be a dict with a 'title' key.
+            raw_city = friend.get('city')
+            if isinstance(raw_city, dict):
+                city_val = raw_city  # already in VK API format
+            elif raw_city:
+                city_val = {'title': str(raw_city)}
+            else:
+                city_val = None
+
             friend_data = {
                 'first_name': friend.get('first_name', ''),
                 'last_name': friend.get('last_name', ''),
                 'photo_100': friend.get('photo_url') or friend.get('photo_100'),
-                'city': {'title': friend.get('city')} if friend.get('city') else None,
+                'city': city_val,
                 'is_closed': friend.get('is_closed', False)
             }
 
@@ -395,7 +410,7 @@ class SocialGraphBuilder:
             vis_node = {
                 "id": node.id,
                 "label": node.label,
-                "title": f"{node.label}\n{node.city or ''}\nConnections: {node.degree}",
+                "title": f"{node.label}\n{node.city if isinstance(node.city, str) else ''}\nConnections: {node.degree}",
                 "level": node.level,
                 "shape": "dot",
                 "size": 50 if node.is_center else 25 + min(node.degree, 20),

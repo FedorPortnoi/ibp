@@ -488,6 +488,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             def _search_business(full_name, inn):
                 """Search ЕГРЮЛ by name, and by INN if provided."""
                 from app.services.phase3.business_registry import BusinessRegistrySearch
+                from app.utils.name_similarity import calculate_name_similarity
                 records = []
                 searcher = BusinessRegistrySearch(timeout=30)
 
@@ -495,8 +496,28 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 logger.info(f"Stage 1 ЕГРЮЛ: searching by name '{full_name}'")
                 name_results = searcher.search_by_name(full_name)
                 if name_results:
-                    records = [r.to_dict() for r in name_results]
-                    logger.info(f"Stage 1 ЕГРЮЛ by name: {len(records)} records")
+                    # Filter: only keep records where person_name closely matches
+                    # the candidate's full name (similarity >= 0.7).
+                    # This avoids false matches on surname-only or first+patronymic-only.
+                    raw_records = [r.to_dict() for r in name_results]
+                    filtered = []
+                    for r in raw_records:
+                        company = r.get('company_name', '')
+                        # For ИП records, the person name is embedded in company_name
+                        # e.g. "ИП Судин Артем Алексеевич"
+                        person_name = company.replace('ИП ', '', 1).strip() if company.upper().startswith('ИП ') else ''
+                        sim = calculate_name_similarity(full_name, person_name) if person_name else 0.0
+                        if sim >= 0.7:
+                            filtered.append(r)
+                        else:
+                            logger.debug(
+                                f"  ЕГРЮЛ filtered out: '{company}' (similarity={sim:.2f})"
+                            )
+                    logger.info(
+                        f"Stage 1 ЕГРЮЛ by name: {len(raw_records)} raw, "
+                        f"{len(filtered)} after name filtering"
+                    )
+                    records = filtered
                     for r in records[:3]:
                         logger.info(
                             f"  ЕГРЮЛ: {r.get('company_name', '?')} | "

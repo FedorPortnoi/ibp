@@ -599,11 +599,13 @@ class RiskScorer:
             if claimed_city and geo_city and claimed_city != geo_city:
                 # Check if they're really different (not substring)
                 if claimed_city not in geo_city and geo_city not in claimed_city:
-                    flags.append(self._flag(
-                        SEVERITY_MEDIUM, 'behavioral', 'geo_discrepancy',
-                        'Расхождение геолокации: заявленный город отличается от фактического',
-                        details=f'Профиль: {claimed_city}, Геолокация: {geo_city}',
-                    ))
+                    # Check known city-district containment pairs
+                    if not self._cities_are_related(claimed_city, geo_city):
+                        flags.append(self._flag(
+                            SEVERITY_MEDIUM, 'behavioral', 'geo_discrepancy',
+                            'Расхождение геолокации: заявленный город отличается от фактического',
+                            details=f'Профиль: {claimed_city}, Геолокация: {geo_city}',
+                        ))
 
         # inactive_profile: no posts in 12+ months
         if activity_timeline:
@@ -654,6 +656,41 @@ class RiskScorer:
         return 'clean'
 
     # ── Helpers ──
+
+    # Known Russian city-district containment pairs (district -> parent city).
+    # Both keys and values must be lowercase.
+    _CITY_DISTRICT_MAP = {
+        'красная поляна': 'сочи',
+        'адлер': 'сочи',
+        'хоста': 'сочи',
+        'лазаревское': 'сочи',
+        'дагомыс': 'сочи',
+        'зеленоград': 'москва',
+        'троицк': 'москва',
+        'щербинка': 'москва',
+        'московский': 'москва',
+        'коммунарка': 'москва',
+        'новая москва': 'москва',
+        'кронштадт': 'санкт-петербург',
+        'колпино': 'санкт-петербург',
+        'пушкин': 'санкт-петербург',
+        'петергоф': 'санкт-петербург',
+        'сестрорецк': 'санкт-петербург',
+        'ломоносов': 'санкт-петербург',
+        'павловск': 'санкт-петербург',
+    }
+
+    @staticmethod
+    def _cities_are_related(city1: str, city2: str) -> bool:
+        """Check if two city names refer to the same metro area (district-parent)."""
+        m = RiskScorer._CITY_DISTRICT_MAP
+        # Direct match in containment map (either direction)
+        if m.get(city1) == city2 or m.get(city2) == city1:
+            return True
+        # Both map to the same parent
+        if city1 in m and city2 in m and m[city1] == m[city2]:
+            return True
+        return False
 
     @staticmethod
     def _flag(severity, category, code, text, details=''):

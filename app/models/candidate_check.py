@@ -288,11 +288,13 @@ class CandidateCheck(db.Model):
 
     @property
     def check_level_display(self):
+        # Display is based on check_mode (quick/precise), not on
+        # which input fields were provided.
+        mode = getattr(self, 'check_mode', None) or 'quick'
         return {
-            'full': 'Полная проверка',
-            'extended': 'Расширенная проверка',
-            'basic': 'Базовая проверка',
-        }.get(self.check_level, 'Базовая проверка')
+            'quick': 'Быстрая проверка',
+            'precise': 'Расширенная проверка',
+        }.get(mode, 'Быстрая проверка')
 
     @property
     def risk_level_display(self):
