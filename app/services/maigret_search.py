@@ -45,6 +45,11 @@ def _resolve_maigret() -> Optional[str]:
     except Exception as e:
         logger.debug(f"[Maigret] Module not found: {e}")
 
+    # 1b. Check if maigret is available as a standalone command
+    import shutil
+    if shutil.which('maigret'):
+        return 'standalone'
+
     # 2. OSINT_TOOLS_DIR
     osint_dir = os.environ.get('OSINT_TOOLS_DIR')
     if osint_dir:
@@ -83,11 +88,16 @@ class MaigretSearchService:
 
         if self._maigret_path == 'module':
             self._available = True
+        elif self._maigret_path == 'standalone':
+            self._available = True
         elif self._maigret_path and Path(self._maigret_path).exists():
             self._available = True
         else:
             self._available = False
-            logger.info("Maigret not available")
+            logger.warning(
+                "Maigret not available. "
+                "Install: pip install maigret OR set OSINT_TOOLS_DIR env var."
+            )
 
         return self._available
 
@@ -128,6 +138,8 @@ class MaigretSearchService:
                 # Build command
                 if self._maigret_path == 'module':
                     cmd = ['python', '-m', 'maigret']
+                elif self._maigret_path == 'standalone':
+                    cmd = ['maigret']
                 else:
                     cmd = ['python', self._maigret_path]
 

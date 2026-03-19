@@ -367,8 +367,16 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
                 result = future.result(timeout=180)
                 if key == 'face':
                     results['face_matches'] = result
+                    if result:
+                        logger.info(f"[SocialAnalysis] face: found {len(result)} matches")
+                    else:
+                        logger.info("[SocialAnalysis] face: 0 matches")
                 elif key in ('snoop', 'maigret', 'sherlock', 'yaseeker'):
                     results['username_accounts'].extend(result)
+                    if result:
+                        logger.info(f"[SocialAnalysis] {key}: found {len(result)} accounts")
+                    else:
+                        logger.info(f"[SocialAnalysis] {key}: 0 results (tool may be unavailable)")
             except Exception as e:
                 logger.error(f"Social analysis sub-task '{key}' failed: {e}")
 

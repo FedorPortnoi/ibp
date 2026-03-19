@@ -335,6 +335,21 @@ class ContactDiscoveryService:
                             sources=['vk_profile_contacts'],
                         ))
 
+                # Direct 'phone' field (sometimes present)
+                raw_phone = (user.get('phone') or '').strip()
+                if raw_phone and PHONE_PATTERN.search(raw_phone):
+                    normalized = normalize_phone(PHONE_PATTERN.search(raw_phone).group())
+                    score = _get_score('vk_profile_contacts')
+                    self.found_phones.append(DiscoveredPhone(
+                        number=normalized,
+                        source='vk_profile',
+                        confidence=_score_to_label(score),
+                        profile_name=display_name,
+                        raw_value=raw_phone,
+                        confidence_score=score,
+                        sources=['vk_profile_contacts'],
+                    ))
+
                 # Check site, about, status for phones/emails
                 for text_field in ('site', 'about', 'status'):
                     text = (user.get(text_field) or '').strip()
@@ -367,6 +382,61 @@ class ContactDiscoveryService:
                             sources=['vk_profile'],
                         ))
 
+                # Social links from VK fields
+                for social_field, social_type in [
+                    ('twitter', 'twitter'), ('instagram', 'instagram'),
+                    ('facebook', 'facebook'), ('skype', 'skype'),
+                ]:
+                    val = (user.get(social_field) or '').strip()
+                    if val:
+                        # Check for email in social fields
+                        email_match = EMAIL_PATTERN.search(val)
+                        if email_match:
+                            email = email_match.group().lower()
+                            score = _get_score('vk_profile_contacts')
+                            self.found_emails.append(DiscoveredEmail(
+                                email=email,
+                                source='vk_profile',
+                                confidence=_score_to_label(score),
+                                verified=False,
+                                profile_name=f'{display_name} ({social_type})',
+                                confidence_score=score,
+                                sources=['vk_profile'],
+                            ))
+
+                # Personal section (education, occupation -> may contain employer email)
+                personal = user.get('personal') or {}
+                if isinstance(personal, dict):
+                    for key, val in personal.items():
+                        if isinstance(val, str):
+                            for match in EMAIL_PATTERN.finditer(val):
+                                email = match.group().lower()
+                                score = _get_score('vk_profile_contacts')
+                                self.found_emails.append(DiscoveredEmail(
+                                    email=email,
+                                    source='vk_profile',
+                                    confidence=_score_to_label(score),
+                                    verified=False,
+                                    profile_name=f'{display_name} (personal)',
+                                    confidence_score=score,
+                                    sources=['vk_profile'],
+                                ))
+
+                # Telegram handles in text fields
+                TELEGRAM_PATTERN = re.compile(r'(?:t\.me/|@)([a-zA-Z][a-zA-Z0-9_]{4,31})')
+                for text_field in ('about', 'status', 'site'):
+                    text = (user.get(text_field) or '').strip()
+                    if text:
+                        for tg_match in TELEGRAM_PATTERN.finditer(text):
+                            handle = tg_match.group(1)
+                            if not hasattr(self, '_telegram_hints'):
+                                self._telegram_hints = []
+                            self._telegram_hints.append({
+                                'username': handle,
+                                'source': 'vk_profile_field',
+                                'profile_url': f'https://vk.com/{vk_id}',
+                            })
+
             except Exception as e:
                 logger.warning(f"VK API error for {vk_id}: {e}")
 
@@ -395,7 +465,7 @@ class ContactDiscoveryService:
                 'https://api.vk.com/method/users.get',
                 params={
                     'user_ids': vk_id,
-                    'fields': 'contacts,phone,mobile_phone,home_phone,site,about,status',
+                    'fields': 'contacts,phone,mobile_phone,home_phone,site,about,status,twitter,facebook,instagram,skype,occupation,personal,universities,schools,relatives,domain',
                     'access_token': self.vk_token,
                     'v': VK_API_VERSION,
                 },

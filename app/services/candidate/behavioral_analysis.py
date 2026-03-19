@@ -271,6 +271,31 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Geo extraction failed: {e}")
 
+    # 6b2. Geo extraction from post text (supplement profile-based geo)
+    try:
+        if posts:
+            from app.services.phase3.geo_extractor import GeoExtractor
+            text_geo = GeoExtractor()
+            text_locations = text_geo.extract_locations_from_posts(posts)
+            if text_locations:
+                existing_geo = results.get('geo_analysis', {})
+                existing_locs = existing_geo.get('locations', [])
+                for loc in text_locations:
+                    loc_dict = loc.to_dict()
+                    # Avoid duplicates by city name
+                    if not any(el.get('city', '').lower() == loc.city.lower() for el in existing_locs):
+                        existing_locs.append(loc_dict)
+                existing_geo['locations'] = existing_locs
+                # Update stats
+                existing_geo.setdefault('stats', {})['total_locations'] = len(existing_locs)
+                existing_geo['stats']['unique_cities'] = len(set(
+                    l.get('city', '') for l in existing_locs if l.get('city')
+                ))
+                results['geo_analysis'] = existing_geo
+                logger.info(f"Post text geo: found {len(text_locations)} locations from {len(posts)} posts")
+    except Exception as e:
+        logger.error(f"Post text geo extraction failed: {e}")
+
     # 6c. Activity timeline
     _update('Построение таймлайна', 80)
     try:

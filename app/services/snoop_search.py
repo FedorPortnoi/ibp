@@ -87,7 +87,11 @@ class SnoopSearchService:
             return self._available
 
         if not self.snoop_script.exists():
-            logger.warning(f"Snoop not found at {self.snoop_script}")
+            logger.warning(
+                f"Snoop not found at {self.snoop_script}. "
+                f"Install: git clone https://github.com/snooppr/snoop.git {self.snoop_dir} "
+                f"OR set OSINT_TOOLS_DIR env var. Falling back to Maigret/Sherlock."
+            )
             self._available = False
             return False
 
