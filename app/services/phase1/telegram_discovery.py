@@ -696,6 +696,11 @@ class TelegramDiscoveryService:
         )
         return re.sub(r'\s+', ' ', cleaned).strip()
 
+    @staticmethod
+    def _normalize_yo(text: str) -> str:
+        """Normalize Russian ё→е (commonly interchanged in everyday typing)."""
+        return text.replace('ё', 'е').replace('Ё', 'Е')
+
     def _score_name_match(self, first_name: str, last_name: str, display_name: str) -> Dict:
         """
         Score name match with cross-script normalization.
@@ -711,6 +716,12 @@ class TelegramDiscoveryService:
         cleaned = self._clean_display_name(display_name)
         if not cleaned or not (first_name or last_name):
             return {'match': False, 'score': 0.0, 'method': 'no_data'}
+
+        # Normalize ё→е before all comparisons: Russians commonly type
+        # "е" instead of "ё", so "Артём" and "Артем" must match
+        first_name = self._normalize_yo(first_name)
+        last_name = self._normalize_yo(last_name)
+        cleaned = self._normalize_yo(cleaned)
 
         # Pass 1: Original comparison (Cyrillic vs Cyrillic already works)
         result = self._checker._verify_names(first_name, last_name, cleaned)

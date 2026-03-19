@@ -351,6 +351,11 @@ class TelegramCrossRef:
             return '+7' + digits[1:]
         return None
 
+    @staticmethod
+    def _normalize_yo(text: str) -> str:
+        """Normalize Russian ё→е (commonly interchanged in everyday typing)."""
+        return text.replace('ё', 'е').replace('Ё', 'Е')
+
     def _verify_names(self, vk_first: str, vk_last: str, tg_display_name: str) -> Dict:
         """
         Verify if VK and Telegram names plausibly match.
@@ -358,6 +363,12 @@ class TelegramCrossRef:
         """
         if not tg_display_name or not (vk_first or vk_last):
             return {'match': False, 'score': 0.0, 'method': 'no_data'}
+
+        # Normalize ё→е: Russians commonly type "е" instead of "ё"
+        # so "Артём" and "Артем" must be treated as identical
+        vk_first = self._normalize_yo(vk_first)
+        vk_last = self._normalize_yo(vk_last)
+        tg_display_name = self._normalize_yo(tg_display_name)
 
         tg_parts = tg_display_name.strip().split()
         tg_first = tg_parts[0] if tg_parts else ''
