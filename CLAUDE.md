@@ -39,7 +39,7 @@ Pipeline orchestrator: `app/services/candidate/pipeline.py`
 | 3 | Social Media Discovery | 27-42 | `phase1/buratino_vk_search.py`, `phase1/telegram_discovery.py`, `phase1/ok_search_integration.py` | VK (4 strategies + DOB filtering), Telegram (3 methods), OK.ru. Precise mode pauses here |
 | 4 | Contact Discovery | 42-57 | `contact_discovery.py` | 11-step chain: VK extraction, wall mining, Telegram, business/FSSP, email guessing, Hunter.io, LeakDB, breach APIs, forgot-password oracle (8 services), marketplace mining (6 platforms), Holehe, dedup |
 | 5 | Deep Social Analysis | 57-72 | `social_analysis.py` | Search4Faces, social graph (NetworkX + Louvain), Snoop, Maigret, Sherlock, YaSeeker. Feedback loop to Stage 4 |
-| 6 | Behavioral Intelligence | 72-83 | `behavioral_analysis.py` | VK wall text analysis, geo extraction (100 Russian cities), activity timeline |
+| 6 | Behavioral Intelligence | 72-83 | `behavioral_analysis.py` | VK wall text analysis, geo extraction (98 Russian cities + text pattern matching from VK post text), activity timeline |
 | 7 | Risk Scoring | 83-93 | `risk_scorer.py` | 9-category scoring (+ identity flags) -> CLEAN/LOW/MEDIUM/HIGH/CRITICAL |
 | 8 | Report Generation | 93-100 | `report_builder.py` | Dossier with identity card, social graph, geo map, PDF/JSON export |
 
@@ -187,6 +187,7 @@ data/
   leaks/                   # Real leak database
   raw/                     # Raw import files
 tests/
+  unit/                            # 127 unit tests across 13 test files
   e2e/test_candidate_stress.py    # E2E stress tests (Playwright)
   security/test_security_audit.py # Security audit tests
 ```
@@ -330,7 +331,7 @@ Auth: `python scripts/auth_telegram.py` (one-time, creates `tg_session/ibp_sessi
 
 ## Testing
 
-**On disk**: 2 test files (`tests/e2e/test_candidate_stress.py`, `tests/security/test_security_audit.py`). Previous test suite (69 files, 3,794+ tests) was cleaned up; only stress and security tests remain.
+**127 unit tests** across 13 test files in `tests/unit/`, plus E2E stress tests (`tests/e2e/test_candidate_stress.py`) and security audit tests (`tests/security/test_security_audit.py`). Previous test suite (69 files, 3,794+ tests) was cleaned up; unit tests rebuilt during bug-fixing sessions.
 
 ```bash
 python -m pytest tests/ -v -p no:faulthandler
@@ -351,7 +352,10 @@ Use `-p no:faulthandler` on Windows to avoid I/O capture bugs.
 9. **Forgot-password oracle geo-blocking**: Gosuslugi/Sberbank skipped unless `ENABLE_GEO_RESTRICTED_CHECKERS=1`.
 10. **Many legacy templates deleted**: Phase 1-3 routes render templates that no longer exist on disk. Only candidate pipeline templates are current.
 11. **Interpol API intermittent 502**: Returns 502/503 under load. Handled with graceful fallback message (fixed March 2026).
-12. **sudact.ru selector changes**: Site structure changes periodically. Court scraper uses 6 alternative selectors with retry (fixed March 2026).
+12. **sudact.ru court case regex** (fixed March 2026): Case number regex missed Cyrillic letters (e.g., `2А-1853/2025` for administrative cases). Fixed from `\d{1,2}-\d+/\d{4}` to `\d{1,2}[А-Яа-я]{0,3}-\d+/\d{4}` in 5 locations. sudact.ru accessible (HTTP 200), Playwright renders results.
+13. **FSSP CAPTCHA-blocked**: All automated strategies (API, AJAX, Playwright) blocked by CAPTCHA. Manual fallback works (`source='manual'`). Need `FSSP_API_TOKEN` from https://api-ip.fssp.gov.ru or Russian IP to bypass. checko.ru `/person` endpoint returns 404 — may need URL update.
+14. **Telegram Method C session file**: Telethon works but needs interactive session creation. Run `python scripts/auth_telegram.py` interactively. Session file: `tg_session/ibp_session.session` (not yet created, requires interactive auth).
+15. **ё/е normalization** (fixed March 2026): Was causing valid Russian name matches to score 0.0 (e.g., "Артём" vs "Артем"). Added `_normalize_yo()` to `telegram_discovery.py` and `telegram_crossref.py`.
 
 ## Deprecated Code (still functional)
 

@@ -48,7 +48,7 @@ config.py                  # Dev/Prod/Test configs + load_env_config()
 run.py                     # Flask dev server entry point
 scripts/                   # auth_telegram.py, auth_vk.py, load_leaks.py, update scripts
 data/                      # mvd_wanted.json, extremist_list.json, demo/, leaks/, raw/
-tests/                     # 2 test files (e2e stress + security audit)
+tests/                     # 127 unit tests in tests/unit/ + e2e stress + security audit
 ```
 
 ## 4. Architecture
@@ -133,7 +133,7 @@ No Celery. Uses Python `threading.Thread` with in-memory status objects (`Candid
 ### Stage 6: Behavioral Intelligence (72-83%)
 - `candidate/behavioral_analysis.py`
 - VK wall text analysis (sentiment, keywords, topics via pymorphy2)
-- Geo extraction (100 hardcoded Russian cities + postal codes)
+- Geo extraction (98 hardcoded Russian cities + text pattern matching from VK post text)
 - Activity timeline from post timestamps
 
 ### Stage 7: Risk Scoring (83-93%)
@@ -241,11 +241,11 @@ Triggered when `VK_SERVICE_TOKEN` is unset (sets `DEMO_MODE=True` in config).
 
 ## 11. Testing
 
-2 test files on disk:
+**127 unit tests** across 13 test files in `tests/unit/`, plus:
 - `tests/e2e/test_candidate_stress.py` — E2E stress tests with Playwright
 - `tests/security/test_security_audit.py` — Security vulnerability checks
 
-Previous suite (69 files, 3,794+ tests) was cleaned up during production prep.
+Previous suite (69 files, 3,794+ tests) was cleaned up during production prep. Unit tests rebuilt during bug-fixing sessions (March 2026).
 Run with: `python -m pytest tests/ -v -p no:faulthandler` (Windows requires `-p no:faulthandler`)
 
 ## 12. Key Code Patterns
@@ -282,7 +282,10 @@ Numeric 0.0-1.0 per source. Russian labels: высокая (>=0.75), средн�
 6. Rusprofile returns 403/429 under load (falls through to nalog.ru)
 7. SocialProfile.full_name is a property, not a setter
 8. pytest on Windows needs `-p no:faulthandler`
-9. Most test files were cleaned up — only 2 remain on disk
+9. **FSSP CAPTCHA-blocked**: All automated strategies (API, AJAX, Playwright) blocked by CAPTCHA. Manual fallback works (`source='manual'`). Need `FSSP_API_TOKEN` from https://api-ip.fssp.gov.ru or Russian IP. checko.ru `/person` endpoint returns 404.
+10. **Telegram Method C session**: Telethon works but session file needs interactive creation via `python scripts/auth_telegram.py`. Session path: `tg_session/ibp_session.session`.
+11. **Court case regex** (fixed March 2026): Was missing Cyrillic letters in case numbers (e.g., `2А-1853/2025`). Fixed regex in 5 locations in `court_search.py`.
+12. **ё/е normalization** (fixed March 2026): Caused valid name matches to score 0.0. Added `_normalize_yo()` to `telegram_discovery.py` and `telegram_crossref.py`.
 
 ## 14. Commands
 
@@ -297,3 +300,17 @@ python scripts/load_leaks.py <name> <file>          # Load leak data
 python scripts/update_mvd_list.py                   # Update MVD wanted list
 python scripts/update_extremist_list.py             # Update extremist list
 ```
+
+## 15. Bugs Fixed (March 2026 Sessions)
+
+### Session 1 (Previous)
+- **VK contact extraction**: Expanded API fields, added social link/personal section/Telegram handle extraction
+- **Geo NER**: Expanded RUSSIAN_CITIES from 25 to 98 entries, added text pattern matching from VK post text
+- **Maigret**: Added standalone CLI detection, improved fallback logging
+- **Snoop**: Improved fallback warning with install instructions
+
+### Session 2 (Current)
+- **ё/е normalization bug**: "Артём" vs "Артем" caused 0.0 match scores in Telegram name matching. Added `_normalize_yo()` to `telegram_discovery.py` and `telegram_crossref.py`.
+- **Court case number regex**: Missed Cyrillic letters (e.g., `2А-1853/2025` for administrative cases). Fixed from `\d{1,2}-\d+/\d{4}` to `\d{1,2}[А-Яа-я]{0,3}-\d+/\d{4}` in 5 locations in `court_search.py`. Was dropping ~10% of results.
+- **FSSP investigation**: Confirmed all automated strategies (API, AJAX, Playwright) are CAPTCHA-blocked. Manual fallback verified working. No code bug — needs `FSSP_API_TOKEN` or Russian IP.
+- **Export endpoints**: Verified all three (JSON/PDF/HTML) working with correct headers, `@csrf.exempt` on all download routes, valid PDF output via reportlab.
