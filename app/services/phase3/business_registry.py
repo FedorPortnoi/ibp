@@ -658,5 +658,61 @@ class BusinessRegistrySearch:
         ]
 
 
+def filter_business_records_by_inn(records: list, confirmed_inn: str) -> list:
+    """
+    Filter business records using INN as ground truth.
+
+    1. Record INN matches confirmed_inn → keep (confidence=1.0, inn_verified=True)
+    2. Record has DIFFERENT INN → keep only if name_similarity >= 0.85
+    3. Record has NO INN → keep only if name_similarity >= 0.75
+
+    Returns records with added 'confidence' and 'inn_verified' fields.
+    """
+    if not records or not confirmed_inn:
+        return records
+
+    confirmed_inn = confirmed_inn.strip()
+    filtered = []
+
+    for record in records:
+        record_inn = (record.get('inn') or '').strip()
+        name_sim = record.get('name_similarity',
+                              record.get('similarity', 0.5))
+
+        if record_inn and record_inn == confirmed_inn:
+            # INN match — highest confidence
+            record['confidence'] = 1.0
+            record['inn_verified'] = True
+            filtered.append(record)
+        elif record_inn and record_inn != confirmed_inn:
+            # Different INN — require high name similarity
+            if name_sim >= 0.85:
+                record['confidence'] = round(name_sim * 0.8, 2)
+                record['inn_verified'] = False
+                filtered.append(record)
+            else:
+                logger.debug(
+                    f"INN filter: dropped '{record.get('company_name', '?')}' "
+                    f"(INN mismatch, sim={name_sim:.2f})"
+                )
+        else:
+            # No INN on record — require decent name similarity
+            if name_sim >= 0.75:
+                record['confidence'] = round(name_sim * 0.7, 2)
+                record['inn_verified'] = False
+                filtered.append(record)
+            else:
+                logger.debug(
+                    f"INN filter: dropped '{record.get('company_name', '?')}' "
+                    f"(no INN, sim={name_sim:.2f})"
+                )
+
+    logger.info(
+        f"INN filter: {len(records)} → {len(filtered)} records "
+        f"(confirmed_inn={confirmed_inn[:4]}***)"
+    )
+    return filtered
+
+
 # Singleton instance
 business_registry_search = BusinessRegistrySearch()

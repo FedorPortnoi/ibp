@@ -84,9 +84,9 @@ CONFIDENCE_SCORES = {
     'partial_phone_getcontact': 0.90,  # partial phone completed via GetContact name match
 }
 
-# Cross-source boost: if same contact found in 3+ independent sources
-CROSS_SOURCE_BOOST = 0.15
-CROSS_SOURCE_THRESHOLD = 3
+# Graduated cross-source boost by number of independent sources
+CROSS_SOURCE_BOOST_MAP = {1: 0, 2: 0.10, 3: 0.15}  # 4+ → 0.20
+CROSS_SOURCE_BOOST_DEFAULT = 0.20  # 4+ sources
 MAX_CONFIDENCE = 0.98
 
 
@@ -1695,14 +1695,15 @@ class ContactDiscoveryService:
                     phone.sources = phone_sources_map[normalized]
                     phone_map[normalized] = phone
 
-        # Apply cross-source boost and finalize
+        # Apply graduated cross-source boost and finalize
         for normalized, phone in phone_map.items():
             phone.sources = phone_sources_map.get(normalized, [phone.source])
             source_count = len(set(phone.sources))
-            if source_count >= CROSS_SOURCE_THRESHOLD:
+            boost = CROSS_SOURCE_BOOST_MAP.get(source_count, CROSS_SOURCE_BOOST_DEFAULT)
+            if boost > 0:
                 phone.confidence_score = min(
                     MAX_CONFIDENCE,
-                    phone.confidence_score + CROSS_SOURCE_BOOST,
+                    phone.confidence_score + boost,
                 )
             phone.confidence = _score_to_label(phone.confidence_score)
 
@@ -1738,14 +1739,15 @@ class ContactDiscoveryService:
                         if svc not in email_map[lower].services:
                             email_map[lower].services.append(svc)
 
-        # Apply cross-source boost and finalize
+        # Apply graduated cross-source boost and finalize
         for lower, email in email_map.items():
             email.sources = email_sources_map.get(lower, [email.source])
             source_count = len(set(email.sources))
-            if source_count >= CROSS_SOURCE_THRESHOLD:
+            boost = CROSS_SOURCE_BOOST_MAP.get(source_count, CROSS_SOURCE_BOOST_DEFAULT)
+            if boost > 0:
                 email.confidence_score = min(
                     MAX_CONFIDENCE,
-                    email.confidence_score + CROSS_SOURCE_BOOST,
+                    email.confidence_score + boost,
                 )
             email.confidence = _score_to_label(email.confidence_score)
 

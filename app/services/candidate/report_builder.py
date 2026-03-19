@@ -25,8 +25,131 @@ def _safe_json(value, default):
     return value
 
 
+# ── Confidence filtering ──────────────────────────────────────────
+CONFIDENCE_THRESHOLD = 0.6
+
+
+def filter_low_confidence(items: list, threshold: float = CONFIDENCE_THRESHOLD) -> tuple:
+    """Split items into shown and hidden by confidence score.
+
+    Returns (shown, hidden) lists.
+    """
+    shown = [i for i in items if i.get('confidence_score', 1.0) >= threshold]
+    hidden = [i for i in items if i.get('confidence_score', 1.0) < threshold]
+    return shown, hidden
+
+
+def score_court_record(record: dict, full_name: str) -> float:
+    """Score confidence that a court record matches this person."""
+    from difflib import SequenceMatcher
+
+    score = 0.5  # base
+
+    record_name = record.get('defendant', record.get('name', ''))
+    if record_name and full_name:
+        name_sim = SequenceMatcher(
+            None, record_name.lower(), full_name.lower(),
+        ).ratio()
+        score += name_sim * 0.3
+
+    if record.get('case_number'):
+        score += 0.1
+
+    if record.get('court_name') or record.get('court'):
+        score += 0.1
+
+    return min(round(score, 2), 1.0)
+
+
+# ── Cross-verification for risk flags ────────────────────────────
+# Flags that require confirmation from 2+ independent sources before showing.
+REQUIRES_CROSS_VERIFICATION = {
+    'serial_entrepreneur',
+    'geo_discrepancy',
+    'name_mismatch',
+    'high_night_activity',
+}
+
+
+def apply_cross_verification(red_flags: list, check) -> list:
+    """Filter out suspicion flags that lack cross-verification.
+
+    Flags in REQUIRES_CROSS_VERIFICATION are only kept if supported
+    by evidence from 2+ independent data sources.
+    """
+    verified_flags = []
+
+    for flag in red_flags:
+        code = flag.get('code', '')
+
+        if code not in REQUIRES_CROSS_VERIFICATION:
+            verified_flags.append(flag)
+            continue
+
+        # Count independent evidence sources for this flag
+        evidence_sources = _count_evidence_sources(code, check)
+
+        if evidence_sources >= 2:
+            flag['cross_verified'] = True
+            flag['evidence_source_count'] = evidence_sources
+            verified_flags.append(flag)
+        else:
+            logger.debug(
+                f"Cross-verification: suppressed '{code}' "
+                f"(only {evidence_sources} source(s), need 2+)"
+            )
+
+    return verified_flags
+
+
+def _count_evidence_sources(flag_code: str, check) -> int:
+    """Count independent sources supporting a risk flag."""
+    sources = set()
+
+    if flag_code == 'serial_entrepreneur':
+        biz = _safe_json(getattr(check, 'business_records', None), [])
+        inn_verified = [b for b in biz if b.get('inn_verified')]
+        if len(inn_verified) >= 4:
+            sources.add('egrul')
+        rp = [b for b in biz if b.get('source') == 'Rusprofile.ru']
+        if len(rp) >= 3:
+            sources.add('rusprofile')
+        nalog = [b for b in biz if b.get('source') == 'egrul.nalog.ru']
+        if len(nalog) >= 4:
+            sources.add('nalog')
+
+    elif flag_code == 'geo_discrepancy':
+        # Need VK city + geo analysis from posts
+        profiles = _safe_json(getattr(check, 'social_media_profiles', None), [])
+        if any(p.get('city') for p in profiles if isinstance(p, dict)):
+            sources.add('vk_profile')
+        geo = _safe_json(getattr(check, 'geo_analysis', None), {})
+        if isinstance(geo, dict) and geo.get('home_location'):
+            sources.add('geo_analysis')
+
+    elif flag_code == 'name_mismatch':
+        profiles = _safe_json(getattr(check, 'social_media_profiles', None), [])
+        names = set()
+        for p in profiles:
+            if isinstance(p, dict) and p.get('display_name'):
+                names.add(p['display_name'].lower().strip())
+        if len(names) >= 2:
+            sources.update(f'profile_{i}' for i in range(len(names)))
+
+    elif flag_code == 'high_night_activity':
+        text = _safe_json(getattr(check, 'text_analysis', None), {})
+        posting_times = text.get('posting_times', []) if isinstance(text, dict) else []
+        if len(posting_times) >= 10:
+            sources.add('vk_posts')
+        timeline = _safe_json(getattr(check, 'activity_timeline', None), [])
+        if len(timeline) >= 5:
+            sources.add('activity_timeline')
+
+    return len(sources)
+
+
 def _extract_phones(contact_discoveries: Dict) -> List[Dict]:
-    """Extract phone list from contact discoveries."""
+    """Extract phone list from contact discoveries with confidence scores."""
     phones = []
     for item in (contact_discoveries.get('phones') or []):
         if isinstance(item, dict):
@@ -34,12 +157,16 @@ def _extract_phones(contact_discoveries: Dict) -> List[Dict]:
                 'number': item.get('number', ''),
                 'source': item.get('source', ''),
                 'confidence': item.get('confidence', ''),
+                'confidence_score': item.get('confidence_score', 0.5),
+                'profile_name': item.get('profile_name', ''),
+                'sources': item.get('sources', []),
+                'source_count': len(item.get('sources', [])),
             })
     return phones
 
 
 def _extract_emails(contact_discoveries: Dict) -> List[Dict]:
-    """Extract email list from contact discoveries."""
+    """Extract email list from contact discoveries with confidence scores."""
     emails = []
     for item in (contact_discoveries.get('emails') or []):
         if isinstance(item, dict):
@@ -47,7 +174,12 @@ def _extract_emails(contact_discoveries: Dict) -> List[Dict]:
                 'address': item.get('email', item.get('address', '')),
                 'source': item.get('source', ''),
                 'confidence': item.get('confidence', ''),
+                'confidence_score': item.get('confidence_score', 0.5),
                 'verified': item.get('verified', False),
+                'profile_name': item.get('profile_name', ''),
+                'services': item.get('services', []),
+                'sources': item.get('sources', []),
+                'source_count': len(item.get('sources', [])),
             })
     return emails
 
@@ -283,6 +415,12 @@ def build_report(check) -> Dict[str, Any]:
     court_records = _safe_json(check.court_records, [])
     fssp_records = _safe_json(check.fssp_records, [])
     bankruptcy_records = _safe_json(check.bankruptcy_records, [])
+
+    # Add confidence scores to court records
+    full_name = check.full_name or ''
+    for cr in court_records:
+        if isinstance(cr, dict) and 'confidence_score' not in cr:
+            cr['confidence_score'] = score_court_record(cr, full_name)
     sanctions_results = _safe_json(check.sanctions_results, {})
     social_profiles = _safe_json(check.social_media_profiles, [])
     confirmed_profiles = _safe_json(check.confirmed_profiles, [])
@@ -293,6 +431,8 @@ def build_report(check) -> Dict[str, Any]:
     text_analysis = _safe_json(check.text_analysis, {})
     geo_analysis = _safe_json(check.geo_analysis, {})
     red_flags = _safe_json(check.red_flags, [])
+    # Apply cross-verification: suppress suspicion flags with < 2 sources
+    red_flags = apply_cross_verification(red_flags, check)
     risk_breakdown = _safe_json(check.risk_breakdown, {})
 
     # Determine photo URL
@@ -382,6 +522,10 @@ def build_report(check) -> Dict[str, Any]:
         'contact_info': {
             'phones': _extract_phones(contact_discoveries),
             'emails': _extract_emails(contact_discoveries),
+            'phones_shown': filter_low_confidence(_extract_phones(contact_discoveries))[0],
+            'phones_hidden': filter_low_confidence(_extract_phones(contact_discoveries))[1],
+            'emails_shown': filter_low_confidence(_extract_emails(contact_discoveries))[0],
+            'emails_hidden': filter_low_confidence(_extract_emails(contact_discoveries))[1],
         },
         'social_graph_summary': _build_social_graph_summary(social_graph),
         'geo_summary': _build_geo_summary(geo_analysis),
