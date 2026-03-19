@@ -192,7 +192,7 @@ def create_app(config_name=None):
 
 
 def _migrate_task_columns(db_instance):
-    """Add task tracking columns to candidate_checks if missing (SQLite safe)."""
+    """Add task tracking + photo + intelligence columns to candidate_checks if missing (SQLite safe)."""
     columns = [
         ('task_id', 'VARCHAR(36)'),
         ('task_progress', 'INTEGER DEFAULT 0'),
@@ -201,6 +201,13 @@ def _migrate_task_columns(db_instance):
         ('task_log', 'TEXT'),
         ('task_error', 'TEXT'),
         ('task_started_at', 'DATETIME'),
+        ('photo_path', 'VARCHAR(500)'),
+        # VK intelligence columns (March 2026)
+        ('group_analysis', 'TEXT'),
+        ('activity_patterns', 'TEXT'),
+        ('vk_snapshot', 'TEXT'),
+        ('connected_checks', 'TEXT'),
+        ('risk_score', 'INTEGER'),
     ]
     for col_name, col_type in columns:
         try:

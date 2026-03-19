@@ -4,6 +4,7 @@ Candidate Check Routes
 Blueprint for /candidate/* — background check pipeline.
 """
 
+import os
 import re
 import uuid
 import json
@@ -12,6 +13,7 @@ import logging
 from datetime import datetime, date
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, current_app, make_response
+from werkzeug.utils import secure_filename
 
 from app import db, limiter
 from app.models.candidate_check import CandidateCheck
@@ -146,6 +148,17 @@ def start_check():
     check_id = uuid.uuid4().hex
     task_id = uuid.uuid4().hex
 
+    # --- Photo Upload ---
+    photo_path = None
+    photo = request.files.get('photo')
+    if photo and photo.filename:
+        filename = secure_filename(photo.filename)
+        if filename:
+            photo_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'photos')
+            os.makedirs(photo_dir, exist_ok=True)
+            photo_path = os.path.join(photo_dir, f"{check_id}_{filename}")
+            photo.save(photo_path)
+
     check = CandidateCheck(
         id=check_id,
         full_name=full_name,
@@ -157,6 +170,7 @@ def start_check():
         region=region or None,
         phone=phone or None,
         email=email or None,
+        photo_path=photo_path,
         status='pending',
         check_mode=check_mode,
         task_id=task_id,
@@ -370,6 +384,9 @@ def dossier_page(check_id):
         activity_timeline=check.activity_timeline or [],
         risk_breakdown=check.risk_breakdown or {},
         report_generated=check.report_generated,
+        group_analysis=check.group_analysis or {},
+        activity_patterns=check.activity_patterns or {},
+        connected_checks=check.connected_checks or [],
     )
 
 
@@ -438,6 +455,7 @@ def export_json(check_id):
         'risk_assessment': {
             'risk_level': check.risk_level,
             'risk_level_display': check.risk_level_display,
+            'risk_score': check.risk_score,
             'risk_score_numeric': check.risk_score_numeric,
             'red_flag_count': check.red_flag_count,
             'red_flags': check.red_flags,
@@ -457,6 +475,9 @@ def export_json(check_id):
         'geo_analysis': check.geo_analysis,
         'text_analysis': check.text_analysis,
         'activity_timeline': check.activity_timeline,
+        'group_analysis': check.group_analysis,
+        'activity_patterns': check.activity_patterns,
+        'connected_checks': check.connected_checks,
     }
 
     json_str = json.dumps(dossier, ensure_ascii=False, indent=2, default=str)
@@ -524,6 +545,9 @@ def export_pdf(check_id):
         text_analysis=check.text_analysis or {},
         activity_timeline=check.activity_timeline or [],
         risk_breakdown=check.risk_breakdown or {},
+        group_analysis=check.group_analysis or {},
+        activity_patterns=check.activity_patterns or {},
+        connected_checks=check.connected_checks or [],
     )
 
     try:

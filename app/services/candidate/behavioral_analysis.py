@@ -5,9 +5,11 @@ Orchestrates text analysis, geo extraction, and activity timeline
 construction from VK wall posts and profile data.
 """
 
+import hashlib
 import logging
 import os
 import random
+from collections import Counter
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
@@ -16,6 +18,329 @@ import requests
 logger = logging.getLogger(__name__)
 
 VK_API_VERSION = '5.199'
+
+
+# ── VK Group Intelligence ──
+
+GROUP_CATEGORIES = {
+    'political_opposition': [
+        'навальный', 'navalny', 'оппозиция', 'протест', 'митинг',
+        'фбк', 'fbk', 'антикоррупция', 'свободу', 'долой',
+        'несогласные', 'либертарианц',
+    ],
+    'political_progovernment': [
+        'единая россия', 'молодая гвардия', 'юнармия', 'нод',
+        'антимайдан', 'ночные волки', 'народный фронт',
+    ],
+    'religious_extremist': [
+        'свидетели иеговы', 'хизб', 'таблиги', 'ваххаб',
+        'салаф', 'исламское государство', 'игил',
+    ],
+    'criminal': [
+        'аук', 'арестантский', 'вор в законе', 'криминал',
+        'зк ', 'тюрьма', 'зона', 'урка', 'блатн',
+    ],
+    'gambling': [
+        'казино', 'ставки', 'букмекер', 'покер', 'слоты',
+        'ставка', 'выигрыш', 'беттинг',
+    ],
+    'drugs': [
+        'наркотик', 'закладк', 'соль ', 'скорость ', 'марихуан',
+        'гашиш', 'спайс', 'мефедрон',
+    ],
+    'security_interest': [
+        'взлом', 'хакер', 'hack', 'exploit', 'уязвимост',
+        'darknet', 'даркнет', 'анонимность',
+    ],
+}
+
+
+def _categorize_group(group: dict) -> list:
+    """Return list of risk categories for a VK group."""
+    text = (
+        (group.get('name') or '') + ' ' +
+        (group.get('description') or '') + ' ' +
+        (group.get('activity') or '')
+    ).lower()
+
+    categories = []
+    for category, keywords in GROUP_CATEGORIES.items():
+        if any(kw in text for kw in keywords):
+            categories.append(category)
+    return categories
+
+
+def fetch_vk_groups(vk_id: int, vk_token: str) -> list:
+    """Fetch groups the candidate belongs to."""
+    try:
+        r = requests.get('https://api.vk.com/method/groups.get', params={
+            'user_id': vk_id,
+            'extended': 1,
+            'fields': 'name,screen_name,description,members_count,activity',
+            'count': 200,
+            'access_token': vk_token,
+            'v': VK_API_VERSION,
+        }, timeout=15)
+        data = r.json()
+        return data.get('response', {}).get('items', [])
+    except Exception as e:
+        logger.warning(f"VK groups fetch for {vk_id} failed: {e}")
+        return []
+
+
+def analyze_groups(groups: list) -> dict:
+    """Categorize VK groups and produce intelligence report."""
+    flagged = []
+    all_categories = {}
+
+    for group in groups:
+        cats = _categorize_group(group)
+        if cats:
+            flagged.append({
+                'name': group.get('name', ''),
+                'url': f"https://vk.com/{group.get('screen_name', '')}",
+                'members': group.get('members_count', 0),
+                'categories': cats,
+                'risk': 'HIGH' if any(c in ('criminal', 'religious_extremist', 'drugs')
+                                      for c in cats) else 'MEDIUM',
+            })
+        for cat in cats:
+            all_categories[cat] = all_categories.get(cat, 0) + 1
+
+    return {
+        'total_groups': len(groups),
+        'flagged_groups': flagged,
+        'category_counts': all_categories,
+        'risk_summary': _summarize_group_risk(flagged),
+    }
+
+
+def _summarize_group_risk(flagged: list) -> str:
+    """Build human-readable summary of group risk."""
+    if not flagged:
+        return 'Подозрительных групп не обнаружено'
+    high_risk = [g for g in flagged if g.get('risk') == 'HIGH']
+    if high_risk:
+        return f'Обнаружено {len(high_risk)} группа(ы) высокого риска из {len(flagged)} подозрительных'
+    return f'Обнаружено {len(flagged)} группа(ы) среднего риска'
+
+
+# ── Activity Pattern Analysis ──
+
+def analyze_activity_patterns(wall_posts: list) -> dict:
+    """Detect posting patterns — timezone, night activity, frequency."""
+    if not wall_posts:
+        return {}
+
+    hours = []
+    days = []
+    dates = []
+
+    for post in wall_posts:
+        ts = post.get('date', 0)
+        if ts:
+            try:
+                dt = datetime.fromtimestamp(ts)
+                hours.append(dt.hour)
+                days.append(dt.weekday())
+                dates.append(dt.date())
+            except (ValueError, OSError):
+                pass
+
+    if not hours:
+        return {}
+
+    hour_counts = Counter(hours)
+    day_counts = Counter(days)
+
+    peak_hours = sorted(hour_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+
+    # Night activity (23:00 - 05:00)
+    night_posts = sum(hour_counts.get(h, 0)
+                      for h in list(range(23, 24)) + list(range(0, 6)))
+    night_pct = (night_posts / len(hours) * 100) if hours else 0
+
+    tz_hint = _estimate_timezone(peak_hours[0][0] if peak_hours else 12)
+
+    if dates:
+        date_range = (max(dates) - min(dates)).days + 1
+        posts_per_day = len(wall_posts) / max(date_range, 1)
+    else:
+        posts_per_day = 0
+
+    flags = []
+    if night_pct > 40:
+        flags.append({
+            'type': 'suspicion',
+            'code': 'high_night_activity',
+            'description': f'Высокая ночная активность: {night_pct:.0f}% постов с 23:00 до 05:00',
+            'severity': 'low',
+        })
+    if tz_hint and tz_hint != 'moscow':
+        flags.append({
+            'type': 'fact',
+            'code': 'unusual_timezone',
+            'description': f'Пик активности указывает на часовой пояс: {tz_hint}',
+            'severity': 'low',
+        })
+
+    return {
+        'peak_hours': peak_hours,
+        'night_activity_pct': round(night_pct, 1),
+        'posts_per_day': round(posts_per_day, 2),
+        'estimated_timezone': tz_hint,
+        'day_distribution': dict(day_counts),
+        'hour_distribution': dict(hour_counts),
+        'activity_flags': flags,
+    }
+
+
+def _estimate_timezone(peak_hour: int) -> str:
+    """Rough timezone estimation from peak posting hour."""
+    local_peak = 16
+    offset = peak_hour - local_peak
+
+    tz_map = {
+        'moscow': range(-2, 2),
+        'yekaterinburg': range(2, 5),
+        'novosibirsk': range(5, 8),
+        'vladivostok': range(7, 10),
+        'europe': range(-5, -2),
+    }
+    for name, r in tz_map.items():
+        if offset in r:
+            return name
+    return 'unknown'
+
+
+# ── Profile Anomaly Detection ──
+
+def detect_profile_anomalies(vk_profile: dict, check_full_name: str) -> list:
+    """Detect suspicious VK profile characteristics."""
+    flags = []
+
+    # Check 1: Name mismatch
+    vk_name = f"{vk_profile.get('last_name', '')} {vk_profile.get('first_name', '')}".strip()
+    if vk_name and check_full_name:
+        from difflib import SequenceMatcher
+        similarity = SequenceMatcher(None, vk_name.lower(), check_full_name.lower()).ratio()
+        if similarity < 0.5:
+            flags.append({
+                'type': 'suspicion',
+                'code': 'name_mismatch',
+                'description': f'Имя в VK "{vk_name}" значительно отличается от указанного "{check_full_name}"',
+                'severity': 'medium',
+            })
+
+    # Check 2: New account (high VK ID)
+    vk_id = vk_profile.get('id', 0)
+    if vk_id > 700_000_000:
+        flags.append({
+            'type': 'fact',
+            'code': 'new_account',
+            'description': f'Аккаунт создан относительно недавно (ID: {vk_id})',
+            'severity': 'low',
+        })
+
+    # Check 3: Private profile
+    if vk_profile.get('is_closed', False):
+        flags.append({
+            'type': 'fact',
+            'code': 'private_profile',
+            'description': 'Профиль закрыт — данные ограничены',
+            'severity': 'low',
+        })
+
+    # Check 4: No photo
+    photo = vk_profile.get('photo_200') or vk_profile.get('photo_100', '')
+    if not photo or 'camera_200' in photo:
+        flags.append({
+            'type': 'fact',
+            'code': 'no_photo',
+            'description': 'Фото профиля отсутствует',
+            'severity': 'low',
+        })
+
+    return flags
+
+
+def store_vk_snapshot(check, vk_profile: dict):
+    """Store VK profile snapshot for future comparison."""
+    photo_url = vk_profile.get('photo_200', '')
+    check.vk_snapshot = {
+        'name': f"{vk_profile.get('last_name', '')} {vk_profile.get('first_name', '')}",
+        'city': (vk_profile.get('city') or {}).get('title', ''),
+        'photo_hash': hashlib.md5(photo_url.encode()).hexdigest() if photo_url else '',
+        'is_closed': vk_profile.get('is_closed', False),
+        'vk_id': vk_profile.get('id'),
+        'snapshot_date': datetime.now().isoformat(),
+    }
+
+
+# ── Connected Checks ──
+
+def find_connected_checks(check) -> list:
+    """Find connections between this check and all previous completed checks."""
+    from app.models.candidate_check import CandidateCheck
+
+    connections = []
+    try:
+        all_checks = CandidateCheck.query.filter(
+            CandidateCheck.status == 'complete',
+            CandidateCheck.id != check.id,
+        ).all()
+    except Exception as e:
+        logger.warning(f"Connected checks query failed: {e}")
+        return []
+
+    # This check's data
+    my_contacts = check.contact_discoveries or {}
+    my_phones = {c.get('number') or c.get('value', '') for c in (my_contacts.get('phones') or []) if c.get('number') or c.get('value')}
+    my_emails = {c.get('email', '') for c in (my_contacts.get('emails') or []) if c.get('email')}
+    my_biz_inns = {b.get('inn') for b in (check.business_records or []) if b.get('inn')}
+
+    for other in all_checks:
+        shared = []
+
+        # Shared business (same INN company)
+        other_biz_inns = {b.get('inn') for b in (other.business_records or []) if b.get('inn')}
+        shared_biz = my_biz_inns & other_biz_inns
+        if shared_biz:
+            shared.append({
+                'type': 'shared_business',
+                'description': f'Совместный бизнес: {len(shared_biz)} компани(й)',
+                'inns': list(shared_biz),
+            })
+
+        # Shared phone
+        other_contacts = other.contact_discoveries or {}
+        other_phones = {c.get('number') or c.get('value', '') for c in (other_contacts.get('phones') or []) if c.get('number') or c.get('value')}
+        shared_phones = my_phones & other_phones
+        if shared_phones:
+            shared.append({
+                'type': 'shared_phone',
+                'description': f'Общий телефон: {list(shared_phones)[0]}',
+            })
+
+        # Shared email
+        other_emails = {c.get('email', '') for c in (other_contacts.get('emails') or []) if c.get('email')}
+        shared_emails = my_emails & other_emails
+        if shared_emails:
+            shared.append({
+                'type': 'shared_email',
+                'description': f'Общий email: {list(shared_emails)[0]}',
+            })
+
+        if shared:
+            connections.append({
+                'connected_check_id': other.id,
+                'connected_name': other.full_name,
+                'connected_check_date': other.created_at.isoformat() if other.created_at else '',
+                'connected_risk_level': other.risk_level,
+                'connection_types': shared,
+            })
+
+    return connections
 
 
 def _get_vk_profiles(check) -> List[Dict]:
@@ -250,6 +575,9 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
         'text_analysis': {},
         'geo_analysis': {},
         'activity_timeline': [],
+        'group_analysis': {},
+        'activity_patterns': {},
+        'profile_anomalies': [],
     }
 
     # Fetch wall posts (needed for text analysis and timeline)
@@ -302,6 +630,59 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
         results['activity_timeline'] = _build_activity_timeline(posts, check)
     except Exception as e:
         logger.error(f"Activity timeline failed: {e}")
+
+    # 6d. VK Groups Intelligence
+    vk_id = None
+    for p in vk_profiles:
+        vk_id = p.get('platform_id') or p.get('vk_id') or p.get('id')
+        if not vk_id:
+            url = p.get('url', '')
+            if '/id' in url:
+                try:
+                    vk_id = int(url.split('/id')[-1].split('?')[0].split('/')[0])
+                except (ValueError, IndexError):
+                    pass
+        if vk_id:
+            break
+
+    if vk_id:
+        _update('Анализ групп VK', 80)
+        try:
+            groups = fetch_vk_groups(int(vk_id), vk_token)
+            if groups:
+                results['group_analysis'] = analyze_groups(groups)
+                flagged_count = len(results['group_analysis'].get('flagged_groups', []))
+                logger.info(f"VK groups: {len(groups)} total, {flagged_count} flagged")
+        except Exception as e:
+            logger.error(f"VK groups analysis failed: {e}")
+
+        # 6e. Profile anomaly detection
+        try:
+            # Fetch full VK profile for anomaly check
+            resp = requests.get('https://api.vk.com/method/users.get', params={
+                'user_ids': vk_id,
+                'fields': 'first_name,last_name,is_closed,photo_200,photo_100,city,last_seen',
+                'access_token': vk_token,
+                'v': VK_API_VERSION,
+            }, timeout=10)
+            vk_data = resp.json()
+            vk_users = vk_data.get('response', [])
+            if vk_users:
+                vk_profile = vk_users[0]
+                results['profile_anomalies'] = detect_profile_anomalies(
+                    vk_profile, check.full_name,
+                )
+                store_vk_snapshot(check, vk_profile)
+        except Exception as e:
+            logger.error(f"Profile anomaly detection failed: {e}")
+
+    # 6f. Activity patterns
+    if posts:
+        _update('Анализ паттернов активности', 81)
+        try:
+            results['activity_patterns'] = analyze_activity_patterns(posts)
+        except Exception as e:
+            logger.error(f"Activity patterns analysis failed: {e}")
 
     _update('Поведенческий анализ завершён', 82)
     return results

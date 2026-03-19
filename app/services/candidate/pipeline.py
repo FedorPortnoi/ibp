@@ -771,6 +771,19 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             except Exception as e:
                 logger.debug(f"AI court summary skipped: {e}")
 
+            # INN-based filtering: remove false positives from EGRUL by-name results
+            if check.inn and biz_records:
+                try:
+                    from app.services.phase3.business_registry import filter_business_records_by_inn
+                    pre_count = len(biz_records)
+                    biz_records = filter_business_records_by_inn(biz_records, check.inn)
+                    if pre_count != len(biz_records):
+                        logger.info(
+                            f"Stage 1 INN filter: {pre_count} → {len(biz_records)} business records"
+                        )
+                except Exception as e:
+                    logger.warning(f"INN filter failed (keeping all records): {e}")
+
             check.business_records = biz_records
             check.court_records = court_records
             check.fssp_records = fssp_records
@@ -1324,6 +1337,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 check.text_analysis = behavioral_results.get('text_analysis', {})
                 check.geo_analysis = behavioral_results.get('geo_analysis', {})
                 check.activity_timeline = behavioral_results.get('activity_timeline', [])
+                check.group_analysis = behavioral_results.get('group_analysis', {})
+                check.activity_patterns = behavioral_results.get('activity_patterns', {})
                 db.session.commit()
 
                 has_text = bool(behavioral_results.get('text_analysis'))
@@ -1369,9 +1384,26 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             # ══════════════════════════════════════════════
             # STAGE 7: RISK SCORING [83-93%]
             # ══════════════════════════════════════════════
-            task.update('risk', 'Анализ рисков...', 86)
+            task.update('risk', 'Анализ рисков...', 84)
 
-            from app.services.candidate.risk_scorer import RiskScorer
+            # 7a. Find connections with previous checks
+            task.update('risk', 'Поиск связей с другими проверками...', 85)
+            try:
+                from app.services.candidate.behavioral_analysis import find_connected_checks
+                connections = find_connected_checks(check)
+                if connections:
+                    check.connected_checks = connections
+                    db.session.commit()
+                    task.add_message(
+                        f'Связи: найдено {len(connections)} связанных проверок',
+                        'success',
+                    )
+            except Exception as e:
+                logger.warning(f"Connected checks analysis failed: {e}")
+
+            task.update('risk', 'Расчёт рисков...', 86)
+
+            from app.services.candidate.risk_scorer import RiskScorer, calculate_risk_score
             scorer = RiskScorer()
             risk_level, scorer_flags = scorer.analyze(check)
 
@@ -1411,6 +1443,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 }
             check.risk_breakdown = breakdown
             check.risk_score_numeric = min(100.0, total_score)
+
+            # Numeric risk score 0-100 from weighted flags
+            score_result = calculate_risk_score(merged_flags)
+            check.risk_score = score_result['score']
+
             db.session.commit()
 
             # AI: Risk narrative

@@ -33,6 +33,7 @@ class CandidateCheck(db.Model):
     region = db.Column(db.String(100))
     phone = db.Column(db.String(20))
     email = db.Column(db.String(255))
+    photo_path = db.Column(db.String(500), nullable=True)
 
     # --- Stage 0: Identity Confirmation ---
     _identity_confirmation = db.Column('identity_confirmation', db.Text, default='{}')
@@ -67,10 +68,15 @@ class CandidateCheck(db.Model):
     _geo_analysis = db.Column('geo_analysis', db.Text, default='{}')
     _text_analysis = db.Column('text_analysis', db.Text, default='{}')
     _activity_timeline = db.Column('activity_timeline', db.Text, default='[]')
+    _group_analysis = db.Column('group_analysis', db.Text, default='{}')
+    _activity_patterns = db.Column('activity_patterns', db.Text, default='{}')
+    _vk_snapshot = db.Column('vk_snapshot', db.Text, default='{}')
+    _connected_checks = db.Column('connected_checks', db.Text, default='[]')
 
     # --- Stage 7: Dimensional Risk ---
     _risk_breakdown = db.Column('risk_breakdown', db.Text, default='{}')
     risk_score_numeric = db.Column(db.Float, nullable=True)  # 0-100 composite
+    risk_score = db.Column(db.Integer, nullable=True)  # 0-100 integer score
 
     # --- AI Summaries (Claude) ---
     risk_narrative = db.Column(db.Text, nullable=True)
@@ -248,6 +254,42 @@ class CandidateCheck(db.Model):
     def activity_timeline(self, value):
         self._activity_timeline = self._dump_json(value)
 
+    # group_analysis
+    @property
+    def group_analysis(self):
+        return self._load_json(self._group_analysis, {})
+
+    @group_analysis.setter
+    def group_analysis(self, value):
+        self._group_analysis = self._dump_json(value)
+
+    # activity_patterns
+    @property
+    def activity_patterns(self):
+        return self._load_json(self._activity_patterns, {})
+
+    @activity_patterns.setter
+    def activity_patterns(self, value):
+        self._activity_patterns = self._dump_json(value)
+
+    # vk_snapshot
+    @property
+    def vk_snapshot(self):
+        return self._load_json(self._vk_snapshot, {})
+
+    @vk_snapshot.setter
+    def vk_snapshot(self, value):
+        self._vk_snapshot = self._dump_json(value)
+
+    # connected_checks
+    @property
+    def connected_checks(self):
+        return self._load_json(self._connected_checks, [])
+
+    @connected_checks.setter
+    def connected_checks(self, value):
+        self._connected_checks = self._dump_json(value)
+
     # risk_breakdown
     @property
     def risk_breakdown(self):
@@ -360,6 +402,7 @@ class CandidateCheck(db.Model):
             'risk_level': self.risk_level,
             'risk_level_display': self.risk_level_display,
             'red_flag_count': self.red_flag_count,
+            'risk_score': self.risk_score,
             'check_level': self.check_level,
             'check_level_display': self.check_level_display,
             'sources_checked': self.sources_checked,

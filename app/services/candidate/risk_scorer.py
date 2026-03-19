@@ -1,11 +1,11 @@
 """
 Risk Scorer for Candidate Pipeline
 ===================================
-Analyzes all collected data from all pipeline stages,
-detects red flags with cross-referencing, assigns severity levels,
-calculates overall risk level, and produces a final red flag summary.
+Numeric 0-100 risk scoring with fact/suspicion distinction.
+Each flag has: type, code, description, evidence, severity, recommendation.
 """
 
+import json
 import logging
 import re
 from collections import Counter
@@ -13,10 +13,142 @@ from datetime import datetime, date
 
 logger = logging.getLogger(__name__)
 
-SEVERITY_CRITICAL = "critical"   # Auto-disqualifier
-SEVERITY_HIGH = "high"           # Serious, likely disqualifier
-SEVERITY_MEDIUM = "medium"       # Warning, needs review
-SEVERITY_LOW = "low"             # Informational
+SEVERITY_CRITICAL = "critical"
+SEVERITY_HIGH = "high"
+SEVERITY_MEDIUM = "medium"
+SEVERITY_LOW = "low"
+
+# Numeric weights for risk score calculation
+RISK_WEIGHTS = {
+    # FACTS (verified data)
+    'court_criminal': 25,
+    'court_admin': 10,
+    'fraud_case': 20,
+    'active_debts': 10,
+    'multiple_active': 15,
+    'fssp_debt': 15,
+    'critical_debt': 20,
+    'large_debt': 15,
+    'medium_debt': 8,
+    'alimony_debt': 10,
+    'tax_debt': 15,
+    'active_bankruptcy': 20,
+    'recent_bankruptcy': 10,
+    'sanctions_match': 30,
+    'passport_invalid': 20,
+    'interpol_found': 35,
+    'name_discrepancy': 8,
+    # SUSPICIONS (indirect signals)
+    'serial_entrepreneur': 5,
+    'mass_director': 8,
+    'liquidated_companies': 8,
+    'recent_liquidation': 6,
+    'liquidated_with_debt': 10,
+    'mass_registration_address': 6,
+    'address_match': 5,
+    'geo_discrepancy': 5,
+    'high_night_activity': 5,
+    'unusual_timezone': 3,
+    'political_groups': 8,
+    'criminal_groups': 15,
+    'gambling_groups': 8,
+    'drug_groups': 20,
+    'security_groups': 5,
+    'name_mismatch': 8,
+    'new_account': 3,
+    'private_profile': 2,
+    'no_photo': 2,
+    'connected_high_risk': 10,
+    'no_social_presence': 5,
+    'no_friends': 3,
+    'isolated_graph': 5,
+    'fake_profile_indicators': 8,
+    'negative_sentiment': 3,
+    'risk_keywords': 5,
+    'night_activity': 5,
+    'inactive_profile': 3,
+    'identity_not_confirmed': 3,
+    'sanctions_unchecked': 5,
+    'many_cases': 8,
+    'defendant_cases': 10,
+}
+
+# HR-friendly recommendations per code
+RECOMMENDATIONS = {
+    'court_criminal': 'Рекомендуется запросить справку об отсутствии судимости',
+    'fraud_case': 'Рекомендуется дополнительная проверка службой безопасности',
+    'active_debts': 'Информационный факт. Рекомендуется уточнить у кандидата',
+    'multiple_active': 'Множественные долги указывают на финансовые проблемы. Рекомендуется проверка платёжеспособности',
+    'critical_debt': 'Критическая задолженность. Рекомендуется отказ для финансовых позиций',
+    'large_debt': 'Крупная задолженность. Рекомендуется дополнительная проверка',
+    'medium_debt': 'Умеренная задолженность. Рекомендуется уточнить у кандидата',
+    'alimony_debt': 'Задолженность по алиментам. Информационный факт',
+    'tax_debt': 'Критично для финансового сектора. Рекомендуется дополнительная проверка',
+    'active_bankruptcy': 'Банкрот не может занимать руководящие должности (3 года)',
+    'recent_bankruptcy': 'Недавнее банкротство. Рекомендуется учесть при принятии решения',
+    'sanctions_match': 'КРИТИЧНО: кандидат в санкционном списке. Немедленное уведомление compliance',
+    'passport_invalid': 'Паспорт числится недействительным. Рекомендуется запросить оригинал',
+    'name_discrepancy': 'Расхождение ФИО. Рекомендуется уточнить у кандидата',
+    'serial_entrepreneur': 'Косвенный признак. Множественные бизнес-связи могут быть нормой',
+    'mass_director': 'Возможный массовый директор. Рекомендуется проверка реальности бизнеса',
+    'liquidated_companies': 'Множество ликвидированных компаний. Рекомендуется уточнить причины',
+    'recent_liquidation': 'Недавняя ликвидация. Рекомендуется уточнить причины',
+    'liquidated_with_debt': 'Ликвидация при наличии долгов. Рекомендуется дополнительная проверка',
+    'mass_registration_address': 'Признак массовой регистрации. Косвенный факт',
+    'address_match': 'Информационный факт — бизнес по месту жительства',
+    'geo_discrepancy': 'Косвенный признак. Возможна работа в другом городе',
+    'high_night_activity': 'Косвенный признак. Возможна работа в ночную смену или другой часовой пояс',
+    'unusual_timezone': 'Информационный факт — пик активности в нестандартном часовом поясе',
+    'political_groups': 'Информационный факт. Членство в политических группах',
+    'criminal_groups': 'Серьёзный признак. Рекомендуется дополнительная проверка',
+    'gambling_groups': 'Возможная склонность к азартным играм. Критично для финансовых позиций',
+    'drug_groups': 'Серьёзный признак. Рекомендуется дополнительная проверка',
+    'security_groups': 'Интерес к кибербезопасности. Оценить в контексте должности',
+    'name_mismatch': 'Имя в соцсетях отличается. Рекомендуется уточнить',
+    'new_account': 'Информационный факт — относительно новый аккаунт',
+    'private_profile': 'Информационный факт — закрытый профиль',
+    'no_photo': 'Информационный факт — отсутствует фото профиля',
+    'connected_high_risk': 'Связан с кандидатом высокого риска. Рекомендуется проверка характера связи',
+    'no_social_presence': 'Необычное отсутствие соцсетей. Возможно, использует другие имена',
+    'no_friends': 'Пустой социальный граф. Косвенный признак нового или фейкового аккаунта',
+    'isolated_graph': 'Изолированный граф. Косвенный признак',
+    'fake_profile_indicators': 'Подозрительный профиль. Рекомендуется проверка подлинности',
+    'negative_sentiment': 'Косвенный признак. Негативный тон может отражать жизненные обстоятельства',
+    'risk_keywords': 'Рисковые ключевые слова в публикациях. Рекомендуется контекстная оценка',
+    'night_activity': 'Косвенный признак. Возможна работа в ночную смену',
+    'inactive_profile': 'Информационный факт — давно не активен',
+    'identity_not_confirmed': 'ИНН не найден в ЕГРЮЛ. Не является негативным фактором для физлиц',
+    'sanctions_unchecked': 'Рекомендуется ручная проверка недоступных источников',
+    'many_cases': 'Повышенная судебная активность. Рекомендуется изучить характер дел',
+    'defendant_cases': 'Множественные дела в качестве ответчика. Рекомендуется проверка',
+    'established_identity': 'Положительный признак — устоявшаяся цифровая личность',
+}
+
+
+def calculate_risk_score(flags: list) -> dict:
+    """Calculate numeric risk score 0-100 from flags."""
+    raw_score = 0
+    for flag in flags:
+        weight = RISK_WEIGHTS.get(flag.get('code', ''), 0)
+        raw_score += weight
+
+    score = min(raw_score, 100)
+
+    if score >= 60:
+        level, level_name = 'critical', 'Критический риск'
+    elif score >= 35:
+        level, level_name = 'high', 'Высокий риск'
+    elif score >= 15:
+        level, level_name = 'medium', 'Средний риск'
+    else:
+        level, level_name = 'low', 'Низкий риск'
+
+    return {
+        'score': score,
+        'level': level,
+        'level_name': level_name,
+        'raw_score': raw_score,
+    }
 
 
 class RiskScorer:
@@ -25,9 +157,6 @@ class RiskScorer:
     def analyze(self, check):
         """
         Analyze a CandidateCheck and return (risk_level, red_flags).
-
-        Args:
-            check: CandidateCheck object with populated fields
 
         Returns:
             tuple: (risk_level_str, list_of_red_flag_dicts)
@@ -43,8 +172,18 @@ class RiskScorer:
         red_flags.extend(self._analyze_social(check))
         red_flags.extend(self._analyze_social_behavior(check))
         red_flags.extend(self._analyze_behavioral_patterns(check))
+        red_flags.extend(self._analyze_groups(check))
+        red_flags.extend(self._analyze_activity_patterns(check))
+        red_flags.extend(self._analyze_profile_anomalies(check))
+        red_flags.extend(self._analyze_connections(check))
 
-        risk_level = self._calculate_risk_level(red_flags)
+        # Calculate numeric score
+        score_data = calculate_risk_score(red_flags)
+        risk_level = score_data['level']
+
+        # Backward-compat: also check old severity-based logic for critical
+        if any(f['severity'] == SEVERITY_CRITICAL for f in red_flags):
+            risk_level = 'critical'
 
         severity_order = {
             SEVERITY_CRITICAL: 0,
@@ -56,29 +195,34 @@ class RiskScorer:
 
         return risk_level, red_flags
 
+    def analyze_with_score(self, check):
+        """Analyze and return (risk_level, red_flags, risk_score)."""
+        risk_level, red_flags = self.analyze(check)
+        score_data = calculate_risk_score(red_flags)
+        return risk_level, red_flags, score_data['score']
+
     # ── Identity Red Flags (Stage 0) ──
 
     def _analyze_identity(self, check):
-        """Analyze identity confirmation results from Stage 0."""
         flags = []
         identity = getattr(check, 'identity_confirmation', None) or {}
 
-        # Name discrepancy: EGRUL name differs from user input
         if identity.get('name_discrepancy'):
             egrul_name = identity.get('egrul_name', '')
             flags.append(self._flag(
                 SEVERITY_MEDIUM, 'identity', 'name_discrepancy',
                 'Расхождение ФИО: введённое имя отличается от данных ЕГРЮЛ',
+                flag_type='fact',
+                evidence=f'ЕГРЮЛ: {egrul_name}' if egrul_name else '',
                 details=f'ЕГРЮЛ: {egrul_name}' if egrul_name else '',
             ))
 
-        # Identity not confirmed via INN
         if hasattr(check, 'identity_confirmed') and check.identity_confirmed is False:
-            # Only flag if INN was provided (it should be, since it's required)
             if check.inn:
                 flags.append(self._flag(
                     SEVERITY_LOW, 'identity', 'identity_not_confirmed',
                     'ИНН не подтверждён через ЕГРЮЛ (нет записей)',
+                    flag_type='fact',
                 ))
 
         return flags
@@ -95,15 +239,15 @@ class RiskScorer:
         if not real_records:
             return flags
 
-        # serial_entrepreneur — 4+ companies (informational)
         if len(real_records) >= 4:
             flags.append(self._flag(
                 SEVERITY_LOW, 'business', 'serial_entrepreneur',
                 f'Связан с {len(real_records)} компаниями',
-                details='Информационный флаг — множественные бизнес-связи',
+                flag_type='suspicion',
+                evidence=f'{len(real_records)} записей в ЕГРЮЛ/ЕГРИП',
+                details=f'Информационный флаг — множественные бизнес-связи',
             ))
 
-        # mass_director — 5+ companies where person is director/founder
         director_roles = ['директор', 'руководитель', 'учредитель', 'генеральный директор']
         director_count = sum(
             1 for r in real_records
@@ -113,10 +257,11 @@ class RiskScorer:
             flags.append(self._flag(
                 SEVERITY_MEDIUM, 'business', 'mass_director',
                 'Руководитель/учредитель 5+ компаний (возможный массовый директор)',
+                flag_type='suspicion',
+                evidence=f'Руководящая роль в {director_count} организациях (ЕГРЮЛ)',
                 details=f'Руководящая роль в {director_count} организациях',
             ))
 
-        # liquidated_companies — 3+ liquidated
         liquidated = [
             r for r in real_records
             if 'ликвид' in (r.get('status', '') or '').lower()
@@ -126,9 +271,10 @@ class RiskScorer:
             flags.append(self._flag(
                 SEVERITY_MEDIUM, 'business', 'liquidated_companies',
                 f'{len(liquidated)} ликвидированных компании',
+                flag_type='fact',
+                evidence=f'ЕГРЮЛ: {len(liquidated)} ликвидированных юрлиц',
             ))
 
-        # recent_liquidation — liquidated within last 12 months
         for r in liquidated:
             end_date_str = r.get('end_date', '') or ''
             end_date = self._parse_date(end_date_str)
@@ -138,11 +284,12 @@ class RiskScorer:
                     flags.append(self._flag(
                         SEVERITY_MEDIUM, 'business', 'recent_liquidation',
                         'Недавно ликвидированная компания',
+                        flag_type='fact',
+                        evidence=f'{r.get("name", r.get("company_name", ""))} — ликвидирована {end_date_str}',
                         details=f'{r.get("name", r.get("company_name", ""))} — ликвидирована {end_date_str}',
                     ))
                     break
 
-        # liquidated_with_debt — liquidated company + active FSSP debt cross-reference
         if liquidated:
             fssp_records = getattr(check, 'fssp_records', None) or []
             active_fssp = [r for r in fssp_records if not r.get('completed')]
@@ -150,10 +297,11 @@ class RiskScorer:
                 flags.append(self._flag(
                     SEVERITY_MEDIUM, 'business', 'liquidated_with_debt',
                     'Ликвидированная компания при наличии активных исп. производств',
+                    flag_type='fact',
+                    evidence=f'{len(liquidated)} ликвид. компаний + {len(active_fssp)} активных производств ФССП',
                     details=f'{len(liquidated)} ликвид. компаний, {len(active_fssp)} активных производств ФССП',
                 ))
 
-        # mass_registration_address — multiple companies at same address
         addresses = [
             (r.get('address', '') or '').strip().lower()
             for r in real_records
@@ -166,11 +314,12 @@ class RiskScorer:
                     flags.append(self._flag(
                         SEVERITY_MEDIUM, 'business', 'mass_registration_address',
                         'Несколько компаний по одному адресу',
+                        flag_type='suspicion',
+                        evidence=f'{count} компаний по адресу: {addr[:80]}',
                         details=f'{count} компаний по адресу: {addr[:80]}',
                     ))
                     break
 
-        # address_match — company at candidate's personal address
         candidate_addr = (getattr(check, 'registered_address', '') or '').strip().lower()
         if candidate_addr and len(candidate_addr) > 10:
             for r in real_records:
@@ -179,6 +328,8 @@ class RiskScorer:
                     flags.append(self._flag(
                         SEVERITY_MEDIUM, 'business', 'address_match',
                         'Компания зарегистрирована по адресу проживания кандидата',
+                        flag_type='fact',
+                        evidence=r.get('name', r.get('company_name', '')),
                         details=r.get('name', r.get('company_name', '')),
                     ))
                     break
@@ -197,7 +348,6 @@ class RiskScorer:
         if not real_records:
             return flags
 
-        # criminal_case — criminal article references
         criminal_pattern = re.compile(
             r'ст\.\s*1[5-6][0-9]|уголовн|УК\s+РФ|'
             r'ст\.\s*159|ст\.\s*160|ст\.\s*158',
@@ -212,13 +362,14 @@ class RiskScorer:
             ]))
             if criminal_pattern.search(text):
                 flags.append(self._flag(
-                    SEVERITY_HIGH, 'courts', 'criminal_case',
-                    'Уголовное дело',
+                    SEVERITY_HIGH, 'courts', 'court_criminal',
+                    'Найдено уголовное дело',
+                    flag_type='fact',
+                    evidence=f'sudact.ru: Дело {r.get("case_number", "Б/Н")}, {r.get("court_name", r.get("court", ""))}',
                     details=r.get('case_number', ''),
                 ))
                 break
 
-        # fraud_case — fraud/embezzlement keywords
         fraud_keywords = ['мошенничество', 'хищение', 'растрата', 'присвоение']
         for r in real_records:
             text = ' '.join(filter(None, [
@@ -230,18 +381,20 @@ class RiskScorer:
                 flags.append(self._flag(
                     SEVERITY_HIGH, 'courts', 'fraud_case',
                     'Судебное дело о мошенничестве/хищении',
+                    flag_type='fact',
+                    evidence=f'sudact.ru: Дело {r.get("case_number", "Б/Н")}',
                     details=r.get('case_number', ''),
                 ))
                 break
 
-        # many_cases — 5+
         if len(real_records) >= 5:
             flags.append(self._flag(
                 SEVERITY_MEDIUM, 'courts', 'many_cases',
                 f'Повышенная судебная активность ({len(real_records)} дел)',
+                flag_type='fact',
+                evidence=f'{len(real_records)} судебных дел на sudact.ru/casebook.ru',
             ))
 
-        # defendant_cases — defendant in 3+
         defendant_keywords = ['ответчик', 'defendant', 'обвиняем', 'подсудим']
         defendant_count = sum(
             1 for r in real_records
@@ -251,6 +404,8 @@ class RiskScorer:
             flags.append(self._flag(
                 SEVERITY_MEDIUM, 'courts', 'defendant_cases',
                 f'Ответчик в {defendant_count} делах',
+                flag_type='fact',
+                evidence=f'Роль «ответчик» в {defendant_count} делах',
             ))
 
         return flags
@@ -269,58 +424,66 @@ class RiskScorer:
 
         active = [r for r in real_records if r.get('is_active')]
 
-        # active_debts
         if active:
             flags.append(self._flag(
                 SEVERITY_MEDIUM, 'fssp', 'active_debts',
                 f'Активные исполнительные производства ({len(active)})',
+                flag_type='fact',
+                evidence=f'ФССП: {len(active)} активных производств',
             ))
 
-        # multiple_active — 3+
         if len(active) >= 3:
             flags.append(self._flag(
                 SEVERITY_HIGH, 'fssp', 'multiple_active',
                 f'Множественные активные производства ({len(active)})',
+                flag_type='fact',
+                evidence=f'ФССП: {len(active)} активных производств одновременно',
             ))
 
-        # Total active debt
         total_active_debt = sum(self._safe_number(r.get('amount')) for r in active)
 
-        # critical_debt > large_debt > medium_debt
         if total_active_debt > 1_000_000:
             flags.append(self._flag(
                 SEVERITY_HIGH, 'fssp', 'critical_debt',
                 'Критическая задолженность (>1 000 000\u20bd)',
+                flag_type='fact',
+                evidence=f'Общая сумма: {total_active_debt:,.0f}\u20bd по {len(active)} производствам',
                 details=f'Общая сумма: {total_active_debt:,.0f}\u20bd по {len(active)} производствам',
             ))
         elif total_active_debt > 500_000:
             flags.append(self._flag(
                 SEVERITY_HIGH, 'fssp', 'large_debt',
                 'Крупная задолженность (>500 000\u20bd)',
+                flag_type='fact',
+                evidence=f'Общая сумма: {total_active_debt:,.0f}\u20bd по {len(active)} производствам',
                 details=f'Общая сумма: {total_active_debt:,.0f}\u20bd по {len(active)} производствам',
             ))
         elif total_active_debt > 100_000:
             flags.append(self._flag(
                 SEVERITY_MEDIUM, 'fssp', 'medium_debt',
                 'Задолженность >100 000\u20bd',
+                flag_type='fact',
+                evidence=f'Общая сумма: {total_active_debt:,.0f}\u20bd',
                 details=f'Общая сумма: {total_active_debt:,.0f}\u20bd',
             ))
 
-        # alimony_debt
         for r in real_records:
             if 'алимент' in (r.get('subject') or '').lower():
                 flags.append(self._flag(
                     SEVERITY_MEDIUM, 'fssp', 'alimony_debt',
                     'Задолженность по алиментам',
+                    flag_type='fact',
+                    evidence='ФССП: исполнительное производство по алиментам',
                 ))
                 break
 
-        # tax_debt
         for r in real_records:
             if 'налог' in (r.get('subject') or '').lower():
                 flags.append(self._flag(
                     SEVERITY_HIGH, 'fssp', 'tax_debt',
                     'Налоговая задолженность (критично для финансового сектора)',
+                    flag_type='fact',
+                    evidence='ФССП: исполнительное производство по налоговой задолженности',
                 ))
                 break
 
@@ -338,16 +501,16 @@ class RiskScorer:
         if not real_records:
             return flags
 
-        # active_bankruptcy
         for r in real_records:
             if r.get('is_active'):
                 flags.append(self._flag(
                     SEVERITY_HIGH, 'bankruptcy', 'active_bankruptcy',
                     'Активное банкротство — запрет на руководящие должности',
+                    flag_type='fact',
+                    evidence='ЕФРСБ: активное дело о банкротстве',
                 ))
                 break
 
-        # recent_bankruptcy — completed within 3 years
         for r in real_records:
             stage = (r.get('stage') or '').lower()
             if 'завершен' in stage or 'прекращен' in stage:
@@ -358,6 +521,8 @@ class RiskScorer:
                         flags.append(self._flag(
                             SEVERITY_MEDIUM, 'bankruptcy', 'recent_bankruptcy',
                             'Недавнее банкротство (менее 3 лет)',
+                            flag_type='fact',
+                            evidence=f'ЕФРСБ: банкротство завершено {years_ago:.1f} лет назад',
                         ))
                         break
 
@@ -371,7 +536,6 @@ class RiskScorer:
         if not results:
             return flags
 
-        # Handle both list and dict formats
         if isinstance(results, dict):
             results_list = list(results.values()) if results else []
         elif isinstance(results, list):
@@ -379,7 +543,6 @@ class RiskScorer:
         else:
             return flags
 
-        # sanctions_match
         for r in results_list:
             if isinstance(r, dict) and r.get('checked') and r.get('found'):
                 source = r.get('source_name', 'Неизвестный источник')
@@ -387,10 +550,11 @@ class RiskScorer:
                 flags.append(self._flag(
                     SEVERITY_CRITICAL, 'sanctions', 'sanctions_match',
                     f'Найден в санкционном/розыскном списке: {source}',
+                    flag_type='fact',
+                    evidence=f'{source}: совпадение подтверждено',
                     details=details,
                 ))
 
-        # sanctions_unchecked — unable to check 2+ sources
         unchecked = [
             r for r in results_list
             if isinstance(r, dict) and not r.get('checked')
@@ -400,6 +564,8 @@ class RiskScorer:
             flags.append(self._flag(
                 SEVERITY_MEDIUM, 'sanctions', 'sanctions_unchecked',
                 'Не удалось проверить санкционные списки — рекомендуется ручная проверка',
+                flag_type='suspicion',
+                evidence=f'Недоступные источники: {sources}',
                 details=f'Источники: {sources}',
             ))
 
@@ -415,6 +581,8 @@ class RiskScorer:
             flags.append(self._flag(
                 SEVERITY_MEDIUM, 'social', 'no_social_presence',
                 'Не обнаружено присутствие в соцсетях (необычно)',
+                flag_type='suspicion',
+                evidence='VK, Telegram: профили не найдены',
             ))
 
         return flags
@@ -422,84 +590,53 @@ class RiskScorer:
     # ── Social Behavior Red Flags (Stage 5) ──
 
     def _analyze_social_behavior(self, check):
-        """Category 7: Social behavior analysis from Stage 5 data."""
         flags = []
 
-        graph = getattr(check, 'social_graph_data', None)
-        if isinstance(graph, str):
-            try:
-                import json
-                graph = json.loads(graph)
-            except (json.JSONDecodeError, TypeError):
-                graph = {}
-        if not graph or not isinstance(graph, dict):
-            graph = {}
+        graph = self._safe_json_attr(check, 'social_graph_data', {})
+        face_matches = self._safe_json_attr(check, 'face_matches', [])
+        username_accounts = self._safe_json_attr(check, 'username_accounts', [])
 
-        face_matches = getattr(check, 'face_matches', None)
-        if isinstance(face_matches, str):
-            try:
-                import json
-                face_matches = json.loads(face_matches)
-            except (json.JSONDecodeError, TypeError):
-                face_matches = []
-        if not face_matches or not isinstance(face_matches, list):
-            face_matches = []
-
-        username_accounts = getattr(check, 'username_accounts', None)
-        if isinstance(username_accounts, str):
-            try:
-                import json
-                username_accounts = json.loads(username_accounts)
-            except (json.JSONDecodeError, TypeError):
-                username_accounts = []
-        if not username_accounts or not isinstance(username_accounts, list):
-            username_accounts = []
-
-        # no_friends: social graph has 0 nodes (beyond center)
         stats = graph.get('stats', {})
         node_count = stats.get('node_count', 0)
         if graph and node_count == 0:
             flags.append(self._flag(
                 SEVERITY_LOW, 'social_behavior', 'no_friends',
                 'Социальный граф пуст — нет друзей в VK',
+                flag_type='suspicion',
+                evidence='VK friends.get: 0 активных друзей',
             ))
 
-        # isolated_graph: graph exists but 0 edges
         edge_count = stats.get('edge_count', 0)
         if graph and node_count > 0 and edge_count == 0:
             flags.append(self._flag(
                 SEVERITY_MEDIUM, 'social_behavior', 'isolated_graph',
                 'Изолированный граф — нет связей между контактами',
+                flag_type='suspicion',
+                evidence=f'VK: {node_count} друзей, 0 взаимных связей',
             ))
 
-        # fake_profile_indicators: found on social but suspicious signs
-        profiles = getattr(check, 'social_media_profiles', None) or []
-        if isinstance(profiles, str):
-            try:
-                import json
-                profiles = json.loads(profiles)
-            except (json.JSONDecodeError, TypeError):
-                profiles = []
+        profiles = self._safe_json_attr(check, 'social_media_profiles', [])
         for p in profiles:
             if isinstance(p, dict):
-                # Check for recent creation + no photos + no posts
                 has_no_photos = not p.get('photo_url') and not p.get('photo_100')
                 has_no_posts = p.get('post_count', -1) == 0
-                # If profile explicitly has 0 posts and no photo
                 if has_no_photos and has_no_posts:
                     flags.append(self._flag(
                         SEVERITY_MEDIUM, 'social_behavior', 'fake_profile_indicators',
                         'Подозрительный профиль: нет фото и постов',
+                        flag_type='suspicion',
+                        evidence=f'Профиль @{p.get("username", "?")} без фото и постов',
                         details=p.get('username', ''),
                     ))
                     break
 
-        # established_identity: found on 5+ platforms (positive indicator)
         platform_count = len(username_accounts)
         if platform_count >= 5:
             flags.append(self._flag(
                 SEVERITY_LOW, 'social_behavior', 'established_identity',
                 f'Установленная личность: найден на {platform_count} платформах',
+                flag_type='fact',
+                evidence=f'Snoop/Maigret/Sherlock: аккаунты на {platform_count} платформах',
             ))
 
         return flags
@@ -507,40 +644,12 @@ class RiskScorer:
     # ── Behavioral Patterns Red Flags (Stage 6) ──
 
     def _analyze_behavioral_patterns(self, check):
-        """Category 8: Behavioral patterns from Stage 6 data."""
         flags = []
 
-        text_analysis = getattr(check, 'text_analysis', None)
-        if isinstance(text_analysis, str):
-            try:
-                import json
-                text_analysis = json.loads(text_analysis)
-            except (json.JSONDecodeError, TypeError):
-                text_analysis = {}
-        if not text_analysis or not isinstance(text_analysis, dict):
-            text_analysis = {}
+        text_analysis = self._safe_json_attr(check, 'text_analysis', {})
+        geo_analysis = self._safe_json_attr(check, 'geo_analysis', {})
+        activity_timeline = self._safe_json_attr(check, 'activity_timeline', [])
 
-        geo_analysis = getattr(check, 'geo_analysis', None)
-        if isinstance(geo_analysis, str):
-            try:
-                import json
-                geo_analysis = json.loads(geo_analysis)
-            except (json.JSONDecodeError, TypeError):
-                geo_analysis = {}
-        if not geo_analysis or not isinstance(geo_analysis, dict):
-            geo_analysis = {}
-
-        activity_timeline = getattr(check, 'activity_timeline', None)
-        if isinstance(activity_timeline, str):
-            try:
-                import json
-                activity_timeline = json.loads(activity_timeline)
-            except (json.JSONDecodeError, TypeError):
-                activity_timeline = []
-        if not activity_timeline or not isinstance(activity_timeline, list):
-            activity_timeline = []
-
-        # negative_sentiment: sentiment score < -0.3
         sentiment = text_analysis.get('sentiment', {})
         if isinstance(sentiment, dict):
             score = sentiment.get('score', 0)
@@ -548,10 +657,11 @@ class RiskScorer:
                 flags.append(self._flag(
                     SEVERITY_LOW, 'behavioral', 'negative_sentiment',
                     'Преимущественно негативный тон публикаций',
+                    flag_type='suspicion',
+                    evidence=f'Sentiment score: {score:.2f}',
                     details=f'Sentiment score: {score:.2f}',
                 ))
 
-        # risk_keywords: posts contain risk-related words
         risk_words = {'долг', 'суд', 'банкрот', 'розыск', 'кредит', 'мошенник'}
         keywords = text_analysis.get('keywords', [])
         found_risk_words = []
@@ -563,10 +673,11 @@ class RiskScorer:
             flags.append(self._flag(
                 SEVERITY_MEDIUM, 'behavioral', 'risk_keywords',
                 'Рисковые ключевые слова в публикациях',
+                flag_type='suspicion',
+                evidence=f'VK wall: слова «{", ".join(found_risk_words)}» в публикациях',
                 details=', '.join(found_risk_words),
             ))
 
-        # night_activity: >50% posts between 2-5 AM
         posting_times = text_analysis.get('posting_times', [])
         if posting_times and len(posting_times) >= 5:
             night_count = sum(1 for h in posting_times if 2 <= h <= 5)
@@ -575,18 +686,12 @@ class RiskScorer:
                 flags.append(self._flag(
                     SEVERITY_LOW, 'behavioral', 'night_activity',
                     'Ночная активность: >50% постов между 2-5 утра',
+                    flag_type='suspicion',
+                    evidence=f'{night_ratio:.0%} постов VK опубликовано с 02:00 до 05:00',
                     details=f'{night_ratio:.0%} ночных постов',
                 ))
 
-        # geo_discrepancy: claimed city differs from most frequent geo
-        profiles = getattr(check, 'social_media_profiles', None) or []
-        if isinstance(profiles, str):
-            try:
-                import json
-                profiles = json.loads(profiles)
-            except (json.JSONDecodeError, TypeError):
-                profiles = []
-
+        profiles = self._safe_json_attr(check, 'social_media_profiles', [])
         claimed_city = ''
         for p in profiles:
             if isinstance(p, dict) and p.get('city'):
@@ -597,29 +702,24 @@ class RiskScorer:
         if isinstance(home_location, dict):
             geo_city = (home_location.get('city') or '').lower().strip()
             if claimed_city and geo_city and claimed_city != geo_city:
-                # Check if they're really different (not substring)
                 if claimed_city not in geo_city and geo_city not in claimed_city:
-                    # Check known city-district containment pairs
                     if not self._cities_are_related(claimed_city, geo_city):
                         flags.append(self._flag(
                             SEVERITY_MEDIUM, 'behavioral', 'geo_discrepancy',
                             'Расхождение геолокации: заявленный город отличается от фактического',
+                            flag_type='suspicion',
+                            evidence=f'Профиль: {claimed_city}, Геолокация по постам: {geo_city}',
                             details=f'Профиль: {claimed_city}, Геолокация: {geo_city}',
                         ))
 
-        # inactive_profile: no posts in 12+ months
         if activity_timeline:
-            # Find most recent post event
             post_events = [
                 e for e in activity_timeline
                 if isinstance(e, dict) and e.get('type') == 'post'
             ]
             if post_events:
                 try:
-                    from datetime import datetime
-                    newest = max(
-                        e.get('timestamp', '') for e in post_events
-                    )
+                    newest = max(e.get('timestamp', '') for e in post_events)
                     if newest:
                         newest_dt = datetime.fromisoformat(newest.replace('Z', '+00:00'))
                         days_since = (datetime.now() - newest_dt.replace(tzinfo=None)).days
@@ -627,6 +727,8 @@ class RiskScorer:
                             flags.append(self._flag(
                                 SEVERITY_LOW, 'behavioral', 'inactive_profile',
                                 'Неактивный профиль: нет постов более 12 месяцев',
+                                flag_type='fact',
+                                evidence=f'Последний пост: {days_since} дней назад',
                                 details=f'Последний пост: {days_since} дней назад',
                             ))
                 except Exception as e:
@@ -634,10 +736,151 @@ class RiskScorer:
 
         return flags
 
+    # ── VK Groups Red Flags (Stage 6 new) ──
+
+    def _analyze_groups(self, check):
+        flags = []
+        group_analysis = self._safe_json_attr(check, 'group_analysis', {})
+        if not group_analysis:
+            return flags
+
+        category_counts = group_analysis.get('category_counts', {})
+        flagged_groups = group_analysis.get('flagged_groups', [])
+
+        category_to_code = {
+            'political_opposition': 'political_groups',
+            'political_progovernment': 'political_groups',
+            'criminal': 'criminal_groups',
+            'gambling': 'gambling_groups',
+            'drugs': 'drug_groups',
+            'religious_extremist': 'criminal_groups',
+            'security_interest': 'security_groups',
+        }
+
+        seen_codes = set()
+        for group in flagged_groups:
+            for cat in group.get('categories', []):
+                code = category_to_code.get(cat)
+                if code and code not in seen_codes:
+                    seen_codes.add(code)
+
+                    severity = SEVERITY_MEDIUM
+                    if code in ('criminal_groups', 'drug_groups'):
+                        severity = SEVERITY_HIGH
+
+                    cat_display = {
+                        'political_groups': 'политические группы',
+                        'criminal_groups': 'криминальные группы',
+                        'gambling_groups': 'группы азартных игр',
+                        'drug_groups': 'группы о наркотиках',
+                        'security_groups': 'группы по кибербезопасности',
+                    }.get(code, code)
+
+                    count = sum(
+                        1 for g in flagged_groups
+                        if cat in g.get('categories', [])
+                    )
+
+                    flags.append(self._flag(
+                        severity, 'groups', code,
+                        f'Участник подозрительных групп VK: {cat_display}',
+                        flag_type='suspicion',
+                        evidence=f'VK groups.get: {count} группа(ы) категории «{cat_display}»',
+                    ))
+
+        return flags
+
+    # ── Activity Patterns Red Flags (Stage 6 new) ──
+
+    def _analyze_activity_patterns(self, check):
+        flags = []
+        patterns = self._safe_json_attr(check, 'activity_patterns', {})
+        if not patterns:
+            return flags
+
+        activity_flags = patterns.get('activity_flags', [])
+        for af in activity_flags:
+            code = af.get('code', '')
+            if code and code in RISK_WEIGHTS:
+                flags.append(self._flag(
+                    af.get('severity', SEVERITY_LOW),
+                    'behavioral',
+                    code,
+                    af.get('description', ''),
+                    flag_type=af.get('type', 'suspicion'),
+                    evidence=af.get('description', ''),
+                ))
+
+        return flags
+
+    # ── Profile Anomaly Red Flags (Stage 6 new) ──
+
+    def _analyze_profile_anomalies(self, check):
+        """Analyze VK profile anomalies from behavioral analysis."""
+        flags = []
+        # Profile anomalies are stored by behavioral_analysis in vk_snapshot,
+        # but also passed through behavioral_data. Check both.
+        behavioral = self._safe_json_attr(check, 'activity_patterns', {})
+        # The actual anomaly flags are stored in the behavioral_results
+        # during Stage 6 and saved separately. We read them from the
+        # pipeline's group_analysis or vk_snapshot.
+        snapshot = self._safe_json_attr(check, 'vk_snapshot', {})
+        if not snapshot:
+            return flags
+
+        vk_id = snapshot.get('vk_id', 0)
+        if vk_id and vk_id > 700_000_000:
+            flags.append(self._flag(
+                SEVERITY_LOW, 'social', 'new_account',
+                f'VK аккаунт создан относительно недавно (ID: {vk_id})',
+                flag_type='fact',
+                evidence=f'VK ID {vk_id} > 700M (создан после ~2020)',
+            ))
+
+        if snapshot.get('is_closed'):
+            flags.append(self._flag(
+                SEVERITY_LOW, 'social', 'private_profile',
+                'Профиль VK закрыт — данные ограничены',
+                flag_type='fact',
+                evidence='VK: is_closed=true',
+            ))
+
+        if not snapshot.get('photo_hash'):
+            flags.append(self._flag(
+                SEVERITY_LOW, 'social', 'no_photo',
+                'Фото профиля VK отсутствует',
+                flag_type='fact',
+                evidence='VK: photo_200 отсутствует',
+            ))
+
+        return flags
+
+    # ── Connected Checks Red Flags ──
+
+    def _analyze_connections(self, check):
+        flags = []
+        connections = self._safe_json_attr(check, 'connected_checks', [])
+        if not connections:
+            return flags
+
+        for conn in connections:
+            risk = conn.get('connected_risk_level', '')
+            name = conn.get('connected_name', '')
+            if risk in ('high', 'critical'):
+                flags.append(self._flag(
+                    SEVERITY_MEDIUM, 'connections', 'connected_high_risk',
+                    f'Связан с кандидатом высокого риска: {name}',
+                    flag_type='suspicion',
+                    evidence=f'Общие контакты/бизнес с {name} (риск: {risk})',
+                ))
+
+        return flags
+
     # ── Risk Level Calculation ──
 
     @staticmethod
     def _calculate_risk_level(red_flags):
+        """Legacy severity-based level (kept for backward compat)."""
         if any(f['severity'] == SEVERITY_CRITICAL for f in red_flags):
             return 'critical'
 
@@ -657,55 +900,41 @@ class RiskScorer:
 
     # ── Helpers ──
 
-    # Known Russian city-district containment pairs (district -> parent city).
-    # Both keys and values must be lowercase.
     _CITY_DISTRICT_MAP = {
-        'красная поляна': 'сочи',
-        'адлер': 'сочи',
-        'хоста': 'сочи',
-        'лазаревское': 'сочи',
-        'дагомыс': 'сочи',
-        'зеленоград': 'москва',
-        'троицк': 'москва',
-        'щербинка': 'москва',
-        'московский': 'москва',
-        'коммунарка': 'москва',
-        'новая москва': 'москва',
-        'мытищи': 'москва',
-        'химки': 'москва',
-        'люберцы': 'москва',
-        'балашиха': 'москва',
-        'реутов': 'москва',
-        'долгопрудный': 'москва',
+        'красная поляна': 'сочи', 'адлер': 'сочи', 'хоста': 'сочи',
+        'лазаревское': 'сочи', 'дагомыс': 'сочи',
+        'зеленоград': 'москва', 'троицк': 'москва', 'щербинка': 'москва',
+        'московский': 'москва', 'коммунарка': 'москва', 'новая москва': 'москва',
+        'мытищи': 'москва', 'химки': 'москва', 'люберцы': 'москва',
+        'балашиха': 'москва', 'реутов': 'москва', 'долгопрудный': 'москва',
         'красногорск': 'москва',
-        'кронштадт': 'санкт-петербург',
-        'колпино': 'санкт-петербург',
-        'пушкин': 'санкт-петербург',
-        'петергоф': 'санкт-петербург',
-        'сестрорецк': 'санкт-петербург',
-        'ломоносов': 'санкт-петербург',
+        'кронштадт': 'санкт-петербург', 'колпино': 'санкт-петербург',
+        'пушкин': 'санкт-петербург', 'петергоф': 'санкт-петербург',
+        'сестрорецк': 'санкт-петербург', 'ломоносов': 'санкт-петербург',
         'павловск': 'санкт-петербург',
     }
 
     @staticmethod
     def _cities_are_related(city1: str, city2: str) -> bool:
-        """Check if two city names refer to the same metro area (district-parent)."""
         m = RiskScorer._CITY_DISTRICT_MAP
-        # Direct match in containment map (either direction)
         if m.get(city1) == city2 or m.get(city2) == city1:
             return True
-        # Both map to the same parent
         if city1 in m and city2 in m and m[city1] == m[city2]:
             return True
         return False
 
     @staticmethod
-    def _flag(severity, category, code, text, details=''):
+    def _flag(severity, category, code, text, flag_type='fact',
+              evidence='', details=''):
         flag = {
+            'type': flag_type,
             'severity': severity,
             'category': category,
             'code': code,
             'text': text,
+            'description': text,
+            'evidence': evidence or details or '',
+            'recommendation': RECOMMENDATIONS.get(code, ''),
         }
         if details:
             flag['details'] = details
@@ -713,7 +942,6 @@ class RiskScorer:
 
     @staticmethod
     def _safe_number(value):
-        """Safely coerce a value to a number for summation. Returns 0 for non-numeric."""
         if value is None:
             return 0
         if isinstance(value, (int, float)):
@@ -724,8 +952,20 @@ class RiskScorer:
             return 0
 
     @staticmethod
+    def _safe_json_attr(obj, attr, default):
+        """Get a JSON attribute, parsing string if needed."""
+        val = getattr(obj, attr, None)
+        if val is None:
+            return default
+        if isinstance(val, str):
+            try:
+                return json.loads(val)
+            except (json.JSONDecodeError, TypeError):
+                return default
+        return val
+
+    @staticmethod
     def _parse_date(date_str):
-        """Parse a date string in DD.MM.YYYY or YYYY-MM-DD format."""
         if not date_str:
             return None
         for fmt in ('%d.%m.%Y', '%Y-%m-%d'):
