@@ -3,16 +3,18 @@ Candidate Check Pipeline
 ========================
 Orchestrates the 9-stage unified background check (Stage 0-8).
 
-Stages:
-0. Identity Confirmation (ЕГРЮЛ by INN, bankruptcy, network) [0-8%]
-1. Government Registries (courts, ФССП, checko.ru)           [8-18%]
-2. Security Checks (sanctions)                                [18-27%]
-3. Social Media Discovery (VK, Telegram)                      [27-42%]
-4. Contact Discovery (VK/TG extraction + breach APIs)         [42-57%]
-5. Deep Social Analysis (face search, graph, Snoop)           [57-72%]
-6. Behavioral Intelligence (text, geo, timeline)              [72-83%]
-7. Risk Scoring (8-category red flags)                        [83-93%]
-8. Report Generation (dossier + identity card)                [93-100%]
+Wave-based execution for speed:
+  Wave 0: Stage 0 — Identity Confirmation (ЕГРЮЛ by INN)     [0-8%]
+  Wave 1: Stage 1 + Stage 2 in parallel                       [8-27%]
+          Stage 1 — Gov Registries (courts, ФССП, checko.ru)
+          Stage 2 — Security (sanctions + MVD passport)
+  Wave 2: Stage 3 — Social Media Discovery (VK, TG, phone)    [27-42%]
+  Wave 3: Stage 4 + Stage 5 in parallel                       [42-72%]
+          Stage 4 — Contact Discovery (breach APIs, oracle)
+          Stage 5 — Deep Social Analysis (face, Snoop, graph)
+  Wave 4: Stage 6 — Behavioral Intelligence                   [72-83%]
+  Wave 5: Stage 7 — Risk Scoring                              [83-93%]
+  Wave 6: Stage 8 — Report Generation                         [93-100%]
 """
 
 import json
@@ -284,11 +286,33 @@ class CandidateTaskStatus:
         }
 
 
+def _run_stage2_computation(effective_name, inn, passport_series, passport_number):
+    """Run Stage 2 (security checks) computation in background.
+
+    Pure computation — no DB access, no task.update() calls.
+    Returns (sanctions_results, passport_result).
+    """
+    from app.services.candidate.sanctions_check import SanctionsService
+    sanctions_svc = SanctionsService()
+    sanctions_results = sanctions_svc.check_all(effective_name, inn=inn)
+
+    passport_result = None
+    if passport_series and passport_number:
+        try:
+            from app.services.phase3.passport_check import check_passport_mvd
+            passport_result = check_passport_mvd(passport_series, passport_number)
+        except Exception as e:
+            logger.warning(f"Stage 2 passport check failed in background: {e}")
+            passport_result = {'valid': None, 'checked': False, 'error': str(e)}
+
+    return sanctions_results, passport_result
+
+
 def run_candidate_pipeline(app, task_id: str, check_id: str):
     """
     Background pipeline — runs inside a thread with app context.
 
-    8-stage unified pipeline. See module docstring for stage breakdown.
+    Wave-based parallel pipeline. See module docstring for wave breakdown.
     """
     task = candidate_tasks.get(task_id)
     if not task:
@@ -471,8 +495,21 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             }
 
             # ══════════════════════════════════════════════
-            # STAGE 1: GOVERNMENT REGISTRIES [8-18%]
+            # WAVE 1: STAGE 1 + STAGE 2 IN PARALLEL [8-27%]
             # ══════════════════════════════════════════════
+            # Launch Stage 2 (sanctions + passport) in background
+            # while Stage 1 (gov registries) runs on the main thread.
+            stage2_executor = ThreadPoolExecutor(max_workers=1)
+            stage2_future = stage2_executor.submit(
+                _run_stage2_computation,
+                effective_name,
+                check.inn,
+                check.passport_series,
+                check.passport_number,
+            )
+            logger.info("Wave 1: Stage 2 (security) launched in background")
+
+            # ── STAGE 1: GOVERNMENT REGISTRIES [8-18%] ──
             logger.info(
                 f"Stage 1: Starting government registries. "
                 f"effective_name='{effective_name}', INN='{check.inn}', "
@@ -738,34 +775,34 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             check.court_records = court_records
             check.fssp_records = fssp_records
             # bankruptcy_records already set in Stage 0
+            stage1_elapsed = time.time() - task.started_at.timestamp()
             task.update('gov_registries', 'Реестры проверены', 18)
-            _pause()
+            logger.info(f"Stage 1 completed in {stage1_elapsed:.1f}s")
 
             db.session.commit()
 
-            # ══════════════════════════════════════════════
-            # STAGE 2: SECURITY CHECKS [18-27%]
-            # ══════════════════════════════════════════════
-            task.update('security', 'Проверка санкционных списков...', 20)
+            # ── STAGE 2: COLLECT SECURITY RESULTS (ran in parallel) ──
+            task.update('security', 'Получение результатов проверки безопасности...', 20)
+            stage2_start = time.time()
 
-            from app.services.candidate.sanctions_check import SanctionsService
-            sanctions_svc = SanctionsService()
-            sanctions_results = sanctions_svc.check_all(effective_name, inn=check.inn)
+            try:
+                sanctions_results, passport_result = stage2_future.result(timeout=120)
+            except Exception as e:
+                logger.error(f"Stage 2 background computation failed: {e}")
+                sanctions_results = []
+                passport_result = None
+            finally:
+                stage2_executor.shutdown(wait=False)
 
+            # Process sanctions results (on main thread for safe task.update)
             sanctions_checked = 0
             for sr in sanctions_results:
                 d = sr.to_dict()
                 if d['checked'] and d['found']:
-                    task.add_message(
-                        f"{d['source_name']}: НАЙДЕН",
-                        'error',
-                    )
+                    task.add_message(f"{d['source_name']}: НАЙДЕН", 'error')
                     sources_with_results += 1
                 elif d['checked'] and not d['found']:
-                    task.add_message(
-                        f"{d['source_name']}: не найден",
-                        'success',
-                    )
+                    task.add_message(f"{d['source_name']}: не найден", 'success')
                 else:
                     task.add_message(
                         f"{d['source_name']}: не удалось проверить"
@@ -775,19 +812,53 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 sanctions_checked += 1
 
             sources_checked += sanctions_checked
-            task.update(
-                'security',
-                f'Санкции: проверено {sanctions_checked} источника',
-                27,
-            )
+            task.update('security', f'Санкции: проверено {sanctions_checked} источника', 24)
 
             sanctions_dicts = [sr.to_dict() for sr in sanctions_results]
 
-            # Demo fallback for Stage 2 — show "checked & clean" instead of empty
+            # Demo fallback for Stage 2
             if _is_demo_mode() and not any(d.get('checked') for d in sanctions_dicts):
                 sanctions_dicts = _get_demo_sanctions()
                 task.add_message('Санкции: демо-данные (нет API)', 'info')
                 sources_checked += 4
+
+            # Process passport result (from background computation)
+            if passport_result:
+                if passport_result.get('checked'):
+                    if passport_result.get('valid') is True:
+                        task.add_message('МВД паспорт: действителен', 'success')
+                    elif passport_result.get('valid') is False:
+                        task.add_message('МВД паспорт: НЕДЕЙСТВИТЕЛЕН', 'error')
+                        all_red_flags.append({
+                            'code': 'PASSPORT_INVALID',
+                            'description': 'Паспорт числится недействительным в базе МВД',
+                            'severity': 'high',
+                            'category': 'identity',
+                            'source': 'МВД ГУВМ',
+                        })
+                    else:
+                        task.add_message(
+                            f"МВД паспорт: {passport_result.get('status', 'не определён')}",
+                            'warning',
+                        )
+                    sources_with_results += 1
+                else:
+                    error_msg = passport_result.get('error', 'неизвестная ошибка')
+                    task.add_message(f'МВД паспорт: {error_msg}', 'warning')
+                sources_checked += 1
+
+            logger.info(f"Stage 2 completed in {time.time() - stage2_start:.1f}s (ran parallel with Stage 1)")
+
+            # Store passport check result in sanctions_dicts for dossier display
+            if passport_result:
+                sanctions_dicts.append({
+                    'source_name': 'МВД — проверка паспорта',
+                    'checked': passport_result.get('checked', False),
+                    'found': passport_result.get('valid') is False,  # found=True means INVALID
+                    'match_details': passport_result.get('status'),
+                    'error': passport_result.get('error'),
+                    'url': 'https://xn--b1ab2a0a.xn--b1aew.xn--p1ai/info-service.htm?sid=2000',
+                })
 
             check.sanctions_results = sanctions_dicts
             db.session.commit()
@@ -796,6 +867,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             # ══════════════════════════════════════════════
             # STAGE 3: SOCIAL MEDIA DISCOVERY [27-42%]
             # ══════════════════════════════════════════════
+            stage3_start = time.time()
             task.update('social', 'Поиск в социальных сетях...', 29)
 
             social_profiles = []
@@ -995,9 +1067,53 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 task.add_message('Telegram: поиск недоступен', 'warning')
                 sources_checked += 1
 
+            # 3.3 Phone → Telegram lookup (if phone provided)
+            if check.phone:
+                task.update('social', 'Telegram — поиск по телефону...', 40)
+                try:
+                    from app.services.phase1.telegram_discovery import TelegramDiscoveryService
+                    tg_svc = TelegramDiscoveryService()
+                    try:
+                        phone_results = tg_svc.search_by_phone(check.phone)
+                    finally:
+                        tg_svc.close()
+
+                    if phone_results:
+                        existing_usernames = {
+                            p.get('username', '').lower() for p in social_profiles if p.get('username')
+                        }
+                        for p in phone_results:
+                            uname = (p.get('username') or '').lower()
+                            dedup_key = uname or f"tg_id_{p.get('tg_id', '')}"
+                            if dedup_key not in existing_usernames:
+                                social_profiles.append({
+                                    'platform': 'telegram',
+                                    'display_name': f"{p.get('first_name', '')} {p.get('last_name', '')}".strip(),
+                                    'username': p.get('username', ''),
+                                    'url': p.get('url', ''),
+                                    'confidence': 'высокая',
+                                    'confidence_score': 0.99,
+                                    'source_method': 'Phone lookup (Telethon)',
+                                    'city': '',
+                                })
+                                existing_usernames.add(dedup_key)
+                        task.add_message(
+                            f'Telegram по телефону: найдено {len(phone_results)} профилей',
+                            'success',
+                        )
+                        sources_with_results += 1
+                    else:
+                        task.add_message('Telegram по телефону: не найден', 'info')
+                    sources_checked += 1
+                except Exception as e:
+                    logger.warning(f"TG phone lookup in pipeline failed: {e}")
+                    task.add_message('Telegram по телефону: ошибка', 'warning')
+                    sources_checked += 1
+
             task.update('social', f'Соцсети: найдено {len(social_profiles)} профилей', 42)
             check.social_media_profiles = social_profiles
             db.session.commit()
+            logger.info(f"Stage 3 completed in {time.time() - stage3_start:.1f}s")
             _pause()
 
             # --- Precise mode: pause for profile confirmation ---
@@ -1037,7 +1153,27 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             # ══════════════════════════════════════════════
             # STAGE 4: CONTACT DISCOVERY [42-57%]
             # ══════════════════════════════════════════════
+            stage4_start = time.time()
             task.update('contacts', 'Поиск контактных данных...', 44)
+
+            # Build input contacts fallback (always preserved even on timeout/error)
+            input_contacts = {'phones': [], 'emails': []}
+            if check.phone:
+                from app.utils.phone import normalize_phone as _norm_phone
+                _np = _norm_phone(check.phone)
+                if _np:
+                    input_contacts['phones'].append({
+                        'number': _np, 'source': 'input', 'confidence': 'высокая',
+                        'profile_name': 'Форма ввода', 'raw_value': check.phone,
+                        'confidence_score': 0.99, 'sources': ['input'],
+                    })
+            if check.email:
+                input_contacts['emails'].append({
+                    'email': check.email.lower().strip(), 'source': 'input',
+                    'confidence': 'высокая', 'verified': False,
+                    'profile_name': 'Форма ввода', 'services': [],
+                    'confidence_score': 0.99, 'sources': ['input'],
+                })
 
             try:
                 from app.services.candidate.contact_discovery import ContactDiscoveryService
@@ -1053,7 +1189,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         contacts = cd_future.result(timeout=120)
                     except Exception as e:
                         logger.warning(f"Contact discovery timeout/error: {e}")
-                        contacts = {'phones': [], 'emails': []}
+                        contacts = input_contacts  # preserve input contacts on timeout
 
                 phones = contacts.get('phones', [])
                 emails = contacts.get('emails', [])
@@ -1074,7 +1210,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 )
             except Exception as e:
                 logger.error(f"Contact discovery error: {e}", exc_info=True)
-                contacts = {'phones': [], 'emails': []}
+                contacts = input_contacts
                 task.add_message('Контакты: ошибка поиска', 'warning')
                 task.update('contacts', 'Ошибка поиска контактов', 57)
 
@@ -1088,10 +1224,12 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             check.contact_discoveries = contacts
             db.session.commit()
+            logger.info(f"Stage 4 completed in {time.time() - stage4_start:.1f}s")
 
             # ══════════════════════════════════════════════
             # STAGE 5: DEEP SOCIAL ANALYSIS [57-72%]
             # ══════════════════════════════════════════════
+            stage5_start = time.time()
             task.update('social_analysis', 'Глубокий анализ соцсетей...', 58)
 
             try:
@@ -1164,11 +1302,13 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 sources_checked += 1
 
             task.update('social_analysis', 'Социальный анализ завершён', 72)
+            logger.info(f"Stage 5 completed in {time.time() - stage5_start:.1f}s")
             _pause()
 
             # ══════════════════════════════════════════════
             # STAGE 6: BEHAVIORAL INTELLIGENCE [72-83%]
             # ══════════════════════════════════════════════
+            stage6_start = time.time()
             task.update('behavioral', 'Поведенческий анализ...', 73)
 
             try:
@@ -1223,6 +1363,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 logger.debug(f"AI behavioral summary skipped: {e}")
 
             task.update('behavioral', 'Поведенческий анализ завершён', 83)
+            logger.info(f"Stage 6 completed in {time.time() - stage6_start:.1f}s")
             _pause()
 
             # ══════════════════════════════════════════════
@@ -1365,5 +1506,5 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
 
 def _pause():
-    """Polite delay between source requests."""
-    time.sleep(1)
+    """Brief delay between source requests."""
+    time.sleep(0.3)
