@@ -34,6 +34,8 @@ RISK_WEIGHTS = {
     'tax_debt': 15,
     'active_bankruptcy': 20,
     'recent_bankruptcy': 10,
+    'many_pledges': 8,
+    'pledge_found': 3,
     'sanctions_match': 30,
     'passport_invalid': 20,
     'interpol_found': 35,
@@ -86,6 +88,8 @@ RECOMMENDATIONS = {
     'tax_debt': 'Критично для финансового сектора. Рекомендуется дополнительная проверка',
     'active_bankruptcy': 'Банкрот не может занимать руководящие должности (3 года)',
     'recent_bankruptcy': 'Недавнее банкротство. Рекомендуется учесть при принятии решения',
+    'many_pledges': 'Множественные залоги. Возможны значительные финансовые обязательства',
+    'pledge_found': 'Информационный факт — обнаружены записи в реестре залогов',
     'sanctions_match': 'КРИТИЧНО: кандидат в санкционном списке. Немедленное уведомление compliance',
     'passport_invalid': 'Паспорт числится недействительным. Рекомендуется запросить оригинал',
     'name_discrepancy': 'Расхождение ФИО. Рекомендуется уточнить у кандидата',
@@ -168,6 +172,7 @@ class RiskScorer:
         red_flags.extend(self._analyze_courts(check))
         red_flags.extend(self._analyze_fssp(check))
         red_flags.extend(self._analyze_bankruptcy(check))
+        red_flags.extend(self._analyze_pledges(check))
         red_flags.extend(self._analyze_sanctions(check))
         red_flags.extend(self._analyze_social(check))
         red_flags.extend(self._analyze_social_behavior(check))
@@ -525,6 +530,32 @@ class RiskScorer:
                             evidence=f'ЕФРСБ: банкротство завершено {years_ago:.1f} лет назад',
                         ))
                         break
+
+        return flags
+
+    # ── Pledge Registry Red Flags ──
+
+    def _analyze_pledges(self, check):
+        flags = []
+        records = getattr(check, 'pledge_records', None) or []
+        if not records:
+            return flags
+
+        active_pledges = [r for r in records if r.get('status', '').lower() not in ('прекращён', 'удовлетворён')]
+        if len(active_pledges) >= 3:
+            flags.append(self._flag(
+                SEVERITY_MEDIUM, 'financial', 'many_pledges',
+                f'Множественные залоги ({len(active_pledges)} активных) — возможные финансовые обязательства',
+                flag_type='fact',
+                evidence=f'Реестр залогов ФНП: {len(active_pledges)} активных записей',
+            ))
+        elif active_pledges:
+            flags.append(self._flag(
+                SEVERITY_LOW, 'financial', 'pledge_found',
+                f'Обнаружены записи в залоговом реестре ({len(active_pledges)} записей)',
+                flag_type='info',
+                evidence=f'Реестр залогов ФНП: {len(active_pledges)} записей',
+            ))
 
         return flags
 

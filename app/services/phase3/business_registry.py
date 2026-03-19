@@ -72,6 +72,7 @@ class BusinessRegistrySearch:
     NALOG_BASE = "https://egrul.nalog.ru"
     RUSPROFILE_BASE = "https://www.rusprofile.ru"
     LISTORG_BASE = "https://www.list-org.com"
+    ZACHESTNYIBIZNES_BASE = "https://zachestnyibiznes.ru"
 
     HEADERS = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -122,6 +123,16 @@ class BusinessRegistrySearch:
                 logger.info(f"Rusprofile found {len(rp_results)} records")
             except Exception as e:
                 logger.warning(f"Rusprofile search failed: {e}")
+
+        # Source 3: zachestnyibiznes.ru (fallback if still few results)
+        if len(results) < 3:
+            time.sleep(0.5)
+            try:
+                zb_results = self._search_zachestnyibiznes(name, limit)
+                results.extend(zb_results)
+                logger.info(f"zachestnyibiznes.ru found {len(zb_results)} records")
+            except Exception as e:
+                logger.warning(f"zachestnyibiznes.ru search failed: {e}")
 
         # Deduplicate by INN
         seen_inn = set()
@@ -511,6 +522,105 @@ class BusinessRegistrySearch:
             logger.debug(f"Parse rusprofile company item error: {e}")
             return None
 
+    # ===== zachestnyibiznes.ru (Fallback) =====
+
+    def _search_zachestnyibiznes(self, query: str, limit: int = 50) -> List[BusinessRecord]:
+        """Search zachestnyibiznes.ru for company/IP affiliations.
+
+        Works for both name and INN queries.
+        URL: https://zachestnyibiznes.ru/search?query=NAME_OR_INN
+        """
+        results = []
+        search_url = f"{self.ZACHESTNYIBIZNES_BASE}/search?query={quote(query)}"
+
+        try:
+            response = self.session.get(search_url, timeout=self.timeout)
+
+            if response.status_code in (403, 429):
+                logger.warning(f"zachestnyibiznes.ru blocked (HTTP {response.status_code})")
+                return results
+            if response.status_code != 200:
+                logger.warning(f"zachestnyibiznes.ru returned {response.status_code}")
+                return results
+
+            soup = BeautifulSoup(response.text, 'lxml')
+
+            # Company/IP links follow pattern: /company/ul/OGRN_INN_SLUG or /company/ip/OGRNIP_INN_SLUG
+            company_links = soup.find_all(
+                'a', href=lambda h: h and '/company/' in h and h != '/company/select?code=all'
+            )
+
+            for link in company_links[:limit]:
+                try:
+                    record = self._parse_zachestnyibiznes_item(link)
+                    if record:
+                        results.append(record)
+                except Exception as e:
+                    logger.debug(f"Parse zachestnyibiznes item error: {e}")
+
+        except requests.RequestException as e:
+            logger.warning(f"zachestnyibiznes.ru search failed: {e}")
+
+        return results
+
+    def _parse_zachestnyibiznes_item(self, link) -> Optional[BusinessRecord]:
+        """Parse a single zachestnyibiznes.ru search result."""
+        try:
+            company_name = link.get_text(strip=True)
+            if not company_name:
+                return None
+
+            href = link.get('href', '')
+            url = f"{self.ZACHESTNYIBIZNES_BASE}{href}" if href else ""
+
+            # Extract INN and OGRN from surrounding context
+            parent = link.parent
+            grandparent = parent.parent if parent else None
+            context = grandparent.get_text(separator='|', strip=True) if grandparent else ''
+
+            inn_m = re.search(r'ИНН\|(\d{10,12})', context)
+            inn = inn_m.group(1) if inn_m else ''
+
+            ogrn_m = re.search(r'ОГРН(?:ИП)?\|(\d{13,15})', context)
+            ogrn = ogrn_m.group(1) if ogrn_m else ''
+
+            # Status
+            status = 'Действующее'
+            if re.search(r'Ликвидирован|Прекращ', context, re.IGNORECASE):
+                status = 'Ликвидировано'
+
+            # Registration date
+            date_m = re.search(r'Дата регистрации\|(\d{2}\.\d{2}\.\d{4})', context)
+            reg_date = date_m.group(1) if date_m else ''
+
+            # Region/address
+            address = ''
+            addr_m = re.search(r'(?:область|край|республика|город)[^|]*', context, re.IGNORECASE)
+            if addr_m:
+                address = addr_m.group().strip()
+
+            # Determine type from href
+            is_ip = '/ip/' in href
+            company_type = 'ИП' if is_ip else self._detect_company_type(company_name)
+            role = 'ИП' if is_ip else 'Связан'
+
+            return BusinessRecord(
+                company_name=company_name,
+                inn=inn,
+                ogrn=ogrn,
+                role=role,
+                status=status,
+                registration_date=reg_date,
+                address=address,
+                source="zachestnyibiznes.ru",
+                url=url,
+                confidence="medium",
+                company_type=company_type,
+            )
+        except Exception as e:
+            logger.debug(f"Parse zachestnyibiznes item error: {e}")
+            return None
+
     # ===== INN Search =====
 
     def search_by_inn(self, inn: str) -> List[BusinessRecord]:
@@ -549,6 +659,19 @@ class BusinessRegistrySearch:
             logger.info("INN search: Rusprofile returned 0 records")
         except Exception as e:
             logger.warning(f"INN search Rusprofile fallback failed: {e}")
+
+        # Fallback: zachestnyibiznes.ru by INN
+        logger.info(f"INN search: falling back to zachestnyibiznes.ru for INN {inn[:4]}***")
+        try:
+            zb_results = self._search_zachestnyibiznes(inn)
+            if zb_results:
+                for r in zb_results:
+                    r.confidence = "high"
+                logger.info(f"INN search: zachestnyibiznes.ru returned {len(zb_results)} records")
+                return zb_results
+            logger.info("INN search: zachestnyibiznes.ru returned 0 records")
+        except Exception as e:
+            logger.warning(f"INN search zachestnyibiznes.ru fallback failed: {e}")
 
         return []
 
@@ -649,6 +772,11 @@ class BusinessRegistrySearch:
                 'name': 'Rusprofile.ru',
                 'url': f'https://www.rusprofile.ru/search?query={encoded}&type=fl',
                 'description': 'Поиск физических лиц, руководителей и учредителей'
+            },
+            {
+                'name': 'Zachestnyibiznes.ru',
+                'url': f'https://zachestnyibiznes.ru/search?query={encoded}',
+                'description': 'Проверка контрагентов, ИП и юридических лиц'
             },
             {
                 'name': 'List-org.com',

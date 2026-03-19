@@ -208,6 +208,8 @@ def _migrate_task_columns(db_instance):
         ('vk_snapshot', 'TEXT'),
         ('connected_checks', 'TEXT'),
         ('risk_score', 'INTEGER'),
+        # Pledge registry (March 2026)
+        ('pledge_records', 'TEXT'),
     ]
     for col_name, col_type in columns:
         try:

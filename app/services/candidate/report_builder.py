@@ -335,6 +335,7 @@ def _demo_report() -> Dict[str, Any]:
             'court_records': [],
             'fssp_records': [],
             'bankruptcy_records': [],
+            'pledge_records': [],
         },
         'sanctions': {
             'checked': True,
@@ -415,6 +416,7 @@ def build_report(check) -> Dict[str, Any]:
     court_records = _safe_json(check.court_records, [])
     fssp_records = _safe_json(check.fssp_records, [])
     bankruptcy_records = _safe_json(check.bankruptcy_records, [])
+    pledge_records = _safe_json(check.pledge_records, [])
 
     # Add confidence scores to court records
     full_name = check.full_name or ''
@@ -507,6 +509,7 @@ def build_report(check) -> Dict[str, Any]:
             'court_records': court_records,
             'fssp_records': fssp_records,
             'bankruptcy_records': bankruptcy_records,
+            'pledge_records': pledge_records,
         },
         'sanctions': sanctions_results,
         'social_profiles': confirmed_accounts + [

@@ -123,7 +123,7 @@ class CheckoService:
     """
 
     BASE_URL = 'https://checko.ru'
-    PERSON_SEARCH_URL = 'https://checko.ru/person'
+    SEARCH_URL = 'https://checko.ru/search'
     TIMEOUT = 25
 
     def __init__(self, timeout: int = 25):
@@ -154,7 +154,7 @@ class CheckoService:
         """
         try:
             resp = self.session.get(
-                self.PERSON_SEARCH_URL,
+                self.SEARCH_URL,
                 params={'query': full_name},
                 timeout=self.timeout,
             )
@@ -186,7 +186,7 @@ class CheckoService:
         """
         try:
             resp = self.session.get(
-                self.PERSON_SEARCH_URL,
+                self.SEARCH_URL,
                 params={'query': full_name},
                 timeout=self.timeout,
             )
@@ -318,10 +318,13 @@ class CheckoService:
         try:
             soup = BeautifulSoup(html, 'html.parser')
 
-            # Look for company cards/links
+            # Look for company cards/links (skip navigation links like /company/select)
             for link in soup.find_all('a', href=re.compile(r'/company/')):
+                href = link.get('href', '')
+                if '/select' in href or '?' in href:
+                    continue
                 text = link.get_text(separator=' ').strip()
-                if not text:
+                if not text or len(text) < 3:
                     continue
 
                 # Extract INN from surrounding context

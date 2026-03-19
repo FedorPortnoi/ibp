@@ -409,6 +409,9 @@
             <a href="#sec-bankruptcy" class="nav-pill">&#x1F3E6; Банкротство
                 <span class="badge {% if bankruptcy_records %}badge-count{% else %}badge-empty{% endif %}">{{ bankruptcy_records|length if bankruptcy_records else '—' }}</span>
             </a>
+            <a href="#sec-pledges" class="nav-pill">&#x1F4CB; Залоги
+                <span class="badge {% if pledge_records %}badge-count{% else %}badge-empty{% endif %}">{{ pledge_records|length if pledge_records else '—' }}</span>
+            </a>
             <a href="#sec-sanctions" class="nav-pill">&#x1F6AB; Санкции
                 {% if sanctions is iterable and sanctions is not string and sanctions is not mapping %}
                     {% set sanc_checked = sanctions|selectattr('checked')|list|length %}
@@ -792,6 +795,62 @@
                 </div>
                 {% endif %}
             {% endfor %}
+        {% endif %}
+    </section>
+
+    {# ================================================================
+       7b. PLEDGE REGISTRY SECTION
+       ================================================================ #}
+    <section id="sec-pledges" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F4CB; Залоговый реестр (ФНП)</h2>
+            {% if pledge_records is not none %}
+                <span class="section-count">{{ pledge_records|length }} записей</span>
+            {% endif %}
+        </div>
+
+        {% if pledge_records is not none and pledge_records|length > 0 %}
+            {% for pr in pledge_records %}
+                <div class="dossier-card">
+                    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                        <div class="font-semibold text-white text-sm">
+                            {% if pr.get('registration_number') %}
+                                &#x2116; {{ pr.registration_number }}
+                            {% else %}
+                                Запись залога
+                            {% endif %}
+                        </div>
+                        {% set pstatus = (pr.get('status') or '') %}
+                        {% if 'прекращ' in pstatus|lower or 'удовлетвор' in pstatus|lower %}
+                            <span class="status-badge badge-gray shrink-0">{{ pstatus }}</span>
+                        {% else %}
+                            <span class="status-badge badge-yellow shrink-0">{{ pstatus or 'Действующий' }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-400">
+                        {% if pr.get('subject') %}
+                            <div class="sm:col-span-2"><span class="text-gray-600">Предмет залога:</span> {{ pr.subject }}</div>
+                        {% endif %}
+                        {% if pr.get('pledgor_name') %}
+                            <div><span class="text-gray-600">Залогодатель:</span> {{ pr.pledgor_name }}</div>
+                        {% endif %}
+                        {% if pr.get('pledgee_name') %}
+                            <div><span class="text-gray-600">Залогодержатель:</span> {{ pr.pledgee_name }}</div>
+                        {% endif %}
+                        {% if pr.get('registration_date') %}
+                            <div><span class="text-gray-600">Дата регистрации:</span> {{ pr.registration_date }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state good">Записей в залоговом реестре не найдено</div>
+            <div class="text-xs text-gray-500 mt-2">
+                <a href="https://www.reestr-zalogov.ru/search/index" target="_blank" rel="noopener"
+                   class="text-accent hover:text-accent-bright transition">
+                    &#x1F50D; Проверить вручную на reestr-zalogov.ru &#x2197;
+                </a>
+            </div>
         {% endif %}
     </section>
 

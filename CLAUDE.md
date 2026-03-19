@@ -353,7 +353,7 @@ Use `-p no:faulthandler` on Windows to avoid I/O capture bugs.
 10. **Many legacy templates deleted**: Phase 1-3 routes render templates that no longer exist on disk. Only candidate pipeline templates are current.
 11. **Interpol API intermittent 502**: Returns 502/503 under load. Handled with graceful fallback message (fixed March 2026).
 12. **sudact.ru court case regex** (fixed March 2026): Case number regex missed Cyrillic letters (e.g., `2А-1853/2025` for administrative cases). Fixed from `\d{1,2}-\d+/\d{4}` to `\d{1,2}[А-Яа-я]{0,3}-\d+/\d{4}` in 5 locations. sudact.ru accessible (HTTP 200), Playwright renders results.
-13. **FSSP CAPTCHA-blocked**: All automated strategies (API, AJAX, Playwright) blocked by CAPTCHA. Manual fallback works (`source='manual'`). Need `FSSP_API_TOKEN` from https://api-ip.fssp.gov.ru or Russian IP to bypass. checko.ru `/person` endpoint returns 404 — may need URL update.
+13. **FSSP CAPTCHA-blocked**: All automated strategies (API, AJAX, Playwright) blocked by CAPTCHA. Manual fallback works (`source='manual'`). Need `FSSP_API_TOKEN` from https://api-ip.fssp.gov.ru or Russian IP to bypass. checko.ru fixed (March 2026): URL changed from `/person` (404) to `/search` (200).
 14. **Telegram Method C session file**: Telethon works but needs interactive session creation. Run `python scripts/auth_telegram.py` interactively. Session file: `tg_session/ibp_session.session` (not yet created, requires interactive auth).
 15. **ё/е normalization** (fixed March 2026): Was causing valid Russian name matches to score 0.0 (e.g., "Артём" vs "Артем"). Added `_normalize_yo()` to `telegram_discovery.py` and `telegram_crossref.py`.
 

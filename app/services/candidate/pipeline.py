@@ -644,23 +644,36 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 results = svc.search(full_name, dob_str, region)
                 return [r.to_dict() for r in results]
 
-            task.update('gov_registries', 'ЕГРЮЛ + Суды + ФССП — параллельный поиск...', 12)
+            task.update('gov_registries', 'ЕГРЮЛ + Суды + ФССП + Залоги — параллельный поиск...', 12)
 
             fssp_records = []
+            pledge_records = []
             # Note: bankruptcy_records already populated by Stage 0
 
-            with ThreadPoolExecutor(max_workers=3) as executor:
+            def _search_pledges(full_name):
+                """Search pledge registry (reestr-zalogov.ru)."""
+                try:
+                    from app.services.phase3.pledge_registry import PledgeRegistrySearch
+                    svc = PledgeRegistrySearch(timeout=30)
+                    results = svc.search_by_name(full_name)
+                    return [r.to_dict() for r in results]
+                except Exception as e:
+                    logger.warning(f"Pledge registry search failed: {e}")
+                    return []
+
+            with ThreadPoolExecutor(max_workers=4) as executor:
                 future_biz = executor.submit(_search_business, effective_name, check.inn)
                 future_courts = executor.submit(_search_courts, effective_name)
                 future_fssp = executor.submit(
                     _search_fssp, effective_name, check.date_of_birth, check.region,
                 )
+                future_pledges = executor.submit(_search_pledges, effective_name)
 
-                all_futures = [future_biz, future_courts, future_fssp]
+                all_futures = [future_biz, future_courts, future_fssp, future_pledges]
                 completed_futures = set()
 
                 def _process_future(future):
-                    nonlocal biz_records, court_records, fssp_records
+                    nonlocal biz_records, court_records, fssp_records, pledge_records
                     nonlocal sources_checked, sources_with_results
                     try:
                         if future is future_biz:
@@ -712,6 +725,18 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                                 task.add_message('ФССП: производств не найдено', 'info')
                             sources_checked += 1
 
+                        elif future is future_pledges:
+                            pledge_records = future.result(timeout=60)
+                            if pledge_records:
+                                task.add_message(
+                                    f'Залоговый реестр: найдено {len(pledge_records)} записей',
+                                    'warning',
+                                )
+                                sources_with_results += 1
+                            else:
+                                task.add_message('Залоговый реестр: записей не найдено', 'info')
+                            sources_checked += 1
+
                     except Exception as e:
                         if future is future_biz:
                             logger.warning("ЕГРЮЛ search failed: %s", e)
@@ -722,6 +747,9 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         elif future is future_fssp:
                             logger.warning("ФССП search failed: %s", e)
                             task.add_message('ФССП: источник недоступен', 'warning')
+                        elif future is future_pledges:
+                            logger.warning("Pledge registry failed: %s", e)
+                            task.add_message('Залоговый реестр: недоступен', 'warning')
                         sources_checked += 1
 
                 try:
@@ -744,12 +772,14 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             task.add_message('Суды: таймаут (120с)', 'warning')
                         elif future is future_fssp:
                             task.add_message('ФССП: таймаут (120с)', 'warning')
+                        elif future is future_pledges:
+                            task.add_message('Залоговый реестр: таймаут (120с)', 'warning')
                         sources_checked += 1
 
             # Demo fallback for Stage 1
             logger.info(
                 f"Stage 1 results: biz={len(biz_records)}, courts={len(court_records)}, "
-                f"fssp={len(fssp_records)}, demo_mode={_is_demo_mode()}"
+                f"fssp={len(fssp_records)}, pledges={len(pledge_records)}, demo_mode={_is_demo_mode()}"
             )
             if _is_demo_mode() and not biz_records and not court_records:
                 logger.info("Stage 1: Using DEMO fallback (no real data + demo mode)")
@@ -787,6 +817,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             check.business_records = biz_records
             check.court_records = court_records
             check.fssp_records = fssp_records
+            check.pledge_records = pledge_records
             # bankruptcy_records already set in Stage 0
             stage1_elapsed = time.time() - task.started_at.timestamp()
             task.update('gov_registries', 'Реестры проверены', 18)
@@ -1080,7 +1111,73 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 task.add_message('Telegram: поиск недоступен', 'warning')
                 sources_checked += 1
 
-            # 3.3 Phone → Telegram lookup (if phone provided)
+            # 3.3 OK.ru search
+            task.update('social', 'OK.ru — поиск профилей...', 39)
+            try:
+                from app.services.phase1.ok_search_integration import OKSearchIntegration
+                ok_svc = OKSearchIntegration()
+
+                ok_birth_year = check.date_of_birth.year if check.date_of_birth else None
+                ok_age_from = None
+                ok_age_to = None
+                if ok_birth_year:
+                    from datetime import date as _date_ok
+                    today_ok = _date_ok.today()
+                    ok_age = today_ok.year - ok_birth_year
+                    ok_age_from = max(ok_age - 3, 16)
+                    ok_age_to = ok_age + 3
+
+                ok_results = ok_svc.search(
+                    query=effective_name,
+                    city=check.region,
+                    age_from=ok_age_from,
+                    age_to=ok_age_to,
+                    count=10,
+                )
+
+                ok_count = 0
+                if ok_results:
+                    existing_urls = {p.get('url', '') for p in social_profiles}
+                    for p in ok_results:
+                        sim = p.get('name_similarity', 0)
+                        if sim < 50:
+                            continue
+                        if p.get('profile_url', '') in existing_urls:
+                            continue
+
+                        confidence = 'высокая' if sim >= 75 else 'средняя'
+                        social_profiles.append({
+                            'platform': 'ok',
+                            'platform_id': p.get('platform_id', ''),
+                            'display_name': p.get('display_name', ''),
+                            'username': p.get('username', ''),
+                            'url': p.get('profile_url', ''),
+                            'avatar_url': p.get('photo_url'),
+                            'photo_url': p.get('photo_url'),
+                            'confidence': confidence,
+                            'confidence_score': round(sim / 100, 2),
+                            'source_method': 'OK.ru People Search',
+                            'city': p.get('city', ''),
+                        })
+                        existing_urls.add(p.get('profile_url', ''))
+                        ok_count += 1
+
+                if ok_count:
+                    task.add_message(f'OK.ru: найдено {ok_count} профилей', 'success')
+                    sources_with_results += 1
+                else:
+                    is_demo = ok_svc.is_demo_mode
+                    task.add_message(
+                        'OK.ru: профили не найдены' + (' (демо)' if is_demo else ''),
+                        'info',
+                    )
+                sources_checked += 1
+            except Exception as e:
+                logger.warning(f"OK.ru search failed: {e}")
+                task.add_message('OK.ru: поиск недоступен', 'warning')
+                sources_checked += 1
+
+            # 3.4 Phone → Telegram lookup (if phone provided)
             if check.phone:
                 task.update('social', 'Telegram — поиск по телефону...', 40)
                 try:

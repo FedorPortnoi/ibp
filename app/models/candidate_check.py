@@ -46,6 +46,7 @@ class CandidateCheck(db.Model):
     _fssp_records = db.Column('fssp_records', db.Text, default='[]')
     _bankruptcy_records = db.Column('bankruptcy_records', db.Text, default='[]')
     _sanctions_results = db.Column('sanctions_results', db.Text, default='[]')
+    _pledge_records = db.Column('pledge_records', db.Text, default='[]')
     _social_media_profiles = db.Column('social_media_profiles', db.Text, default='[]')
     _contact_discoveries = db.Column('contact_discoveries', db.Text, default='{}')
 
@@ -163,6 +164,15 @@ class CandidateCheck(db.Model):
     @sanctions_results.setter
     def sanctions_results(self, value):
         self._sanctions_results = self._dump_json(value)
+
+    # pledge_records
+    @property
+    def pledge_records(self):
+        return self._load_json(self._pledge_records, [])
+
+    @pledge_records.setter
+    def pledge_records(self, value):
+        self._pledge_records = self._dump_json(value)
 
     # social_media_profiles
     @property
