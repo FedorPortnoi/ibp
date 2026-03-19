@@ -29,7 +29,7 @@ RUSSIAN_STOP_WORDS = {
     'весь', 'вся', 'всё', 'сам', 'сама', 'само', 'сами', 'самый', 'самая', 'самое',
     'самые', 'чтобы', 'потому', 'тогда', 'можно', 'надо', 'даже', 'ведь', 'более',
     'менее', 'очень', 'тоже', 'также', 'хотя', 'конечно', 'вообще', 'просто',
-    'каждый', 'мы',
+    'каждый', 'мы', 'без', 'про', 'ли', 'тут', 'там',
 }
 
 # English stop words
@@ -268,6 +268,17 @@ class TextAnalyzer:
     def analyze_single_text(self, text: str) -> TextAnalysisResult:
         """Analyze a single piece of text."""
         return self.analyze_posts([{'text': text}])
+
+    def extract_keywords(self, text: str, top_n: int = 20) -> List[Tuple[str, int]]:
+        """Public interface: extract keywords from a raw text string.
+
+        Tokenizes the text (removing stopwords and short words), then
+        extracts top keywords by frequency.
+
+        Returns list of (word, count) tuples.
+        """
+        words = self._tokenize(text)
+        return self._extract_keywords(words, top_n=top_n)
 
     def _tokenize(self, text: str) -> List[str]:
         """Tokenize text into words."""

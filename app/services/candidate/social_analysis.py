@@ -437,8 +437,25 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
     return results
 
 
+def _is_deleted_account(user: Dict) -> bool:
+    """Check if a VK user account is deleted or banned.
+
+    Returns True when any of these conditions hold:
+    - ``deactivated`` field is ``'deleted'`` or ``'banned'``
+    - ``first_name`` is ``'DELETED'``
+    - ``last_name`` is ``'DELETED'``
+    """
+    if user.get('deactivated') in ('deleted', 'banned'):
+        return True
+    if user.get('first_name', '') == 'DELETED':
+        return True
+    if user.get('last_name', '') == 'DELETED':
+        return True
+    return False
+
+
 def _fetch_vk_friends(vk_id: int, token: str) -> List[Dict]:
-    """Fetch VK friends list via API."""
+    """Fetch VK friends list via API, filtering out deleted/banned accounts."""
     if not token:
         return []
     try:
@@ -447,7 +464,7 @@ def _fetch_vk_friends(vk_id: int, token: str) -> List[Dict]:
             'https://api.vk.com/method/friends.get',
             params={
                 'user_id': vk_id,
-                'fields': 'first_name,last_name,photo_100,city',
+                'fields': 'first_name,last_name,photo_100,city,deactivated',
                 'access_token': token,
                 'v': '5.199',
             },
@@ -455,7 +472,13 @@ def _fetch_vk_friends(vk_id: int, token: str) -> List[Dict]:
         )
         data = resp.json()
         if 'response' in data:
-            return data['response'].get('items', [])
+            items = data['response'].get('items', [])
+            before = len(items)
+            items = [u for u in items if not _is_deleted_account(u)]
+            filtered = before - len(items)
+            if filtered:
+                logger.info(f"Social graph: filtered {filtered} deleted/banned accounts")
+            return items
     except Exception as e:
         logger.warning(f"VK friends fetch failed: {e}")
     return []

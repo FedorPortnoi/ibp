@@ -293,7 +293,7 @@ class CandidateCheck(db.Model):
         mode = getattr(self, 'check_mode', None) or 'quick'
         return {
             'quick': 'Быстрая проверка',
-            'precise': 'Расширенная проверка',
+            'precise': 'Точная проверка',
         }.get(mode, 'Быстрая проверка')
 
     @property

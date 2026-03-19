@@ -191,6 +191,23 @@ class SocialGraphBuilder:
         if self.nx_graph is not None:
             self.nx_graph.add_edge(source_id, target_id)
 
+    @staticmethod
+    def _is_deleted_account(user: Dict) -> bool:
+        """Check if a VK user account is deleted or banned.
+
+        Returns True when any of these conditions hold:
+        - ``deactivated`` field is ``'deleted'`` or ``'banned'``
+        - ``first_name`` is ``'DELETED'``
+        - ``last_name`` is ``'DELETED'``
+        """
+        if user.get('deactivated') in ('deleted', 'banned'):
+            return True
+        if user.get('first_name', '') == 'DELETED':
+            return True
+        if user.get('last_name', '') == 'DELETED':
+            return True
+        return False
+
     def build_from_friends(
         self,
         center_vk_id: int,
@@ -216,6 +233,13 @@ class SocialGraphBuilder:
         self.adjacency.clear()
         if self.nx_graph is not None:
             self.nx_graph.clear()
+
+        # Filter out deleted/banned accounts
+        before_count = len(friends)
+        friends = [f for f in friends if not self._is_deleted_account(f)]
+        filtered_count = before_count - len(friends)
+        if filtered_count:
+            logger.info(f"Social graph: filtered {filtered_count} deleted/banned accounts")
 
         # Add center node
         self._add_node(center_vk_id, center_data, level=0, is_center=True)
