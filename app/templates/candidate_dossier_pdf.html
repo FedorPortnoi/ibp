@@ -509,9 +509,10 @@
     <tr style="font-weight:600;background:#f9fafb;"><td>Дата</td><td>Тип</td><td>Описание</td></tr>
     {% for event in activity_timeline[:10] %}
     <tr>
-        <td>{{ event.get('date', '—') }}</td>
+        {% set evt_date = event.get('timestamp', event.get('date', '—')) %}
+        <td>{{ evt_date[:10] if evt_date and evt_date != '—' else '—' }}</td>
         <td>{{ event.get('type', '') }}</td>
-        <td>{{ event.get('description', event.get('text', ''))[:80] }}</td>
+        <td>{{ event.get('summary', event.get('description', event.get('text', '')))[:80] }}</td>
     </tr>
     {% endfor %}
 </table>

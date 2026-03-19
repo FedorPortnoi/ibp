@@ -1154,9 +1154,10 @@
             <span class="section-count">{{ activity_timeline|length }} событий</span>
         </div>
         <div class="space-y-0">
-            {% for event in activity_timeline|sort(attribute='date', reverse=true) if event.get('date') %}
+            {% for event in activity_timeline|sort(attribute='timestamp', reverse=true) if event.get('timestamp') or event.get('date') %}
             <div class="flex gap-3 py-3 border-b border-white/[0.03]">
-                <div class="shrink-0 w-20 text-xs text-gray-500 font-mono pt-0.5">{{ event.date }}</div>
+                {% set evt_date = event.get('timestamp', event.get('date', '')) %}
+                <div class="shrink-0 w-20 text-xs text-gray-500 font-mono pt-0.5">{{ evt_date[:10] if evt_date else '—' }}</div>
                 <div class="flex-1">
                     {% set etype = event.get('type', '') %}
                     {% if etype %}
@@ -1166,15 +1167,15 @@
                             {% elif 'соц' in etype|lower or 'social' in etype|lower %}badge-green
                             {% else %}badge-gray{% endif %}">{{ etype }}</span>
                     {% endif %}
-                    <div class="text-sm text-gray-300">{{ event.get('description', event.get('text', '')) }}</div>
+                    <div class="text-sm text-gray-300">{{ event.get('summary', event.get('description', event.get('text', ''))) }}</div>
                 </div>
             </div>
             {% endfor %}
-            {% for event in activity_timeline if not event.get('date') %}
+            {% for event in activity_timeline if not event.get('timestamp') and not event.get('date') %}
             <div class="flex gap-3 py-3 border-b border-white/[0.03]">
                 <div class="shrink-0 w-20 text-xs text-gray-500 font-mono pt-0.5">—</div>
                 <div class="flex-1">
-                    <div class="text-sm text-gray-300">{{ event.get('description', event.get('text', '')) }}</div>
+                    <div class="text-sm text-gray-300">{{ event.get('summary', event.get('description', event.get('text', ''))) }}</div>
                 </div>
             </div>
             {% endfor %}
