@@ -290,11 +290,11 @@ class CourtRecordSearch:
 
             # Extract case number from title (e.g. "Решение № 2-6851/2025 от ... по делу № 2-985/2025")
             # Try "по делу №" first (most specific)
-            case_match = re.search(r'по делу\s*№?\s*(\d{1,2}-\d+/\d{4})', title)
+            case_match = re.search(r'по делу\s*№?\s*(\d{1,2}[А-Яа-я]{0,3}-\d+/\d{4})', title)
             if not case_match:
-                case_match = re.search(r'№\s*(\d{1,2}-\d+/\d{4})', title)
+                case_match = re.search(r'№\s*(\d{1,2}[А-Яа-я]{0,3}-\d+/\d{4})', title)
             if not case_match:
-                case_match = re.search(r'(\d{1,2}-\d+/\d{4})', title)
+                case_match = re.search(r'(\d{1,2}[А-Яа-я]{0,3}-\d+/\d{4})', title)
             case_number = case_match.group(1) if case_match else ""
 
             if not case_number:
@@ -352,7 +352,7 @@ class CourtRecordSearch:
         """Parse a sudact.ru document link as fallback."""
         try:
             title = link.get_text(strip=True)
-            case_match = re.search(r'(\d{1,2}-\d+/\d{4})', title)
+            case_match = re.search(r'(\d{1,2}[А-Яа-я]{0,3}-\d+/\d{4})', title)
             if not case_match:
                 return None
 
@@ -459,7 +459,7 @@ class CourtRecordSearch:
                 return None
 
             # Case number
-            case_match = re.search(r'(\d{1,2}-\d+/\d{4})', text)
+            case_match = re.search(r'(\d{1,2}[А-Яа-я]{0,3}-\d+/\d{4})', text)
             if not case_match:
                 case_match = re.search(r'(?:Дело|№)[:\s]*([0-9А-Яа-я\-/]+)', text)
             case_number = case_match.group(1) if case_match else ""
