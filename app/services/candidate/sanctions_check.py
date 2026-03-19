@@ -568,6 +568,16 @@ class SanctionsService:
         """
         url = 'https://ws-public.interpol.int/notices/v1/red'
         try:
+            # Guard against corrupted names (encoding issue produces '??????')
+            if '?' in full_name or not any(c.isalpha() for c in full_name):
+                return SanctionsResult(
+                    source_name='Интерпол',
+                    checked=False,
+                    found=False,
+                    error='Имя содержит некорректные символы — пропуск Интерпол',
+                    url=url,
+                )
+
             latin_name = _transliterate_simple(full_name)
             parts = latin_name.strip().split()
 

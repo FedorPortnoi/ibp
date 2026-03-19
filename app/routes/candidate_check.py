@@ -22,9 +22,30 @@ logger = logging.getLogger(__name__)
 
 
 def _safe_filename(name_slug: str) -> str:
-    """Sanitize a string for safe use in Content-Disposition filenames."""
+    """Sanitize a string for safe use in Content-Disposition filenames.
+
+    Transliterates Cyrillic to Latin before stripping non-ASCII chars.
+    """
+    # Transliterate Cyrillic to Latin for filename compatibility
+    _cyr_to_lat = {
+        'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e',
+        'ё': 'yo', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k',
+        'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r',
+        'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts',
+        'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '',
+        'э': 'e', 'ю': 'yu', 'я': 'ya',
+    }
+    transliterated = []
+    for ch in name_slug:
+        low = ch.lower()
+        if low in _cyr_to_lat:
+            repl = _cyr_to_lat[low]
+            transliterated.append(repl.upper() if ch.isupper() else repl)
+        else:
+            transliterated.append(ch)
+    slug = ''.join(transliterated)
     # Remove any characters that could break headers or enable injection
-    safe = re.sub(r'[^a-zA-Z0-9_\-.]', '_', name_slug)
+    safe = re.sub(r'[^a-zA-Z0-9_\-.]', '_', slug)
     # Collapse multiple underscores
     safe = re.sub(r'_+', '_', safe).strip('_')
     return safe[:100] or 'candidate'
@@ -41,8 +62,13 @@ def start_check():
     redirects to progress page.
     """
     # Parse input — support both form and JSON
+    # Explicit UTF-8 decoding to prevent locale-dependent encoding corruption
     if request.is_json:
-        data = request.get_json()
+        raw_bytes = request.get_data()
+        try:
+            data = json.loads(raw_bytes.decode('utf-8'))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            data = request.get_json() or {}
     else:
         data = request.form.to_dict()
 

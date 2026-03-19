@@ -30,8 +30,8 @@ from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Default data directory
-DATA_DIR = Path(__file__).parent.parent.parent / 'data'
+# Default data directory (project_root/data/, 4 levels up from this file)
+DATA_DIR = Path(__file__).parent.parent.parent.parent / 'data'
 
 
 @dataclass

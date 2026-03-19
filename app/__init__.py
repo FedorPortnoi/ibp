@@ -42,6 +42,9 @@ def create_app(config_name=None):
 
     app = Flask(__name__)
 
+    # Ensure JSON responses contain proper UTF-8 Cyrillic (not Unicode escapes)
+    app.json.ensure_ascii = False
+
     # 1) Load static config from Config classes (DEBUG, TESTING, paths, etc.)
     from config import config as config_map, load_env_config
     app.config.from_object(config_map.get(config_name, config_map['default']))

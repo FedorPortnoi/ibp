@@ -1,7 +1,10 @@
 ﻿FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y python3 python3-pip python3-venv git curl build-essential libxml2-dev libxslt-dev libjpeg-dev zlib1g-dev libffi-dev && rm -rf /var/lib/apt/lists/*
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONIOENCODING=utf-8 PYTHONUNBUFFERED=1
+RUN apt-get update && apt-get install -y python3 python3-pip python3-venv git curl build-essential libxml2-dev libxslt-dev libjpeg-dev zlib1g-dev libffi-dev locales && \
+    locale-gen C.UTF-8 && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY requirements.txt .
