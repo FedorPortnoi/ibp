@@ -57,11 +57,18 @@ def _get_vk_id(profiles: List[Dict]) -> Optional[int]:
     return None
 
 
-def _run_face_search(photo_url: str) -> List[Dict]:
-    """Run facial recognition via Search4Faces."""
+def _run_face_search(photo_url: str = None, photo_path: str = None) -> List[Dict]:
+    """Run facial recognition via Search4Faces.
+
+    Supports both image URL (from VK profile) and local file path (from upload).
+    """
     try:
         from app.services.phase2.search4faces_service import search_all_databases
-        matches = search_all_databases(image_url=photo_url, max_results_per_db=10)
+        matches = search_all_databases(
+            image_url=photo_url,
+            image_path=photo_path,
+            max_results_per_db=10,
+        )
         return [
             {
                 'platform': m.platform,
@@ -329,6 +336,12 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
     usernames = _extract_usernames(confirmed)
     vk_id = _get_vk_id(confirmed)
 
+    # Check for uploaded photo (local file from form)
+    uploaded_photo = getattr(check, 'photo_path', None)
+    if uploaded_photo and not os.path.exists(uploaded_photo):
+        logger.warning(f"Uploaded photo not found at {uploaded_photo}")
+        uploaded_photo = None
+
     results = {
         'face_matches': [],
         'social_graph': {},
@@ -342,9 +355,12 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = {}
 
-        # 5a. Face search (if photo available)
-        if photo_url:
-            futures['face'] = executor.submit(_run_face_search, photo_url)
+        # 5a. Face search (uploaded photo takes priority over profile photo)
+        if uploaded_photo:
+            logger.info(f"[SocialAnalysis] face search: using uploaded photo {uploaded_photo}")
+            futures['face'] = executor.submit(_run_face_search, photo_path=uploaded_photo)
+        elif photo_url:
+            futures['face'] = executor.submit(_run_face_search, photo_url=photo_url)
 
         # 5c. Snoop username search
         if usernames:

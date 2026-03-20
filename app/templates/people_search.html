@@ -281,7 +281,7 @@
             </div>
 
             <!-- Candidate Form -->
-            <form id="candidate-form" action="/candidate/start" method="POST">
+            <form id="candidate-form" action="/candidate/start" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="search-card">
                     <!-- Row 1: Name + DOB -->
@@ -345,7 +345,7 @@
                     </div>
 
                     <!-- Row 4: Phone + Email -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label for="cand_phone" class="form-label">
                                 Телефон <span class="text-gray-600 text-xs">(необязательно)</span>
@@ -362,6 +362,19 @@
                                    placeholder="morozov@mail.ru"
                                    class="form-input">
                         </div>
+                    </div>
+
+                    <!-- Row 5: Photo Upload -->
+                    <div class="mb-6">
+                        <label for="cand_photo" class="form-label">
+                            Фото <span class="text-gray-600 text-xs">(необязательно)</span>
+                        </label>
+                        <input type="file" id="cand_photo" name="photo"
+                               accept="image/png,image/jpeg,image/webp"
+                               class="form-input file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0
+                                      file:text-sm file:bg-accent/10 file:text-accent hover:file:bg-accent/20
+                                      file:cursor-pointer cursor-pointer text-gray-500 text-sm">
+                        <p class="text-xs text-gray-600 mt-1">Загрузите фото для поиска по лицу (Search4Faces)</p>
                     </div>
 
                     <!-- Mode Selector -->
@@ -570,13 +583,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
             const fd = new FormData(this);
-            const body = Object.fromEntries(fd.entries());
+            const photoInput = document.getElementById('cand_photo');
+            const hasPhoto = photoInput && photoInput.files && photoInput.files.length > 0;
 
-            const resp = await fetch('/candidate/start', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(body),
-            });
+            let resp;
+            if (hasPhoto) {
+                // Send as multipart/form-data to include the photo file
+                resp = await fetch('/candidate/start', {
+                    method: 'POST',
+                    body: fd,
+                });
+            } else {
+                // Send as JSON (no file)
+                const body = Object.fromEntries(fd.entries());
+                delete body.photo; // remove empty file field
+                resp = await fetch('/candidate/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body),
+                });
+            }
 
             const data = await resp.json();
 
