@@ -899,7 +899,12 @@ class TelegramDiscoveryService:
 
             loop = asyncio.new_event_loop()
             try:
-                found = loop.run_until_complete(_lookup())
+                found = loop.run_until_complete(
+                    asyncio.wait_for(_lookup(), timeout=15)
+                )
+            except asyncio.TimeoutError:
+                logger.warning("TG phone lookup: timeout after 15s")
+                return []
             finally:
                 loop.close()
 
