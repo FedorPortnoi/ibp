@@ -98,8 +98,11 @@ class BankruptcyService:
         records = svc.search("Иванов Иван Иванович", inn="771234567890")
     """
 
+    # Primary: fedresurs.ru backend API (newer, more reliable)
+    FEDRESURS_API_URL = 'https://fedresurs.ru/backend/bankrupts'
+    # Fallback: bankrot.fedresurs.ru legacy API
     API_URL = 'https://bankrot.fedresurs.ru/api/v1/debtors'
-    SEARCH_URL = 'https://bankrot.fedresurs.ru/DebtorsSearch.aspx'
+    SEARCH_URL = 'https://fedresurs.ru/search/person'
 
     def __init__(self, timeout: int = 30):
         self.timeout = timeout
@@ -125,19 +128,19 @@ class BankruptcyService:
         """
         all_records = []
 
-        # Strategy 1: JSON API — search by name
+        # Strategy 1: fedresurs.ru backend API (preferred)
         try:
-            records = self._search_api(full_name)
+            records = self._search_fedresurs_api(full_name)
             if records is not None:
                 all_records.extend(records)
         except Exception as e:
-            logger.warning(f"ЕФРСБ API name search error: {e}")
+            logger.warning(f"ЕФРСБ fedresurs API name search error: {e}")
 
-        # Strategy 1b: JSON API — search by INN (if provided, more precise)
+        # Strategy 1b: fedresurs API — search by INN (more precise)
         if inn:
-            time.sleep(1)
+            time.sleep(0.5)
             try:
-                inn_records = self._search_api(inn)
+                inn_records = self._search_fedresurs_api(inn)
                 if inn_records is not None:
                     existing_keys = {
                         (r.debtor_name, r.case_number) for r in all_records
@@ -146,13 +149,33 @@ class BankruptcyService:
                         if (r.debtor_name, r.case_number) not in existing_keys:
                             all_records.append(r)
             except Exception as e:
-                logger.warning(f"ЕФРСБ API INN search error: {e}")
+                logger.warning(f"ЕФРСБ fedresurs API INN search error: {e}")
 
         if all_records:
             filtered = self._filter_results(all_records, full_name, inn, dob)
             return filtered
 
-        # Strategy 2: Playwright scraper
+        # Strategy 2: Legacy bankrot.fedresurs.ru API
+        try:
+            records = self._search_api(full_name)
+            if records is not None:
+                all_records.extend(records)
+        except Exception as e:
+            logger.warning(f"ЕФРСБ legacy API error: {e}")
+
+        if inn and not all_records:
+            try:
+                inn_records = self._search_api(inn)
+                if inn_records is not None:
+                    all_records.extend(inn_records)
+            except Exception as e:
+                logger.warning(f"ЕФРСБ legacy API INN error: {e}")
+
+        if all_records:
+            filtered = self._filter_results(all_records, full_name, inn, dob)
+            return filtered
+
+        # Strategy 3: Playwright scraper
         if PLAYWRIGHT_AVAILABLE:
             try:
                 records = self._search_playwright(full_name)
@@ -164,11 +187,59 @@ class BankruptcyService:
         else:
             logger.info("Playwright not available — skipping ЕФРСБ web scraper")
 
-        # Strategy 3: Manual fallback
+        # Strategy 4: Manual fallback
         logger.info("ЕФРСБ: returning manual search URL")
         return self._manual_fallback(full_name)
 
-    # ── JSON API approach ──────────────────────────────────────────
+    # ── fedresurs.ru backend API (preferred) ─────────────────────
+
+    def _search_fedresurs_api(self, search_string: str) -> Optional[List[BankruptcyRecord]]:
+        """
+        Query the fedresurs.ru backend API.
+        Returns None on failure, [] on no results.
+        """
+        params = {
+            'searchString': search_string,
+            'isPhysical': 'true',
+            'limit': '15',
+            'offset': '0',
+        }
+        headers = {
+            **HEADERS,
+            'Referer': 'https://fedresurs.ru/search/person',
+            'Origin': 'https://fedresurs.ru',
+        }
+
+        try:
+            r = self.session.get(
+                self.FEDRESURS_API_URL,
+                params=params,
+                headers=headers,
+                timeout=self.timeout,
+            )
+        except requests.RequestException as e:
+            logger.warning(f"ЕФРСБ fedresurs API request failed: {e}")
+            return None
+
+        if r.status_code != 200:
+            logger.warning(f"ЕФРСБ fedresurs API status {r.status_code}")
+            return None
+
+        content_type = r.headers.get('Content-Type', '')
+        if 'json' not in content_type and 'javascript' not in content_type:
+            if '<html' in r.text[:500].lower():
+                logger.warning("ЕФРСБ fedresurs API returned HTML instead of JSON")
+                return None
+
+        try:
+            data = r.json()
+        except (ValueError, KeyError):
+            logger.warning("ЕФРСБ fedresurs API: invalid JSON response")
+            return None
+
+        return self._parse_api_response(data)
+
+    # ── Legacy bankrot.fedresurs.ru API ────────────────────────────
 
     def _search_api(self, search_string: str) -> Optional[List[BankruptcyRecord]]:
         """
@@ -311,11 +382,14 @@ class BankruptcyService:
 
     def _search_playwright(self, full_name: str) -> Optional[List[BankruptcyRecord]]:
         """
-        Scrape bankrot.fedresurs.ru search page using Playwright.
+        Scrape fedresurs.ru search page using Playwright.
+        Intercepts XHR API calls for structured JSON data.
+        Falls back to HTML parsing.
         Returns None on failure, [] on no results.
         """
         logger.info("ЕФРСБ Playwright: starting web scraper")
         records = []
+        api_data = []
 
         try:
             with sync_playwright() as p:
@@ -328,6 +402,18 @@ class BankruptcyService:
                     page = context.new_page()
                     page.set_default_timeout(self.timeout * 1000)
 
+                    # Intercept API responses to get structured JSON
+                    def handle_response(response):
+                        try:
+                            if '/backend/bankrupts' in response.url and response.status == 200:
+                                ct = response.headers.get('content-type', '')
+                                if 'json' in ct:
+                                    api_data.append(response.json())
+                        except Exception:
+                            pass
+
+                    page.on('response', handle_response)
+
                     # Navigate to search page
                     try:
                         page.goto(
@@ -336,7 +422,7 @@ class BankruptcyService:
                             timeout=self.timeout * 1000,
                         )
                     except Exception as e:
-                        logger.debug(f"[BankruptcyService] networkidle timeout, falling back to domcontentloaded: {e}")
+                        logger.debug(f"[BankruptcyService] networkidle timeout: {e}")
                         page.goto(
                             self.SEARCH_URL,
                             wait_until='domcontentloaded',
@@ -344,46 +430,43 @@ class BankruptcyService:
                         )
                         page.wait_for_timeout(5000)
 
-                    # Select "Физические лица" (physical persons) tab/radio if present
-                    phys_tab = page.locator(
-                        'text=Физические лица, '
-                        'input[value="Физические лица"], '
-                        '#IsPhysical, '
-                        'label:has-text("Физические лица")'
-                    )
-                    if phys_tab.count() > 0:
-                        try:
-                            phys_tab.first.click()
-                            page.wait_for_timeout(1000)
-                        except Exception as e:
-                            logger.debug(f"[BankruptcyService] Could not click physical persons tab: {e}")
+                    # Fill search field — try multiple selectors for both old and new UI
+                    search_input = None
+                    for sel in [
+                        'input[placeholder*="ФИО"]',
+                        'input[placeholder*="поиск"]',
+                        'input[placeholder*="Поиск"]',
+                        'input#SearchString',
+                        'input[name="searchString"]',
+                        'input[name*="tbSearch"]',
+                        '#ctl00_cphBody_tbSearchByAll',
+                        'input[type="text"][class*="search"]',
+                        'input[type="search"]',
+                        'input[type="text"]',
+                    ]:
+                        loc = page.locator(sel)
+                        if loc.count() > 0:
+                            search_input = loc.first
+                            logger.debug(f"ЕФРСБ Playwright: found input with selector '{sel}'")
+                            break
 
-                    # Fill search field
-                    search_input = page.locator(
-                        '#ctl00_cphBody_tbSearchByAll, '
-                        'input[name*="tbSearch"], '
-                        'input[type="text"][class*="search"], '
-                        'input#SearchString, '
-                        'input[placeholder*="поиск"], '
-                        'input[placeholder*="ФИО"]'
-                    )
-                    if search_input.count() > 0:
-                        search_input.first.fill(full_name)
-                    else:
+                    if not search_input:
                         logger.warning("ЕФРСБ Playwright: search input not found")
                         return None
 
+                    search_input.fill(full_name)
                     page.wait_for_timeout(500)
 
                     # Submit search
                     submitted = False
                     for sel in [
-                        '#ctl00_cphBody_btnSearch',
-                        'input[type="submit"]',
-                        'button[type="submit"]',
+                        'button:has-text("Поиск")',
                         'button:has-text("Найти")',
+                        'button[type="submit"]',
+                        'input[type="submit"]',
                         'input[value="Найти"]',
                         'a:has-text("Найти")',
+                        'a:has-text("Поиск")',
                     ]:
                         btn = page.locator(sel)
                         if btn.count() > 0:
@@ -392,15 +475,19 @@ class BankruptcyService:
                             break
 
                     if not submitted:
-                        # Try pressing Enter in the search field
-                        search_input.first.press('Enter')
+                        search_input.press('Enter')
 
-                    # Wait for results
+                    # Wait for results (API response or page render)
                     page.wait_for_timeout(5000)
 
-                    # Parse results from page content
-                    html = page.content()
-                    records = self._parse_playwright_html(html)
+                    # Prefer intercepted API data
+                    if api_data:
+                        for data in api_data:
+                            records.extend(self._parse_api_response(data))
+                    else:
+                        # Parse results from page content
+                        html = page.content()
+                        records = self._parse_playwright_html(html)
                 finally:
                     browser.close()
 

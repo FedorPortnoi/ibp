@@ -55,13 +55,21 @@
         </div>
     </div>
 
-    <!-- Stages (8 stages) -->
+    <!-- Stages (9 stages) -->
     <div class="space-y-3 mb-8">
+        <div id="stage-identity" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-white/[0.06] bg-bg-panel">
+            <span class="stage-icon text-lg text-gray-500">&#x1F194;</span>
+            <div class="flex-1">
+                <div class="text-sm font-medium text-gray-300">Идентификация</div>
+                <div class="text-xs text-gray-500">ИНН, ЕГРЮЛ, ЕФРСБ, бизнес-связи</div>
+            </div>
+            <span id="stage-identity-status" class="text-xs text-gray-600">ожидание</span>
+        </div>
         <div id="stage-gov" class="stage-item flex items-center gap-3 p-3 rounded-lg border border-white/[0.06] bg-bg-panel">
             <span class="stage-icon text-lg text-gray-500">&#x1F3DB;&#xFE0F;</span>
             <div class="flex-1">
                 <div class="text-sm font-medium text-gray-300">Реестры</div>
-                <div class="text-xs text-gray-500">ЕГРЮЛ, суды, ФССП, банкротство</div>
+                <div class="text-xs text-gray-500">ЕГРЮЛ, суды, ФССП, залоги</div>
             </div>
             <span id="stage-gov-status" class="text-xs text-gray-600">ожидание</span>
         </div>
@@ -160,6 +168,7 @@ let pollInterval = null;
 let isAwaitingConfirmation = false;
 
 const STAGE_MAP = {
+    'identity': 'identity',
     'gov_registries': 'gov',
     'security': 'security',
     'social': 'social',
@@ -171,11 +180,23 @@ const STAGE_MAP = {
     'complete': null,
 };
 
-const STAGE_ORDER = ['gov', 'security', 'social', 'contacts', 'deep', 'behavioral', 'risk', 'report'];
+const STAGE_ORDER = ['identity', 'gov', 'security', 'social', 'contacts', 'deep', 'behavioral', 'risk', 'report'];
 
-function updateStages(currentStage) {
+// Progress thresholds: stage is done when progress >= end value
+const STAGE_THRESHOLDS = {
+    'identity': 8,
+    'gov': 18,
+    'security': 27,
+    'social': 42,
+    'contacts': 57,
+    'deep': 72,
+    'behavioral': 83,
+    'risk': 93,
+    'report': 100,
+};
+
+function updateStages(currentStage, progress) {
     var mapped = STAGE_MAP[currentStage];
-    var passedCurrent = false;
 
     STAGE_ORDER.forEach(function(stageId) {
         var el = document.getElementById('stage-' + stageId);
@@ -188,21 +209,26 @@ function updateStages(currentStage) {
             el.classList.add('done');
             statusEl.textContent = 'готово';
             statusEl.className = 'text-xs text-green-400';
+        } else if (progress >= STAGE_THRESHOLDS[stageId]) {
+            // Stage completed (progress past its threshold)
+            el.classList.add('done');
+            statusEl.textContent = 'готово';
+            statusEl.className = 'text-xs text-green-400';
         } else if (stageId === mapped) {
+            // Currently running
             if (isAwaitingConfirmation && stageId === 'social') {
                 el.classList.add('paused');
-                statusEl.textContent = 'ожидание';
+                statusEl.textContent = 'подтверждение';
                 statusEl.className = 'text-xs text-yellow-400';
             } else {
                 el.classList.add('active');
                 statusEl.textContent = 'выполняется...';
                 statusEl.className = 'text-xs text-accent';
             }
-            passedCurrent = true;
-        } else if (!passedCurrent) {
-            el.classList.add('done');
-            statusEl.textContent = 'готово';
-            statusEl.className = 'text-xs text-green-400';
+        } else {
+            // Not started yet
+            statusEl.textContent = 'ожидание';
+            statusEl.className = 'text-xs text-gray-600';
         }
     });
 }
@@ -267,7 +293,7 @@ function poll() {
             }
 
             // Update stages
-            updateStages(data.current_stage);
+            updateStages(data.current_stage, data.percent_complete);
 
             // Update log
             if (data.messages) {
