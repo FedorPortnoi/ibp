@@ -800,6 +800,119 @@ class TelegramDiscoveryService:
             'source': source,
         }
 
+    def search_by_phone(self, phone: str) -> List[Dict]:
+        """
+        Resolve a phone number to a Telegram account via Telethon ImportContactsRequest.
+
+        Imports the phone as a contact, reads the resolved user, then deletes the contact.
+        Returns a list of profile dicts (usually 0 or 1).
+        """
+        # Clean phone: ensure +7 format
+        clean = phone.strip().replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+        if clean.startswith('8') and len(clean) == 11:
+            clean = '+7' + clean[1:]
+        elif not clean.startswith('+'):
+            clean = '+' + clean
+
+        api_id = os.environ.get('TELEGRAM_API_ID', '')
+        api_hash = os.environ.get('TELEGRAM_API_HASH', '')
+        tg_phone = os.environ.get('TELEGRAM_PHONE', '')
+
+        if not all([api_id, api_hash, tg_phone]):
+            logger.info("TG phone lookup: Telethon credentials not configured, skipping")
+            return []
+
+        session_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            '..', '..', '..', 'tg_session'
+        )
+        session_file = os.path.join(session_dir, 'ibp_session.session')
+        if not os.path.exists(session_file):
+            logger.info("TG phone lookup: session file not found, skipping")
+            return []
+
+        try:
+            import asyncio
+            from telethon import TelegramClient
+            from telethon.tl.functions.contacts import ImportContactsRequest, DeleteContactsRequest
+            from telethon.tl.types import InputPhoneContact
+
+            session_path = os.path.join(session_dir, 'ibp_session')
+
+            async def _lookup():
+                client = TelegramClient(session_path, int(api_id), api_hash)
+                await client.connect()
+
+                if not await client.is_user_authorized():
+                    logger.warning("TG phone lookup: session not authorized")
+                    await client.disconnect()
+                    return []
+
+                results = []
+                try:
+                    contact = InputPhoneContact(
+                        client_id=0,
+                        phone=clean,
+                        first_name='IBP',
+                        last_name='Lookup',
+                    )
+                    result = await client(ImportContactsRequest([contact]))
+
+                    for user in result.users:
+                        username = getattr(user, 'username', '') or ''
+                        display = f"{user.first_name or ''} {user.last_name or ''}".strip()
+                        results.append({
+                            'platform': 'telegram',
+                            'id': str(user.id),
+                            'username': username,
+                            'first_name': user.first_name or '',
+                            'last_name': user.last_name or '',
+                            'photo_url': None,
+                            'city': '',
+                            'age': None,
+                            'url': f'https://t.me/{username}' if username else '',
+                            'confidence': 'высокая',
+                            'confidence_score': 0.99,
+                            'source': f'Telegram: телефон {clean}',
+                            'source_method': 'Phone lookup (Telethon)',
+                            'phone': user.phone or clean,
+                            'tg_id': user.id,
+                        })
+                        logger.info(
+                            f"TG phone lookup: found {'@' + username if username else f'id{user.id}'} "
+                            f"— \"{display}\" for phone {clean}"
+                        )
+
+                    # Clean up: delete imported contact
+                    if result.users:
+                        try:
+                            await client(DeleteContactsRequest(
+                                id=[user for user in result.users]
+                            ))
+                        except Exception as e:
+                            logger.debug(f"TG phone lookup: contact cleanup error: {e}")
+
+                finally:
+                    await client.disconnect()
+
+                return results
+
+            loop = asyncio.new_event_loop()
+            try:
+                found = loop.run_until_complete(_lookup())
+            finally:
+                loop.close()
+
+            logger.info(f"TG phone lookup: {len(found)} results for {clean}")
+            return found
+
+        except ImportError:
+            logger.info("TG phone lookup: Telethon not installed, skipping")
+            return []
+        except Exception as e:
+            logger.warning(f"TG phone lookup failed: {e}")
+            return []
+
     def close(self):
         """Clean up resources."""
         if self._checker:
