@@ -661,13 +661,14 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     logger.warning(f"Pledge registry search failed: {e}")
                     return []
 
-            with ThreadPoolExecutor(max_workers=4) as executor:
-                future_biz = executor.submit(_search_business, effective_name, check.inn)
-                future_courts = executor.submit(_search_courts, effective_name)
-                future_fssp = executor.submit(
+            gov_pool = ThreadPoolExecutor(max_workers=4)
+            try:
+                future_biz = gov_pool.submit(_search_business, effective_name, check.inn)
+                future_courts = gov_pool.submit(_search_courts, effective_name)
+                future_fssp = gov_pool.submit(
                     _search_fssp, effective_name, check.date_of_birth, check.region,
                 )
-                future_pledges = executor.submit(_search_pledges, effective_name)
+                future_pledges = gov_pool.submit(_search_pledges, effective_name)
 
                 all_futures = [future_biz, future_courts, future_fssp, future_pledges]
                 completed_futures = set()
@@ -775,6 +776,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         elif future is future_pledges:
                             task.add_message('Залоговый реестр: таймаут (120с)', 'warning')
                         sources_checked += 1
+            finally:
+                gov_pool.shutdown(wait=False, cancel_futures=True)
 
             # Demo fallback for Stage 1
             logger.info(
@@ -950,13 +953,15 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     )
 
                 # Timeout: 60s max for VK search
-                with ThreadPoolExecutor(max_workers=1) as vk_pool:
-                    vk_future = vk_pool.submit(_vk_search)
-                    try:
-                        vk_profiles, _ = vk_future.result(timeout=60)
-                    except Exception as e:
-                        logger.warning(f"VK search timeout/error: {e}")
-                        vk_profiles = []
+                vk_pool = ThreadPoolExecutor(max_workers=1)
+                vk_future = vk_pool.submit(_vk_search)
+                try:
+                    vk_profiles, _ = vk_future.result(timeout=60)
+                except Exception as e:
+                    logger.warning(f"VK search timeout/error: {e}")
+                    vk_profiles = []
+                finally:
+                    vk_pool.shutdown(wait=False, cancel_futures=True)
 
                 logger.info(
                     f"Stage 3 VK: got {len(vk_profiles)} profiles from search "
@@ -1055,13 +1060,15 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         svc.close()
 
                 # Timeout: 60s max for Telegram search
-                with ThreadPoolExecutor(max_workers=1) as tg_pool:
-                    tg_future = tg_pool.submit(_tg_search)
-                    try:
-                        tg_results = tg_future.result(timeout=60)
-                    except Exception as e:
-                        logger.warning(f"Telegram search timeout/error: {e}")
-                        tg_results = []
+                tg_pool = ThreadPoolExecutor(max_workers=1)
+                tg_future = tg_pool.submit(_tg_search)
+                try:
+                    tg_results = tg_future.result(timeout=60)
+                except Exception as e:
+                    logger.warning(f"Telegram search timeout/error: {e}")
+                    tg_results = []
+                finally:
+                    tg_pool.shutdown(wait=False, cancel_futures=True)
 
                 tg_count = 0
                 if tg_results:
@@ -1293,13 +1300,15 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     return discovery.discover(check)
 
                 # Run with 120s timeout
-                with ThreadPoolExecutor(max_workers=1) as cd_pool:
-                    cd_future = cd_pool.submit(_run_contact_discovery)
-                    try:
-                        contacts = cd_future.result(timeout=120)
-                    except Exception as e:
-                        logger.warning(f"Contact discovery timeout/error: {e}")
-                        contacts = input_contacts  # preserve input contacts on timeout
+                cd_pool = ThreadPoolExecutor(max_workers=1)
+                cd_future = cd_pool.submit(_run_contact_discovery)
+                try:
+                    contacts = cd_future.result(timeout=120)
+                except Exception as e:
+                    logger.warning(f"Contact discovery timeout/error: {e}")
+                    contacts = input_contacts  # preserve input contacts on timeout
+                finally:
+                    cd_pool.shutdown(wait=False, cancel_futures=True)
 
                 phones = contacts.get('phones', [])
                 emails = contacts.get('emails', [])
