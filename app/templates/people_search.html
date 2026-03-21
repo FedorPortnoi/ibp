@@ -131,6 +131,106 @@
         .column-toggle.collapsed .toggle-arrow { transform: rotate(-90deg); }
         .column-content.collapsed { display: none; }
     }
+
+    /* ── Filter Bar ── */
+    .filter-bar {
+        display: none;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 12px;
+        padding: 14px 18px;
+        margin-bottom: 16px;
+        background: var(--bg-panel);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-xl);
+    }
+    .filter-bar.visible { display: flex; }
+    .filter-group { display: flex; flex-direction: column; gap: 4px; }
+    .filter-group label { font-size: 11px; color: var(--text-secondary); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.5px; }
+    .filter-group select,
+    .filter-group input[type="number"] {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        color: var(--text-primary, #e5e7eb);
+        padding: 6px 10px;
+        font-size: 13px;
+        font-family: var(--font-mono);
+        outline: none;
+        transition: border-color 0.2s;
+    }
+    .filter-group select:focus,
+    .filter-group input[type="number"]:focus {
+        border-color: var(--accent);
+    }
+    .filter-group select { min-width: 140px; }
+    .filter-group input[type="number"] { width: 64px; }
+    .filter-age-range { display: flex; align-items: flex-end; gap: 6px; }
+    .filter-age-range span { color: var(--text-dim); font-size: 13px; padding-bottom: 7px; }
+    .filter-group .filter-checkbox-label {
+        display: flex; align-items: center; gap: 6px;
+        font-size: 13px; color: var(--text-secondary);
+        cursor: pointer; padding: 6px 0; text-transform: none; letter-spacing: 0;
+    }
+    .filter-group .filter-checkbox-label input[type="checkbox"] {
+        accent-color: var(--accent);
+    }
+    .filter-results-count {
+        margin-left: auto;
+        font-size: 12px;
+        color: var(--text-dim);
+        font-family: var(--font-mono);
+        white-space: nowrap;
+        padding-bottom: 6px;
+    }
+    .filter-results-count span { color: var(--accent-bright, #818cf8); font-weight: 500; }
+    #reset-filters {
+        padding: 6px 14px;
+        border-radius: var(--radius-pill);
+        font-size: 12px;
+        background: transparent;
+        color: var(--text-dim);
+        border: 1px solid var(--border-subtle);
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+    #reset-filters:hover { color: var(--text-secondary); border-color: var(--border-bright); }
+
+    /* ── Profile Preview Popup ── */
+    .profile-preview-popup {
+        position: fixed;
+        width: 320px;
+        max-height: 400px;
+        overflow-y: auto;
+        background: var(--bg-panel, #1a1a2e);
+        border: 1px solid var(--border-default, #2d2d4e);
+        border-radius: var(--radius-xl, 12px);
+        padding: 16px;
+        z-index: 1000;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        pointer-events: none;
+    }
+    .preview-photo {
+        width: 60px; height: 60px; border-radius: 50%; object-fit: cover;
+        border: 2px solid var(--border-default);
+    }
+    .preview-header {
+        display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px;
+    }
+    .preview-stats {
+        display: flex; flex-direction: column; gap: 4px;
+        font-size: 12px; color: var(--text-secondary, #9ca3af);
+    }
+    .preview-status { font-style: italic; color: var(--text-dim); }
+    .preview-posts { border-top: 1px solid var(--border-subtle); padding-top: 12px; }
+    .preview-posts h4 { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.5px; }
+    .preview-post { margin-bottom: 8px; font-size: 12px; }
+    .preview-post-date { color: var(--text-dim); font-size: 11px; font-family: var(--font-mono); }
+    .preview-post p { margin: 2px 0; color: var(--text-secondary, #d1d5db); line-height: 1.4; }
+    .preview-no-posts { color: var(--text-dim); font-size: 12px; font-style: italic; }
+    .preview-loading { text-align: center; padding: 24px 0; color: var(--text-dim); font-size: 13px; }
+    .preview-private { text-align: center; padding: 24px 0; color: var(--text-dim); font-size: 13px; }
 </style>
 {% endblock %}
 
@@ -221,6 +321,49 @@
         </form>
     </div>
 
+    <!-- Filter Bar (shown after VK search completes) -->
+    <div id="filter-bar" class="filter-bar">
+        <div class="filter-group">
+            <label>Город</label>
+            <select id="filter-city">
+                <option value="">Все города</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Возраст</label>
+            <div class="filter-age-range">
+                <input type="number" id="filter-age-min" placeholder="от" min="1" max="100">
+                <span>&mdash;</span>
+                <input type="number" id="filter-age-max" placeholder="до" min="1" max="100">
+            </div>
+        </div>
+        <div class="filter-group">
+            <label class="filter-checkbox-label">
+                <input type="checkbox" id="filter-has-photo">
+                Только с фото
+            </label>
+        </div>
+        <div class="filter-group">
+            <label>Сортировка</label>
+            <select id="sort-by">
+                <option value="relevance">По релевантности</option>
+                <option value="age_asc">Возраст &uarr;</option>
+                <option value="age_desc">Возраст &darr;</option>
+                <option value="city">По городу</option>
+                <option value="has_photo">Сначала с фото</option>
+            </select>
+        </div>
+        <button id="reset-filters" onclick="resetFilters()">Сбросить</button>
+        <div class="filter-results-count">
+            Показано: <span id="filtered-count">0</span> из <span id="total-count">0</span>
+        </div>
+    </div>
+
+    <!-- Results Note -->
+    <div id="results-note" class="mb-4 text-sm text-gray-500" style="display: none;">
+        Показаны все найденные профили. Выберите нужного кандидата.
+    </div>
+
     <!-- Two-Column Results Grid -->
     <div id="results-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-6" style="display: none;">
 
@@ -228,8 +371,7 @@
         <div id="vk-column" class="min-w-0">
             <div class="column-header">
                 <img src="{{ url_for('static', filename='icons/vk.svg') }}" alt="VK">
-                <h2 class="text-lg font-bold text-white">ВКонтакте</h2>
-                <span id="vk-count" class="column-count"></span>
+                <h2 class="text-lg font-bold text-white">ВКонтакте <span id="vk-count" class="column-count"></span></h2>
             </div>
             <div id="vk-results"></div>
         </div>
@@ -238,8 +380,7 @@
         <div id="tg-column" class="min-w-0">
             <div class="column-header">
                 <img src="{{ url_for('static', filename='icons/telegram.svg') }}" alt="TG">
-                <h2 class="text-lg font-bold text-white">Telegram</h2>
-                <span id="tg-count" class="column-count"></span>
+                <h2 class="text-lg font-bold text-white">Telegram <span id="tg-count" class="column-count"></span></h2>
             </div>
             <div id="tg-results"></div>
         </div>
@@ -260,6 +401,9 @@
             Не нашли кого искали? Попробуйте <span class="text-accent font-medium">проверку кандидата</span> &rarr;
         </button>
     </div>
+
+    <!-- Profile Preview Popup (populated by JS on hover) -->
+    <div id="profile-preview" class="profile-preview-popup" style="display:none"></div>
 
     </div><!-- /tab-search-panel -->
 
@@ -457,6 +601,9 @@
 // STATE
 // ═══════════════════════════════════════════════════════════════
 let selectedProfile = null;
+let allVkProfiles = [];   // All VK results for client-side filtering
+let previewTimeout = null;
+let previewCache = {};    // Cache preview data by VK id
 
 // ═══════════════════════════════════════════════════════════════
 // MODE TABS (Поиск людей / Проверка кандидата)
@@ -666,13 +813,18 @@ document.getElementById('search-form').addEventListener('submit', async function
     const ageFrom = document.getElementById('age_from').value;
     const ageTo = document.getElementById('age_to').value;
 
-    // Reset selection
+    // Reset selection and filters
     selectedProfile = null;
+    allVkProfiles = [];
+    previewCache = {};
     document.getElementById('proceed-bar').classList.remove('visible');
+    document.getElementById('filter-bar').classList.remove('visible');
+    resetFilters();
 
-    // Show results grid, hide empty state
+    // Show results grid, hide empty state and results note
     document.getElementById('results-grid').style.display = '';
     document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('results-note').style.display = 'none';
 
     // Show VK spinner, Telegram waiting state
     showSpinner('vk-results', 'Поиск ВКонтакте...');
@@ -734,8 +886,9 @@ document.getElementById('search-form').addEventListener('submit', async function
     btn.disabled = false;
     btn.classList.remove('opacity-50');
 
-    // Show "Не нашли?" button
+    // Show "Не нашли?" button and results note
     document.getElementById('not-found-btn').style.display = '';
+    document.getElementById('results-note').style.display = '';
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -759,14 +912,14 @@ function renderColumn(prefix, data) {
     if (data.status === 'error' && data.profiles.length === 0) {
         const errMsg = data.errors && data.errors.length > 0 ? data.errors[0] : 'Ошибка поиска';
         container.innerHTML = `<div class="column-error">${escapeHtml(errMsg)}</div>`;
-        countEl.textContent = '0';
+        countEl.textContent = '(0)';
         return;
     }
 
     const profiles = data.profiles || [];
     const errors = data.errors || [];
 
-    countEl.textContent = profiles.length > 0 ? `${profiles.length}` : '0';
+    countEl.textContent = profiles.length > 0 ? `(${profiles.length})` : '(0)';
 
     if (profiles.length === 0 && errors.length === 0) {
         container.innerHTML = `<div class="column-empty">Профили не найдены</div>`;
@@ -793,13 +946,28 @@ function renderColumn(prefix, data) {
             selectProfile(this);
         });
     });
+
+    // If VK column, store profiles globally for filtering and show filter bar
+    if (prefix === 'vk' && profiles.length > 0) {
+        allVkProfiles = profiles.map(p => ({
+            ...p,
+            has_photo: !!(p.photo_url && !p.photo_url.includes('camera_'))
+        }));
+        populateCityFilter(allVkProfiles);
+        document.getElementById('filter-bar').classList.add('visible');
+        document.getElementById('filtered-count').textContent = profiles.length;
+        document.getElementById('total-count').textContent = profiles.length;
+    }
+
+    // Attach preview hover listeners to VK cards
+    attachPreviewListeners();
 }
 
 function renderError(prefix, message) {
     const containerId = prefix === 'tg' ? 'tg-results' : `${prefix}-results`;
     const countId = prefix === 'tg' ? 'tg-count' : `${prefix}-count`;
     document.getElementById(containerId).innerHTML = `<div class="column-error">${escapeHtml(message)}</div>`;
-    document.getElementById(countId).textContent = '0';
+    document.getElementById(countId).textContent = '(0)';
 }
 
 function renderProfileCard(profile, cardId) {
@@ -859,9 +1027,12 @@ function renderProfileCard(profile, cardId) {
     // Source label
     const sourceHtml = profile.source ? `<div class="source-label">${escapeHtml(profile.source)}</div>` : '';
 
+    // VK ID for preview hover
+    const vkIdAttr = (profile.platform === 'vk' && profile.id) ? ` data-vk-id="${escapeHtml(profile.id)}"` : '';
+
     return `
         <div class="result-card" id="${cardId}"
-             data-profile='${escapeAttr(JSON.stringify(profile))}'>
+             data-profile='${escapeAttr(JSON.stringify(profile))}'${vkIdAttr}>
             <div class="flex items-start gap-3">
                 ${avatarHtml}
                 <div class="flex-1 min-w-0">
@@ -982,6 +1153,187 @@ async function proceedToPhase2() {
         btn.disabled = false;
         btn.textContent = 'Продолжить к Фазе 2 →';
     }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FILTERS + SORTING (client-side, no new API calls)
+// ═══════════════════════════════════════════════════════════════
+function applyFilters() {
+    const city = document.getElementById('filter-city').value.toLowerCase();
+    const ageMin = parseInt(document.getElementById('filter-age-min').value) || 0;
+    const ageMax = parseInt(document.getElementById('filter-age-max').value) || 999;
+    const hasPhoto = document.getElementById('filter-has-photo').checked;
+    const sortBy = document.getElementById('sort-by').value;
+
+    let filtered = allVkProfiles.filter(p => {
+        if (city && !(p.city || '').toLowerCase().includes(city)) return false;
+        if (p.age && (p.age < ageMin || p.age > ageMax)) return false;
+        if (hasPhoto && !p.has_photo) return false;
+        return true;
+    });
+
+    filtered.sort((a, b) => {
+        switch(sortBy) {
+            case 'age_asc': return (a.age || 999) - (b.age || 999);
+            case 'age_desc': return (b.age || 0) - (a.age || 0);
+            case 'city': return (a.city || '').localeCompare(b.city || '');
+            case 'has_photo': return (b.has_photo ? 1 : 0) - (a.has_photo ? 1 : 0);
+            default: return 0; // relevance = original order
+        }
+    });
+
+    renderVkFiltered(filtered);
+    document.getElementById('filtered-count').textContent = filtered.length;
+    document.getElementById('total-count').textContent = allVkProfiles.length;
+}
+
+function renderVkFiltered(profiles) {
+    const container = document.getElementById('vk-results');
+    const countEl = document.getElementById('vk-count');
+    countEl.textContent = profiles.length > 0 ? `(${profiles.length})` : '(0)';
+
+    if (profiles.length === 0) {
+        container.innerHTML = '<div class="column-empty">Нет результатов по фильтру</div>';
+        return;
+    }
+
+    let html = '';
+    profiles.forEach((profile, idx) => {
+        html += renderProfileCard(profile, `vk-f-${idx}`);
+    });
+    container.innerHTML = html;
+
+    // Re-attach click handlers
+    container.querySelectorAll('.result-card').forEach(card => {
+        card.addEventListener('click', function() { selectProfile(this); });
+    });
+
+    // Re-attach preview listeners
+    attachPreviewListeners();
+}
+
+function populateCityFilter(profiles) {
+    const cities = [...new Set(profiles
+        .map(p => p.city)
+        .filter(c => c && c.trim())
+    )].sort();
+
+    const select = document.getElementById('filter-city');
+    select.innerHTML = '<option value="">Все города</option>';
+    cities.forEach(city => {
+        const opt = document.createElement('option');
+        opt.value = city;
+        opt.textContent = city;
+        select.appendChild(opt);
+    });
+}
+
+function resetFilters() {
+    document.getElementById('filter-city').value = '';
+    document.getElementById('filter-age-min').value = '';
+    document.getElementById('filter-age-max').value = '';
+    document.getElementById('filter-has-photo').checked = false;
+    document.getElementById('sort-by').value = 'relevance';
+    applyFilters();
+}
+
+// Attach filter event listeners
+['filter-city', 'filter-age-min', 'filter-age-max', 'filter-has-photo', 'sort-by'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener('change', applyFilters);
+        el.addEventListener('input', applyFilters);
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// QUICK PREVIEW ON HOVER (VK profiles only)
+// ═══════════════════════════════════════════════════════════════
+function showPreview(card, vkId) {
+    previewTimeout = setTimeout(async () => {
+        const preview = document.getElementById('profile-preview');
+
+        // Position near card immediately, show loading
+        const rect = card.getBoundingClientRect();
+        const previewWidth = 320;
+        const rightSpace = window.innerWidth - rect.right - 20;
+        if (rightSpace >= previewWidth) {
+            preview.style.left = `${rect.right + 10}px`;
+        } else {
+            preview.style.left = `${Math.max(10, rect.left - previewWidth - 10)}px`;
+        }
+        preview.style.top = `${Math.max(10, rect.top)}px`;
+        preview.innerHTML = '<div class="preview-loading">Загрузка...</div>';
+        preview.style.display = 'block';
+
+        // Fetch or use cache
+        if (!previewCache[vkId]) {
+            try {
+                const r = await fetch(`/phase1/vk-preview/${vkId}`);
+                previewCache[vkId] = await r.json();
+            } catch(e) {
+                preview.innerHTML = '<div class="preview-private">Не удалось загрузить</div>';
+                return;
+            }
+        }
+
+        const data = previewCache[vkId];
+
+        if (data.error) {
+            preview.innerHTML = '<div class="preview-private">Профиль закрыт или недоступен</div>';
+            return;
+        }
+
+        // Format last seen
+        let lastSeen = '';
+        if (data.last_seen) {
+            const d = new Date(data.last_seen * 1000);
+            lastSeen = d.toLocaleDateString('ru-RU');
+        }
+
+        // Build posts HTML
+        const postsHtml = data.posts && data.posts.length > 0
+            ? data.posts.map(p => `
+                <div class="preview-post">
+                    <span class="preview-post-date">${new Date(p.date * 1000).toLocaleDateString('ru-RU')}</span>
+                    <p>${escapeHtml(p.text)}</p>
+                </div>
+            `).join('')
+            : '<p class="preview-no-posts">Нет публичных постов</p>';
+
+        preview.innerHTML = `
+            <div class="preview-header">
+                ${data.photo ? `<img src="${escapeHtml(data.photo)}" class="preview-photo">` : ''}
+                <div class="preview-stats">
+                    ${lastSeen ? `<span>Был(а): ${lastSeen}</span>` : ''}
+                    ${data.friends ? `<span>Друзей: ${data.friends}</span>` : ''}
+                    ${data.groups ? `<span>Групп: ${data.groups}</span>` : ''}
+                    ${data.status ? `<span class="preview-status">${escapeHtml(data.status)}</span>` : ''}
+                </div>
+            </div>
+            <div class="preview-posts">
+                <h4>Последние записи</h4>
+                ${postsHtml}
+            </div>
+        `;
+    }, 500);
+}
+
+function hidePreview() {
+    clearTimeout(previewTimeout);
+    document.getElementById('profile-preview').style.display = 'none';
+}
+
+function attachPreviewListeners() {
+    document.querySelectorAll('.result-card[data-vk-id]').forEach(card => {
+        if (card.dataset.previewAttached) return;
+        card.dataset.previewAttached = 'true';
+        const vkId = card.dataset.vkId;
+        if (vkId) {
+            card.addEventListener('mouseenter', () => showPreview(card, vkId));
+            card.addEventListener('mouseleave', hidePreview);
+        }
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════

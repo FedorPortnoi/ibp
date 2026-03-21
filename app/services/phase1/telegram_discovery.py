@@ -59,6 +59,7 @@ class TelegramDiscoveryService:
         age_from: int = None,
         age_to: int = None,
         birth_year: int = None,
+        strict_mode: bool = True,
     ) -> List[Dict]:
         """
         Run all three Telegram discovery methods sequentially.
@@ -117,7 +118,10 @@ class TelegramDiscoveryService:
         except Exception as e:
             logger.warning(f"TG Method C (Telethon) error: {e}")
 
-        results = list(all_profiles.values())[:self.MAX_TOTAL_RESULTS]
+        if strict_mode:
+            results = list(all_profiles.values())[:self.MAX_TOTAL_RESULTS]
+        else:
+            results = list(all_profiles.values())
 
         # Sort all results: высокая/high first, then средняя/medium, then низкая/low
         confidence_order = {'высокая': 0, 'high': 0, 'средняя': 1, 'medium': 1, 'низкая': 2, 'low': 2}

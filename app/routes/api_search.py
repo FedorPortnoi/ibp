@@ -59,6 +59,7 @@ def search_vk():
             age_from=int(age_from) if age_from else None,
             age_to=int(age_to) if age_to else None,
             target_name=name,
+            strict_mode=False,
         )
 
         results = []
@@ -138,6 +139,7 @@ def search_telegram():
                 city=city,
                 age_from=int(age_from) if age_from else None,
                 age_to=int(age_to) if age_to else None,
+                strict_mode=False,
             )
         finally:
             svc.close()

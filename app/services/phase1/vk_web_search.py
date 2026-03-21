@@ -236,6 +236,7 @@ class VKWebSearch:
         birth_day: Optional[int] = None,
         birth_month: Optional[int] = None,
         birth_year: Optional[int] = None,
+        strict_mode: bool = True,
     ) -> Tuple[List[Dict], int]:
         """
         Search VK for people by name. Returns (profiles, total_count).
@@ -282,6 +283,7 @@ class VKWebSearch:
             birth_day=birth_day,
             birth_month=birth_month,
             birth_year=birth_year,
+            strict_mode=strict_mode,
         )
         _add_ids(web_search_ids, 'people_search')
 
@@ -292,7 +294,7 @@ class VKWebSearch:
         # Step 3: Enrich and verify results from people search + newsfeed
         verified_profiles = []
         if all_user_ids:
-            verified_profiles = self._enrich_profiles(all_user_ids, original_query)
+            verified_profiles = self._enrich_profiles(all_user_ids, original_query, strict_mode=strict_mode)
 
         # Step 4: Screen name guessing — only if very few verified results
         if len(verified_profiles) < 3:
@@ -454,6 +456,7 @@ class VKWebSearch:
         birth_day: Optional[int] = None,
         birth_month: Optional[int] = None,
         birth_year: Optional[int] = None,
+        strict_mode: bool = True,
     ) -> List[int]:
         """
         Search VK using the web token obtained from the browser session.
@@ -493,6 +496,7 @@ class VKWebSearch:
             birth_day=birth_day,
             birth_month=birth_month,
             birth_year=birth_year,
+            strict_mode=strict_mode,
         )
 
     def _refresh_web_token(self) -> Optional[str]:
@@ -580,19 +584,25 @@ class VKWebSearch:
         birth_day: Optional[int] = None,
         birth_month: Optional[int] = None,
         birth_year: Optional[int] = None,
+        strict_mode: bool = True,
     ) -> List[int]:
         """
         Call VK API users.search with a web token.
 
         Fetches up to 1000 results from VK, then filters:
         1. Real human profiles (no bots/deleted/communities)
-        2. Name verification (fuzzy match against query)
+        2. Name verification (fuzzy match against query) — strict_mode only
+
+        When strict_mode=False (People Search): skip name verification,
+        paginate up to 3 pages (3000 results max).
 
         Args:
             token: VK web token for users.search.
             query: VK API search query (2 tokens, patronymic stripped).
             original_query: Full original query for name order detection
                 (3 tokens = LFP). Falls back to query if not provided.
+            strict_mode: True = Candidate Check (name filtering),
+                         False = People Search (return all).
 
         Returns all verified user IDs (no artificial cap).
         """
@@ -603,70 +613,96 @@ class VKWebSearch:
         # but stripped query for VK API call
         name_query = original_query or query
 
+        max_pages = 3 if not strict_mode else 1
+        all_user_ids = []
+        seen_ids = set()
+
         try:
-            search_params = {
-                'q': query,
-                'count': 1000,  # Always fetch maximum from VK
-                'fields': ','.join(self.PROFILE_FIELDS),
-                'access_token': token,
-                'v': self.VK_API_VERSION,
-            }
-            # Only use birth_year as pre-filter (least restrictive).
-            # birth_day/birth_month exclude profiles with hidden DOB.
-            if birth_year:
-                search_params['birth_year'] = birth_year
+            for page in range(max_pages):
+                search_params = {
+                    'q': query,
+                    'count': 1000,  # Always fetch maximum from VK
+                    'offset': page * 1000,
+                    'fields': ','.join(self.PROFILE_FIELDS),
+                    'access_token': token,
+                    'v': self.VK_API_VERSION,
+                }
+                # Only use birth_year as pre-filter (least restrictive).
+                # birth_day/birth_month exclude profiles with hidden DOB.
+                if birth_year:
+                    search_params['birth_year'] = birth_year
 
-            resp = self._session.post(
-                f"{self.VK_API_BASE}/users.search",
-                data=search_params,
-                timeout=15,
-            )
-            data = resp.json()
+                if page > 0:
+                    time.sleep(0.35)  # Rate limit between pages
 
-            if 'error' in data:
-                err = data['error']
-                code = err.get('error_code', 0)
-                msg = err.get('error_msg', '')
-                if code == 5:
-                    # Token expired — clear cache, next call will refresh
-                    logger.warning(f"VKWebSearch: web token expired, will refresh")
-                    try:
-                        os.remove(TOKEN_FILE)
-                    except OSError:
-                        pass
+                resp = self._session.post(
+                    f"{self.VK_API_BASE}/users.search",
+                    data=search_params,
+                    timeout=15,
+                )
+                data = resp.json()
+
+                if 'error' in data:
+                    err = data['error']
+                    code = err.get('error_code', 0)
+                    msg = err.get('error_msg', '')
+                    if code == 5:
+                        # Token expired — clear cache, next call will refresh
+                        logger.warning(f"VKWebSearch: web token expired, will refresh")
+                        try:
+                            os.remove(TOKEN_FILE)
+                        except OSError:
+                            pass
+                    else:
+                        logger.warning(f"VKWebSearch users.search error {code}: {msg}")
+                    break
+
+                response = data.get('response', {})
+                items = response.get('items', [])
+                total = response.get('count', 0)
+
+                if not items:
+                    break  # No more results
+
+                # Step 1: Filter for real human profiles
+                human_items = [item for item in items if self._is_real_human_profile(item)]
+
+                if strict_mode:
+                    # Step 2: Apply name verification — detect name order from query
+                    search_first, search_last = _parse_query_names(name_query)
+                    if search_first and search_last:
+                        verified_items = [
+                            item for item in human_items
+                            if verify_profile_name_matches_query(item, search_first, search_last)
+                        ]
+                    else:
+                        verified_items = human_items
                 else:
-                    logger.warning(f"VKWebSearch users.search error {code}: {msg}")
-                return []
+                    # People Search: return all human profiles without name filtering
+                    verified_items = human_items
 
-            response = data.get('response', {})
-            items = response.get('items', [])
-            total = response.get('count', 0)
+                for item in verified_items:
+                    uid = item.get('id')
+                    if uid and uid not in seen_ids:
+                        seen_ids.add(uid)
+                        all_user_ids.append(uid)
 
-            # Step 1: Filter for real human profiles
-            human_items = [item for item in items if self._is_real_human_profile(item)]
+                search_first, search_last = _parse_query_names(name_query)
+                logger.info(
+                    f"VKWebSearch users.search page {page+1}: {total} total, {len(items)} raw, "
+                    f"{len(human_items)} human, {len(verified_items)} verified for '{query}' "
+                    f"(parsed first={search_first!r}, last={search_last!r})"
+                )
 
-            # Step 2: Apply name verification — detect name order from query
-            # Use original query (with patronymic) for correct LFP name order detection
-            search_first, search_last = _parse_query_names(name_query)
-            if search_first and search_last:
-                verified_items = [
-                    item for item in human_items
-                    if verify_profile_name_matches_query(item, search_first, search_last)
-                ]
-            else:
-                verified_items = human_items
+                # Stop if we got fewer than 1000 (no more pages)
+                if len(items) < 1000:
+                    break
 
-            user_ids = [item['id'] for item in verified_items if 'id' in item]
-            logger.info(
-                f"VKWebSearch users.search: {total} total, {len(items)} raw, "
-                f"{len(human_items)} human, {len(user_ids)} verified for '{query}' "
-                f"(parsed first={search_first!r}, last={search_last!r})"
-            )
-            return user_ids
+            return all_user_ids
 
         except Exception as e:
             logger.warning(f"VKWebSearch users.search error: {e}")
-            return []
+            return all_user_ids
 
     # ── Auto-login ────────────────────────────────────────────
 
@@ -1022,7 +1058,9 @@ class VKWebSearch:
 
         return user_ids
 
-    def _enrich_profiles(self, user_ids: List[int], query: str, original_query: Optional[str] = None) -> List[Dict]:
+    def _enrich_profiles(self, user_ids: List[int], query: str,
+                         original_query: Optional[str] = None,
+                         strict_mode: bool = True) -> List[Dict]:
         """
         Enrich a list of VK user IDs with full profile data using users.get.
         Works with service token (permanent, never expires).
@@ -1032,6 +1070,7 @@ class VKWebSearch:
             query: Search query (may be 2-token stripped or full 3-token).
             original_query: Full original query for name order detection
                 (3 tokens = LFP). Falls back to query if not provided.
+            strict_mode: True = filter by name match, False = return all.
 
         Returns list of VK API user dicts filtered/sorted by name match.
         """
@@ -1077,28 +1116,29 @@ class VKWebSearch:
             except Exception as e:
                 logger.warning(f"users.get enrichment error: {e}")
 
-        # Filter: verify each profile's actual name matches the search query
-        # Uses fuzzy matching with transliteration + diminutive support
-        # Use original query (with patronymic) for correct LFP name order detection
-        name_query = original_query or query
-        search_first, search_last = _parse_query_names(name_query)
-        if search_first and search_last:
-            filtered = []
-            for p in profiles:
-                fn = p.get('first_name', '')
-                ln = p.get('last_name', '')
-                if verify_profile_name_matches_query(p, search_first, search_last):
-                    logger.info(f"  \u2713 Verified: {fn} {ln} (id{p.get('id', '?')})")
-                    filtered.append(p)
-                else:
-                    logger.warning(
-                        f"  \u2717 REJECTED fake match: '{fn} {ln}' (id{p.get('id', '?')}) "
-                        f"doesn't match search '{query}' "
-                        f"(parsed first={search_first!r}, last={search_last!r})"
-                    )
-            profiles = filtered
+        if strict_mode:
+            # Filter: verify each profile's actual name matches the search query
+            # Uses fuzzy matching with transliteration + diminutive support
+            # Use original query (with patronymic) for correct LFP name order detection
+            name_query = original_query or query
+            search_first, search_last = _parse_query_names(name_query)
+            if search_first and search_last:
+                filtered = []
+                for p in profiles:
+                    fn = p.get('first_name', '')
+                    ln = p.get('last_name', '')
+                    if verify_profile_name_matches_query(p, search_first, search_last):
+                        logger.info(f"  \u2713 Verified: {fn} {ln} (id{p.get('id', '?')})")
+                        filtered.append(p)
+                    else:
+                        logger.warning(
+                            f"  \u2717 REJECTED fake match: '{fn} {ln}' (id{p.get('id', '?')}) "
+                            f"doesn't match search '{query}' "
+                            f"(parsed first={search_first!r}, last={search_last!r})"
+                        )
+                profiles = filtered
 
-        logger.info(f"VKWebSearch: enriched {len(profiles)} profiles matching '{query}'")
+        logger.info(f"VKWebSearch: enriched {len(profiles)} profiles for '{query}'")
         return profiles
 
 

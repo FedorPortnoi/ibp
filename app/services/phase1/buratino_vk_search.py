@@ -482,6 +482,7 @@ class BuratinoVKSearch:
         birth_day: Optional[int] = None,
         birth_month: Optional[int] = None,
         birth_year: Optional[int] = None,
+        strict_mode: bool = True,
     ) -> Tuple[List[VKProfileResult], int]:
         """
         Search VKontakte for people by name.
@@ -525,14 +526,16 @@ class BuratinoVKSearch:
                 birth_day=birth_day,
                 birth_month=birth_month,
                 birth_year=birth_year,
+                strict_mode=strict_mode,
             )
             for item in raw_profiles:
                 vk_id = item.get('id')
                 if vk_id and vk_id not in all_profiles_by_id:
                     profile = self._parse_profile(item, target_name)
-                    if profile.name_match:
-                        all_profiles_by_id[vk_id] = profile
-            logger.info(f"VK search: {len(all_profiles_by_id)} matching profiles for '{query}'")
+                    if strict_mode and not profile.name_match:
+                        continue
+                    all_profiles_by_id[vk_id] = profile
+            logger.info(f"VK search: {len(all_profiles_by_id)} profiles for '{query}' (strict={strict_mode})")
         except Exception as e:
             logger.warning(f"VK web search failed: {e}")
 
@@ -542,42 +545,51 @@ class BuratinoVKSearch:
         if not all_profiles_by_id and self.session:
             user_token = os.environ.get("VK_USER_TOKEN") or os.environ.get("VK_TOKEN")
             if user_token:
-                try:
-                    self._rate_limit()
-                    params = {
-                        'q': vk_query,
-                        'count': 100,
-                        'fields': ','.join(self.PROFILE_FIELDS),
-                        'access_token': user_token,
-                        'v': self.API_VERSION,
-                    }
-                    if birth_year:
-                        params['birth_year'] = birth_year
-                    resp = self.session.post(
-                        f"{self.API_BASE_URL}/users.search",
-                        data=params, timeout=15,
-                    )
-                    data = resp.json()
-                    if 'error' in data:
-                        err = data['error']
-                        logger.warning(
-                            f"VK users.search fallback error {err.get('error_code')}: "
-                            f"{err.get('error_msg')}"
+                max_pages = 3 if not strict_mode else 1
+                for page in range(max_pages):
+                    try:
+                        self._rate_limit()
+                        params = {
+                            'q': vk_query,
+                            'count': 1000,
+                            'offset': page * 1000,
+                            'fields': ','.join(self.PROFILE_FIELDS),
+                            'access_token': user_token,
+                            'v': self.API_VERSION,
+                        }
+                        if birth_year:
+                            params['birth_year'] = birth_year
+                        resp = self.session.post(
+                            f"{self.API_BASE_URL}/users.search",
+                            data=params, timeout=15,
                         )
-                    else:
-                        items = data.get('response', {}).get('items', [])
-                        for item in items:
-                            vk_id = item.get('id')
-                            if vk_id and vk_id not in all_profiles_by_id:
-                                profile = self._parse_profile(item, target_name)
-                                if profile.name_match:
+                        data = resp.json()
+                        if 'error' in data:
+                            err = data['error']
+                            logger.warning(
+                                f"VK users.search fallback error {err.get('error_code')}: "
+                                f"{err.get('error_msg')}"
+                            )
+                            break
+                        else:
+                            items = data.get('response', {}).get('items', [])
+                            for item in items:
+                                vk_id = item.get('id')
+                                if vk_id and vk_id not in all_profiles_by_id:
+                                    profile = self._parse_profile(item, target_name)
+                                    if strict_mode and not profile.name_match:
+                                        continue
                                     all_profiles_by_id[vk_id] = profile
-                        logger.info(
-                            f"VK fallback users.search: {len(items)} raw, "
-                            f"{len(all_profiles_by_id)} matched for '{query}'"
-                        )
-                except Exception as e:
-                    logger.warning(f"VK users.search fallback error: {e}")
+                            logger.info(
+                                f"VK fallback users.search page {page+1}: {len(items)} raw, "
+                                f"{len(all_profiles_by_id)} total for '{query}'"
+                            )
+                            # Stop if fewer than 1000 results (no more pages)
+                            if len(items) < 1000:
+                                break
+                    except Exception as e:
+                        logger.warning(f"VK users.search fallback error: {e}")
+                        break
 
         # ── Apply filters ──
         if city or age_from or age_to:
@@ -609,7 +621,9 @@ class BuratinoVKSearch:
 
         profiles = list(all_profiles_by_id.values())
         profiles.sort(key=lambda p: p.name_similarity, reverse=True)
-        return profiles[:count], len(all_profiles_by_id)
+        if strict_mode:
+            return profiles[:count], len(all_profiles_by_id)
+        return profiles, len(all_profiles_by_id)
 
     def fetch_friends(
         self,
