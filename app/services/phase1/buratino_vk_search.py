@@ -534,6 +534,15 @@ class BuratinoVKSearch:
                     profile = self._parse_profile(item, target_name)
                     if strict_mode and not profile.name_match:
                         continue
+                    # People Search: skip verify but reject completely unrelated (< 30%)
+                    # people_search results from VK API pass easily; this catches
+                    # newsfeed/screen_name results that slipped through
+                    if not strict_mode and profile.name_similarity < 30:
+                        logger.info(
+                            f"Filtered '{profile.full_name}' — similarity "
+                            f"{profile.name_similarity:.0f}% < 30%"
+                        )
+                        continue
                     all_profiles_by_id[vk_id] = profile
             logger.info(f"VK search: {len(all_profiles_by_id)} profiles for '{query}' (strict={strict_mode})")
         except Exception as e:

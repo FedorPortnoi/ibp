@@ -78,6 +78,26 @@ def _parse_query_names(query: str) -> Tuple[str, str]:
     else:
         return parts[0] if parts else '', ''
 
+def _loose_name_match(profile: dict, search_first: str, search_last: str, threshold: float = 0.3) -> bool:
+    """
+    Loose name matching for People Search mode.
+    Rejects completely different names (similarity < threshold).
+    Used for screen_name guessing and newsfeed results where VK didn't match by name.
+    """
+    profile_first = (profile.get('first_name') or '').strip().lower()
+    profile_last = (profile.get('last_name') or '').strip().lower()
+    search_first = (search_first or '').strip().lower()
+    search_last = (search_last or '').strip().lower()
+
+    if not profile_first and not profile_last:
+        return False
+
+    last_sim = SequenceMatcher(None, search_last, profile_last).ratio()
+    first_sim = SequenceMatcher(None, search_first, profile_first).ratio()
+
+    return (last_sim + first_sim) / 2 >= threshold
+
+
 def verify_profile_name_matches_query(profile: dict, search_first: str, search_last: str) -> bool:
     """
     Strict name matching for VK profile verification.
@@ -295,6 +315,28 @@ class VKWebSearch:
         verified_profiles = []
         if all_user_ids:
             verified_profiles = self._enrich_profiles(all_user_ids, original_query, strict_mode=strict_mode)
+            # People Search: people_search results pass (VK matched by name),
+            # but newsfeed results need loose 0.3 threshold
+            if not strict_mode and verified_profiles:
+                name_query = original_query or query
+                search_first, search_last = _parse_query_names(name_query)
+                if search_first and search_last:
+                    filtered = []
+                    for p in verified_profiles:
+                        uid = p.get('id')
+                        method = id_methods.get(uid, 'unknown')
+                        if method == 'people_search':
+                            filtered.append(p)  # VK API already matched by name
+                        elif _loose_name_match(p, search_first, search_last, 0.3):
+                            filtered.append(p)
+                        else:
+                            fn = p.get('first_name', '')
+                            ln = p.get('last_name', '')
+                            logger.info(
+                                f"  \u2717 Filtered '{fn} {ln}' (id{uid}) "
+                                f"— name similarity < 0.3 ({method})"
+                            )
+                    verified_profiles = filtered
 
         # Step 4: Screen name guessing — only if very few verified results
         if len(verified_profiles) < 3:
@@ -308,7 +350,26 @@ class VKWebSearch:
                 for uid in new_ids:
                     seen_ids.add(uid)
                     id_methods[uid] = 'screen_name'
-                extra_profiles = self._enrich_profiles(new_ids, original_query)
+                if strict_mode:
+                    extra_profiles = self._enrich_profiles(new_ids, original_query)
+                else:
+                    # People Search: use loose 0.3 threshold for screen name guessing
+                    extra_profiles = self._enrich_profiles(new_ids, original_query, strict_mode=False)
+                    name_query = original_query or query
+                    search_first, search_last = _parse_query_names(name_query)
+                    if search_first and search_last:
+                        accepted = []
+                        for p in extra_profiles:
+                            if _loose_name_match(p, search_first, search_last, 0.3):
+                                accepted.append(p)
+                            else:
+                                fn = p.get('first_name', '')
+                                ln = p.get('last_name', '')
+                                logger.info(
+                                    f"  \u2717 Screen name match rejected: "
+                                    f"'{fn} {ln}' — name similarity < 0.3"
+                                )
+                        extra_profiles = accepted
                 for p in extra_profiles:
                     p['discovery_method'] = id_methods.get(p.get('id'), 'screen_name')
                 verified_profiles.extend(extra_profiles)
