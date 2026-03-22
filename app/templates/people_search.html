@@ -586,11 +586,11 @@
 
 </div>
 
-<!-- Proceed to Phase 2 bar -->
+<!-- Proceed bar: launch Candidate Check with selected profile -->
 <div id="proceed-bar" class="proceed-bar">
     <span id="selected-info" class="text-gray-300 text-sm"></span>
-    <button id="proceed-btn" class="proceed-btn" onclick="proceedToPhase2()">
-        Продолжить к Фазе 2 →
+    <button id="proceed-btn" class="proceed-btn" onclick="launchCandidateCheck()">
+        Запустить полную проверку →
     </button>
 </div>
 {% endblock %}
@@ -1093,66 +1093,27 @@ function selectProfile(cardElement) {
     bar.classList.add('visible');
 }
 
-async function proceedToPhase2() {
+function launchCandidateCheck() {
     if (!selectedProfile) return;
 
-    const btn = document.getElementById('proceed-btn');
-    btn.disabled = true;
-    btn.textContent = 'Создание расследования...';
+    // Switch to Candidate Check tab
+    switchMode('candidate');
 
-    try {
-        // Create investigation via Phase 1 POST
-        const formData = new FormData();
-        formData.append('target_name', document.getElementById('name').value.trim());
-        const city = document.getElementById('city').value.trim();
-        if (city) formData.append('city', city);
-        const ageFrom = document.getElementById('age_from').value;
-        if (ageFrom) formData.append('age_from', ageFrom);
-        const ageTo = document.getElementById('age_to').value;
-        if (ageTo) formData.append('age_to', ageTo);
-        const photoInput = document.getElementById('photo-input');
-        if (photoInput.files && photoInput.files[0]) {
-            formData.append('photo', photoInput.files[0]);
-        }
+    // Pre-fill form with selected profile data
+    const fullName = `${selectedProfile.last_name || ''} ${selectedProfile.first_name || ''}`.trim();
+    const nameInput = document.getElementById('full_name');
+    if (nameInput && fullName) nameInput.value = fullName;
 
-        const resp = await fetch('/phase1/new', {
-            method: 'POST',
-            body: formData,
-        });
+    // Pre-fill city if available
+    const regionInput = document.getElementById('region');
+    if (regionInput && selectedProfile.city) regionInput.value = selectedProfile.city;
 
-        const data = await resp.json();
-        if (!data.success) {
-            alert(data.error || 'Ошибка создания расследования');
-            btn.disabled = false;
-            btn.textContent = 'Продолжить к Фазе 2 →';
-            return;
-        }
+    // Scroll to form
+    const form = document.getElementById('candidate-form');
+    if (form) form.scrollIntoView({behavior: 'smooth', block: 'start'});
 
-        const investigationId = data.investigation_id;
-
-        // Save selected profile to investigation via confirm API
-        // First we need to create a SocialProfile record
-        const saveResp = await fetch(`/api/search/save-selection`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                investigation_id: investigationId,
-                profile: selectedProfile,
-            }),
-        });
-
-        const saveData = await saveResp.json();
-        if (saveData.success && saveData.redirect) {
-            window.location.href = saveData.redirect;
-        } else {
-            // Fallback: redirect to search results page
-            window.location.href = `/phase1/search/${investigationId}`;
-        }
-    } catch (err) {
-        alert('Ошибка: ' + err.message);
-        btn.disabled = false;
-        btn.textContent = 'Продолжить к Фазе 2 →';
-    }
+    // Update quality indicator after pre-filling
+    if (typeof updateQualityIndicator === 'function') updateQualityIndicator();
 }
 
 // ═══════════════════════════════════════════════════════════════
