@@ -19,6 +19,146 @@ logger = logging.getLogger(__name__)
 
 VK_API_VERSION = '5.199'
 
+# VK last_seen platform codes
+VK_PLATFORM_NAMES = {
+    1: 'Mobile',
+    2: 'iPhone',
+    3: 'iPad',
+    4: 'Android',
+    5: 'Windows Phone',
+    6: 'Windows',
+    7: 'Web',
+}
+
+
+def analyze_last_seen_patterns(vk_profiles: List[Dict], vk_token: str) -> Dict[str, Any]:
+    """
+    Fetch and analyze last_seen data from VK profiles.
+
+    Returns:
+        {
+            'profiles': [{vk_id, last_seen_ts, last_seen_dt, platform, platform_name, online}],
+            'most_recent': {vk_id, last_seen_ts, last_seen_dt, platform_name, time_ago},
+            'preferred_platform': str,
+            'flags': [...]
+        }
+    """
+    if not vk_token or not vk_profiles:
+        return {}
+
+    results = []
+    platform_counts = Counter()
+
+    for profile in vk_profiles[:3]:
+        vk_id = profile.get('platform_id') or profile.get('vk_id') or profile.get('id')
+        if not vk_id:
+            url = profile.get('url', '')
+            if '/id' in url:
+                try:
+                    vk_id = int(url.split('/id')[-1].split('?')[0].split('/')[0])
+                except (ValueError, IndexError):
+                    pass
+        if not vk_id:
+            continue
+
+        try:
+            resp = requests.get('https://api.vk.com/method/users.get', params={
+                'user_ids': vk_id,
+                'fields': 'last_seen,online',
+                'access_token': vk_token,
+                'v': VK_API_VERSION,
+            }, timeout=10)
+            data = resp.json()
+            users = data.get('response', [])
+            if not users:
+                continue
+
+            user = users[0]
+            last_seen = user.get('last_seen')
+            if not last_seen:
+                continue
+
+            ts = last_seen.get('time', 0)
+            platform_code = last_seen.get('platform', 0)
+            platform_name = VK_PLATFORM_NAMES.get(platform_code, f'Unknown ({platform_code})')
+            is_online = user.get('online', 0) == 1
+
+            try:
+                dt = datetime.fromtimestamp(ts)
+                dt_iso = dt.isoformat()
+            except (ValueError, OSError):
+                dt = None
+                dt_iso = ''
+
+            if platform_code in VK_PLATFORM_NAMES:
+                platform_counts[platform_name] += 1
+
+            results.append({
+                'vk_id': vk_id,
+                'last_seen_ts': ts,
+                'last_seen_dt': dt_iso,
+                'platform': platform_code,
+                'platform_name': platform_name,
+                'online': is_online,
+            })
+        except Exception as e:
+            logger.warning(f"VK last_seen fetch for {vk_id} failed: {e}")
+
+    if not results:
+        return {}
+
+    # Find most recent
+    most_recent = max(results, key=lambda r: r.get('last_seen_ts', 0))
+    now = datetime.now()
+    try:
+        last_dt = datetime.fromtimestamp(most_recent['last_seen_ts'])
+        delta = now - last_dt
+        if delta.days == 0:
+            if delta.seconds < 3600:
+                time_ago = f'{delta.seconds // 60} мин. назад'
+            else:
+                time_ago = f'{delta.seconds // 3600} ч. назад'
+        elif delta.days == 1:
+            time_ago = 'вчера'
+        elif delta.days < 30:
+            time_ago = f'{delta.days} дн. назад'
+        elif delta.days < 365:
+            time_ago = f'{delta.days // 30} мес. назад'
+        else:
+            time_ago = f'{delta.days // 365} г. назад'
+    except (ValueError, OSError):
+        time_ago = ''
+        delta = None
+
+    most_recent['time_ago'] = time_ago
+
+    # Preferred platform
+    preferred = platform_counts.most_common(1)[0][0] if platform_counts else ''
+
+    # Risk flags
+    flags = []
+    if delta and delta.days > 180:
+        flags.append({
+            'type': 'suspicion',
+            'code': 'account_inactive',
+            'description': f'Аккаунт неактивен более 6 месяцев (последний визит: {time_ago})',
+            'severity': 'low',
+        })
+    elif delta and delta.days < 1:
+        flags.append({
+            'type': 'fact',
+            'code': 'recently_active',
+            'description': f'Активен сегодня ({time_ago})',
+            'severity': 'info',
+        })
+
+    return {
+        'profiles': results,
+        'most_recent': most_recent,
+        'preferred_platform': preferred,
+        'flags': flags,
+    }
+
 
 # ── VK Group Intelligence ──
 
@@ -127,16 +267,21 @@ def _summarize_group_risk(flagged: list) -> str:
 
 # ── Activity Pattern Analysis ──
 
-def analyze_activity_patterns(wall_posts: list) -> dict:
-    """Detect posting patterns — timezone, night activity, frequency."""
-    if not wall_posts:
+def analyze_activity_patterns(wall_posts: list, last_seen_data: Optional[Dict] = None) -> dict:
+    """Detect posting patterns — timezone, night activity, frequency.
+
+    Args:
+        wall_posts: VK wall posts with 'date' timestamps
+        last_seen_data: Optional last_seen analysis from analyze_last_seen_patterns()
+    """
+    if not wall_posts and not last_seen_data:
         return {}
 
     hours = []
     days = []
     dates = []
 
-    for post in wall_posts:
+    for post in wall_posts or []:
         ts = post.get('date', 0)
         if ts:
             try:
@@ -146,6 +291,19 @@ def analyze_activity_patterns(wall_posts: list) -> dict:
                 dates.append(dt.date())
             except (ValueError, OSError):
                 pass
+
+    # Include last_seen timestamps for better coverage
+    if last_seen_data:
+        for profile in last_seen_data.get('profiles', []):
+            ts = profile.get('last_seen_ts', 0)
+            if ts:
+                try:
+                    dt = datetime.fromtimestamp(ts)
+                    hours.append(dt.hour)
+                    days.append(dt.weekday())
+                    dates.append(dt.date())
+                except (ValueError, OSError):
+                    pass
 
     if not hours:
         return {}
@@ -184,7 +342,7 @@ def analyze_activity_patterns(wall_posts: list) -> dict:
             'severity': 'low',
         })
 
-    return {
+    result = {
         'peak_hours': peak_hours,
         'night_activity_pct': round(night_pct, 1),
         'posts_per_day': round(posts_per_day, 2),
@@ -193,6 +351,22 @@ def analyze_activity_patterns(wall_posts: list) -> dict:
         'hour_distribution': dict(hour_counts),
         'activity_flags': flags,
     }
+
+    # Merge last_seen data if available
+    if last_seen_data:
+        most_recent = last_seen_data.get('most_recent', {})
+        result['last_seen'] = {
+            'last_online_dt': most_recent.get('last_seen_dt', ''),
+            'last_online_ago': most_recent.get('time_ago', ''),
+            'platform_name': most_recent.get('platform_name', ''),
+            'online_now': most_recent.get('online', False),
+        }
+        result['preferred_platform'] = last_seen_data.get('preferred_platform', '')
+        # Add last_seen risk flags
+        for flag in last_seen_data.get('flags', []):
+            flags.append(flag)
+
+    return result
 
 
 def _estimate_timezone(peak_hour: int) -> str:
@@ -425,8 +599,8 @@ def _run_geo_extraction(profiles: List[Dict]) -> Dict:
         return {}
 
 
-def _build_activity_timeline(posts: List[Dict], check) -> List[Dict]:
-    """Build activity timeline from wall posts and check events."""
+def _build_activity_timeline(posts: List[Dict], check, last_seen_data: Optional[Dict] = None) -> List[Dict]:
+    """Build activity timeline from wall posts, last_seen, and check events."""
     events = []
 
     # From wall posts
@@ -445,6 +619,23 @@ def _build_activity_timeline(posts: List[Dict], check) -> List[Dict]:
             })
         except (ValueError, OSError):
             pass
+
+    # From last_seen (most recent activity data point)
+    if last_seen_data:
+        most_recent = last_seen_data.get('most_recent', {})
+        ts = most_recent.get('last_seen_ts', 0)
+        if ts:
+            try:
+                dt = datetime.fromtimestamp(ts)
+                platform = most_recent.get('platform_name', '')
+                events.append({
+                    'timestamp': dt.isoformat(),
+                    'type': 'last_seen',
+                    'source': 'vk_last_seen',
+                    'summary': f'Последний визит VK ({platform})' if platform else 'Последний визит VK',
+                })
+            except (ValueError, OSError):
+                pass
 
     # From check creation
     if check.created_at:
@@ -624,12 +815,9 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Post text geo extraction failed: {e}")
 
-    # 6c. Activity timeline
+    # 6c. Activity timeline (last_seen_data added later after 6f)
     _update('Построение таймлайна', 80)
-    try:
-        results['activity_timeline'] = _build_activity_timeline(posts, check)
-    except Exception as e:
-        logger.error(f"Activity timeline failed: {e}")
+    # Defer timeline build until after last_seen is fetched (done below)
 
     # 6d. VK Groups Intelligence
     vk_id = None
@@ -676,13 +864,33 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
         except Exception as e:
             logger.error(f"Profile anomaly detection failed: {e}")
 
-    # 6f. Activity patterns
-    if posts:
-        _update('Анализ паттернов активности', 81)
+    # 6f. Last seen analysis
+    last_seen_data = {}
+    if vk_profiles and vk_token:
+        _update('Анализ последнего визита VK', 81)
         try:
-            results['activity_patterns'] = analyze_activity_patterns(posts)
+            last_seen_data = analyze_last_seen_patterns(vk_profiles, vk_token)
+            if last_seen_data:
+                results['last_seen_analysis'] = last_seen_data
+                most_recent = last_seen_data.get('most_recent', {})
+                if most_recent.get('time_ago'):
+                    logger.info(f"VK last seen: {most_recent['time_ago']}, platform: {most_recent.get('platform_name', '?')}")
+        except Exception as e:
+            logger.error(f"Last seen analysis failed: {e}")
+
+    # 6g. Activity patterns (combines post timestamps + last_seen)
+    if posts or last_seen_data:
+        _update('Анализ паттернов активности', 82)
+        try:
+            results['activity_patterns'] = analyze_activity_patterns(posts, last_seen_data)
         except Exception as e:
             logger.error(f"Activity patterns analysis failed: {e}")
+
+    # 6h. Build activity timeline (after last_seen is available)
+    try:
+        results['activity_timeline'] = _build_activity_timeline(posts, check, last_seen_data)
+    except Exception as e:
+        logger.error(f"Activity timeline failed: {e}")
 
     _update('Поведенческий анализ завершён', 82)
     return results

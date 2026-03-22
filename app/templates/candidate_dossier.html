@@ -452,7 +452,7 @@
                 <span class="badge {% if group_analysis.get('flagged_groups') %}badge-count{% else %}badge-empty{% endif %}" {% if group_analysis.get('flagged_groups') %}style="background: rgba(239, 68, 68, 0.2); color: #f87171;"{% endif %}>{{ group_analysis.get('flagged_groups', [])|length }}</span>
             </a>
             {% endif %}
-            {% if activity_patterns and activity_patterns.get('peak_hours') %}
+            {% if activity_patterns and (activity_patterns.get('peak_hours') or activity_patterns.get('last_seen')) %}
             <a href="#sec-activity-patterns" class="nav-pill">&#x23F0; Активность
                 <span class="badge badge-count">1</span>
             </a>
@@ -1423,11 +1423,44 @@
     {# ================================================================
        14c. ACTIVITY PATTERNS (Stage 6)
        ================================================================ #}
-    {% if activity_patterns and activity_patterns.get('peak_hours') %}
+    {% if activity_patterns and (activity_patterns.get('peak_hours') or activity_patterns.get('last_seen')) %}
     <section id="sec-activity-patterns" class="mb-10">
         <div class="section-header">
             <h2>&#x23F0; Паттерны активности</h2>
         </div>
+
+        {# Last seen / online status card #}
+        {% if activity_patterns.get('last_seen') %}
+        {% set ls = activity_patterns.last_seen %}
+        <div class="dossier-card mb-3">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+                <div class="flex items-center gap-3">
+                    {% if ls.get('online_now') %}
+                        <div class="w-3 h-3 rounded-full bg-green-400 animate-pulse"></div>
+                        <span class="text-sm font-medium text-green-400">Сейчас онлайн</span>
+                    {% else %}
+                        <div class="w-3 h-3 rounded-full bg-gray-500"></div>
+                        <span class="text-sm font-medium text-gray-300">Последний онлайн: {{ ls.get('last_online_ago', '—') }}</span>
+                    {% endif %}
+                    {% if ls.get('last_online_dt') %}
+                        <span class="text-xs text-gray-500 font-mono">({{ ls.last_online_dt[:16]|replace('T', ' ') }})</span>
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-2">
+                    {% if ls.get('platform_name') %}
+                    <span class="text-xs px-2 py-1 rounded-full bg-accent/[0.1] text-accent-bright border border-accent/[0.2]">
+                        {% if ls.platform_name in ('Android', 'iPhone', 'iPad', 'Windows Phone', 'Mobile') %}&#x1F4F1;{% elif ls.platform_name == 'Web' %}&#x1F310;{% elif ls.platform_name == 'Windows' %}&#x1F4BB;{% else %}&#x1F4F1;{% endif %}
+                        {{ ls.platform_name }}
+                    </span>
+                    {% endif %}
+                    {% if activity_patterns.get('preferred_platform') %}
+                    <span class="text-xs text-gray-500">Чаще заходит с: <span class="text-gray-300">{{ activity_patterns.preferred_platform }}</span></span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="dossier-card">
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                 {% if activity_patterns.get('night_activity_pct') is not none %}
@@ -1537,10 +1570,11 @@
                     {% set etype = event.get('type', '') %}
                     {% if etype %}
                         <span class="inline-block px-2 py-0.5 rounded text-xs font-medium mb-1
-                            {% if 'суд' in etype|lower or 'court' in etype|lower %}badge-yellow
+                            {% if etype == 'last_seen' %}badge-green
+                            {% elif 'суд' in etype|lower or 'court' in etype|lower %}badge-yellow
                             {% elif 'бизнес' in etype|lower or 'business' in etype|lower %}badge-blue
                             {% elif 'соц' in etype|lower or 'social' in etype|lower %}badge-green
-                            {% else %}badge-gray{% endif %}">{{ etype }}</span>
+                            {% else %}badge-gray{% endif %}">{% if etype == 'last_seen' %}VK online{% else %}{{ etype }}{% endif %}</span>
                     {% endif %}
                     <div class="text-sm text-gray-300">{{ event.get('summary', event.get('description', event.get('text', ''))) }}</div>
                 </div>
