@@ -427,6 +427,12 @@
                 {% set contact_count = (contacts.get('phones', [])|length + contacts.get('emails', [])|length) if contacts else 0 %}
                 <span class="badge {% if contact_count %}badge-count{% else %}badge-empty{% endif %}">{{ contact_count if contact_count else '—' }}</span>
             </a>
+            {% set bi_nav = contacts.get('breach_intelligence', {}) if contacts else {} %}
+            {% if bi_nav and bi_nav.get('breach_count', 0) > 0 %}
+            <a href="#sec-breach-intel" class="nav-pill">&#x1F513; Утечки
+                <span class="badge badge-count" {% if bi_nav.get('breach_count', 0) >= 5 %}style="background: rgba(239, 68, 68, 0.2); color: #f87171;"{% endif %}>{{ bi_nav.get('breach_count', 0) }}</span>
+            </a>
+            {% endif %}
             {% if username_accounts %}
             <a href="#sec-accounts" class="nav-pill">&#x1F465; Аккаунты
                 <span class="badge badge-count">{{ username_accounts|length }}</span>
@@ -624,13 +630,19 @@
                         {{ case.get('court', case.get('court_name', '')) }}
                     </div>
                     {% set cat = case.get('category', case.get('article', ''))|lower %}
-                    {% if 'уголов' in cat %}
-                        <span class="status-badge badge-red shrink-0">&#x1F534; Уголовное</span>
-                    {% elif case.get('role', '')|lower in ['ответчик', 'defendant'] %}
-                        <span class="status-badge badge-yellow shrink-0">&#x26A0;&#xFE0F; Ответчик</span>
-                    {% elif case.get('status') %}
-                        <span class="status-badge badge-gray shrink-0">{{ case.status }}</span>
-                    {% endif %}
+                    {% set role_val = case.get('role', '')|lower %}
+                    <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+                        {% if 'уголов' in cat %}
+                            <span class="status-badge badge-red shrink-0">&#x1F534; Уголовное</span>
+                        {% endif %}
+                        {% if role_val in ['истец', 'plaintiff'] %}
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/[0.15] text-blue-400 border border-blue-500/[0.2]">Истец</span>
+                        {% elif role_val in ['ответчик', 'defendant', 'обвиняемый', 'подсудимый'] %}
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-orange-500/[0.15] text-orange-400 border border-orange-500/[0.2]">Ответчик</span>
+                        {% elif case.get('status') %}
+                            <span class="status-badge badge-gray shrink-0">{{ case.status }}</span>
+                        {% endif %}
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-400">
                     {% if case.get('role') %}
@@ -1127,6 +1139,79 @@
     </section>
 
     {# ================================================================
+       10b. BREACH INTELLIGENCE (Stage 4)
+       ================================================================ #}
+    {% set bi = contacts.get('breach_intelligence', {}) if contacts else {} %}
+    {% if bi and (bi.get('services_used') or bi.get('old_emails') or bi.get('breach_count', 0) > 0) %}
+    <section id="sec-breach-intel" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F513; Анализ утечек данных</h2>
+            <span class="section-count">{{ bi.get('breach_count', 0) }} утечек</span>
+        </div>
+        <div class="dossier-card">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-center mb-4">
+                <div>
+                    <div class="text-lg font-bold {% if bi.get('breach_count', 0) >= 5 %}text-red-400{% elif bi.get('breach_count', 0) >= 1 %}text-yellow-400{% else %}text-green-400{% endif %}">{{ bi.get('breach_count', 0) }}</div>
+                    <div class="text-xs text-gray-500">Утечек</div>
+                </div>
+                <div>
+                    <div class="text-lg font-bold text-accent">{{ bi.get('services_used', [])|length }}</div>
+                    <div class="text-xs text-gray-500">Сервисов</div>
+                </div>
+                <div>
+                    <div class="text-lg font-bold {% if bi.get('has_financial_services') %}text-red-400{% else %}text-green-400{% endif %}">
+                        {% if bi.get('has_financial_services') %}&#x26A0;{% else %}&#x2714;{% endif %}
+                    </div>
+                    <div class="text-xs text-gray-500">Фин. сервисы</div>
+                </div>
+            </div>
+
+            {% if bi.get('services_used') %}
+            <div class="mb-3">
+                <div class="text-xs text-gray-500 mb-2">Зарегистрирован на сервисах:</div>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for svc in bi.get('services_used', [])[:20] %}
+                    <span class="px-2 py-0.5 rounded text-xs bg-white/[0.05] border border-white/[0.08] text-gray-300 font-mono">{{ svc }}</span>
+                    {% endfor %}
+                    {% if bi.get('services_used', [])|length > 20 %}
+                    <span class="text-xs text-gray-600">+{{ bi.get('services_used', [])|length - 20 }} ещё</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if bi.get('old_emails') %}
+            <div class="mb-3">
+                <div class="text-xs text-gray-500 mb-2">Старые email-адреса:</div>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for email in bi.get('old_emails', [])[:10] %}
+                    <span class="px-2 py-0.5 rounded text-xs bg-accent/[0.05] border border-accent/[0.15] text-accent-bright font-mono">{{ email }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if bi.get('old_phones') %}
+            <div class="mb-3">
+                <div class="text-xs text-gray-500 mb-2">Старые телефоны:</div>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for phone in bi.get('old_phones', [])[:10] %}
+                    <span class="px-2 py-0.5 rounded text-xs bg-accent/[0.05] border border-accent/[0.15] text-accent-bright font-mono">{{ phone }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if bi.get('breach_sources') %}
+            <div class="text-xs text-gray-600">
+                Источники: {{ bi.get('breach_sources', [])|join(', ') }}
+            </div>
+            {% endif %}
+        </div>
+    </section>
+    {% endif %}
+
+    {# ================================================================
        11. FOUND ACCOUNTS (Stage 5)
        ================================================================ #}
     {% if username_accounts or face_matches %}
@@ -1229,6 +1314,40 @@
             {% endif %}
         </div>
         {% endif %}
+    </section>
+    {% endif %}
+
+    {# ================================================================
+       12b. FRIENDS RISK ANALYSIS (Stage 5)
+       ================================================================ #}
+    {% set frd = social_graph_data.get('friends_risk_deep', {}) if social_graph_data else {} %}
+    {% if frd and frd.get('flagged_count', 0) > 0 %}
+    <section id="sec-friends-risk" class="mb-10">
+        <div class="section-header">
+            <h2>&#x26A0; Проверка друзей по базам МВД/розыска</h2>
+            <span class="section-count" style="background: rgba(239, 68, 68, 0.15); color: #f87171;">{{ frd.get('flagged_count', 0) }} совпадений из {{ frd.get('checked_friends', 0) }} проверенных</span>
+        </div>
+        <div class="space-y-2">
+            {% for ff in frd.get('flagged_friends', [])[:15] %}
+            <div class="dossier-card flex items-center justify-between py-3">
+                <div class="flex-1 min-w-0">
+                    <a href="{{ ff.get('url', '#') }}" target="_blank" rel="noopener"
+                       class="text-sm text-white font-medium hover:text-accent-bright transition">{{ ff.get('name', '') }}</a>
+                    {% if ff.get('city') %}
+                    <span class="text-xs text-gray-500 ml-2">{{ ff.city }}</span>
+                    {% endif %}
+                    <div class="flex flex-wrap gap-1.5 mt-1">
+                        {% for hit in ff.get('hits', []) %}
+                        <span class="text-xs px-2 py-0.5 rounded-full {% if hit.get('source') == 'mvd_wanted' %}bg-red-500/[0.15] text-red-400 border border-red-500/[0.2]{% else %}bg-orange-500/[0.15] text-orange-400 border border-orange-500/[0.2]{% endif %}">
+                            {% if hit.get('source') == 'mvd_wanted' %}МВД розыск{% elif hit.get('source') == 'extremist_list' %}Экстремисты{% else %}{{ hit.get('source', '') }}{% endif %}
+                            ({{ '%.0f'|format((hit.get('similarity', 0)) * 100) }}%)
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </section>
     {% endif %}
 

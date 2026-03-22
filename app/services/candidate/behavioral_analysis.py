@@ -651,6 +651,158 @@ def _build_activity_timeline(posts: List[Dict], check, last_seen_data: Optional[
     return events[:100]
 
 
+def search_telegram_public_messages(full_name: str, username: str = None) -> dict:
+    """
+    Search Telegram public channels/groups for messages mentioning the target.
+
+    Uses Telethon's SearchGlobalRequest to find public messages.
+    Follows the same async/session pattern as telegram_discovery.py Method C.
+
+    Args:
+        full_name: Target's full name for search query.
+        username: Optional Telegram username (searched first if available).
+
+    Returns:
+        {
+            'messages': [{'text': str, 'date': str, 'chat_id': int}],
+            'total_found': int,
+            'groups_mentioned': [],  # unique chat IDs
+            'error': str or None
+        }
+    """
+    import asyncio
+
+    empty_result = {
+        'messages': [],
+        'total_found': 0,
+        'groups_mentioned': [],
+        'error': None,
+    }
+
+    # Check Telethon credentials
+    api_id = os.environ.get('TELEGRAM_API_ID', '')
+    api_hash = os.environ.get('TELEGRAM_API_HASH', '')
+    phone = os.environ.get('TELEGRAM_PHONE', '')
+
+    if not all([api_id, api_hash, phone]):
+        logger.info("Telegram public search: credentials not configured, skipping")
+        return empty_result
+
+    # Check session file exists (same path logic as telegram_discovery.py)
+    session_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        '..', '..', '..', 'tg_session'
+    )
+    session_file = os.path.join(session_dir, 'ibp_session.session')
+    if not os.path.exists(session_file):
+        logger.info("Telegram public search: session file not found, skipping")
+        return empty_result
+
+    session_path = os.path.join(session_dir, 'ibp_session')
+
+    # Build search query: prefer username, fall back to full name
+    query = username if username else full_name
+    if not query or not query.strip():
+        return empty_result
+    query = query.strip()
+
+    async def _search_global():
+        from telethon import TelegramClient
+        from telethon.tl.functions.messages import SearchGlobalRequest
+        from telethon.tl.types import InputMessagesFilterEmpty
+
+        client = TelegramClient(session_path, int(api_id), api_hash)
+        await client.connect()
+
+        if not await client.is_user_authorized():
+            logger.warning(
+                "Telegram public search: session expired or not authorized. "
+                "Run: python scripts/auth_telegram.py"
+            )
+            await client.disconnect()
+            return {
+                'messages': [],
+                'total_found': 0,
+                'groups_mentioned': [],
+                'error': 'Telegram session not authorized',
+            }
+
+        messages = []
+        chat_ids = set()
+        try:
+            result = await asyncio.wait_for(
+                client(SearchGlobalRequest(
+                    q=query,
+                    filter=InputMessagesFilterEmpty(),
+                    min_date=None,
+                    max_date=None,
+                    offset_rate=0,
+                    offset_peer=await client.get_input_entity('me'),
+                    offset_id=0,
+                    limit=50,
+                )),
+                timeout=30,
+            )
+
+            for msg in result.messages[:20]:
+                text = getattr(msg, 'message', '') or ''
+                date = getattr(msg, 'date', None)
+                peer_id = getattr(msg, 'peer_id', None)
+
+                chat_id = 0
+                if peer_id:
+                    chat_id = getattr(peer_id, 'channel_id', 0) or \
+                              getattr(peer_id, 'chat_id', 0) or \
+                              getattr(peer_id, 'user_id', 0)
+
+                messages.append({
+                    'text': text[:200],
+                    'date': date.isoformat() if date else '',
+                    'chat_id': chat_id,
+                })
+                if chat_id:
+                    chat_ids.add(chat_id)
+
+            total_found = getattr(result, 'count', len(result.messages)) if hasattr(result, 'count') else len(result.messages)
+
+        finally:
+            await client.disconnect()
+
+        return {
+            'messages': messages,
+            'total_found': total_found,
+            'groups_mentioned': list(chat_ids),
+            'error': None,
+        }
+
+    try:
+        loop = asyncio.new_event_loop()
+        try:
+            result = loop.run_until_complete(_search_global())
+        finally:
+            loop.close()
+        return result
+    except asyncio.TimeoutError:
+        logger.warning("Telegram public search: timed out after 30s")
+        return {
+            'messages': [],
+            'total_found': 0,
+            'groups_mentioned': [],
+            'error': 'Timeout after 30s',
+        }
+    except ImportError:
+        logger.info("Telegram public search: Telethon not installed, skipping")
+        return empty_result
+    except Exception as e:
+        logger.error(f"Telegram public search error: {e}")
+        return {
+            'messages': [],
+            'total_found': 0,
+            'groups_mentioned': [],
+            'error': str(e),
+        }
+
+
 def _demo_response() -> Dict[str, Any]:
     """Return realistic fake data for demo mode."""
     base_date = datetime(2025, 8, 15)
@@ -891,6 +1043,27 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
         results['activity_timeline'] = _build_activity_timeline(posts, check, last_seen_data)
     except Exception as e:
         logger.error(f"Activity timeline failed: {e}")
+
+    # 6i. Telegram public message search
+    _update('Поиск публичных сообщений Telegram', 82)
+    try:
+        tg_username = None
+        for p in all_profiles:
+            if p.get('platform') == 'telegram':
+                tg_username = p.get('username') or p.get('screen_name')
+                if tg_username:
+                    break
+        tg_public = search_telegram_public_messages(
+            full_name=check.full_name or '',
+            username=tg_username,
+        )
+        if tg_public and (tg_public.get('messages') or tg_public.get('error')):
+            results['telegram_public_activity'] = tg_public
+            msg_count = len(tg_public.get('messages', []))
+            if msg_count:
+                logger.info(f"Telegram public messages: found {msg_count} messages in {len(tg_public.get('groups_mentioned', []))} groups")
+    except Exception as e:
+        logger.error(f"Telegram public message search failed: {e}")
 
     _update('Поведенческий анализ завершён', 82)
     return results

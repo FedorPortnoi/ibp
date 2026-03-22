@@ -17,9 +17,11 @@ import subprocess
 import requests
 import hashlib
 import logging
+import re
 import time
 import json
 from typing import List, Dict, Optional, Set
+from urllib.parse import urlparse
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
@@ -338,3 +340,290 @@ def check_emails_breaches(emails: List[str], hibp_key: Optional[str] = None) -> 
     """Convenience function to check multiple emails."""
     checker = BreachChecker(hibp_api_key=hibp_key)
     return checker.check_multiple_emails(emails)
+
+
+# ── Breach Intelligence Analysis ─────────────────────────────────────────
+
+FINANCIAL_DOMAINS = {
+    'sberbank.ru', 'tinkoff.ru', 'vtb.ru', 'alfabank.ru', 'binance.com',
+    'coinbase.com', 'bybit.com', 'blockchain.com', 'qiwi.com', 'paypal.com',
+    'raiffeisen.ru', 'gazprombank.ru', 'rosbank.ru', 'otkritie.ru',
+    'sovcombank.ru', 'rocketbank.ru', 'homecredit.ru', 'pochta-bank.ru',
+    'kraken.com', 'okx.com', 'gate.io', 'kucoin.com', 'huobi.com',
+    'webmoney.ru', 'yoomoney.ru', 'robokassa.ru', 'stripe.com',
+}
+
+# Email domains to exclude from old_emails (these are the search targets, not discoveries)
+_COMMON_PROVIDER_DOMAINS = {
+    'gmail.com', 'mail.ru', 'yandex.ru', 'yahoo.com', 'outlook.com',
+    'hotmail.com', 'inbox.ru', 'bk.ru', 'list.ru', 'rambler.ru',
+    'icloud.com', 'protonmail.com', 'internet.ru',
+}
+
+# Phone regex for extracting phones from breach data
+_PHONE_RE = re.compile(r'(?:\+7|8)\d{10}')
+
+
+def _extract_domain(url: str) -> Optional[str]:
+    """Extract clean domain from a URL. Returns None for invalid/empty URLs."""
+    if not url:
+        return None
+    try:
+        # Ensure scheme for urlparse
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+        parsed = urlparse(url)
+        domain = parsed.hostname
+        if not domain:
+            return None
+        # Strip www. prefix
+        if domain.startswith('www.'):
+            domain = domain[4:]
+        # Basic sanity: must have at least one dot
+        if '.' not in domain:
+            return None
+        return domain.lower()
+    except Exception:
+        return None
+
+
+def analyze_breach_intelligence(emails: list = None, phones: list = None) -> dict:
+    """
+    Analyze breach data for intelligence: services used, old emails/phones,
+    financial exposure. Uses HudsonRock, LeakCheck, and ProxyNova COMB APIs.
+
+    CRITICAL: Never includes passwords in the return value. Only extracts
+    service domains and contact metadata from breach records.
+
+    Args:
+        emails: List of email addresses to check
+        phones: List of phone numbers to check (for future phone-based lookups)
+
+    Returns:
+        {
+            'services_used': ['vk.com', 'mail.ru', ...],
+            'old_emails': ['old@mail.ru', ...],
+            'old_phones': ['+7...', ...],
+            'breach_count': int,
+            'breach_sources': ['HudsonRock', 'LeakCheck', ...],
+            'has_financial_services': bool,
+        }
+    """
+    emails = [e.lower().strip() for e in (emails or []) if e and '@' in e]
+    phones = [p.strip() for p in (phones or []) if p]
+
+    if not emails and not phones:
+        return {
+            'services_used': [],
+            'old_emails': [],
+            'old_phones': [],
+            'breach_count': 0,
+            'breach_sources': [],
+            'has_financial_services': False,
+        }
+
+    services_used: Set[str] = set()
+    old_emails: Set[str] = set()
+    old_phones: Set[str] = set()
+    breach_count = 0
+    breach_sources: Set[str] = set()
+    search_email_set = set(emails)  # to distinguish old vs. searched emails
+
+    # Limit to top 10 emails to avoid excessive API calls
+    emails_to_check = emails[:10]
+
+    # ── HudsonRock Cavalier (free, no key) ─────────────────────────
+    try:
+        from app.services.phase2.sources.breach_api import HudsonRockSource
+        hr = HudsonRockSource()
+        for email in emails_to_check:
+            try:
+                results = hr.query(email=email)
+                if not results:
+                    continue
+                breach_sources.add('HudsonRock')
+                for r in results:
+                    # Count breaches (email-type results with breach_confirmed)
+                    if (r.data_type == 'email' and
+                            r.metadata.get('verification') == 'breach_confirmed'):
+                        breach_count += r.metadata.get('stealer_count', 1)
+
+                    # Extract service domains from credential URLs
+                    if r.data_type == 'credential' and r.metadata:
+                        url = r.metadata.get('url') or r.raw_data.get('url', '')
+                        domain = _extract_domain(url)
+                        if domain:
+                            services_used.add(domain)
+
+                    # Extract old emails (emails different from what we searched)
+                    if r.data_type == 'email' and r.value:
+                        val = r.value.lower().strip()
+                        if val not in search_email_set:
+                            old_emails.add(val)
+
+                    # Extract old phones from metadata/raw_data
+                    if r.data_type == 'phone' and r.value:
+                        old_phones.add(r.value.strip())
+
+            except Exception as e:
+                logger.warning(f"HudsonRock breach intelligence error for {email}: {e}")
+    except ImportError:
+        logger.debug("HudsonRock source not available for breach intelligence")
+
+    # ── LeakCheck Public (free, no key) ────────────────────────────
+    try:
+        from app.services.phase2.sources.breach_api import LeakCheckSource
+        lc = LeakCheckSource()
+        for email in emails_to_check:
+            try:
+                results = lc.query(email=email)
+                if not results:
+                    continue
+                breach_sources.add('LeakCheck')
+                for r in results:
+                    if r.metadata.get('breach_names'):
+                        breach_count += len(r.metadata['breach_names'])
+                        # Breach names often correspond to service domains
+                        for bname in r.metadata['breach_names']:
+                            # Try to interpret breach name as domain
+                            bname_lower = bname.lower().strip()
+                            if '.' in bname_lower and len(bname_lower) <= 60:
+                                domain = _extract_domain(bname_lower)
+                                if domain:
+                                    services_used.add(domain)
+                            # Common breach name → domain mappings
+                            elif bname_lower in _BREACH_NAME_TO_DOMAIN:
+                                services_used.add(_BREACH_NAME_TO_DOMAIN[bname_lower])
+            except Exception as e:
+                logger.warning(f"LeakCheck breach intelligence error for {email}: {e}")
+    except ImportError:
+        logger.debug("LeakCheck source not available for breach intelligence")
+
+    # ── ProxyNova COMB (free, no key) ──────────────────────────────
+    try:
+        from app.services.phase2.sources.breach_api import ProxyNovaCOMBSource
+        pn = ProxyNovaCOMBSource()
+        for email in emails_to_check:
+            try:
+                results = pn.query(email=email)
+                if not results:
+                    continue
+                breach_sources.add('ProxyNova COMB')
+                for r in results:
+                    if (r.data_type == 'email' and
+                            r.metadata.get('verification') == 'breach_confirmed'):
+                        breach_count += r.metadata.get('total_records', 1)
+
+                    # Discover old emails from COMB results
+                    if r.data_type == 'email' and r.value:
+                        val = r.value.lower().strip()
+                        if val not in search_email_set:
+                            old_emails.add(val)
+            except Exception as e:
+                logger.warning(f"ProxyNova breach intelligence error for {email}: {e}")
+    except ImportError:
+        logger.debug("ProxyNova COMB source not available for breach intelligence")
+
+    # ── HIBP (BreachChecker from this module — if HIBP key available) ──
+    try:
+        import os
+        hibp_key = os.environ.get('HIBP_API_KEY')
+        if hibp_key:
+            checker = BreachChecker(hibp_api_key=hibp_key)
+            for email in emails_to_check[:3]:  # HIBP has strict rate limits
+                try:
+                    result = checker.check_email(email)
+                    if result.found_in_breaches:
+                        breach_sources.add('HIBP')
+                        breach_count += result.breach_count
+                        # Extract breach names as potential service domains
+                        for b in result.breaches:
+                            bname_lower = b.name.lower().strip()
+                            if '.' in bname_lower:
+                                domain = _extract_domain(bname_lower)
+                                if domain:
+                                    services_used.add(domain)
+                            elif bname_lower in _BREACH_NAME_TO_DOMAIN:
+                                services_used.add(_BREACH_NAME_TO_DOMAIN[bname_lower])
+                except Exception as e:
+                    logger.warning(f"HIBP breach intelligence error for {email}: {e}")
+    except Exception as e:
+        logger.debug(f"HIBP check skipped: {e}")
+
+    # ── Post-processing ────────────────────────────────────────────
+
+    # Check for financial services
+    has_financial = bool(services_used & FINANCIAL_DOMAINS)
+
+    # Clean up old_emails: remove search targets and masked/invalid entries
+    old_emails_clean = []
+    for oe in old_emails:
+        if oe in search_email_set:
+            continue
+        if '*' in oe or not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', oe):
+            continue
+        old_emails_clean.append(oe)
+
+    # Clean up old_phones: normalize
+    old_phones_clean = []
+    for op in old_phones:
+        digits = re.sub(r'\D', '', op)
+        if len(digits) >= 10:
+            if digits.startswith('8') and len(digits) == 11:
+                digits = '7' + digits[1:]
+            old_phones_clean.append('+' + digits)
+
+    return {
+        'services_used': sorted(services_used)[:30],
+        'old_emails': old_emails_clean[:10],
+        'old_phones': old_phones_clean[:10],
+        'breach_count': breach_count,
+        'breach_sources': sorted(breach_sources),
+        'has_financial_services': has_financial,
+    }
+
+
+# Common breach name → domain mappings (breach names that don't look like domains)
+_BREACH_NAME_TO_DOMAIN = {
+    'vk': 'vk.com',
+    'vkontakte': 'vk.com',
+    'mail.ru': 'mail.ru',
+    'mailru': 'mail.ru',
+    'yandex': 'yandex.ru',
+    'linkedin': 'linkedin.com',
+    'facebook': 'facebook.com',
+    'adobe': 'adobe.com',
+    'dropbox': 'dropbox.com',
+    'myspace': 'myspace.com',
+    'twitter': 'twitter.com',
+    'tumblr': 'tumblr.com',
+    'spotify': 'spotify.com',
+    'badoo': 'badoo.com',
+    'canva': 'canva.com',
+    'wattpad': 'wattpad.com',
+    'zynga': 'zynga.com',
+    'dubsmash': 'dubsmash.com',
+    'sberbank': 'sberbank.ru',
+    'tinkoff': 'tinkoff.ru',
+    'qiwi': 'qiwi.com',
+    'avito': 'avito.ru',
+    'wildberries': 'wildberries.ru',
+    'ozon': 'ozon.ru',
+    'pikabu': 'pikabu.ru',
+    'habr': 'habr.com',
+    'steam': 'store.steampowered.com',
+    'rambler': 'rambler.ru',
+    'ok': 'ok.ru',
+    'odnoklassniki': 'ok.ru',
+    'telegram': 'telegram.org',
+    'whatsapp': 'whatsapp.com',
+    'instagram': 'instagram.com',
+    'snapchat': 'snapchat.com',
+    'tiktok': 'tiktok.com',
+    'netflix': 'netflix.com',
+    'amazon': 'amazon.com',
+    'ebay': 'ebay.com',
+    'coinbase': 'coinbase.com',
+    'binance': 'binance.com',
+    'paypal': 'paypal.com',
+}

@@ -7,11 +7,16 @@ username search (Snoop), and Yandex service discovery (YaSeeker).
 Returns results for pipeline storage + new accounts for Stage 4 re-enrichment.
 """
 
+import difflib
+import json
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
+from pathlib import Path
 from typing import Dict, List, Optional, Any
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -290,11 +295,204 @@ def _demo_response() -> Dict[str, Any]:
     }
 
 
+def analyze_friends_risk_deep(vk_id: int, vk_token: str) -> dict:
+    """
+    Fetch VK friends and check each against local MVD/extremist databases.
+
+    Uses difflib.SequenceMatcher with 0.90 threshold for fuzzy name matching
+    against data/mvd_wanted.json and data/extremist_list.json.
+
+    Args:
+        vk_id: VK user numeric ID.
+        vk_token: VK API access token (service or user).
+
+    Returns:
+        {
+            'total_friends': int,
+            'checked_friends': int,
+            'flagged_count': int,
+            'flagged_friends': [top 20 matches],
+            'risk_level': 'high' | 'medium' | 'low'
+        }
+    """
+    SIMILARITY_THRESHOLD = 0.90
+    MAX_FRIENDS = 500
+    MAX_FLAGGED = 20
+
+    empty_result = {
+        'total_friends': 0,
+        'checked_friends': 0,
+        'flagged_count': 0,
+        'flagged_friends': [],
+        'risk_level': 'low',
+    }
+
+    if not vk_id or not vk_token:
+        logger.info("[FriendsRiskDeep] No vk_id or token, skipping")
+        return empty_result
+
+    # ── Step 1: Fetch friends via VK API ──
+    try:
+        resp = requests.get(
+            'https://api.vk.com/method/friends.get',
+            params={
+                'user_id': vk_id,
+                'fields': 'first_name,last_name,deactivated,city',
+                'count': MAX_FRIENDS,
+                'access_token': vk_token,
+                'v': '5.199',
+            },
+            timeout=15,
+        )
+        data = resp.json()
+        if 'error' in data:
+            error_msg = data['error'].get('error_msg', 'unknown')
+            logger.warning(f"[FriendsRiskDeep] VK API error: {error_msg}")
+            return empty_result
+        items = data.get('response', {}).get('items', [])
+    except requests.exceptions.Timeout:
+        logger.warning("[FriendsRiskDeep] VK API timeout (15s)")
+        return empty_result
+    except Exception as e:
+        logger.error(f"[FriendsRiskDeep] VK friends fetch failed: {e}")
+        return empty_result
+
+    # Filter out deactivated accounts
+    active_friends = [u for u in items if not _is_deleted_account(u)]
+    total_friends = len(items)
+    checked_friends = len(active_friends)
+
+    if not active_friends:
+        logger.info("[FriendsRiskDeep] No active friends to check")
+        result = empty_result.copy()
+        result['total_friends'] = total_friends
+        return result
+
+    # ── Step 2: Load security databases ──
+    data_dir = Path(__file__).parent.parent.parent.parent / 'data'
+
+    mvd_entries = []
+    mvd_path = data_dir / 'mvd_wanted.json'
+    if mvd_path.exists():
+        try:
+            with open(mvd_path, 'r', encoding='utf-8') as f:
+                mvd_entries = json.load(f)
+            logger.info(f"[FriendsRiskDeep] Loaded {len(mvd_entries)} MVD records")
+        except Exception as e:
+            logger.error(f"[FriendsRiskDeep] Failed to load MVD data: {e}")
+
+    extremist_entries = []
+    extremist_path = data_dir / 'extremist_list.json'
+    if extremist_path.exists():
+        try:
+            with open(extremist_path, 'r', encoding='utf-8') as f:
+                extremist_entries = json.load(f)
+            logger.info(f"[FriendsRiskDeep] Loaded {len(extremist_entries)} extremist records")
+        except Exception as e:
+            logger.error(f"[FriendsRiskDeep] Failed to load extremist data: {e}")
+
+    if not mvd_entries and not extremist_entries:
+        logger.info("[FriendsRiskDeep] No security DB data available, skipping")
+        result = empty_result.copy()
+        result['total_friends'] = total_friends
+        result['checked_friends'] = checked_friends
+        return result
+
+    # Pre-normalize all DB names for faster comparison
+    def _normalize(name: str) -> str:
+        return ' '.join(name.strip().lower().split())
+
+    mvd_names = []
+    for entry in mvd_entries:
+        raw_name = entry.get('full_name', '') or entry.get('name', '')
+        if raw_name:
+            mvd_names.append((_normalize(raw_name), raw_name))
+
+    extremist_names = []
+    for entry in extremist_entries:
+        raw_name = entry.get('full_name', '') or entry.get('name', '')
+        if raw_name:
+            extremist_names.append((_normalize(raw_name), raw_name))
+
+    # ── Step 3: Check each friend against both databases ──
+    flagged_friends = []
+
+    for friend in active_friends:
+        first = (friend.get('first_name') or '').strip()
+        last = (friend.get('last_name') or '').strip()
+        if not first or not last:
+            continue
+
+        friend_name_norm = _normalize(f"{last} {first}")
+        friend_vk_id = friend.get('id', 0)
+        city_obj = friend.get('city')
+        city = city_obj.get('title', '') if isinstance(city_obj, dict) else ''
+
+        hits = []
+
+        # Check MVD wanted list
+        for norm_name, raw_name in mvd_names:
+            sim = difflib.SequenceMatcher(None, friend_name_norm, norm_name).ratio()
+            if sim >= SIMILARITY_THRESHOLD:
+                hits.append({
+                    'source': 'mvd_wanted',
+                    'matched_name': raw_name,
+                    'similarity': round(sim, 3),
+                })
+
+        # Check extremist list
+        for norm_name, raw_name in extremist_names:
+            sim = difflib.SequenceMatcher(None, friend_name_norm, norm_name).ratio()
+            if sim >= SIMILARITY_THRESHOLD:
+                hits.append({
+                    'source': 'extremist_list',
+                    'matched_name': raw_name,
+                    'similarity': round(sim, 3),
+                })
+
+        if hits:
+            flagged_friends.append({
+                'name': f"{last} {first}",
+                'vk_id': friend_vk_id,
+                'url': f"https://vk.com/id{friend_vk_id}",
+                'city': city,
+                'hits': hits,
+            })
+
+    flagged_count = len(flagged_friends)
+
+    # Sort by highest similarity (best match first), take top 20
+    flagged_friends.sort(
+        key=lambda f: max(h['similarity'] for h in f['hits']),
+        reverse=True,
+    )
+    flagged_friends = flagged_friends[:MAX_FLAGGED]
+
+    if flagged_count > 0:
+        risk_level = 'high' if flagged_count >= 3 else 'medium'
+    else:
+        risk_level = 'low'
+
+    logger.info(
+        f"[FriendsRiskDeep] Checked {checked_friends}/{total_friends} friends, "
+        f"flagged {flagged_count}, risk_level={risk_level}"
+    )
+
+    return {
+        'total_friends': total_friends,
+        'checked_friends': checked_friends,
+        'flagged_count': flagged_count,
+        'flagged_friends': flagged_friends,
+        'risk_level': risk_level,
+    }
+
+
 def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
     """
     Stage 5: Deep Social Analysis.
 
-    Orchestrates face search, social graph, Snoop, and YaSeeker.
+    Orchestrates face search, social graph, Snoop, YaSeeker, and
+    deep friends risk analysis (MVD/extremist DB cross-check).
 
     Args:
         check: CandidateCheck model instance
@@ -305,7 +503,8 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
             'face_matches': [...],
             'social_graph': {...},
             'username_accounts': [...],
-            'new_accounts_for_enrichment': [...]
+            'new_accounts_for_enrichment': [...],
+            'friends_risk_deep': {...}
         }
     """
     def _update(msg, pct=None):
@@ -347,6 +546,7 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
         'social_graph': {},
         'username_accounts': [],
         'new_accounts_for_enrichment': [],
+        'friends_risk_deep': {},
     }
 
     # Run face search, snoop, maigret, sherlock, and yaseeker in parallel
@@ -449,6 +649,49 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
         except Exception as e:
             logger.error(f"Social graph building failed: {e}")
 
+    # 5b2. Deep friends risk analysis (MVD/extremist cross-check)
+    if vk_id:
+        _update('Проверка друзей по базам МВД/розыска', 67)
+        try:
+            from app.utils.vk_token_manager import get_vk_token as _get_token
+            risk_token = _get_token('private') or _get_token('search')
+            friends_risk = analyze_friends_risk_deep(vk_id, risk_token)
+            results['friends_risk_deep'] = friends_risk
+
+            # Embed into social_graph dict so it gets persisted via
+            # check.social_graph_data in the pipeline (pipeline.py saves
+            # social_results['social_graph'] -> check.social_graph_data)
+            if results['social_graph']:
+                results['social_graph']['friends_risk_deep'] = friends_risk
+            else:
+                results['social_graph'] = {'friends_risk_deep': friends_risk}
+
+            flagged_n = friends_risk.get('flagged_count', 0)
+            if flagged_n > 0:
+                logger.warning(
+                    f"[SocialAnalysis] friends risk: {flagged_n} flagged in "
+                    f"MVD/extremist databases"
+                )
+                # Add risk flag for downstream risk scorer consumption
+                if 'risk_flags' not in results:
+                    results['risk_flags'] = []
+                results['risk_flags'].append({
+                    'type': 'fact',
+                    'code': 'risky_friends',
+                    'description': (
+                        f'Среди друзей ВКонтакте {flagged_n} человек '
+                        f'числится в базах МВД/розыска'
+                    ),
+                    'severity': 'high' if flagged_n >= 3 else 'medium',
+                    'recommendation': (
+                        'Проверить связи кандидата с указанными лицами'
+                    ),
+                })
+            else:
+                logger.info("[SocialAnalysis] friends risk: clean (0 flagged)")
+        except Exception as e:
+            logger.error(f"[SocialAnalysis] friends risk deep failed: {e}")
+
     # 5e. Collect new accounts for enrichment
     existing_contacts = check.contact_discoveries or {}
     results['new_accounts_for_enrichment'] = _collect_new_accounts(
@@ -483,7 +726,6 @@ def _fetch_vk_friends(vk_id: int, token: str) -> List[Dict]:
     if not token:
         return []
     try:
-        import requests
         resp = requests.get(
             'https://api.vk.com/method/friends.get',
             params={

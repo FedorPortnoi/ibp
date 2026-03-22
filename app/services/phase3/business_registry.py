@@ -6,7 +6,11 @@ Search for company affiliations via official sources.
 Sources (in priority order):
 1. egrul.nalog.ru (official FNS, free, 2-step token-based API)
 2. Rusprofile.ru (scraping fallback)
-3. List-org.com (scraping fallback)
+3. zachestnyibiznes.ru (scraping fallback)
+
+Additional checks:
+- check_ip_status() — ИП (individual entrepreneur) registration lookup
+- check_fns_tax_debt() — ФНС tax debt check via service.nalog.ru
 """
 
 import logging
@@ -675,6 +679,39 @@ class BusinessRegistrySearch:
 
         return []
 
+    def search_by_inn_extended(self, inn: str, full_name: str = '') -> dict:
+        """Extended INN search: EGRUL + ИП status + ФНС tax debt.
+
+        Returns dict with 'records' (BusinessRecord list) + 'ip_status' + 'fns_tax_debt'.
+        Called automatically by pipeline when extended business intel is needed.
+        """
+        records = self.search_by_inn(inn)
+
+        ip_data = {}
+        fns_data = {}
+
+        # ИП check (most useful for 12-digit individual INNs)
+        try:
+            ip_data = self.check_ip_status(full_name, inn)
+            if ip_data.get('has_ip'):
+                logger.info(f"ИП check: found {ip_data.get('ip_count', 0)} active ИП records")
+        except Exception as e:
+            logger.warning(f"ИП status check failed: {e}")
+
+        # ФНС tax debt check
+        try:
+            fns_data = self.check_fns_tax_debt(inn)
+            if fns_data.get('has_debt'):
+                logger.info(f"ФНС tax debt: debt found for INN {inn[:4]}***")
+        except Exception as e:
+            logger.warning(f"ФНС tax debt check failed: {e}")
+
+        return {
+            'records': records,
+            'ip_status': ip_data,
+            'fns_tax_debt': fns_data,
+        }
+
     def _search_rusprofile_by_inn(self, inn: str) -> List[BusinessRecord]:
         """Search Rusprofile by INN — fallback when nalog.ru is unreachable."""
         results = []
@@ -758,6 +795,403 @@ class BusinessRegistrySearch:
             logger.debug(f"Parse Rusprofile INN result error: {e}")
             return None
 
+    # ===== ИП Status Check =====
+
+    def check_ip_status(self, full_name: str, inn: str = None) -> dict:
+        """
+        Check for ИП (individual entrepreneur) registrations.
+
+        Searches nalog.ru EGRUL for ИП records, plus Rusprofile with type=ip.
+        A 12-digit INN (individual) can have ИП registered against it.
+
+        Args:
+            full_name: Person's full name (Cyrillic)
+            inn: Optional INN (12-digit individual preferred)
+
+        Returns:
+            {
+                'has_ip': bool,
+                'ip_records': [{'name': str, 'inn': str, 'ogrn': str,
+                                'status': str, 'registration_date': str, 'source': str}],
+                'ip_count': int
+            }
+        """
+        result = {
+            'has_ip': False,
+            'ip_records': [],
+            'ip_count': 0,
+        }
+
+        # Strategy 1: nalog.ru EGRUL — search by INN (12-digit = individual, may have ИП)
+        if inn and inn.isdigit() and len(inn) == 12:
+            try:
+                logger.info(f"IP check: searching nalog.ru EGRUL by INN {inn[:4]}***")
+                nalog_results = self._search_nalog_egrul(inn, limit=50)
+                for record in nalog_results:
+                    if record.company_type == 'ИП' or record.role == 'ИП':
+                        result['ip_records'].append({
+                            'name': record.company_name,
+                            'inn': record.inn,
+                            'ogrn': record.ogrn,
+                            'status': record.status,
+                            'registration_date': record.registration_date,
+                            'source': 'egrul.nalog.ru',
+                        })
+                if result['ip_records']:
+                    logger.info(
+                        f"IP check: nalog.ru found {len(result['ip_records'])} ИП records"
+                    )
+            except Exception as e:
+                logger.warning(f"IP check nalog.ru failed: {e}")
+
+        # Strategy 2: nalog.ru EGRUL — search by name (catches ИП even without INN)
+        if not result['ip_records'] and full_name:
+            try:
+                logger.info(f"IP check: searching nalog.ru EGRUL by name '{full_name}'")
+                name_results = self._search_nalog_egrul(full_name, limit=50)
+                seen_ogrns = {r['ogrn'] for r in result['ip_records'] if r.get('ogrn')}
+                for record in name_results:
+                    if record.company_type == 'ИП' or record.role == 'ИП':
+                        if record.ogrn and record.ogrn in seen_ogrns:
+                            continue
+                        result['ip_records'].append({
+                            'name': record.company_name,
+                            'inn': record.inn,
+                            'ogrn': record.ogrn,
+                            'status': record.status,
+                            'registration_date': record.registration_date,
+                            'source': 'egrul.nalog.ru',
+                        })
+                        if record.ogrn:
+                            seen_ogrns.add(record.ogrn)
+                if result['ip_records']:
+                    logger.info(
+                        f"IP check: nalog.ru by name found {len(result['ip_records'])} ИП records"
+                    )
+            except Exception as e:
+                logger.warning(f"IP check nalog.ru by name failed: {e}")
+
+        # Strategy 3: Rusprofile with type=ip (fallback)
+        if not result['ip_records'] and full_name:
+            time.sleep(0.3)
+            try:
+                logger.info(f"IP check: searching Rusprofile type=ip for '{full_name}'")
+                rp_ip_records = self._search_rusprofile_ip(full_name)
+                seen_ogrns = {r['ogrn'] for r in result['ip_records'] if r.get('ogrn')}
+                for rp in rp_ip_records:
+                    if rp.ogrn and rp.ogrn in seen_ogrns:
+                        continue
+                    result['ip_records'].append({
+                        'name': rp.company_name,
+                        'inn': rp.inn,
+                        'ogrn': rp.ogrn,
+                        'status': rp.status,
+                        'registration_date': rp.registration_date,
+                        'source': 'Rusprofile.ru',
+                    })
+                    if rp.ogrn:
+                        seen_ogrns.add(rp.ogrn)
+            except Exception as e:
+                logger.warning(f"IP check Rusprofile failed: {e}")
+
+        result['has_ip'] = len(result['ip_records']) > 0
+        result['ip_count'] = len(result['ip_records'])
+        logger.info(
+            f"IP check complete: has_ip={result['has_ip']}, count={result['ip_count']}"
+        )
+        return result
+
+    def _search_rusprofile_ip(self, full_name: str) -> List[BusinessRecord]:
+        """Search Rusprofile for ИП registrations (type=ip).
+
+        URL: /search?query=NAME&type=ip
+        Returns BusinessRecord list with ИП entries.
+        """
+        results = []
+        search_url = f"{self.RUSPROFILE_BASE}/search?query={quote(full_name)}&type=ip"
+
+        try:
+            response = self.session.get(search_url, timeout=self.timeout)
+
+            if response.status_code in (403, 429):
+                logger.warning(
+                    f"Rusprofile IP search blocked (HTTP {response.status_code})"
+                )
+                return results
+            if response.status_code == 404:
+                logger.warning("Rusprofile IP search returned 404")
+                return results
+            if response.status_code != 200:
+                logger.warning(f"Rusprofile IP search returned {response.status_code}")
+                return results
+
+            soup = BeautifulSoup(response.text, 'lxml')
+            items = soup.select('.company-item, .list-element')
+
+            for item in items[:10]:
+                try:
+                    record = self._parse_rusprofile_ip_item(item)
+                    if record:
+                        results.append(record)
+                except Exception as e:
+                    logger.debug(f"Parse Rusprofile IP item error: {e}")
+
+        except requests.RequestException as e:
+            logger.warning(f"Rusprofile IP search failed: {e}")
+
+        logger.debug(f"Rusprofile IP search: {len(results)} records")
+        return results
+
+    def _parse_rusprofile_ip_item(self, item) -> Optional[BusinessRecord]:
+        """Parse a Rusprofile ИП search result item."""
+        try:
+            link = item.select_one('a.company-item__title, a.list-element__title')
+            if not link:
+                return None
+
+            company_name = link.get_text(strip=True)
+            if not company_name:
+                return None
+
+            href = link.get('href', '')
+            url = f"{self.RUSPROFILE_BASE}{href}" if href else ""
+
+            # Status
+            status_elem = item.select_one(
+                '.company-item__status.is_red, .list-element__text.danger'
+            )
+            if status_elem and 'ликвидир' in status_elem.get_text(strip=True).lower():
+                status = "Ликвидировано"
+            elif status_elem and 'прекращ' in status_elem.get_text(strip=True).lower():
+                status = "Прекращено"
+            else:
+                status = "Действующее"
+
+            # INN, OGRNIP from info row
+            info_text = item.get_text()
+            inn_m = re.search(r'ИНН[:\s]*(\d{10,12})', info_text)
+            inn = inn_m.group(1) if inn_m else ""
+            ogrn_m = re.search(r'ОГРНИП[:\s]*(\d{15})', info_text)
+            if not ogrn_m:
+                ogrn_m = re.search(r'ОГРН[:\s]*(\d{13,15})', info_text)
+            ogrn = ogrn_m.group(1) if ogrn_m else ""
+            date_m = re.search(
+                r'(?:Дата регистрации|Зарегистрирован)[:\s]*([\d.]+)', info_text
+            )
+            reg_date = date_m.group(1) if date_m else ""
+
+            # Address
+            addr_elem = item.select_one('.company-item__text, .list-element__address')
+            address = addr_elem.get_text(strip=True) if addr_elem else ""
+
+            return BusinessRecord(
+                company_name=company_name,
+                inn=inn,
+                ogrn=ogrn,
+                role="ИП",
+                status=status,
+                registration_date=reg_date,
+                address=address,
+                source="Rusprofile.ru",
+                url=url,
+                confidence="medium",
+                company_type="ИП",
+            )
+        except Exception as e:
+            logger.debug(f"Parse Rusprofile IP item error: {e}")
+            return None
+
+    # ===== ФНС Tax Debt Check =====
+
+    def check_fns_tax_debt(self, inn: str) -> dict:
+        """
+        Check for tax debts via service.nalog.ru.
+
+        Uses the ФНС public tax debt service (service.nalog.ru/zd.do).
+        This service may require CAPTCHA or may be unreliable.
+        Failures are handled gracefully — never crashes.
+
+        Args:
+            inn: Tax identification number (10 or 12 digits)
+
+        Returns:
+            {
+                'checked': bool,       # True if check completed
+                'has_debt': bool|None,  # True/False/None if couldn't determine
+                'source': str,
+                'details': str,        # Brief description of result
+                'error': str|None      # Error message if check failed
+            }
+        """
+        result = {
+            'checked': False,
+            'has_debt': None,
+            'source': 'service.nalog.ru',
+            'details': '',
+            'error': None,
+        }
+
+        if not inn or not inn.isdigit() or len(inn) not in (10, 12):
+            result['error'] = f'Некорректный ИНН: {inn}'
+            return result
+
+        logger.info(f"FNS tax debt check: INN {inn[:4]}***")
+
+        # Method 1: service.nalog.ru/zd.do — public tax debt checker
+        # This service accepts INN and returns debt status via AJAX
+        try:
+            # Step 1: Initialize session with the service page
+            init_url = "https://service.nalog.ru/zd.do"
+            try:
+                init_resp = self.session.get(
+                    init_url,
+                    headers={
+                        **self.HEADERS,
+                        'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
+                    },
+                    timeout=self.timeout,
+                )
+                if init_resp.status_code != 200:
+                    logger.warning(
+                        f"FNS tax debt: init page returned {init_resp.status_code}"
+                    )
+                    result['error'] = f'Сервис ФНС недоступен (HTTP {init_resp.status_code})'
+                    return result
+            except requests.RequestException as e:
+                logger.warning(f"FNS tax debt: init page failed: {e}")
+                result['error'] = f'Сервис ФНС недоступен: {e}'
+                return result
+
+            # Check for CAPTCHA requirement
+            if 'captcha' in init_resp.text.lower():
+                logger.warning("FNS tax debt: CAPTCHA required — skipping")
+                result['error'] = 'Требуется CAPTCHA на service.nalog.ru'
+                result['details'] = 'Автоматическая проверка заблокирована CAPTCHA'
+                return result
+
+            # Step 2: Submit INN for debt check via AJAX
+            time.sleep(0.5)
+            check_url = "https://service.nalog.ru/zd-json.do"
+            try:
+                check_resp = self.session.post(
+                    check_url,
+                    data={
+                        'inn': inn,
+                        'captcha': '',
+                        'captchaToken': '',
+                    },
+                    headers={
+                        **self.HEADERS,
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'Origin': 'https://service.nalog.ru',
+                        'Referer': init_url,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    timeout=self.timeout,
+                )
+            except requests.RequestException as e:
+                logger.warning(f"FNS tax debt: AJAX check failed: {e}")
+                result['error'] = f'Запрос к ФНС не выполнен: {e}'
+                return result
+
+            if check_resp.status_code != 200:
+                logger.warning(
+                    f"FNS tax debt: check returned {check_resp.status_code}"
+                )
+                result['error'] = (
+                    f'Сервис ФНС вернул HTTP {check_resp.status_code}'
+                )
+                return result
+
+            # Step 3: Parse response
+            # The service may return JSON or HTML depending on CAPTCHA state
+            content_type = check_resp.headers.get('Content-Type', '')
+
+            if 'json' in content_type or check_resp.text.strip().startswith('{'):
+                try:
+                    data = check_resp.json()
+                    result['checked'] = True
+
+                    # Common response patterns:
+                    # {"code": 0, "message": "Задолженность не обнаружена"}
+                    # {"code": 1, "message": "Обнаружена задолженность", "debt": ...}
+                    # {"captchaRequired": true}
+                    if data.get('captchaRequired'):
+                        result['checked'] = False
+                        result['error'] = 'Требуется CAPTCHA'
+                        result['details'] = 'Повторите проверку вручную'
+                        return result
+
+                    code = data.get('code')
+                    message = data.get('message', '')
+
+                    if code == 0 or 'не обнаружен' in message.lower():
+                        result['has_debt'] = False
+                        result['details'] = 'Задолженность по налогам не обнаружена'
+                    elif code == 1 or 'обнаружен' in message.lower():
+                        result['has_debt'] = True
+                        debt_amount = data.get('debt', data.get('sum', ''))
+                        if debt_amount:
+                            result['details'] = (
+                                f'Обнаружена задолженность: {debt_amount}'
+                            )
+                        else:
+                            result['details'] = 'Обнаружена задолженность по налогам'
+                    else:
+                        # Unexpected code — report raw message
+                        result['details'] = message or f'Код ответа: {code}'
+
+                    logger.info(
+                        f"FNS tax debt: checked=True, has_debt={result['has_debt']}, "
+                        f"details='{result['details']}'"
+                    )
+                    return result
+
+                except (ValueError, KeyError) as e:
+                    logger.warning(f"FNS tax debt: JSON parse error: {e}")
+                    # Fall through to HTML parsing
+
+            # HTML response — parse with BeautifulSoup
+            try:
+                soup = BeautifulSoup(check_resp.text, 'lxml')
+                result['checked'] = True
+
+                page_text = soup.get_text(separator=' ', strip=True).lower()
+
+                if 'не обнаружен' in page_text:
+                    result['has_debt'] = False
+                    result['details'] = 'Задолженность по налогам не обнаружена'
+                elif 'задолженность' in page_text and (
+                    'обнаружен' in page_text or 'имеется' in page_text
+                ):
+                    result['has_debt'] = True
+                    result['details'] = 'Обнаружена задолженность по налогам'
+                elif 'captcha' in page_text or 'капча' in page_text:
+                    result['checked'] = False
+                    result['has_debt'] = None
+                    result['error'] = 'Требуется CAPTCHA'
+                    result['details'] = 'Проверка заблокирована CAPTCHA'
+                else:
+                    result['has_debt'] = None
+                    result['details'] = (
+                        'Результат проверки неоднозначен — '
+                        'рекомендуется ручная проверка на service.nalog.ru'
+                    )
+
+                logger.info(
+                    f"FNS tax debt (HTML): checked={result['checked']}, "
+                    f"has_debt={result['has_debt']}"
+                )
+            except Exception as e:
+                logger.warning(f"FNS tax debt: HTML parse error: {e}")
+                result['error'] = f'Ошибка разбора ответа ФНС: {e}'
+
+        except Exception as e:
+            logger.error(f"FNS tax debt: unexpected error: {e}")
+            result['error'] = f'Непредвиденная ошибка: {e}'
+
+        return result
+
     @staticmethod
     def get_manual_search_urls(name: str) -> List[Dict[str, str]]:
         """Generate manual search URLs for the user."""
@@ -782,6 +1216,11 @@ class BusinessRegistrySearch:
                 'name': 'List-org.com',
                 'url': f'https://www.list-org.com/search?val={encoded}&type=person',
                 'description': 'Каталог организаций России'
+            },
+            {
+                'name': 'ФНС Задолженность',
+                'url': 'https://service.nalog.ru/zd.do',
+                'description': 'Проверка налоговой задолженности по ИНН'
             },
         ]
 
@@ -844,3 +1283,63 @@ def filter_business_records_by_inn(records: list, confirmed_inn: str) -> list:
 
 # Singleton instance
 business_registry_search = BusinessRegistrySearch()
+
+
+def check_ip_status(full_name: str, inn: str = None) -> dict:
+    """
+    Module-level convenience function: check for ИП registrations.
+
+    Searches nalog.ru EGRUL and Rusprofile for ИП (individual entrepreneur)
+    records associated with the given person.
+
+    Called by the pipeline at Stage 0 (identity confirmation) or Stage 1
+    (government registries). If not yet wired into pipeline.py, call manually:
+
+        from app.services.phase3.business_registry import check_ip_status
+        ip_data = check_ip_status('Иванов Иван Иванович', inn='123456789012')
+
+    Args:
+        full_name: Person's full name (Cyrillic)
+        inn: Optional INN (12-digit individual preferred)
+
+    Returns:
+        {
+            'has_ip': bool,
+            'ip_records': [{'name', 'inn', 'ogrn', 'status',
+                            'registration_date', 'source'}],
+            'ip_count': int
+        }
+    """
+    return business_registry_search.check_ip_status(full_name, inn)
+
+
+def check_fns_tax_debt(inn: str) -> dict:
+    """
+    Module-level convenience function: check for ФНС tax debts.
+
+    Queries service.nalog.ru/zd.do for tax debt status. May be blocked by
+    CAPTCHA — failures are handled gracefully.
+
+    Called by the pipeline at Stage 0 or Stage 1. If not yet wired, call:
+
+        from app.services.phase3.business_registry import check_fns_tax_debt
+        tax_data = check_fns_tax_debt('123456789012')
+
+    Args:
+        inn: Tax identification number (10 or 12 digits)
+
+    Returns:
+        {
+            'checked': bool,
+            'has_debt': bool|None,
+            'source': str,
+            'details': str,
+            'error': str|None
+        }
+    """
+    return business_registry_search.check_fns_tax_debt(inn)
+
+
+def search_by_inn_extended(inn: str, full_name: str = '') -> dict:
+    """Module-level convenience: EGRUL + ИП status + ФНС tax debt."""
+    return business_registry_search.search_by_inn_extended(inn, full_name)

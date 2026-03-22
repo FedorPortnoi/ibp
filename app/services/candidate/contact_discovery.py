@@ -247,6 +247,13 @@ class ContactDiscoveryService:
         except Exception as e:
             logger.warning(f"Breach API query error: {e}")
 
+        # Step 6.5: Breach intelligence analysis (services, old emails/phones)
+        breach_intelligence = {}
+        try:
+            breach_intelligence = self._analyze_breach_intelligence()
+        except Exception as e:
+            logger.warning(f"Breach intelligence analysis error: {e}")
+
         # Step 7: LeakDB cross-reference (snowball)
         try:
             self._cross_lookup_leakdb()
@@ -290,6 +297,30 @@ class ContactDiscoveryService:
             result['telegram_hints'] = self._telegram_hints
         if getattr(self, '_instagram_hints', None):
             result['instagram_hints'] = self._instagram_hints
+
+        # Include breach intelligence and risk flags
+        if breach_intelligence:
+            result['breach_intelligence'] = breach_intelligence
+
+            # Build risk flags from breach intelligence
+            flags = []
+            bc = breach_intelligence.get('breach_count', 0)
+            if bc >= 5:
+                flags.append({
+                    'type': 'fact',
+                    'code': 'high_breach_exposure',
+                    'description': f'Данные присутствуют в {bc} утечках',
+                    'severity': 'medium',
+                })
+            if breach_intelligence.get('has_financial_services'):
+                flags.append({
+                    'type': 'fact',
+                    'code': 'financial_services_exposed',
+                    'description': 'Обнаружена регистрация в финансовых сервисах (банки/крипто)',
+                    'severity': 'medium',
+                })
+            if flags:
+                result['breach_flags'] = flags
 
         return result
 
@@ -970,6 +1001,82 @@ class ContactDiscoveryService:
                 logger.warning("Breach API: some queries timed out (30s)")
                 for f in futures:
                     f.cancel()
+
+    # ── Step 6.5: Breach Intelligence Analysis ──────────────────────────
+
+    def _analyze_breach_intelligence(self) -> dict:
+        """
+        Analyze breach data to extract service registrations, old emails/phones,
+        and financial exposure. Feeds newly discovered old emails and phones
+        back into the contact discovery pipeline for deduplication.
+
+        Returns breach intelligence dict (stored in result['breach_intelligence']).
+        """
+        # Collect unique emails and phones discovered so far
+        emails = list({e.email for e in self.found_emails
+                       if '@' in e.email and '*' not in e.email})[:10]
+        phones = list({p.number for p in self.found_phones})[:10]
+
+        if not emails and not phones:
+            return {}
+
+        from app.services.phase2.breach_checker import analyze_breach_intelligence
+
+        logger.info(
+            f"Breach intelligence: analyzing {len(emails)} emails, "
+            f"{len(phones)} phones"
+        )
+
+        intel = analyze_breach_intelligence(emails=emails, phones=phones)
+
+        if not intel:
+            return {}
+
+        # Feed old emails back into the discovery pipeline
+        breach_score = _get_score('breach_api')
+        for old_email in intel.get('old_emails', []):
+            old_lower = old_email.lower()
+            if not any(e.email == old_lower for e in self.found_emails):
+                self.found_emails.append(DiscoveredEmail(
+                    email=old_lower,
+                    source='breach_api',
+                    confidence=_score_to_label(breach_score),
+                    verified=False,
+                    profile_name='Breach Intelligence',
+                    confidence_score=breach_score,
+                    sources=['breach_intelligence'],
+                ))
+
+        # Feed old phones back into the discovery pipeline
+        for old_phone in intel.get('old_phones', []):
+            normalized = normalize_phone(old_phone)
+            if normalized and not any(p.number == normalized for p in self.found_phones):
+                self.found_phones.append(DiscoveredPhone(
+                    number=normalized,
+                    source='breach_api',
+                    confidence=_score_to_label(breach_score),
+                    profile_name='Breach Intelligence',
+                    raw_value=old_phone,
+                    confidence_score=breach_score,
+                    sources=['breach_intelligence'],
+                ))
+
+        new_emails = len(intel.get('old_emails', []))
+        new_phones = len(intel.get('old_phones', []))
+        if new_emails or new_phones:
+            logger.info(
+                f"Breach intelligence: +{new_emails} old emails, "
+                f"+{new_phones} old phones fed back into pipeline"
+            )
+
+        services = intel.get('services_used', [])
+        if services:
+            logger.info(
+                f"Breach intelligence: {len(services)} services detected, "
+                f"financial={intel.get('has_financial_services', False)}"
+            )
+
+        return intel
 
     # ── Step 7: LeakDB Cross-Reference ─────────────────────────────────
 

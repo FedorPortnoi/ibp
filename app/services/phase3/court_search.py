@@ -26,6 +26,85 @@ from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
+# --- Role classification keywords ---
+_PLAINTIFF_KEYWORDS = ['истец', 'заявитель', 'взыскатель']
+_DEFENDANT_KEYWORDS = ['ответчик', 'должник', 'обвиняемый', 'подсудимый']
+
+
+def classify_court_role(case_text: str, full_name: str) -> str:
+    """Classify the candidate's role in a court case.
+
+    Looks for the candidate's name in the case text and checks a window
+    of 100 characters before and after for plaintiff/defendant keywords.
+    Falls back to a global keyword scan if the name is not found in text.
+
+    Returns: 'plaintiff', 'defendant', or 'unknown'
+    """
+    if not case_text or not full_name:
+        return 'unknown'
+
+    text_lower = case_text.lower()
+    name_lower = full_name.lower().strip()
+
+    # Build name variants to search for (full name and last+first)
+    name_parts = name_lower.split()
+    name_variants = [name_lower]
+    if len(name_parts) >= 2:
+        # "Фамилия Имя" without patronymic
+        name_variants.append(f"{name_parts[0]} {name_parts[1]}")
+
+    # Try proximity-based detection: find name in text, check surrounding context
+    for variant in name_variants:
+        pos = text_lower.find(variant)
+        if pos != -1:
+            # Extract window around the name
+            window_start = max(0, pos - 100)
+            window_end = min(len(text_lower), pos + len(variant) + 100)
+            window = text_lower[window_start:window_end]
+
+            plaintiff_score = sum(1 for kw in _PLAINTIFF_KEYWORDS if kw in window)
+            defendant_score = sum(1 for kw in _DEFENDANT_KEYWORDS if kw in window)
+
+            if plaintiff_score > defendant_score:
+                return 'plaintiff'
+            elif defendant_score > plaintiff_score:
+                return 'defendant'
+
+    # Fallback: global keyword scan (no name proximity)
+    plaintiff_found = any(kw in text_lower for kw in _PLAINTIFF_KEYWORDS)
+    defendant_found = any(kw in text_lower for kw in _DEFENDANT_KEYWORDS)
+
+    if plaintiff_found and not defendant_found:
+        return 'plaintiff'
+    elif defendant_found and not plaintiff_found:
+        return 'defendant'
+
+    return 'unknown'
+
+
+def get_frequent_plaintiff_flag(court_records: list) -> dict | None:
+    """Return a risk flag dict if the candidate is plaintiff in 3+ cases.
+
+    Args:
+        court_records: list of court record dicts (with 'role' field).
+
+    Returns:
+        A risk flag dict or None.
+    """
+    plaintiff_count = sum(
+        1 for r in court_records
+        if r.get('role') in ('plaintiff', 'истец')
+    )
+    if plaintiff_count >= 3:
+        return {
+            'type': 'fact',
+            'code': 'frequent_plaintiff',
+            'description': 'Часто инициирует судебные разбирательства (3+ дел как истец)',
+            'severity': 'low',
+        }
+    return None
+
+
 # Check Playwright availability
 PLAYWRIGHT_AVAILABLE = False
 try:
@@ -367,7 +446,7 @@ class CourtRecordSearch:
                 court_name="Не указан",
                 case_type=self._detect_case_type(title),
                 date=date,
-                role="участник",
+                role=self._detect_role(title, search_name),
                 source="sudact.ru",
                 url=url,
                 confidence="medium"
@@ -519,16 +598,24 @@ class CourtRecordSearch:
         return "гражданское"
 
     def _detect_role(self, text: str, search_name: str) -> str:
-        """Detect person's role in court case."""
-        text_lower = text.lower()
-        if 'истец' in text_lower:
+        """Detect person's role in court case.
+
+        Uses classify_court_role() for proximity-based detection, then
+        maps the result to a Russian-language label. Falls back to legacy
+        keyword scan for 'третье лицо' which classify_court_role does not
+        handle.
+        """
+        role = classify_court_role(text, search_name)
+        if role == 'plaintiff':
             return "истец"
-        elif 'ответчик' in text_lower:
+        elif role == 'defendant':
             return "ответчик"
-        elif 'третье лицо' in text_lower:
+
+        # Additional roles not covered by classify_court_role
+        text_lower = text.lower()
+        if 'третье лицо' in text_lower:
             return "третье лицо"
-        elif 'обвиняем' in text_lower or 'подсудим' in text_lower:
-            return "обвиняемый"
+
         return "участник"
 
     @staticmethod
