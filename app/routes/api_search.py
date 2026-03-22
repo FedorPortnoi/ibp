@@ -12,6 +12,7 @@ and returns a unified profile response format.
 import logging
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime
 from flask import Blueprint, request, jsonify, render_template
 
@@ -131,18 +132,30 @@ def search_telegram():
         from app.services.phase1.telegram_discovery import TelegramDiscoveryService
         svc = TelegramDiscoveryService()
 
+        # Run TG discovery with a 25s timeout to avoid gunicorn worker kill
+        TG_TIMEOUT = 25
+
+        def _run_tg_discover():
+            try:
+                return svc.discover(
+                    first_name=first_name,
+                    last_name=last_name,
+                    vk_screen_names=vk_screen_names,
+                    city=city,
+                    age_from=int(age_from) if age_from else None,
+                    age_to=int(age_to) if age_to else None,
+                    strict_mode=False,
+                )
+            finally:
+                svc.close()
+
         try:
-            profiles = svc.discover(
-                first_name=first_name,
-                last_name=last_name,
-                vk_screen_names=vk_screen_names,
-                city=city,
-                age_from=int(age_from) if age_from else None,
-                age_to=int(age_to) if age_to else None,
-                strict_mode=False,
-            )
-        finally:
-            svc.close()
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(_run_tg_discover)
+                profiles = future.result(timeout=TG_TIMEOUT)
+        except FuturesTimeoutError:
+            logger.warning(f"Telegram search timed out after {TG_TIMEOUT}s for '{name}'")
+            profiles = []
 
         elapsed = round(time.time() - start, 1)
         logger.info(f"Telegram search: {len(profiles)} results in {elapsed}s for '{name}'")

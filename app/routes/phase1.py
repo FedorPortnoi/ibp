@@ -8,10 +8,13 @@ from flask import Blueprint, render_template, request, jsonify, send_from_direct
 from werkzeug.utils import secure_filename
 import os
 import uuid
+import logging
 from datetime import datetime
 
 from app import db, limiter
 from app.models import Investigation, SocialProfile
+
+logger = logging.getLogger(__name__)
 
 phase1_bp = Blueprint('phase1', __name__, url_prefix='/phase1')
 
@@ -348,6 +351,73 @@ def photo_select():
         'investigation_id': investigation_id,
         'redirect': f'/phase2/analyze/{investigation_id}',
     })
+
+
+@phase1_bp.route('/vk-preview/<int:vk_id>')
+def vk_preview(vk_id):
+    """Fetch quick preview data for a VK profile (hover popup)."""
+    import requests as http_requests
+    from app.utils.vk_token_manager import get_vk_token
+
+    service_token = get_vk_token('search')
+    user_token = get_vk_token('private')
+
+    if not service_token:
+        return jsonify({'error': 'No VK token'})
+
+    result = {}
+
+    # Fetch profile details (service token is enough)
+    try:
+        profile_r = http_requests.get('https://api.vk.com/method/users.get', params={
+            'user_ids': vk_id,
+            'fields': 'photo_400_orig,last_seen,counters,status,city',
+            'access_token': service_token,
+            'v': '5.131'
+        }, timeout=10)
+        profile_data = profile_r.json().get('response', [{}])
+        profile = profile_data[0] if profile_data else {}
+
+        result['photo'] = profile.get('photo_400_orig', '')
+        last_seen = profile.get('last_seen', {})
+        result['last_seen'] = last_seen.get('time') if isinstance(last_seen, dict) else None
+        counters = profile.get('counters', {})
+        result['friends'] = counters.get('friends', 0) if isinstance(counters, dict) else 0
+        result['groups'] = counters.get('groups', 0) if isinstance(counters, dict) else 0
+        result['status'] = profile.get('status', '')
+    except Exception as e:
+        logger.warning(f"VK preview profile fetch error for {vk_id}: {e}")
+        result['photo'] = ''
+        result['last_seen'] = None
+        result['friends'] = 0
+        result['groups'] = 0
+        result['status'] = ''
+
+    # Fetch last 3 wall posts (needs user token)
+    result['posts'] = []
+    token_for_wall = user_token or service_token
+    try:
+        wall_r = http_requests.get('https://api.vk.com/method/wall.get', params={
+            'owner_id': vk_id,
+            'count': 3,
+            'filter': 'owner',
+            'access_token': token_for_wall,
+            'v': '5.131'
+        }, timeout=10)
+        wall_data = wall_r.json()
+        if 'error' not in wall_data:
+            posts = wall_data.get('response', {}).get('items', [])
+            result['posts'] = [
+                {
+                    'text': p.get('text', '')[:150],
+                    'date': p.get('date')
+                }
+                for p in posts if p.get('text')
+            ]
+    except Exception as e:
+        logger.warning(f"VK preview wall fetch error for {vk_id}: {e}")
+
+    return jsonify(result)
 
 
 @phase1_bp.route('/investigations')
