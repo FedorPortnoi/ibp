@@ -1,129 +1,852 @@
+{% set T = {
+  'ru': {
+    'title': 'ШТИРЛИЦ',
+    'logo': 'Штирлиц',
+    'nav_features': 'Возможности',
+    'nav_method': 'Методология',
+    'nav_login': 'Войти',
+    'hero_eyebrow': 'OSINT · Россия и СНГ',
+    'hero_title': 'ШТИРЛИЦ',
+    'hero_sub': 'Полная разведка по открытым источникам.<br>Автоматически.',
+    'hero_cta': 'Войти в систему',
+    'doss_eyebrow': 'Пример результата',
+    'doss_title': 'Готовое досье.<br><em>Автоматически за 4 минуты.</em>',
+    'doss_name': 'Иванов Иван Иванович',
+    'doss_example': '— пример',
+    'doss_meta': '01.01.1990 · г. Город · ИНН ············ ✅<br>дд.мм.гггг чч:мм · X мин Y сек · N источников',
+    'doss_risk_label': 'Риск-скоринг',
+    'doss_risk_result': '● РЕЗУЛЬТАТ',
+    'doss_ai_label': 'AI Executive Summary · Claude',
+    'doss_ai_text': 'Кандидат — [краткая характеристика на основе найденных данных]. Зарегистрирован как [роль] в [N] компаниях. Обнаружено [N] судебных дел и [N] исполнительных производств. Санкционные списки [статус]. Активен в социальных сетях, контактные данные подтверждены из нескольких источников. <strong style="color:rgba(255,255,255,.8)">Общий уровень риска — [низкий / средний / высокий].</strong>',
+    'doss_facts_title': 'Подтверждённые факты и риски',
+    'doss_flag1': 'Активное судебное производство (гражданское дело)',
+    'doss_flag1_sub': 'Номер дела · суд · рекомендуется запросить детали',
+    'doss_flag2': 'Обнаружены данные в утечках',
+    'doss_flag2_sub': 'Источники проверены · найдено N совпадений',
+    'doss_flag3': 'Завершённое исполнительное производство ФССП',
+    'doss_flag3_sub': 'Дата окончания · сумма · основание',
+    'doss_flag4': 'Поведенческие паттерны активности',
+    'doss_flag4_sub': 'Анализ публикаций за последние 12 месяцев',
+    'doss_biz': 'Бизнес',
+    'doss_biz_val': 'ООО «Название» [действ.]<br>ООО «Название» [действ.]<br><span style="color:rgba(255,255,255,.35)">ООО «Название» — ликв.</span>',
+    'doss_social': 'Соцсети и аккаунты',
+    'doss_social_val': 'VK · Telegram · OK<br>GitHub · LinkedIn · Twitter<br>+ N платформ',
+    'doss_sanctions': 'Санкции / Розыск',
+    'doss_sanctions_val': 'OpenSanctions ✓<br>МВД Розыск ✓<br>Интерпол ✓',
+    'doss_contacts': 'Контакты',
+    'doss_phone1': '📱 +7 ··· ···· (уверенность · источников)',
+    'doss_phone2': '📱 +7 ··· ···· (уверенность · источник)',
+    'doss_email1': '📧 ·····@···.··· (уверенность · подтверждён)',
+    'doss_email2': '📧 ·····@···.··· (уверенность · подтверждён)',
+    'doss_geo': 'География',
+    'doss_geo1': '📍 Город 1 · N упом.',
+    'doss_geo2': '📍 Город 2 · N упом.',
+    'doss_geo3': '📍 Город 3 · N упом.',
+    'doss_geo4': '📍 Город 4 · N упом.',
+    'doss_timeline': 'Хронология',
+    'doss_tl1': 'VK online · последний визит с устройства',
+    'doss_tl2': 'VK пост: «текст публикации...»',
+    'doss_tl3': 'Подано исковое заявление (номер дела, категория)',
+    'doss_tl4': 'ФССП: производство окончено — основание',
+    'doss_tl5': 'Регистрация ООО «Название» (роль, доля %)',
+    'doss_tl6': 'Регистрация ООО «Название» (роль, доля %)',
+    'doss_footer_left': 'Данные из открытых источников · носит информационный характер',
+    'doss_footer_right': 'ШТИРЛИЦ v1.0 · дд.мм.гггг чч:мм',
+    'feat_ps_label': 'People Search',
+    'feat_ps_title': 'Найди любого человека в ВКонтакте, Telegram и Одноклассниках за секунды.',
+    'feat_ps1': 'Фото профиля', 'feat_ps1v': 'аватар',
+    'feat_ps2': 'Город и возраст', 'feat_ps2v': 'геоданные',
+    'feat_ps3': 'Друзья и подписки', 'feat_ps3v': 'соцграф',
+    'feat_ps4': 'Последняя активность', 'feat_ps4v': 'last seen',
+    'feat_ps5': 'Аккаунты в соцсетях', 'feat_ps5v': 'ссылки',
+    'feat_cc_label': 'Candidate Check',
+    'feat_cc_title': 'Девятиэтапный пайплайн по ИНН — от реестров до риск-скоринга 0–100.',
+    'feat_cc1': 'Бизнес и ИП', 'feat_cc1v': 'реестры',
+    'feat_cc2': 'Судебные дела', 'feat_cc2v': 'истец / ответчик',
+    'feat_cc3': 'Долги и приставы', 'feat_cc3v': 'ФССП',
+    'feat_cc4': 'Санкционные списки', 'feat_cc4v': 'МВД · Интерпол',
+    'feat_cc5': 'Риск-скоринг', 'feat_cc5v': '0–100',
+    'feat_wide_text': 'Автоматическое досье с социальным графом. Факты отделены от подозрений — источники всегда указаны.',
+    'feat_wide_header': 'Досье · ШТИРЛИЦ — пример',
+    'feat_wide_name': 'Иванов Иван Иванович',
+    'feat_wide_city': 'г. Город · NN лет',
+    'feat_wide_risk_label': 'Риск-скоринг',
+    'feat_wide_risk_level': 'НИЗКИЙ',
+    'feat_wide_id_label': 'Личность',
+    'feat_wide_id_val': 'ВКонтакте<br>Telegram<br>Одноклассники',
+    'feat_wide_biz_label': 'Бизнес',
+    'feat_wide_biz_val': '2 компании<br>ИП с 2019<br>ФНС — без долгов',
+    'feat_wide_rec_label': 'Записи',
+    'feat_wide_rec_val': 'Судов нет<br>ФССП — нет<br>Санкции — нет',
+    'feat_wide_tag1': '✓ Личность подтверждена',
+    'feat_wide_tag2': '✓ Санкции — чисто',
+    'feat_wide_tag3': '⚠ 1 судебное дело',
+    'pipe_label': 'Методология · 9 этапов проверки кандидата',
+    'pipe0': 'ЕГРЮЛ по ИНН, подтверждение личности',
+    'pipe1': 'ЕГРЮЛ по имени, суды, ФССП, залоги',
+    'pipe2': 'Санкции, МВД, Интерпол, экстремисты',
+    'pipe3': 'ВКонтакте, Telegram, Одноклассники',
+    'pipe4': 'Телефоны, email, утечки данных',
+    'pipe5': 'Search4Faces, социальный граф, Maigret',
+    'pipe6': 'Анализ постов, last_seen, геолокации',
+    'pipe7': 'Скоринг 0–100, факты vs подозрения',
+    'pipe8': 'Досье, PDF, JSON-экспорт',
+    'auth_logo': 'Штирлиц',
+    'auth_hint': 'Требуется авторизация',
+    'auth_password': 'Пароль',
+    'auth_submit': 'Войти',
+    'auth_note': 'Authorized Use Only',
+    'auth_error': 'Неверный пароль',
+    'footer_brand': 'ШТИРЛИЦ · OSINT Platform',
+    'switch_lang': 'English',
+    'switch_url': '/set-lang/en',
+    'scramble_from': 'ШТИРЛИЦ',
+    'scramble_to': 'СЛЕД'
+  },
+  'en': {
+    'title': 'SHTIRLITZ',
+    'logo': 'Shtirlitz',
+    'nav_features': 'Features',
+    'nav_method': 'Methodology',
+    'nav_login': 'Sign In',
+    'hero_eyebrow': 'OSINT · Russia & CIS',
+    'hero_title': 'SHTIRLITZ',
+    'hero_sub': 'Full open-source intelligence.<br>Automated.',
+    'hero_cta': 'Sign In',
+    'doss_eyebrow': 'Example Result',
+    'doss_title': 'Complete dossier.<br><em>Automatically in 4 minutes.</em>',
+    'doss_name': 'Ivanov Ivan Ivanovich',
+    'doss_example': '— example',
+    'doss_meta': '01.01.1990 · City · TIN ············ ✅<br>dd.mm.yyyy hh:mm · X min Y sec · N sources',
+    'doss_risk_label': 'Risk Score',
+    'doss_risk_result': '● RESULT',
+    'doss_ai_label': 'AI Executive Summary · Claude',
+    'doss_ai_text': 'Candidate — [brief profile based on discovered data]. Registered as [role] in [N] companies. Found [N] court cases and [N] enforcement proceedings. Sanctions lists [status]. Active on social media, contact details confirmed from multiple sources. <strong style="color:rgba(255,255,255,.8)">Overall risk level — [low / medium / high].</strong>',
+    'doss_facts_title': 'Confirmed Facts & Risks',
+    'doss_flag1': 'Active court proceedings (civil case)',
+    'doss_flag1_sub': 'Case number · court · recommended to request details',
+    'doss_flag2': 'Data found in breaches',
+    'doss_flag2_sub': 'Sources verified · N matches found',
+    'doss_flag3': 'Completed FSSP enforcement proceedings',
+    'doss_flag3_sub': 'End date · amount · grounds',
+    'doss_flag4': 'Behavioral activity patterns',
+    'doss_flag4_sub': 'Publication analysis for the last 12 months',
+    'doss_biz': 'Business',
+    'doss_biz_val': 'LLC "Company" [active]<br>LLC "Company" [active]<br><span style="color:rgba(255,255,255,.35)">LLC "Company" — liquidated</span>',
+    'doss_social': 'Social & Accounts',
+    'doss_social_val': 'VK · Telegram · OK<br>GitHub · LinkedIn · Twitter<br>+ N platforms',
+    'doss_sanctions': 'Sanctions / Wanted',
+    'doss_sanctions_val': 'OpenSanctions ✓<br>MVD Wanted ✓<br>Interpol ✓',
+    'doss_contacts': 'Contacts',
+    'doss_phone1': '📱 +7 ··· ···· (confidence · sources)',
+    'doss_phone2': '📱 +7 ··· ···· (confidence · source)',
+    'doss_email1': '📧 ·····@···.··· (confidence · verified)',
+    'doss_email2': '📧 ·····@···.··· (confidence · verified)',
+    'doss_geo': 'Geography',
+    'doss_geo1': '📍 City 1 · N mentions',
+    'doss_geo2': '📍 City 2 · N mentions',
+    'doss_geo3': '📍 City 3 · N mentions',
+    'doss_geo4': '📍 City 4 · N mentions',
+    'doss_timeline': 'Timeline',
+    'doss_tl1': 'VK online · last seen from device',
+    'doss_tl2': 'VK post: "publication text..."',
+    'doss_tl3': 'Lawsuit filed (case number, category)',
+    'doss_tl4': 'FSSP: proceedings completed — grounds',
+    'doss_tl5': 'LLC "Company" registered (role, share %)',
+    'doss_tl6': 'LLC "Company" registered (role, share %)',
+    'doss_footer_left': 'Data from open sources · for informational purposes only',
+    'doss_footer_right': 'SHTIRLITZ v1.0 · dd.mm.yyyy hh:mm',
+    'feat_ps_label': 'People Search',
+    'feat_ps_title': 'Find anyone on VKontakte, Telegram, and Odnoklassniki in seconds.',
+    'feat_ps1': 'Profile photo', 'feat_ps1v': 'avatar',
+    'feat_ps2': 'City and age', 'feat_ps2v': 'geodata',
+    'feat_ps3': 'Friends and followers', 'feat_ps3v': 'social graph',
+    'feat_ps4': 'Last activity', 'feat_ps4v': 'last seen',
+    'feat_ps5': 'Social accounts', 'feat_ps5v': 'links',
+    'feat_cc_label': 'Candidate Check',
+    'feat_cc_title': 'Nine-stage pipeline by TIN — from registries to risk scoring 0–100.',
+    'feat_cc1': 'Business & sole proprietors', 'feat_cc1v': 'registries',
+    'feat_cc2': 'Court cases', 'feat_cc2v': 'plaintiff / defendant',
+    'feat_cc3': 'Debts & bailiffs', 'feat_cc3v': 'FSSP',
+    'feat_cc4': 'Sanctions lists', 'feat_cc4v': 'MVD · Interpol',
+    'feat_cc5': 'Risk scoring', 'feat_cc5v': '0–100',
+    'feat_wide_text': 'Automated dossier with social graph. Facts separated from suspicions — sources always cited.',
+    'feat_wide_header': 'Dossier · SHTIRLITZ — example',
+    'feat_wide_name': 'Ivanov Ivan Ivanovich',
+    'feat_wide_city': 'City · NN years old',
+    'feat_wide_risk_label': 'Risk Score',
+    'feat_wide_risk_level': 'LOW',
+    'feat_wide_id_label': 'Identity',
+    'feat_wide_id_val': 'VKontakte<br>Telegram<br>Odnoklassniki',
+    'feat_wide_biz_label': 'Business',
+    'feat_wide_biz_val': '2 companies<br>Sole proprietor since 2019<br>Tax service — no debts',
+    'feat_wide_rec_label': 'Records',
+    'feat_wide_rec_val': 'No courts<br>No FSSP<br>No sanctions',
+    'feat_wide_tag1': '✓ Identity confirmed',
+    'feat_wide_tag2': '✓ Sanctions — clear',
+    'feat_wide_tag3': '⚠ 1 court case',
+    'pipe_label': 'Methodology · 9 stages of candidate screening',
+    'pipe0': 'EGRUL by TIN, identity confirmation',
+    'pipe1': 'EGRUL by name, courts, FSSP, liens',
+    'pipe2': 'Sanctions, MVD, Interpol, extremists',
+    'pipe3': 'VKontakte, Telegram, Odnoklassniki',
+    'pipe4': 'Phones, email, data breaches',
+    'pipe5': 'Search4Faces, social graph, Maigret',
+    'pipe6': 'Post analysis, last_seen, geolocation',
+    'pipe7': 'Scoring 0–100, facts vs suspicions',
+    'pipe8': 'Dossier, PDF, JSON export',
+    'auth_logo': 'Shtirlitz',
+    'auth_hint': 'Authorization required',
+    'auth_password': 'Password',
+    'auth_submit': 'Sign In',
+    'auth_note': 'Authorized Use Only',
+    'auth_error': 'Incorrect password',
+    'footer_brand': 'SHTIRLITZ · OSINT Platform',
+    'switch_lang': 'Русский',
+    'switch_url': '/set-lang/ru',
+    'scramble_from': 'SHTIRLITZ',
+    'scramble_to': 'SLED'
+  }
+} %}
+{% set t = T[lang | default('ru')] %}
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="{{ lang | default('ru') }}">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>СЛЕД — Вход</title>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
-    <style>
-        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: #0a0a0f;
-            color: #f0f1fa;
-            font-family: 'Outfit', system-ui, sans-serif;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            -webkit-font-smoothing: antialiased;
-        }
-        .card {
-            width: 100%;
-            max-width: 380px;
-            padding: 48px 36px;
-            margin: 20px;
-            background: #111118;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 20px;
-        }
-        .brand {
-            text-align: center;
-            margin-bottom: 36px;
-        }
-        .brand h1 {
-            font-size: 28px;
-            font-weight: 400;
-            letter-spacing: -0.02em;
-        }
-        .brand p {
-            font-family: 'IBM Plex Mono', monospace;
-            color: #55566a;
-            font-size: 11px;
-            margin-top: 6px;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-        }
-        .error {
-            background: rgba(248,113,113,0.08);
-            border: 1px solid rgba(248,113,113,0.2);
-            border-radius: 12px;
-            padding: 12px 16px;
-            margin-bottom: 20px;
-            color: #f87171;
-            font-size: 14px;
-            text-align: center;
-        }
-        label {
-            display: block;
-            font-family: 'IBM Plex Mono', monospace;
-            color: #55566a;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 8px;
-        }
-        input[type="password"] {
-            width: 100%;
-            padding: 14px 18px;
-            background: #050508;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 14px;
-            color: #f0f1fa;
-            font-family: 'Outfit', sans-serif;
-            font-size: 16px;
-            outline: none;
-            transition: border-color 0.3s, box-shadow 0.3s;
-        }
-        input[type="password"]:focus {
-            border-color: #3b4ff0;
-            box-shadow: 0 0 0 3px rgba(59,79,240,0.1);
-        }
-        input[type="password"]::placeholder { color: #3a3b4a; }
-        button {
-            width: 100%;
-            margin-top: 24px;
-            padding: 14px;
-            background: #3b4ff0;
-            border: none;
-            border-radius: 100px;
-            color: white;
-            font-family: 'Outfit', sans-serif;
-            font-size: 15px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.3s, box-shadow 0.3s;
-        }
-        button:hover {
-            background: #2a3cd4;
-            box-shadow: 0 0 40px rgba(59,79,240,0.3);
-        }
-        .footer {
-            text-align: center;
-            margin-top: 24px;
-            font-family: 'IBM Plex Mono', monospace;
-            color: #3a3b4a;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ t.title }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:#080808;color:#fff;font-family:'Inter',-apple-system,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body.scroll-locked{overflow:hidden}
+nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:0 48px;height:60px}
+.logo{font-size:13px;font-weight:500;letter-spacing:.28em;text-transform:uppercase;color:rgba(255,255,255,.85);text-decoration:none}
+.nav-links{display:flex;align-items:center;gap:32px}
+.nav-a{font-size:12px;font-weight:400;color:rgba(255,255,255,.38);text-decoration:none;letter-spacing:.06em;transition:color .2s}
+.nav-a:hover{color:rgba(255,255,255,.85)}
+.lang-switch{font-size:11px;color:rgba(255,255,255,.32);text-decoration:none;letter-spacing:.06em;padding:5px 12px;border:1px solid rgba(255,255,255,.1);border-radius:5px;transition:all .2s}
+.lang-switch:hover{color:rgba(255,255,255,.7);border-color:rgba(255,255,255,.25)}
+#hero{position:relative;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#080808;transform-origin:center center;z-index:10}
+#hills-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hero-content{position:relative;z-index:2;text-align:center;pointer-events:none}
+.hero-eyebrow{font-size:10px;font-weight:400;letter-spacing:.3em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:22px;opacity:0;animation:fadeUp .9s ease .2s forwards}
+.hero-title{font-size:clamp(52px,10vw,120px);font-weight:300;letter-spacing:.2em;text-transform:uppercase;color:#fff;line-height:1;margin-bottom:20px;opacity:0;animation:fadeUp .9s ease .45s forwards}
+.hero-sub{font-size:13px;font-weight:300;color:rgba(255,255,255,.35);letter-spacing:.05em;line-height:1.8;margin-bottom:44px;opacity:0;animation:fadeUp .9s ease .65s forwards}
+.hero-cta{display:inline-block;font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#000;background:rgba(255,255,255,.92);padding:13px 36px;text-decoration:none;pointer-events:all;transition:background .2s;opacity:0;animation:fadeUp .9s ease .85s forwards}
+.hero-cta:hover{background:#fff}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.divider{width:100%;height:1px;background:rgba(255,255,255,.07)}
+#features{background:#080808;padding:80px 48px}
+.inner{max-width:1000px;margin:0 auto}
+.feat-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.feat-card{position:relative;background:#0d0d0d;border:1px solid rgba(255,255,255,.08);overflow:hidden}
+.feat-card.wide{grid-column:1/-1}
+.feat-card::before,.feat-card::after,.feat-card .corner-bl,.feat-card .corner-br{content:'';position:absolute;width:8px;height:8px;z-index:10}
+.feat-card::before{top:-1px;left:-1px;border-top:2px solid rgba(255,255,255,.5);border-left:2px solid rgba(255,255,255,.5)}
+.feat-card::after{top:-1px;right:-1px;border-top:2px solid rgba(255,255,255,.5);border-right:2px solid rgba(255,255,255,.5)}
+.feat-card .corner-bl{bottom:-1px;left:-1px;border-bottom:2px solid rgba(255,255,255,.5);border-left:2px solid rgba(255,255,255,.5)}
+.feat-card .corner-br{bottom:-1px;right:-1px;border-bottom:2px solid rgba(255,255,255,.5);border-right:2px solid rgba(255,255,255,.5)}
+.feat-card-head{padding:32px 32px 0}
+.feat-card-label{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.08em;color:rgba(255,255,255,.3);margin-bottom:32px}
+.feat-card-label svg{width:14px;height:14px;opacity:.5;flex-shrink:0}
+.feat-card-title{font-size:20px;font-weight:400;color:#fff;line-height:1.35;margin-bottom:0}
+.feat-card-vis{position:relative;margin-top:28px;border-top:1px dashed rgba(255,255,255,.08);padding:28px 28px 0}
+.feat-card-vis::after{content:'';position:absolute;inset:0;background:radial-gradient(125% 125% at 50% 0%,transparent 40%,rgba(8,8,8,.6) 80%,#080808 125%);pointer-events:none}
+.mini-pipe{display:flex;flex-direction:column;gap:0}
+.mp-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.mp-row:last-child{border-bottom:none}
+.mp-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2);flex-shrink:0}
+.mp-dot.active{background:rgba(255,255,255,.7)}
+.mp-label{font-size:11px;color:rgba(255,255,255,.25);flex:1;letter-spacing:.04em}
+.mp-label.active{color:rgba(255,255,255,.7)}
+.mp-pct{font-size:10px;color:rgba(255,255,255,.15);letter-spacing:.06em}
+.mp-pct.active{color:rgba(255,255,255,.4)}
+.feat-card-wide-inner{padding:44px 40px 40px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.feat-card-wide-title{font-size:22px;font-weight:300;color:#fff;max-width:480px;line-height:1.5;margin-bottom:40px;letter-spacing:-.01em}
+#pipeline{border-top:1px solid rgba(255,255,255,.07);padding:100px 48px;background:#050505}
+.pipe-label{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.22);margin-bottom:52px}
+.pipe-table{border-top:1px solid rgba(255,255,255,.07)}
+.pipe-row{display:grid;grid-template-columns:52px 180px 1fr 72px;gap:24px;align-items:center;padding:19px 0;border-bottom:1px solid rgba(255,255,255,.05);transition:background .2s}
+.pipe-row:hover{background:rgba(255,255,255,.018)}
+.pn{font-size:11px;color:rgba(255,255,255,.16);letter-spacing:.1em}
+.pk{font-size:13px;font-weight:400}
+.pd{font-size:12px;font-weight:300;color:rgba(255,255,255,.3)}
+.pp{font-size:11px;color:rgba(255,255,255,.18);text-align:right;letter-spacing:.06em}
+#auth{border-top:1px solid rgba(255,255,255,.07);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 24px;position:relative;overflow:hidden;background:#080808}
+#auth-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:.28}
+.auth-box{position:relative;z-index:2;width:100%;max-width:340px;background:rgba(6,6,6,.88);border:1px solid rgba(255,255,255,.09);padding:44px 36px 40px;backdrop-filter:blur(16px)}
+.auth-logo{text-align:center;margin-bottom:36px}
+.auth-logo-name{font-size:22px;font-weight:300;letter-spacing:.32em;text-transform:uppercase;color:rgba(255,255,255,.88);display:block;margin-bottom:6px}
+.auth-logo-hint{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.2)}
+.auth-err{font-size:12px;color:rgba(255,110,110,.9);background:rgba(255,60,60,.07);border:1px solid rgba(255,60,60,.13);padding:10px 12px;margin-bottom:18px;display:none}
+.auth-err.on{display:block}
+.field{margin-bottom:14px}
+.field-lbl{display:block;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.22);margin-bottom:8px}
+.field-inp{width:100%;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);padding:12px 14px;color:#fff;font-family:'Inter',sans-serif;font-size:14px;font-weight:300;letter-spacing:.1em;outline:none;transition:border-color .2s,background .2s}
+.field-inp:focus{border-color:rgba(255,255,255,.26);background:rgba(255,255,255,.055)}
+.field-inp::placeholder{color:rgba(255,255,255,.12);font-size:13px}
+.auth-btn{width:100%;margin-top:8px;background:rgba(255,255,255,.9);color:#000;border:none;padding:13px;font-family:'Inter',sans-serif;font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;transition:background .2s}
+.auth-btn:hover{background:#fff}
+.auth-note{text-align:center;margin-top:24px;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.12)}
+footer{border-top:1px solid rgba(255,255,255,.06);padding:24px 48px;display:flex;justify-content:space-between;background:#050505}
+.ft{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.16)}
+.reveal{opacity:0;transform:translateY(12px);transition:opacity .65s ease,transform .65s ease}
+.reveal.in{opacity:1;transform:none}
+.d1{transition-delay:.1s}
+.d2{transition-delay:.2s}
+
+/* ── SCROLL DOSSIER ── */
+#dossier-scroll{background:#080808;padding:80px 24px 0;overflow:hidden}
+.doss-header{text-align:center;margin-bottom:48px}
+.doss-eyebrow{font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:rgba(255,255,255,.22);margin-bottom:16px}
+.doss-title{font-size:clamp(28px,4vw,48px);font-weight:300;color:#fff;letter-spacing:-.01em;line-height:1.15}
+.doss-title em{font-style:normal;color:rgba(255,255,255,.35)}
+.doss-perspective{perspective:1200px;padding-bottom:120px}
+.doss-card-wrap{
+  max-width:720px;margin:0 auto;
+  transform:rotateX(18deg) scale(1.04);
+  transform-origin:center top;
+  transition:transform 0.1s linear;
+  will-change:transform;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 32px 80px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.04);
+  overflow:hidden;
+}
+.doss-card-inner{
+  background:#1a1b1e;
+  max-height:480px;
+  overflow-y:auto;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(255,255,255,.1) transparent;
+  padding:24px;
+}
+.doss-card-inner::-webkit-scrollbar{width:4px}
+.doss-card-inner::-webkit-scrollbar-track{background:transparent}
+.doss-card-inner::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+
+/* dossier internal styles */
+.dr-topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid rgba(255,255,255,.07)}
+.dr-name{font-size:18px;font-weight:500;color:#fff;margin-bottom:4px}
+.dr-meta{font-size:12px;color:rgba(255,255,255,.4);line-height:1.6}
+.dr-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:500;letter-spacing:.04em}
+.dr-badge.warn{background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.2);color:#fb923c}
+.dr-badge.ok{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.18);color:#34d399}
+.dr-badge.info{background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.15);color:#94a3b8}
+
+.dr-score-wrap{text-align:right}
+.dr-score-label{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.2);margin-bottom:4px}
+.dr-score-num{font-size:32px;font-weight:300;color:#fff;line-height:1}
+.dr-score-sub{font-size:10px;color:#fb923c;letter-spacing:.08em;margin-top:2px}
+
+.dr-ai-box{background:#212328;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:16px 18px;margin-bottom:20px}
+.dr-ai-label{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.dr-ai-label::before{content:'';width:6px;height:6px;border-radius:50%;background:#7c6ff7;flex-shrink:0}
+.dr-ai-text{font-size:12px;color:rgba(255,255,255,.6);line-height:1.8}
+
+.dr-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.dr-stat-card{background:#212328;border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:14px 16px}
+.dr-stat-label{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.2);margin-bottom:8px}
+.dr-stat-val{font-size:13px;color:rgba(255,255,255,.7);line-height:1.7}
+
+.dr-section{margin-bottom:20px}
+.dr-section-title{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.dr-section-title::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.06)}
+
+.dr-flag-row{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:7px;margin-bottom:6px;font-size:12px}
+.dr-flag-row.warn{background:rgba(251,146,60,.06);border:1px solid rgba(251,146,60,.12);color:rgba(255,255,255,.7)}
+.dr-flag-row.ok{background:rgba(52,211,153,.05);border:1px solid rgba(52,211,153,.1);color:rgba(255,255,255,.7)}
+.dr-flag-row.info{background:rgba(148,163,184,.05);border:1px solid rgba(148,163,184,.1);color:rgba(255,255,255,.55)}
+.dr-flag-icon{flex-shrink:0;margin-top:1px}
+.dr-flag-body{flex:1;line-height:1.6}
+.dr-flag-sub{font-size:10px;color:rgba(255,255,255,.3);margin-top:2px}
+
+.dr-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px}
+.dr-chip{font-size:10px;padding:4px 10px;border-radius:20px;border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.35);letter-spacing:.04em}
+
+.dr-timeline{display:flex;flex-direction:column;gap:0}
+.dr-tl-row{display:flex;gap:14px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:11px}
+.dr-tl-row:last-child{border-bottom:none}
+.dr-tl-date{color:rgba(255,255,255,.25);min-width:80px;flex-shrink:0;font-variant-numeric:tabular-nums}
+.dr-tl-text{color:rgba(255,255,255,.55)}
+
+.dr-footer{margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06);font-size:10px;color:rgba(255,255,255,.2);letter-spacing:.04em;display:flex;justify-content:space-between}
+</style>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 </head>
 <body>
-    <div class="card">
-        <div class="brand">
-            <h1>СЛЕД</h1>
-            <p>Требуется авторизация</p>
+
+<nav>
+  <a href="#hero" class="logo">{{ t.logo }}</a>
+  <div class="nav-links">
+    <a href="#features" class="nav-a">{{ t.nav_features }}</a>
+    <a href="#pipeline" class="nav-a">{{ t.nav_method }}</a>
+    <a href="#auth" class="nav-a">{{ t.nav_login }}</a>
+    <a href="{{ t.switch_url }}" class="nav-a lang-switch">{{ t.switch_lang }}</a>
+  </div>
+</nav>
+
+<section id="hero">
+  <canvas id="hills-canvas"></canvas>
+  <div class="hero-content">
+    <div class="hero-eyebrow">{{ t.hero_eyebrow }}</div>
+    <h1 class="hero-title" id="hero-scramble">{{ t.hero_title }}</h1>
+    <p class="hero-sub">{{ t.hero_sub | safe }}</p>
+    <a href="#auth" class="hero-cta">{{ t.hero_cta }}</a>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── SCROLL DOSSIER ── -->
+<section id="dossier-scroll">
+  <div class="doss-header reveal">
+    <div class="doss-eyebrow">{{ t.doss_eyebrow }}</div>
+    <h2 class="doss-title">{{ t.doss_title | safe }}</h2>
+  </div>
+  <div class="doss-perspective">
+    <div class="doss-card-wrap" id="doss-card">
+      <div class="doss-card-inner">
+
+        <!-- top bar -->
+        <div class="dr-topbar">
+          <div>
+            <div class="dr-name">{{ t.doss_name }} <span style="font-size:11px;font-weight:400;color:rgba(255,255,255,.25);letter-spacing:.1em;text-transform:uppercase;margin-left:8px">{{ t.doss_example }}</span></div>
+            <div class="dr-meta">{{ t.doss_meta | safe }}</div>
+          </div>
+          <div class="dr-score-wrap">
+            <div class="dr-score-label">{{ t.doss_risk_label }}</div>
+            <div class="dr-score-num">??<span style="font-size:14px;color:rgba(255,255,255,.3)">/100</span></div>
+            <div class="dr-score-sub">{{ t.doss_risk_result }}</div>
+          </div>
         </div>
-        {% if error %}
-        <div class="error">{{ error }}</div>
-        {% endif %}
-        <form method="POST" action="/login">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-            <label for="password">Пароль</label>
-            <input type="password" name="password" id="password" placeholder="Введите пароль" required autofocus>
-            <button type="submit">Войти</button>
-        </form>
-        <div class="footer">Authorized Use Only</div>
+
+        <!-- AI summary -->
+        <div class="dr-ai-box">
+          <div class="dr-ai-label">{{ t.doss_ai_label }}</div>
+          <div class="dr-ai-text">{{ t.doss_ai_text | safe }}</div>
+        </div>
+
+        <!-- flags -->
+        <div class="dr-section">
+          <div class="dr-section-title">{{ t.doss_facts_title }}</div>
+          <div class="dr-flag-row warn"><div class="dr-flag-icon">⚠️</div><div class="dr-flag-body">{{ t.doss_flag1 }}<div class="dr-flag-sub">{{ t.doss_flag1_sub }}</div></div></div>
+          <div class="dr-flag-row warn"><div class="dr-flag-icon">⚠️</div><div class="dr-flag-body">{{ t.doss_flag2 }}<div class="dr-flag-sub">{{ t.doss_flag2_sub }}</div></div></div>
+          <div class="dr-flag-row info"><div class="dr-flag-icon">ℹ️</div><div class="dr-flag-body">{{ t.doss_flag3 }}<div class="dr-flag-sub">{{ t.doss_flag3_sub }}</div></div></div>
+          <div class="dr-flag-row info"><div class="dr-flag-icon">ℹ️</div><div class="dr-flag-body">{{ t.doss_flag4 }}<div class="dr-flag-sub">{{ t.doss_flag4_sub }}</div></div></div>
+        </div>
+
+        <!-- 3-col stats -->
+        <div class="dr-grid3">
+          <div class="dr-stat-card">
+            <div class="dr-stat-label">{{ t.doss_biz }}</div>
+            <div class="dr-stat-val">{{ t.doss_biz_val | safe }}</div>
+          </div>
+          <div class="dr-stat-card">
+            <div class="dr-stat-label">{{ t.doss_social }}</div>
+            <div class="dr-stat-val">{{ t.doss_social_val | safe }}</div>
+          </div>
+          <div class="dr-stat-card">
+            <div class="dr-stat-label">{{ t.doss_sanctions }}</div>
+            <div class="dr-stat-val" style="color:#34d399">{{ t.doss_sanctions_val | safe }}</div>
+          </div>
+        </div>
+
+        <!-- contacts -->
+        <div class="dr-section">
+          <div class="dr-section-title">{{ t.doss_contacts }}</div>
+          <div class="dr-chips">
+            <span class="dr-chip">{{ t.doss_phone1 }}</span>
+            <span class="dr-chip">{{ t.doss_phone2 }}</span>
+            <span class="dr-chip">{{ t.doss_email1 }}</span>
+            <span class="dr-chip">{{ t.doss_email2 }}</span>
+          </div>
+        </div>
+
+        <!-- geography -->
+        <div class="dr-section">
+          <div class="dr-section-title">{{ t.doss_geo }}</div>
+          <div class="dr-chips">
+            <span class="dr-chip">{{ t.doss_geo1 }}</span>
+            <span class="dr-chip">{{ t.doss_geo2 }}</span>
+            <span class="dr-chip">{{ t.doss_geo3 }}</span>
+            <span class="dr-chip">{{ t.doss_geo4 }}</span>
+          </div>
+        </div>
+
+        <!-- timeline -->
+        <div class="dr-section">
+          <div class="dr-section-title">{{ t.doss_timeline }}</div>
+          <div class="dr-timeline">
+            <div class="dr-tl-row"><div class="dr-tl-date">дд.мм.гггг</div><div class="dr-tl-text">{{ t.doss_tl1 }}</div></div>
+            <div class="dr-tl-row"><div class="dr-tl-date">дд.мм.гггг</div><div class="dr-tl-text">{{ t.doss_tl2 }}</div></div>
+            <div class="dr-tl-row"><div class="dr-tl-date">дд.мм.гггг</div><div class="dr-tl-text">{{ t.doss_tl3 }}</div></div>
+            <div class="dr-tl-row"><div class="dr-tl-date">дд.мм.гггг</div><div class="dr-tl-text">{{ t.doss_tl4 }}</div></div>
+            <div class="dr-tl-row"><div class="dr-tl-date">дд.мм.гггг</div><div class="dr-tl-text">{{ t.doss_tl5 }}</div></div>
+            <div class="dr-tl-row"><div class="dr-tl-date">дд.мм.гггг</div><div class="dr-tl-text">{{ t.doss_tl6 }}</div></div>
+          </div>
+        </div>
+
+        <div class="dr-footer">
+          <span>{{ t.doss_footer_left }}</span>
+          <span>{{ t.doss_footer_right }}</span>
+        </div>
+
+      </div>
     </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="inner">
+    <div class="feat-grid reveal">
+
+      <div class="feat-card">
+        <span class="corner-bl"></span><span class="corner-br"></span>
+        <div class="feat-card-head">
+          <div class="feat-card-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            {{ t.feat_ps_label }}
+          </div>
+          <div class="feat-card-title">{{ t.feat_ps_title }}</div>
+        </div>
+        <div class="feat-card-vis">
+          <div class="mini-pipe">
+            <div class="mp-row"><div class="mp-dot active"></div><div class="mp-label active">{{ t.feat_ps1 }}</div><div class="mp-pct active">{{ t.feat_ps1v }}</div></div>
+            <div class="mp-row"><div class="mp-dot active"></div><div class="mp-label active">{{ t.feat_ps2 }}</div><div class="mp-pct active">{{ t.feat_ps2v }}</div></div>
+            <div class="mp-row"><div class="mp-dot active"></div><div class="mp-label active">{{ t.feat_ps3 }}</div><div class="mp-pct active">{{ t.feat_ps3v }}</div></div>
+            <div class="mp-row"><div class="mp-dot active"></div><div class="mp-label active">{{ t.feat_ps4 }}</div><div class="mp-pct active">{{ t.feat_ps4v }}</div></div>
+            <div class="mp-row"><div class="mp-dot active"></div><div class="mp-label active">{{ t.feat_ps5 }}</div><div class="mp-pct active">{{ t.feat_ps5v }}</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feat-card">
+        <span class="corner-bl"></span><span class="corner-br"></span>
+        <div class="feat-card-head">
+          <div class="feat-card-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9S3 16.97 3 12 7.03 3 12 3s9 4.03 9 9z"/></svg>
+            {{ t.feat_cc_label }}
+          </div>
+          <div class="feat-card-title">{{ t.feat_cc_title }}</div>
+        </div>
+        <div class="feat-card-vis">
+          <div class="mini-pipe">
+            <div class="mp-row"><div class="mp-dot active"></div><div class="mp-label active">{{ t.feat_cc1 }}</div><div class="mp-pct active">{{ t.feat_cc1v }}</div></div>
+            <div class="mp-row"><div class="mp-dot active"></div><div class="mp-label active">{{ t.feat_cc2 }}</div><div class="mp-pct active">{{ t.feat_cc2v }}</div></div>
+            <div class="mp-row"><div class="mp-dot active"></div><div class="mp-label active">{{ t.feat_cc3 }}</div><div class="mp-pct active">{{ t.feat_cc3v }}</div></div>
+            <div class="mp-row"><div class="mp-dot active"></div><div class="mp-label active">{{ t.feat_cc4 }}</div><div class="mp-pct active">{{ t.feat_cc4v }}</div></div>
+            <div class="mp-row"><div class="mp-dot active"></div><div class="mp-label active">{{ t.feat_cc5 }}</div><div class="mp-pct active">{{ t.feat_cc5v }}</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feat-card wide">
+        <span class="corner-bl"></span><span class="corner-br"></span>
+        <div class="feat-card-wide-inner">
+          <p class="feat-card-wide-title">{{ t.feat_wide_text }}</p>
+          <div style="width:100%;max-width:720px;background:#0a0a0a;border:1px solid rgba(255,255,255,.08);padding:24px 28px;text-align:left;position:relative;overflow:hidden">
+            <span style="position:absolute;top:-1px;left:-1px;width:8px;height:8px;border-top:2px solid rgba(255,255,255,.4);border-left:2px solid rgba(255,255,255,.4)"></span>
+            <span style="position:absolute;top:-1px;right:-1px;width:8px;height:8px;border-top:2px solid rgba(255,255,255,.4);border-right:2px solid rgba(255,255,255,.4)"></span>
+            <span style="position:absolute;bottom:-1px;left:-1px;width:8px;height:8px;border-bottom:2px solid rgba(255,255,255,.4);border-left:2px solid rgba(255,255,255,.4)"></span>
+            <span style="position:absolute;bottom:-1px;right:-1px;width:8px;height:8px;border-bottom:2px solid rgba(255,255,255,.4);border-right:2px solid rgba(255,255,255,.4)"></span>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.06)">
+              <div>
+                <div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.2);margin-bottom:6px">{{ t.feat_wide_header }}</div>
+                <div style="font-size:16px;font-weight:400;color:#fff;margin-bottom:2px">{{ t.feat_wide_name }}</div>
+                <div style="font-size:11px;color:rgba(255,255,255,.3)">{{ t.feat_wide_city }}</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.18);margin-bottom:6px">{{ t.feat_wide_risk_label }}</div>
+                <div style="font-size:28px;font-weight:300;color:#fff;line-height:1">24<span style="font-size:13px;color:rgba(255,255,255,.3)">/100</span></div>
+                <div style="font-size:10px;color:rgba(100,220,130,.6);letter-spacing:.08em;margin-top:2px">{{ t.feat_wide_risk_level }}</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px">
+              <div><div style="font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.2);margin-bottom:8px">{{ t.feat_wide_id_label }}</div><div style="font-size:11px;color:rgba(255,255,255,.55);line-height:1.9">{{ t.feat_wide_id_val | safe }}</div></div>
+              <div><div style="font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.2);margin-bottom:8px">{{ t.feat_wide_biz_label }}</div><div style="font-size:11px;color:rgba(255,255,255,.55);line-height:1.9">{{ t.feat_wide_biz_val | safe }}</div></div>
+              <div><div style="font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.2);margin-bottom:8px">{{ t.feat_wide_rec_label }}</div><div style="font-size:11px;color:rgba(255,255,255,.55);line-height:1.9">{{ t.feat_wide_rec_val | safe }}</div></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:16px;border-top:1px solid rgba(255,255,255,.06)">
+              <span style="font-size:10px;letter-spacing:.06em;color:rgba(100,220,130,.7);background:rgba(100,220,130,.07);border:1px solid rgba(100,220,130,.15);padding:4px 12px">{{ t.feat_wide_tag1 }}</span>
+              <span style="font-size:10px;letter-spacing:.06em;color:rgba(100,220,130,.7);background:rgba(100,220,130,.07);border:1px solid rgba(100,220,130,.15);padding:4px 12px">{{ t.feat_wide_tag2 }}</span>
+              <span style="font-size:10px;letter-spacing:.06em;color:rgba(255,200,80,.7);background:rgba(255,200,80,.06);border:1px solid rgba(255,200,80,.13);padding:4px 12px">{{ t.feat_wide_tag3 }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section id="pipeline">
+  <div class="inner">
+    <div class="pipe-label reveal">{{ t.pipe_label }}</div>
+    <div class="pipe-table">
+      <div class="pipe-row reveal"><div class="pn">00</div><div class="pk">Identity</div><div class="pd">{{ t.pipe0 }}</div><div class="pp">0–8%</div></div>
+      <div class="pipe-row reveal"><div class="pn">01</div><div class="pk">Registries</div><div class="pd">{{ t.pipe1 }}</div><div class="pp">8–18%</div></div>
+      <div class="pipe-row reveal"><div class="pn">02</div><div class="pk">Security</div><div class="pd">{{ t.pipe2 }}</div><div class="pp">18–27%</div></div>
+      <div class="pipe-row reveal"><div class="pn">03</div><div class="pk">Social</div><div class="pd">{{ t.pipe3 }}</div><div class="pp">27–42%</div></div>
+      <div class="pipe-row reveal"><div class="pn">04</div><div class="pk">Contacts</div><div class="pd">{{ t.pipe4 }}</div><div class="pp">42–57%</div></div>
+      <div class="pipe-row reveal"><div class="pn">05</div><div class="pk">Deep Analysis</div><div class="pd">{{ t.pipe5 }}</div><div class="pp">57–72%</div></div>
+      <div class="pipe-row reveal"><div class="pn">06</div><div class="pk">Behavioral</div><div class="pd">{{ t.pipe6 }}</div><div class="pp">72–83%</div></div>
+      <div class="pipe-row reveal"><div class="pn">07</div><div class="pk">Risk Scoring</div><div class="pd">{{ t.pipe7 }}</div><div class="pp">83–93%</div></div>
+      <div class="pipe-row reveal"><div class="pn">08</div><div class="pk">Report</div><div class="pd">{{ t.pipe8 }}</div><div class="pp">93–100%</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="auth">
+  <canvas id="auth-canvas"></canvas>
+  <div class="auth-box">
+    <div class="auth-logo">
+      <span class="auth-logo-name">{{ t.auth_logo }}</span>
+      <span class="auth-logo-hint">{{ t.auth_hint }}</span>
+    </div>
+    <div id="flash-err" class="auth-err{% if error %} on{% endif %}">{% if error %}{{ t.auth_error }}{% endif %}</div>
+    <form method="POST" action="/login">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field">
+        <label class="field-lbl" for="password">{{ t.auth_password }}</label>
+        <input class="field-inp" type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="auth-btn">{{ t.auth_submit }}</button>
+    </form>
+    <div class="auth-note">{{ t.auth_note }}</div>
+  </div>
+</section>
+
+<footer>
+  <span class="ft">{{ t.footer_brand }}</span>
+  <span class="ft">2026</span>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+const PS=256,SP=0.5;
+const VERT=`
+#define GLSLIFY 1
+attribute vec3 position;
+uniform mat4 projectionMatrix;
+uniform mat4 modelViewMatrix;
+uniform float time;
+varying vec3 vPosition;
+mat4 rotX(float r){return mat4(1,0,0,0,0,cos(r),-sin(r),0,0,sin(r),cos(r),0,0,0,0,1);}
+vec3 m289v3(vec3 x){return x-floor(x*(1./289.))*289.;}
+vec4 m289v4(vec4 x){return x-floor(x*(1./289.))*289.;}
+vec4 perm(vec4 x){return m289v4(((x*34.)+1.)*x);}
+vec4 tis(vec4 r){return 1.79284291400159-.85373472095314*r;}
+vec3 fade(vec3 t){return t*t*t*(t*(t*6.-15.)+10.);}
+float cnoise(vec3 P){
+vec3 Pi0=floor(P),Pi1=Pi0+1.;Pi0=m289v3(Pi0);Pi1=m289v3(Pi1);
+vec3 Pf0=fract(P),Pf1=Pf0-1.;
+vec4 ix=vec4(Pi0.x,Pi1.x,Pi0.x,Pi1.x),iy=vec4(Pi0.yy,Pi1.yy);
+vec4 iz0=Pi0.zzzz,iz1=Pi1.zzzz;
+vec4 ixy=perm(perm(ix)+iy),ixy0=perm(ixy+iz0),ixy1=perm(ixy+iz1);
+vec4 gx0=ixy0*(1./7.),gy0=fract(floor(gx0)*(1./7.))-.5;gx0=fract(gx0);
+vec4 gz0=vec4(.5)-abs(gx0)-abs(gy0),sz0=step(gz0,vec4(0.));gx0-=sz0*(step(0.,gx0)-.5);gy0-=sz0*(step(0.,gy0)-.5);
+vec4 gx1=ixy1*(1./7.),gy1=fract(floor(gx1)*(1./7.))-.5;gx1=fract(gx1);
+vec4 gz1=vec4(.5)-abs(gx1)-abs(gy1),sz1=step(gz1,vec4(0.));gx1-=sz1*(step(0.,gx1)-.5);gy1-=sz1*(step(0.,gy1)-.5);
+vec3 g000=vec3(gx0.x,gy0.x,gz0.x),g100=vec3(gx0.y,gy0.y,gz0.y),g010=vec3(gx0.z,gy0.z,gz0.z),g110=vec3(gx0.w,gy0.w,gz0.w);
+vec3 g001=vec3(gx1.x,gy1.x,gz1.x),g101=vec3(gx1.y,gy1.y,gz1.y),g011=vec3(gx1.z,gy1.z,gz1.z),g111=vec3(gx1.w,gy1.w,gz1.w);
+vec4 n0=tis(vec4(dot(g000,g000),dot(g010,g010),dot(g100,g100),dot(g110,g110)));
+g000*=n0.x;g010*=n0.y;g100*=n0.z;g110*=n0.w;
+vec4 n1=tis(vec4(dot(g001,g001),dot(g011,g011),dot(g101,g101),dot(g111,g111)));
+g001*=n1.x;g011*=n1.y;g101*=n1.z;g111*=n1.w;
+float n000=dot(g000,Pf0),n100=dot(g100,vec3(Pf1.x,Pf0.yz)),n010=dot(g010,vec3(Pf0.x,Pf1.y,Pf0.z)),n110=dot(g110,vec3(Pf1.xy,Pf0.z));
+float n001=dot(g001,vec3(Pf0.xy,Pf1.z)),n101=dot(g101,vec3(Pf1.x,Pf0.y,Pf1.z)),n011=dot(g011,vec3(Pf0.x,Pf1.yz)),n111=dot(g111,Pf1);
+vec3 fxyz=fade(Pf0);
+vec4 nz=mix(vec4(n000,n100,n010,n110),vec4(n001,n101,n011,n111),fxyz.z);
+vec2 nyz=mix(nz.xy,nz.zw,fxyz.y);return 2.2*mix(nyz.x,nyz.y,fxyz.x);}
+void main(){
+vec3 up=(rotX(radians(90.))*vec4(position,1.)).xyz;
+float s=sin(radians(up.x/128.*90.));
+vec3 np=up+vec3(0,0,time*-30.);
+float n1=cnoise(np*.08),n2=cnoise(np*.06),n3=cnoise(np*.4);
+vec3 lp=up+vec3(0,n1*s*8.+n2*s*8.+n3*(abs(s)*2.+.5)+pow(s,2.)*40.,0);
+vPosition=lp;gl_Position=projectionMatrix*modelViewMatrix*vec4(lp,1.);}`;
+const FRAG=`precision highp float;varying vec3 vPosition;void main(){float op=(96.-length(vPosition))/256.*.6;gl_FragColor=vec4(vec3(.6),op);}`;
+
+function init(id,camZ){
+  var el=document.getElementById(id);if(!el)return;
+  var r=new THREE.WebGLRenderer({canvas:el,antialias:false,alpha:true});
+  r.setClearColor(0x000000,0);
+  var s=new THREE.Scene();
+  var c=new THREE.PerspectiveCamera(45,el.clientWidth/el.clientHeight,1,10000);
+  c.position.set(0,16,camZ);c.lookAt(new THREE.Vector3(0,28,0));
+  var u={time:{type:'f',value:0}};
+  var g=new THREE.PlaneGeometry(PS,PS,PS,PS);
+  var m=new THREE.RawShaderMaterial({uniforms:u,vertexShader:VERT,fragmentShader:FRAG,transparent:true});
+  s.add(new THREE.Mesh(g,m));
+  var last=performance.now();
+  function resize(){var w=el.clientWidth,h=el.clientHeight;r.setSize(w,h,false);c.aspect=w/h;c.updateProjectionMatrix();}
+  resize();window.addEventListener('resize',resize);
+  (function loop(){requestAnimationFrame(loop);var now=performance.now();u.time.value+=(now-last)/1000*SP;last=now;r.render(s,c);})();
+}
+
+init('hills-canvas',125);
+init('auth-canvas',160);
+
+// ── DOSSIER SCROLL TILT ──
+(function(){
+  var card = document.getElementById('doss-card');
+  var section = document.getElementById('dossier-scroll');
+  if (!card || !section) return;
+
+  function update() {
+    var rect = section.getBoundingClientRect();
+    var sectionH = section.offsetHeight;
+    var progress = 1 - (rect.bottom / (window.innerHeight + sectionH));
+    progress = Math.max(0, Math.min(1, progress));
+
+    var rotateX = 18 - progress * 18;
+    var scale   = 1.04 - progress * 0.04;
+    card.style.transform = 'rotateX(' + rotateX.toFixed(2) + 'deg) scale(' + scale.toFixed(3) + ')';
+  }
+
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+
+var obs=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');obs.unobserve(e.target);}});},{threshold:.1});
+document.querySelectorAll('.reveal').forEach(function(el){obs.observe(el);});
+document.querySelectorAll('a[href^="#"]').forEach(function(a){
+  a.addEventListener('click',function(e){var t=document.querySelector(a.getAttribute('href'));if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth'});}});
+});
+// --- Hero: scroll attempt → scramble title → zoom out (one-time) ---
+(function(){
+  var el = document.getElementById('hero-scramble');
+  var hero = document.getElementById('hero');
+  if (!el || !hero) return;
+
+  var textA = {{ t.scramble_from | tojson }};
+  var textB = {{ t.scramble_to | tojson }};
+  var chars = 'АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЭЮЯABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  var duration = 1.2;
+  var speed = 0.035;
+  var steps = Math.ceil(duration / speed);
+  var done = false;
+  var ZOOM_DUR = 1400;
+
+  document.body.classList.add('scroll-locked');
+
+  function scramble(onDone) {
+    var step = 0;
+    var fromLen = textA.length;
+    var toLen = textB.length;
+
+    var iv = setInterval(function(){
+      var progress = step / steps;
+      var display = '';
+      var currentLen = Math.round(fromLen + (toLen - fromLen) * progress);
+
+      for (var i = 0; i < currentLen; i++) {
+        if (i < textB.length && progress * textB.length > i) {
+          display += textB[i];
+        } else {
+          display += chars[Math.floor(Math.random() * chars.length)];
+        }
+      }
+
+      el.textContent = display;
+      step++;
+
+      if (step > steps) {
+        clearInterval(iv);
+        el.textContent = textB;
+        if (onDone) onDone();
+      }
+    }, speed * 1000);
+  }
+
+  function run() {
+    if (done) return;
+    done = true;
+
+    // cleanup listeners
+    window.removeEventListener('wheel', onScroll);
+    window.removeEventListener('touchmove', onScroll);
+    window.removeEventListener('keydown', onKey);
+
+    // step 1: scramble text
+    scramble(function(){
+
+      // 16ms — let final text frame paint
+      setTimeout(function(){
+
+        // step 2: linger on target text
+        setTimeout(function(){
+
+          // step 3: set up zoom starting pose (no transition)
+          hero.style.transition = 'none';
+          hero.style.transform = 'scale(1)';
+          hero.style.opacity = '1';
+          hero.style.pointerEvents = 'none';
+          hero.offsetHeight; // force reflow
+
+          // 16ms — let browser latch starting pose
+          setTimeout(function(){
+
+            // step 4: apply zoom transition
+            hero.style.transition = 'transform ' + ZOOM_DUR + 'ms cubic-bezier(.4,0,.2,1), opacity ' + ZOOM_DUR + 'ms cubic-bezier(.4,0,.2,1)';
+
+            // 8ms — let transition property register
+            setTimeout(function(){
+
+              // step 5: trigger zoom
+              hero.style.transform = 'scale(2.8)';
+              hero.style.opacity = '0';
+
+              // step 6: after zoom completes, hide hero entirely and jump to dossier
+              setTimeout(function(){
+                // hide hero so it never flashes back
+                hero.style.display = 'none';
+                document.body.classList.remove('scroll-locked');
+                // land on dossier section — user can scroll down for more
+                var dossier = document.getElementById('dossier-scroll');
+                if (dossier) {
+                  dossier.scrollIntoView({ behavior: 'instant' });
+                }
+                // force all reveals visible
+                setTimeout(function(){
+                  document.querySelectorAll('.reveal').forEach(function(el){
+                    el.classList.add('in');
+                  });
+                }, 80);
+              }, ZOOM_DUR + 50);
+
+            }, 8);
+          }, 16);
+        }, 600);
+      }, 16);
+    });
+  }
+
+  function onScroll(e) {
+    if (done) return;
+    e.preventDefault();
+    run();
+  }
+
+  function onKey(e) {
+    if (done) return;
+    if ([32, 34, 40, 35].indexOf(e.keyCode) !== -1) {
+      e.preventDefault();
+      run();
+    }
+  }
+
+  window.addEventListener('wheel', onScroll, { passive: false });
+  window.addEventListener('touchmove', onScroll, { passive: false });
+  window.addEventListener('keydown', onKey);
+})();
+
+})();
+</script>
 </body>
 </html>

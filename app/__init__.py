@@ -111,7 +111,7 @@ def create_app(config_name=None):
         if not is_auth_enabled():
             return
 
-        allowed_endpoints = {'auth.login', 'auth.logout', 'static', 'main.health_check'}
+        allowed_endpoints = {'auth.login', 'auth.logout', 'auth.set_lang', 'static', 'main.health_check'}
         if request.endpoint and (
             request.endpoint in allowed_endpoints or
             request.endpoint.startswith('static')
@@ -157,11 +157,11 @@ def create_app(config_name=None):
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com; "
-            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com https://fonts.googleapis.com; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com https://cdnjs.cloudflare.com; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; "
             "img-src 'self' data: https: blob:; "
-            "connect-src 'self'; "
+            "connect-src 'self' https://cdnjs.cloudflare.com; "
             "frame-ancestors 'self'"
         )
         return response
