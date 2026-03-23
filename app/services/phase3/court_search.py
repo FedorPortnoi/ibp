@@ -276,13 +276,22 @@ class CourtRecordSearch:
                 logger.warning(f"судебныерешения.рф: form page HTTP {resp.status_code}")
                 return results
 
-            # Extract CSRF token
+            # Extract CSRF token — name and value may be separated by other attrs
             token_match = re.search(
-                r'name="simpleSearch\[_token\]"\s+value="([^"]+)"', resp.text
+                r'<input[^>]+name="simpleSearch\[_token\]"[^>]+value="([^"]+)"',
+                resp.text,
             )
             if not token_match:
-                # Try alternative pattern
-                token_match = re.search(r'"_token"\s*:\s*"([^"]+)"', resp.text)
+                # Reverse order: value before name
+                token_match = re.search(
+                    r'<input[^>]+value="([^"]+)"[^>]+name="simpleSearch\[_token\]"',
+                    resp.text,
+                )
+            if not token_match:
+                # Broadest fallback: find by id
+                token_match = re.search(
+                    r'id="simpleSearch__token"[^>]+value="([^"]+)"', resp.text
+                )
             if not token_match:
                 logger.warning("судебныерешения.рф: CSRF token not found")
                 return results
@@ -322,66 +331,67 @@ class CourtRecordSearch:
             if count_el:
                 logger.info(f"судебныерешения.рф: {count_el.get_text(strip=True)}")
 
-            # Results are in <table class="table table-bordered">
-            # Each case = 2 <tr>: first has court + case link, second has dates + participants
-            table = soup.select_one('table.table.table-bordered')
-            if not table:
-                # Check for "not found" message
+            # Each result is a separate <table class="table table-bordered">
+            # inside div#list. Each table has 2 <tr>:
+            #   Row 1 (class="active"): court name + case number link
+            #   Row 2: dates + participants
+            list_div = soup.select_one('#list')
+            if not list_div:
                 page_text = soup.get_text().lower()
                 if 'не найдено' in page_text or 'ничего не найдено' in page_text:
                     logger.info(f"судебныерешения.рф: no results for '{name}'")
                 else:
-                    logger.debug("судебныерешения.рф: result table not found")
+                    logger.debug("судебныерешения.рф: #list div not found")
                 return results
 
-            rows = table.select('tr')
-            i = 0
-            while i < len(rows) - 1 and len(results) < limit:
-                try:
-                    row1 = rows[i]
-                    row2 = rows[i + 1] if (i + 1) < len(rows) else None
+            tables = list_div.select('table.table-bordered')
+            if not tables:
+                logger.debug("судебныерешения.рф: no result tables in #list")
+                return results
 
-                    # Row 1: court name (first <td>) + case number link (second <td>)
+            for table in tables[:limit]:
+                try:
+                    rows = table.select('tr')
+                    if len(rows) < 2:
+                        continue
+
+                    row1, row2 = rows[0], rows[1]
+
+                    # Row 1: court name (td[0]) + case number link (td[1])
                     tds1 = row1.select('td')
                     if len(tds1) < 2:
-                        i += 1
                         continue
 
                     court_name = tds1[0].get_text(strip=True)
                     link = tds1[1].select_one('a')
                     if not link:
-                        i += 1
                         continue
 
                     case_number_text = link.get_text(strip=True)
                     href = link.get('href', '')
                     url = f"{base}{href}" if href.startswith('/') else href
 
-                    # Extract case number
                     case_match = re.search(
                         r'(\d{1,2}[А-Яа-я]{0,3}-\d+/\d{4})', case_number_text
                     )
                     case_number = case_match.group(1) if case_match else case_number_text
 
-                    # Row 2: dates + participants
+                    # Row 2: dates (td[0]) + participants (td[1])
                     date = ''
                     role = ''
-                    if row2 and not row2.get('class', []) == ['active']:
-                        tds2 = row2.select('td')
-                        if tds2:
-                            date_text = tds2[0].get_text(strip=True)
-                            date_match = re.search(r'(\d{2}\.\d{2}\.\d{4})', date_text)
-                            if date_match:
-                                date = date_match.group(1)
-                        # Check participants for role
-                        if len(tds2) > 1:
-                            part_text = tds2[1].get_text()
-                            role = self._detect_role(part_text, name)
-                        i += 2  # Skip both rows
-                    else:
-                        i += 1
+                    tds2 = row2.select('td')
+                    if tds2:
+                        date_text = tds2[0].get_text(strip=True)
+                        date_match = re.search(r'(\d{2}\.\d{2}\.\d{4})', date_text)
+                        if date_match:
+                            date = date_match.group(1)
+                    if len(tds2) > 1:
+                        part_text = tds2[1].get_text()
+                        role = self._detect_role(part_text, name)
 
-                    case_type = self._detect_case_type(case_number_text + ' ' + court_name)
+                    case_type = self._detect_case_type(
+                        case_number_text + ' ' + court_name
+                    )
 
                     results.append(CourtCase(
                         case_number=case_number,
@@ -394,8 +404,7 @@ class CourtRecordSearch:
                         confidence='high',
                     ))
                 except Exception as e:
-                    logger.debug(f"судебныерешения.рф: parse row error: {e}")
-                    i += 1
+                    logger.debug(f"судебныерешения.рф: parse table error: {e}")
 
             logger.info(f"судебныерешения.рф: parsed {len(results)} cases for '{name}'")
 

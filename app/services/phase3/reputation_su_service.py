@@ -1,19 +1,21 @@
 """
 reputation.su — Russian court case aggregator (58M+ cases).
 ============================================================
-Uses the SSR search page at /search?q={name} and parses
-the embedded __NUXT_DATA__ JSON payload for structured results.
+SSR search page at /search?query={name} returns Nuxt 3 HTML
+with court case cards (div.srch-card__affairs-box).
+
+Key: use ``query=`` parameter (not ``q=``). ``q=`` returns
+unfiltered results identical for every query.
 
 No authentication required. No geo-blocking. Plain requests work.
 """
 
-import json
 import logging
 import re
-from typing import List, Dict
 from urllib.parse import quote
 
 import requests
+from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
@@ -24,214 +26,117 @@ HEADERS = {
     'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
 }
 
-# Mapping for ProceedingType -> Russian case type
-_PROCEEDING_MAP = {
-    'Civil': 'гражданское',
-    'Administrative': 'административное',
-    'Criminal': 'уголовное',
-    'Arbitr': 'арбитражное',
-}
-
-# Mapping for ParticipationType -> Russian role
-_ROLE_MAP = {
-    'Defendant': 'ответчик',
-    'Plaintiff': 'истец',
-    'ThirdParty': 'третье лицо',
-    'Other': 'участник',
+# Category label -> case_type
+_CATEGORY_MAP = {
+    'гражданские': 'гражданское',
+    'уголовные': 'уголовное',
+    'административные': 'административное',
+    'арбитражные': 'арбитражное',
 }
 
 
-def _parse_nuxt_data(html: str) -> list:
-    """Extract items from Nuxt 3 __NUXT_DATA__ payload.
+def _get_li_value(card, label: str) -> str:
+    """Extract the <p> text from a <li> whose <span> matches label."""
+    for li in card.select('li'):
+        span = li.select_one('span')
+        if span and label in span.get_text(strip=True):
+            p = li.select_one('p')
+            return p.get_text(strip=True) if p else ''
+    return ''
 
-    Nuxt 3 serializes data as JSON arrays in <script> tags with
-    type="application/json" and an id like "__NUXT_DATA__" or similar.
-    The format uses index references — each entry may be a primitive
-    or reference other entries by index.
-    """
-    # Try to find the Nuxt data script tag
-    # Nuxt 3 uses: <script type="application/json" data-ssr="true" id="__NUXT_DATA__:app:default">
-    pattern = r'<script[^>]*id="__NUXT_DATA__[^"]*"[^>]*>(.*?)</script>'
-    matches = re.findall(pattern, html, re.DOTALL)
 
-    if not matches:
-        # Alternative: look for window.__NUXT__ pattern
-        pattern2 = r'window\.__NUXT__\s*=\s*({.*?})\s*;?\s*</script>'
-        matches = re.findall(pattern2, html, re.DOTALL)
+def _detect_role(card, search_name: str) -> str:
+    """Determine the searched person's role from card participant lists."""
+    name_lower = search_name.lower().strip()
+    name_parts = name_lower.split()
+    # Build match variants: full name, last+first
+    variants = [name_lower]
+    if len(name_parts) >= 2:
+        variants.append(f"{name_parts[0]} {name_parts[1]}")
 
-    if not matches:
-        logger.debug("reputation.su: no __NUXT_DATA__ found in HTML")
-        return []
+    role_map = {
+        'Истцы': 'истец',
+        'Ответчики': 'ответчик',
+        'Другие участники': 'третье лицо',
+    }
 
-    items = []
-    for raw_data in matches:
-        try:
-            data = json.loads(raw_data)
-        except (json.JSONDecodeError, ValueError):
+    for li in card.select('li'):
+        span = li.select_one('span')
+        if not span:
             continue
+        span_text = span.get_text(strip=True)
 
-        if isinstance(data, list):
-            items.extend(_extract_cases_from_nuxt_array(data))
-        elif isinstance(data, dict):
-            items.extend(_extract_cases_from_dict(data))
+        for label, role in role_map.items():
+            if label in span_text:
+                # Check if any participant name matches
+                participants = li.select('p.srch-rp-card__company')
+                li_text = li.get_text(' ', strip=True).lower()
+                for variant in variants:
+                    if variant in li_text:
+                        return role
+                    for p in participants:
+                        if variant in p.get_text(strip=True).lower():
+                            return role
 
-    return items
-
-
-def _extract_cases_from_nuxt_array(arr: list) -> list:
-    """Extract court case records from Nuxt 3 indexed array format.
-
-    Nuxt 3 __NUXT_DATA__ is a flat array where objects reference
-    other elements by index. We scan for case number patterns and
-    reconstruct records from surrounding entries.
-    """
-    cases = []
-
-    # Strategy: find all strings that look like case numbers
-    # Russian case numbers: digits-digits/year (e.g. "2-1234/2025")
-    case_num_re = re.compile(r'^\d{1,2}[А-Яа-я]{0,3}-\d+/\d{4}$')
-
-    for i, val in enumerate(arr):
-        if not isinstance(val, str):
-            continue
-        if not case_num_re.match(val):
-            continue
-
-        # Found a case number. Look around for related data.
-        case = {'case_number': val, 'source': 'reputation.su'}
-
-        # Scan nearby entries for date, court name, status, proceeding type
-        window = arr[max(0, i - 15):i + 15]
-        for nearby in window:
-            if not isinstance(nearby, str):
-                continue
-            if nearby == val:
-                continue
-
-            # Date pattern: YYYY-MM-DD
-            if re.match(r'^\d{4}-\d{2}-\d{2}$', nearby):
-                if 'date' not in case:
-                    case['date'] = nearby
-            # Proceeding type
-            elif nearby in _PROCEEDING_MAP:
-                case['case_type'] = _PROCEEDING_MAP[nearby]
-            # Role
-            elif nearby in _ROLE_MAP:
-                if 'role' not in case:
-                    case['role'] = _ROLE_MAP[nearby]
-            # Status (Russian text with date in parens)
-            elif re.match(r'^[А-Яа-я].*\(\d{2}\.\d{2}\.\d{4}\)$', nearby):
-                case['status'] = nearby
-            # Court name (contains "суд" or "судья" or "участок")
-            elif any(kw in nearby.lower() for kw in ['суд', 'судья', 'участок']):
-                if 'court_name' not in case:
-                    case['court_name'] = nearby
-
-        # Look for NumericId (integer) near the case number
-        for j in range(max(0, i - 10), min(len(arr), i + 10)):
-            if isinstance(arr[j], int) and arr[j] > 100000:
-                case['url'] = f'https://reputation.su/sudrf/{arr[j]}'
-                break
-
-        if not case.get('court_name'):
-            case['court_name'] = ''
-
-        cases.append(case)
-
-    return cases
+    return 'участник'
 
 
-def _extract_cases_from_dict(data: dict) -> list:
-    """Extract cases from a window.__NUXT__ style dict."""
-    cases = []
-
-    # Navigate to the items array
-    def _find_items(obj, depth=0):
-        if depth > 5:
-            return []
-        found = []
-        if isinstance(obj, dict):
-            if 'Number' in obj and 'Participants' in obj:
-                found.append(obj)
-            for v in obj.values():
-                found.extend(_find_items(v, depth + 1))
-        elif isinstance(obj, list):
-            for item in obj:
-                found.extend(_find_items(item, depth + 1))
-        return found
-
-    raw_items = _find_items(data)
-    for item in raw_items:
-        case = {
-            'case_number': item.get('Number', ''),
-            'court_name': item.get('CourtName', ''),
-            'date': item.get('Date', ''),
-            'case_type': _PROCEEDING_MAP.get(item.get('ProceedingType', ''), ''),
-            'status': item.get('Status', ''),
-            'source': 'reputation.su',
-            'url': f"https://reputation.su/sudrf/{item['NumericId']}"
-                   if item.get('NumericId') else '',
-        }
-
-        # Determine role from Participants
-        participants = item.get('Participants', [])
-        for p in participants:
-            ptype = p.get('ParticipationType', '')
-            if ptype in _ROLE_MAP:
-                case['role'] = _ROLE_MAP[ptype]
-                break
-
-        cases.append(case)
-
-    return cases
-
-
-def _parse_html_results(html: str) -> list:
-    """Fallback: parse SSR-rendered HTML for court case data."""
-    try:
-        from bs4 import BeautifulSoup
-    except ImportError:
-        return []
-
+def _parse_cards(html: str, search_name: str) -> list:
+    """Parse srch-card__affairs-box elements from reputation.su HTML."""
     soup = BeautifulSoup(html, 'lxml')
     cases = []
-    case_num_re = re.compile(r'\d{1,2}[А-Яа-я]{0,3}-\d+/\d{4}')
 
-    # Try common Nuxt/Vue result selectors
-    for selector in ['.case-card', '.search-result', 'article', '.card',
-                     '[class*="case"]', '[class*="result"]']:
-        items = soup.select(selector)
-        if not items or len(items) < 1:
+    cards = soup.select('div.srch-card__affairs-box')
+    if not cards:
+        logger.debug("reputation.su: no srch-card__affairs-box found")
+        return cases
+
+    for card in cards[:20]:
+        # Case number from <h3>
+        h3 = card.select_one('h3')
+        if not h3:
             continue
+        case_number_raw = h3.get_text(strip=True)
+        # Extract clean case number (e.g. "2-63/2017" from "2-63/2017 (2-1163/2016;) ~ М-1229/2016")
+        m = re.match(r'(\d{1,2}[А-Яа-я]{0,3}-\d+/\d{4})', case_number_raw)
+        case_number = m.group(1) if m else case_number_raw
 
-        for item in items[:20]:
-            text = item.get_text(' ', strip=True)
-            m = case_num_re.search(text)
-            if not m:
-                continue
+        # Category -> case_type
+        category = _get_li_value(card, 'Категория').lower()
+        case_type = _CATEGORY_MAP.get(category, '')
 
-            link = item.select_one('a[href*="/sudrf/"]')
-            url = ''
-            if link:
-                href = link.get('href', '')
+        # Date from "Регистрация"
+        date_text = _get_li_value(card, 'Регистрация')
+        date = ''
+        date_m = re.search(r'(\d{2}\.\d{2}\.\d{4})', date_text)
+        if date_m:
+            date = date_m.group(1)
+
+        # Status
+        status = _get_li_value(card, 'Статус')
+
+        # Role
+        role = _detect_role(card, search_name)
+
+        # URL from "Посмотреть дело" link — must be /sudrf/{numeric_id},
+        # NOT /sudrf/participant?... which is a different page
+        url = ''
+        for a in card.select('a[href*="/sudrf/"]'):
+            href = a.get('href', '')
+            if '/participant' not in href:
                 url = f'https://reputation.su{href}' if href.startswith('/') else href
+                break
 
-            case = {
-                'case_number': m.group(0),
-                'court_name': '',
-                'source': 'reputation.su',
-                'url': url,
-            }
-
-            # Try to extract date
-            date_m = re.search(r'(\d{2}\.\d{2}\.\d{4})', text)
-            if date_m:
-                case['date'] = date_m.group(1)
-
-            cases.append(case)
-
-        if cases:
-            break
+        cases.append({
+            'case_number': case_number,
+            'court_name': '',
+            'case_type': case_type,
+            'date': date,
+            'role': role,
+            'status': status,
+            'url': url,
+            'source': 'reputation.su',
+        })
 
     return cases
 
@@ -251,7 +156,8 @@ def search_reputation_su(full_name: str, timeout: int = 20) -> list:
         return []
 
     name = full_name.strip()
-    url = f'https://reputation.su/search?q={quote(name)}'
+    # IMPORTANT: use ``query=`` not ``q=`` — the latter returns unfiltered results
+    url = f'https://reputation.su/search?query={quote(name)}'
     logger.info(f"reputation.su: searching for '{name}'")
 
     try:
@@ -262,15 +168,9 @@ def search_reputation_su(full_name: str, timeout: int = 20) -> list:
             logger.warning(f"reputation.su: unexpected status {resp.status_code}")
             return []
 
-        # Primary: parse __NUXT_DATA__
-        cases = _parse_nuxt_data(resp.text)
-
-        # Fallback: parse SSR HTML
-        if not cases:
-            cases = _parse_html_results(resp.text)
-
+        cases = _parse_cards(resp.text, name)
         logger.info(f"reputation.su: found {len(cases)} cases for '{name}'")
-        return cases[:20]  # Cap at 20
+        return cases
 
     except requests.Timeout:
         logger.warning(f"reputation.su: timeout after {timeout}s for '{name}'")
