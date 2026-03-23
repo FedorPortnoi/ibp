@@ -13,12 +13,57 @@ from flask import (
     Blueprint, request, render_template, redirect,
     url_for, session, flash, current_app, jsonify
 )
+import requests as req
 
 from app import limiter
 
 logger = logging.getLogger('ibp.auth')
 
 auth_bp = Blueprint('auth', __name__)
+
+
+# Russian-speaking country codes
+_RU_COUNTRIES = frozenset((
+    'RU', 'BY', 'KZ', 'UA', 'UZ', 'KG', 'TJ', 'TM', 'AZ', 'AM', 'GE', 'MD',
+))
+
+
+def detect_language():
+    """Detect user language by IP. Returns 'ru' or 'en'."""
+    # Manual override in session takes priority
+    if session.get('lang') in ('ru', 'en'):
+        return session['lang']
+
+    try:
+        ip = request.headers.get('X-Forwarded-For',
+             request.headers.get('X-Real-IP',
+             request.remote_addr)) or ''
+        ip = ip.split(',')[0].strip()
+
+        # Private/localhost → fall back to Accept-Language
+        if ip in ('127.0.0.1', 'localhost', '::1') or \
+           ip.startswith('192.168.') or \
+           ip.startswith('10.') or \
+           ip.startswith('172.'):
+            lang_header = request.headers.get('Accept-Language', '')
+            return 'ru' if 'ru' in lang_header.lower() else 'en'
+
+        r = req.get(
+            f'http://ip-api.com/json/{ip}',
+            params={'fields': 'countryCode'},
+            timeout=2,
+        )
+        if r.status_code == 200:
+            country = r.json().get('countryCode', '')
+            if country in _RU_COUNTRIES:
+                return 'ru'
+            return 'en'
+    except Exception:
+        pass
+
+    # Final fallback: Accept-Language header
+    lang_header = request.headers.get('Accept-Language', '')
+    return 'ru' if 'ru' in lang_header.lower() else 'en'
 
 
 _cached_password_hash = None
@@ -70,6 +115,16 @@ def login_required(f):
     return decorated_function
 
 
+@auth_bp.route('/set-lang/<lang>')
+def set_lang(lang):
+    """Manual language override."""
+    if lang in ('ru', 'en'):
+        session['lang'] = lang
+        session.modified = True
+        session.permanent = True
+    return redirect(url_for('auth.login'))
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 @limiter.limit("10 per minute")
 def login():
@@ -80,6 +135,8 @@ def login():
     if session.get('authenticated'):
         return redirect(url_for('main.dashboard'))
 
+    lang = detect_language()
+
     error = None
     if request.method == 'POST':
         password = request.form.get('password', '')
@@ -87,12 +144,15 @@ def login():
 
         pw_hash = get_password_hash()
         if pw_hash and bcrypt.checkpw(password.encode('utf-8'), pw_hash.encode('utf-8')):
-            # Preserve next_url before clearing session (prevents session fixation)
+            # Preserve next_url and lang before clearing session (prevents session fixation)
             saved_next_url = session.get('next_url')
+            saved_lang = session.get('lang')
             session.clear()
             session['authenticated'] = True
             session['last_active'] = datetime.datetime.utcnow().isoformat()
             session.permanent = True
+            if saved_lang:
+                session['lang'] = saved_lang
 
             if remember:
                 timeout = int(os.environ.get('IBP_SESSION_REMEMBER', 2592000))
@@ -113,10 +173,10 @@ def login():
                     next_url = None
             return redirect(next_url or url_for('phase1.new_investigation'))
         else:
-            error = 'Неверный пароль'
+            error = 'wrong_password'
             logger.warning(f"Failed login attempt from {request.remote_addr}")
 
-    return render_template('login.html', error=error)
+    return render_template('login.html', error=error, lang=lang)
 
 
 @auth_bp.route('/logout')
