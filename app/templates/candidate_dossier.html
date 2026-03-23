@@ -663,12 +663,15 @@
                         <span class="text-accent-bright font-medium">AI:</span> {{ case.ai_summary }}
                     </div>
                 {% endif %}
-                {% if case.get('url') or case.get('source_url') %}
-                    <div class="mt-2">
+                <div class="mt-2 flex items-center gap-3">
+                    {% if case.get('url') or case.get('source_url') %}
                         <a href="{{ case.get('url', case.get('source_url', '')) }}" target="_blank" rel="noopener"
                            class="text-xs text-accent hover:text-accent-bright transition">Источник &#x2197;</a>
-                    </div>
-                {% endif %}
+                    {% endif %}
+                    {% if case.get('source') %}
+                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.05] text-gray-500 border border-white/[0.08]">{{ case.source }}</span>
+                    {% endif %}
+                </div>
             </div>
             {% endfor %}
         {% endif %}

@@ -1,10 +1,12 @@
 """
 Court Record Search - Russian Court Cases
 ==========================================
-Search sudact.ru and arbitration courts for case history.
+Search multiple court databases for case history.
 
-Source status (as of Feb 2026):
+Sources:
 - sudact.ru: JS-rendered, requires Playwright for results
+- судебныерешения.рф: PHP site, session-based search (plain requests)
+- reputation.su: Nuxt 3 SSR, 58M+ cases (plain requests)
 - kad.arbitr.ru: Geo-blocked (HTTP 451) for non-Russian IPs.
   The site uses DDoS Guard with IP-based geo-restriction.
   Even Playwright with full browser sessions returns 451 on the
@@ -12,7 +14,7 @@ Source status (as of Feb 2026):
   Attempts made: session cookies, X-Requested-With, pr_fp cookie,
   Playwright in-page fetch with credentials:include — all blocked.
   Manual fallback URL is provided so users can open it directly.
-- Both provide manual search URL fallbacks
+- All provide manual search URL fallbacks
 """
 
 import logging
@@ -176,8 +178,10 @@ class CourtRecordSearch:
         """
         Search for court cases involving a person.
 
-        Tries Playwright-based sudact.ru scraping first, falls back to
-        basic requests if Playwright unavailable.
+        Sources (in order):
+        1. sudact.ru — Playwright, then basic requests fallback
+        2. судебныерешения.рф — session-based PHP search (plain requests)
+        3. reputation.su — Nuxt 3 SSR search (plain requests)
         """
         results = []
         name = full_name.strip()
@@ -186,7 +190,7 @@ class CourtRecordSearch:
 
         logger.info(f"Court search: starting for '{name}' (Playwright={'available' if PLAYWRIGHT_AVAILABLE else 'unavailable'})")
 
-        # Try sudact.ru with Playwright (JS-rendered)
+        # --- Source 1: sudact.ru (Playwright + basic fallback) ---
         if PLAYWRIGHT_AVAILABLE:
             try:
                 sudact_results = self._search_sudact_playwright(name, limit)
@@ -207,17 +211,202 @@ class CourtRecordSearch:
             except Exception as e:
                 logger.warning(f"Court search: Sudact basic failed with error: {e}")
 
+        # --- Source 2: судебныерешения.рф ---
+        try:
+            sr_results = self._search_sudebnye_resheniya(name, limit)
+            results.extend(sr_results)
+        except Exception as e:
+            logger.warning(f"Court search: судебныерешения.рф failed: {e}")
+
+        # --- Source 3: reputation.su ---
+        try:
+            from app.services.phase3.reputation_su_service import search_reputation_su
+            rep_cases = search_reputation_su(name)
+            for rc in rep_cases:
+                case = CourtCase(
+                    case_number=rc.get('case_number', ''),
+                    court_name=rc.get('court_name', ''),
+                    case_type=rc.get('case_type', ''),
+                    date=rc.get('date', ''),
+                    role=rc.get('role', ''),
+                    url=rc.get('url', ''),
+                    source='reputation.su',
+                    confidence='medium',
+                )
+                if case.case_number:
+                    results.append(case)
+            logger.info(f"Court search: reputation.su returned {len(rep_cases)} cases")
+        except Exception as e:
+            logger.warning(f"Court search: reputation.su failed: {e}")
+
         # Deduplicate by case number
         seen = set()
         unique = []
         for case in results:
-            key = f"{case.case_number}_{case.court_name}"
-            if key not in seen:
+            key = case.case_number
+            if key and key not in seen:
                 seen.add(key)
+                unique.append(case)
+            elif not key:
+                # Keep cases without a number (rare edge case)
                 unique.append(case)
 
         logger.info(f"Court search: total {len(unique)} unique cases for '{name}'")
         return unique[:limit]
+
+    def _search_sudebnye_resheniya(self, name: str, limit: int = 20) -> List[CourtCase]:
+        """Search судебныерешения.рф (xn--90afdbaav0bd1afy6eub5d.xn--p1ai).
+
+        Two-step session flow:
+        1. GET form page -> extract CSRF _token
+        2. POST /simple_filter with person name -> follow redirect to /search
+        3. Parse HTML table results
+        """
+        base = 'https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai'
+        results = []
+
+        try:
+            session = requests.Session()
+            session.headers.update(self.HEADERS)
+
+            # Step 1: GET form page to obtain CSRF token + session cookie
+            logger.info(f"судебныерешения.рф: fetching form page")
+            resp = session.get(base + '/', timeout=self.timeout)
+            if resp.status_code != 200:
+                logger.warning(f"судебныерешения.рф: form page HTTP {resp.status_code}")
+                return results
+
+            # Extract CSRF token
+            token_match = re.search(
+                r'name="simpleSearch\[_token\]"\s+value="([^"]+)"', resp.text
+            )
+            if not token_match:
+                # Try alternative pattern
+                token_match = re.search(r'"_token"\s*:\s*"([^"]+)"', resp.text)
+            if not token_match:
+                logger.warning("судебныерешения.рф: CSRF token not found")
+                return results
+
+            token = token_match.group(1)
+            logger.debug(f"судебныерешения.рф: got CSRF token ({len(token)} chars)")
+
+            # Step 2: POST search with person name
+            form_data = {
+                'simpleSearch[person_info][0][person]': name,
+                'simpleSearch[person_info][0][person_status]': '',
+                'simpleSearch[content]': '',
+                'simpleSearch[case_number]': '',
+                'simpleSearch[case_vid]': '',
+                'simpleSearch[case_stage]': '',
+                'simpleSearch[_token]': token,
+                'simpleSearch[search]': '',
+            }
+
+            logger.info(f"судебныерешения.рф: POSTing search for '{name}'")
+            resp = session.post(
+                base + '/simple_filter',
+                data=form_data,
+                timeout=self.timeout,
+                allow_redirects=True,
+            )
+
+            if resp.status_code != 200:
+                logger.warning(f"судебныерешения.рф: search HTTP {resp.status_code}")
+                return results
+
+            # Step 3: Parse results table
+            soup = BeautifulSoup(resp.text, 'lxml')
+
+            # Count info
+            count_el = soup.select_one('div.count')
+            if count_el:
+                logger.info(f"судебныерешения.рф: {count_el.get_text(strip=True)}")
+
+            # Results are in <table class="table table-bordered">
+            # Each case = 2 <tr>: first has court + case link, second has dates + participants
+            table = soup.select_one('table.table.table-bordered')
+            if not table:
+                # Check for "not found" message
+                page_text = soup.get_text().lower()
+                if 'не найдено' in page_text or 'ничего не найдено' in page_text:
+                    logger.info(f"судебныерешения.рф: no results for '{name}'")
+                else:
+                    logger.debug("судебныерешения.рф: result table not found")
+                return results
+
+            rows = table.select('tr')
+            i = 0
+            while i < len(rows) - 1 and len(results) < limit:
+                try:
+                    row1 = rows[i]
+                    row2 = rows[i + 1] if (i + 1) < len(rows) else None
+
+                    # Row 1: court name (first <td>) + case number link (second <td>)
+                    tds1 = row1.select('td')
+                    if len(tds1) < 2:
+                        i += 1
+                        continue
+
+                    court_name = tds1[0].get_text(strip=True)
+                    link = tds1[1].select_one('a')
+                    if not link:
+                        i += 1
+                        continue
+
+                    case_number_text = link.get_text(strip=True)
+                    href = link.get('href', '')
+                    url = f"{base}{href}" if href.startswith('/') else href
+
+                    # Extract case number
+                    case_match = re.search(
+                        r'(\d{1,2}[А-Яа-я]{0,3}-\d+/\d{4})', case_number_text
+                    )
+                    case_number = case_match.group(1) if case_match else case_number_text
+
+                    # Row 2: dates + participants
+                    date = ''
+                    role = ''
+                    if row2 and not row2.get('class', []) == ['active']:
+                        tds2 = row2.select('td')
+                        if tds2:
+                            date_text = tds2[0].get_text(strip=True)
+                            date_match = re.search(r'(\d{2}\.\d{2}\.\d{4})', date_text)
+                            if date_match:
+                                date = date_match.group(1)
+                        # Check participants for role
+                        if len(tds2) > 1:
+                            part_text = tds2[1].get_text()
+                            role = self._detect_role(part_text, name)
+                        i += 2  # Skip both rows
+                    else:
+                        i += 1
+
+                    case_type = self._detect_case_type(case_number_text + ' ' + court_name)
+
+                    results.append(CourtCase(
+                        case_number=case_number,
+                        court_name=court_name,
+                        case_type=case_type,
+                        date=date,
+                        role=role,
+                        url=url,
+                        source='судебныерешения.рф',
+                        confidence='high',
+                    ))
+                except Exception as e:
+                    logger.debug(f"судебныерешения.рф: parse row error: {e}")
+                    i += 1
+
+            logger.info(f"судебныерешения.рф: parsed {len(results)} cases for '{name}'")
+
+        except requests.Timeout:
+            logger.warning(f"судебныерешения.рф: timeout for '{name}'")
+        except requests.RequestException as e:
+            logger.warning(f"судебныерешения.рф: request failed: {e}")
+        except Exception as e:
+            logger.error(f"судебныерешения.рф: unexpected error: {e}")
+
+        return results
 
     def _search_sudact_playwright(self, name: str, limit: int, max_retries: int = 2) -> List[CourtCase]:
         """Search sudact.ru using Playwright for JS rendering."""
@@ -652,6 +841,16 @@ class CourtRecordSearch:
                     f'Арбитражные (экономические) дела — введите «{name}» в поле «Участники» и нажмите Найти. '
                     'Автоматический поиск недоступен: сайт блокирует запросы с не-российских IP (HTTP 451).'
                 )
+            },
+            {
+                'name': 'Судебные решения РФ (судебныерешения.рф)',
+                'url': f'https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/',
+                'description': 'База судебных решений — 94M+ документов, поиск по ФИО участника'
+            },
+            {
+                'name': 'Reputation.su',
+                'url': f'https://reputation.su/search?q={encoded}',
+                'description': 'Агрегатор судебных дел — 58M+ дел из ГАС Правосудие'
             },
             {
                 'name': 'Портал ГАС Правосудие (sudrf.ru)',
