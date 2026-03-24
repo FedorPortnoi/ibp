@@ -53,6 +53,12 @@ def _safe_filename(name_slug: str) -> str:
     return safe[:100] or 'candidate'
 
 
+@candidate_bp.route('/new')
+def new_check():
+    """Render the candidate check form."""
+    return render_template('candidate_new.html')
+
+
 @candidate_bp.route('/start', methods=['POST'])
 @limiter.limit("10 per minute")
 def start_check():

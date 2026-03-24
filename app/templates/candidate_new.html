@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+{% block title %}Новая проверка — СЛЕД{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto" style="padding: 0 var(--padding-x);">
+
+    <!-- Info Banner -->
+    <div class="mb-8 flex items-start gap-4 bg-bg-panel border border-white/[0.06] rounded-2xl p-5">
+        <div class="w-10 h-10 rounded-xl bg-accent/[0.1] border border-accent/20 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+        </div>
+        <div>
+            <h2 class="text-lg font-normal text-white mb-1 tracking-tight">Проверка кандидата</h2>
+            <p class="text-gray-500 text-sm leading-relaxed">Полная проверка по государственным реестрам, судам, ФССП, санкционным спискам и соцсетям. Чем больше данных вы укажете, тем точнее результат.</p>
+        </div>
+    </div>
+
+    <!-- Candidate Form -->
+    <form id="candidate-form" action="/candidate/start" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div class="search-card">
+            <!-- Row 1: Name + DOB -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div class="md:col-span-2">
+                    <label for="cand_full_name" class="form-label">
+                        Полное имя (ФИО) <span class="text-red-400">*</span>
+                    </label>
+                    <input type="text" id="cand_full_name" name="full_name" required
+                           placeholder="Морозов Андрей Викторович"
+                           class="form-input">
+                </div>
+                <div>
+                    <label for="cand_dob" class="form-label">
+                        Дата рождения <span class="text-red-400">*</span>
+                    </label>
+                    <input type="date" id="cand_dob" name="date_of_birth" required
+                           class="form-input">
+                </div>
+            </div>
+
+            <!-- Row 2: INN + Passport + Region -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label for="cand_inn" class="form-label">
+                        ИНН <span class="text-red-400">*</span>
+                    </label>
+                    <input type="text" id="cand_inn" name="inn" required
+                           placeholder="771234567890" maxlength="12"
+                           pattern="\d{10}(\d{2})?" title="10 или 12 цифр"
+                           class="form-input">
+                    <div id="inn-error" class="text-red-400 text-xs mt-1 hidden"></div>
+                </div>
+                <div>
+                    <label for="cand_passport" class="form-label">
+                        Паспорт <span class="text-gray-600 text-xs">(необязательно)</span>
+                    </label>
+                    <input type="text" id="cand_passport" name="passport"
+                           placeholder="4515 123456"
+                           pattern="\d{4}\s?\d{6}" title="Серия (4 цифры) и номер (6 цифр)"
+                           class="form-input">
+                </div>
+                <div>
+                    <label for="cand_region" class="form-label">
+                        Регион <span class="text-gray-600 text-xs">(необязательно)</span>
+                    </label>
+                    <input type="text" id="cand_region" name="region"
+                           placeholder="Москва"
+                           class="form-input">
+                </div>
+            </div>
+
+            <!-- Row 3: Address (full width) -->
+            <div class="mb-4">
+                <label for="cand_address" class="form-label">
+                    Адрес регистрации <span class="text-gray-600 text-xs">(необязательно)</span>
+                </label>
+                <input type="text" id="cand_address" name="registered_address"
+                       placeholder="г. Москва, ул. Ленина, д. 5, кв. 12"
+                       class="form-input">
+            </div>
+
+            <!-- Row 4: Phone + Email -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="cand_phone" class="form-label">
+                        Телефон <span class="text-gray-600 text-xs">(необязательно)</span>
+                    </label>
+                    <input type="text" id="cand_phone" name="phone"
+                           placeholder="+79001234567"
+                           class="form-input">
+                </div>
+                <div>
+                    <label for="cand_email" class="form-label">
+                        Email <span class="text-gray-600 text-xs">(необязательно)</span>
+                    </label>
+                    <input type="email" id="cand_email" name="email"
+                           placeholder="morozov@mail.ru"
+                           class="form-input">
+                </div>
+            </div>
+
+            <!-- Row 5: Photo Upload -->
+            <div class="mb-6">
+                <label for="cand_photo" class="form-label">
+                    Фото <span class="text-gray-600 text-xs">(необязательно)</span>
+                </label>
+                <input type="file" id="cand_photo" name="photo"
+                       accept="image/png,image/jpeg,image/webp"
+                       class="form-input file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0
+                              file:text-sm file:bg-accent/10 file:text-accent hover:file:bg-accent/20
+                              file:cursor-pointer cursor-pointer text-gray-500 text-sm">
+                <p class="text-xs text-gray-600 mt-1">Загрузите фото для поиска по лицу (Search4Faces)</p>
+            </div>
+
+            <!-- Mode Selector -->
+            <div class="mb-6">
+                <label class="form-label">Режим проверки</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="relative cursor-pointer">
+                        <input type="radio" name="check_mode" value="quick" checked class="sr-only peer">
+                        <div class="p-4 rounded-xl border border-white/[0.06] bg-bg-dark
+                                    peer-checked:border-accent peer-checked:bg-accent/[0.04]
+                                    hover:border-white/[0.12] transition">
+                            <div class="text-sm text-white mb-0.5 font-medium">Быстрый</div>
+                            <div class="text-xs text-gray-600">Автоматический выбор профиля</div>
+                        </div>
+                    </label>
+                    <label class="relative cursor-pointer">
+                        <input type="radio" name="check_mode" value="precise" class="sr-only peer">
+                        <div class="p-4 rounded-xl border border-white/[0.06] bg-bg-dark
+                                    peer-checked:border-accent peer-checked:bg-accent/[0.04]
+                                    hover:border-white/[0.12] transition">
+                            <div class="text-sm text-white mb-0.5 font-medium">Точный</div>
+                            <div class="text-xs text-gray-600">Вы подтверждаете профиль вручную</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Quality Indicator -->
+            <div id="quality-indicator" class="mb-6 px-4 py-3 rounded-lg bg-bg-dark border border-white/[0.06] text-sm text-gray-500">
+                Заполните имя и дату рождения для начала проверки
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="candidate-submit-btn"
+                    class="btn btn-primary btn-xl w-full">
+                Начать проверку
+            </button>
+        </div>
+    </form>
+
+    <!-- History Link -->
+    <div class="mt-6 text-center">
+        <a href="/candidate/history" class="text-sm text-gray-500 hover:text-accent-bright transition">
+            История проверок
+        </a>
+    </div>
+
+    <!-- What Gets Checked -->
+    <div class="mt-4 bg-bg-panel rounded-2xl p-5 border border-white/[0.06]">
+        <div class="mono-label mb-3">Coverage</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> ЕГРЮЛ/ЕГРИП</div>
+            <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> ФССП</div>
+            <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> Суды</div>
+            <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> Банкротство</div>
+            <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> Санкции</div>
+            <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> VK / Telegram</div>
+            <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> Email / Телефон</div>
+            <div class="text-xs text-gray-500"><span class="text-accent mr-1">+</span> Оценка рисков</div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function validateInnChecksum(inn) {
+    if (!inn || !/^\d{10}(\d{2})?$/.test(inn)) return false;
+    const d = inn.split('').map(Number);
+    if (d.length === 10) {
+        const w = [2,4,10,3,5,9,4,6,8];
+        const sum = w.reduce((s, wi, i) => s + wi * d[i], 0);
+        return (sum % 11 % 10) === d[9];
+    }
+    if (d.length === 12) {
+        const w11 = [7,2,4,10,3,5,9,4,6,8];
+        const w12 = [3,7,2,4,10,3,5,9,4,6,8];
+        const s11 = w11.reduce((s, wi, i) => s + wi * d[i], 0);
+        if ((s11 % 11 % 10) !== d[10]) return false;
+        const s12 = w12.reduce((s, wi, i) => s + wi * d[i], 0);
+        return (s12 % 11 % 10) === d[11];
+    }
+    return false;
+}
+
+function updateQualityIndicator() {
+    const name = document.getElementById('cand_full_name').value.trim();
+    const dob = document.getElementById('cand_dob').value;
+    const inn = document.getElementById('cand_inn').value.trim();
+    const passport = document.getElementById('cand_passport').value.trim();
+    const address = document.getElementById('cand_address').value.trim();
+
+    const el = document.getElementById('quality-indicator');
+    const innErr = document.getElementById('inn-error');
+
+    if (inn && inn.length >= 10) {
+        if (!validateInnChecksum(inn)) {
+            innErr.textContent = 'Контрольная сумма ИНН некорректна';
+            innErr.classList.remove('hidden');
+        } else {
+            innErr.classList.add('hidden');
+        }
+    } else {
+        innErr.classList.add('hidden');
+    }
+
+    if (!name || !dob || !inn) {
+        el.textContent = 'Заполните ФИО, дату рождения и ИНН для начала проверки';
+        el.className = 'mb-6 px-4 py-3 rounded-lg bg-bg-dark border border-white/[0.06] text-sm text-gray-500';
+        return;
+    }
+
+    if (inn && passport && address) {
+        el.innerHTML = '<span class="text-green-400 font-medium">Полная проверка</span> \u2014 максимальный охват источников';
+        el.className = 'mb-6 px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/20 text-sm text-gray-300';
+    } else if (inn && passport) {
+        el.innerHTML = '<span class="text-accent-bright font-medium">Расширенная проверка</span> \u2014 ИНН + паспортные данные';
+        el.className = 'mb-6 px-4 py-3 rounded-lg bg-accent/[0.05] border border-white/[0.08] text-sm text-gray-300';
+    } else {
+        el.innerHTML = '<span class="text-accent-bright font-medium">Стандартная проверка</span> \u2014 ФИО + ИНН + дата рождения';
+        el.className = 'mb-6 px-4 py-3 rounded-lg bg-accent/[0.05] border border-white/[0.08] text-sm text-gray-300';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('cand_dob').setAttribute('max', today);
+
+    ['cand_full_name', 'cand_dob', 'cand_inn', 'cand_passport', 'cand_address'].forEach(function(id) {
+        document.getElementById(id).addEventListener('input', updateQualityIndicator);
+    });
+
+    document.getElementById('candidate-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const btn = document.getElementById('candidate-submit-btn');
+        btn.disabled = true;
+        btn.textContent = 'Запуск проверки...';
+
+        try {
+            const fd = new FormData(this);
+            const photoInput = document.getElementById('cand_photo');
+            const hasPhoto = photoInput && photoInput.files && photoInput.files.length > 0;
+
+            let resp;
+            if (hasPhoto) {
+                resp = await fetch('/candidate/start', {
+                    method: 'POST',
+                    body: fd,
+                });
+            } else {
+                const body = Object.fromEntries(fd.entries());
+                delete body.photo;
+                resp = await fetch('/candidate/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body),
+                });
+            }
+
+            const data = await resp.json();
+
+            if (!resp.ok || data.error) {
+                throw new Error(data.error || 'Ошибка запуска проверки');
+            }
+
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            }
+        } catch (err) {
+            alert(err.message);
+            btn.disabled = false;
+            btn.textContent = 'Начать проверку';
+        }
+    });
+});
+</script>
+{% endblock %}

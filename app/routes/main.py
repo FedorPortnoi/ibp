@@ -82,17 +82,17 @@ def health_check():
 
 @main_bp.route('/')
 def index():
-    """Root — authenticated users go to new investigation, others to login."""
+    """Root — authenticated users go to candidate check, others to login."""
     from flask import session as _session
     if _session.get('authenticated'):
-        return redirect(url_for('phase1.new_investigation'))
+        return redirect(url_for('candidate.new_check'))
     return redirect(url_for('auth.login'))
 
 
 @main_bp.route('/dashboard')
 def dashboard():
-    """Dashboard — redirect to new investigation."""
-    return redirect(url_for('phase1.new_investigation'))
+    """Dashboard — redirect to candidate check."""
+    return redirect(url_for('candidate.new_check'))
 
 
 @main_bp.route('/investigations')
