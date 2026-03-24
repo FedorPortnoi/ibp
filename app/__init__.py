@@ -80,30 +80,33 @@ def create_app(config_name=None):
     # Import and register blueprints directly from each file
     from app.routes.auth import auth_bp, is_auth_enabled
     from app.routes.main import main_bp
-    from app.routes.phase1 import phase1_bp
-    from app.routes.phase2 import phase2_bp
-    from app.routes.phase3 import phase3_bp
     from app.routes.report import report_bp
-    from app.routes.phase4 import phase4_bp
     from app.routes.scoring import scoring_bp
     from app.routes.connections import connections_bp
     from app.routes.timeline import timeline_bp
     from app.routes.dossier import dossier_bp
-    from app.routes.api_search import api_search_bp
     from app.routes.candidate_check import candidate_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
-    app.register_blueprint(phase1_bp)
-    app.register_blueprint(phase2_bp)
-    app.register_blueprint(phase3_bp)
     app.register_blueprint(report_bp)
-    app.register_blueprint(phase4_bp)
     app.register_blueprint(scoring_bp)
     app.register_blueprint(connections_bp)
     app.register_blueprint(timeline_bp)
     app.register_blueprint(dossier_bp)
-    app.register_blueprint(api_search_bp)
     app.register_blueprint(candidate_bp)
+
+    # People Search blueprints — only registered when ENABLE_PEOPLE_SEARCH=true
+    if app.config.get('ENABLE_PEOPLE_SEARCH'):
+        from app.routes.phase1 import phase1_bp
+        from app.routes.phase2 import phase2_bp
+        from app.routes.phase3 import phase3_bp
+        from app.routes.phase4 import phase4_bp
+        from app.routes.api_search import api_search_bp
+        app.register_blueprint(phase1_bp)
+        app.register_blueprint(phase2_bp)
+        app.register_blueprint(phase3_bp)
+        app.register_blueprint(phase4_bp)
+        app.register_blueprint(api_search_bp)
 
     # Global auth check — protect ALL routes except login and static files
     @app.before_request

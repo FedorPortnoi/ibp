@@ -109,6 +109,7 @@ def load_env_config(app):
 
     # Derived values
     app.config['DEMO_MODE'] = not app.config.get('VK_SERVICE_TOKEN')
+    app.config['ENABLE_PEOPLE_SEARCH'] = os.environ.get('ENABLE_PEOPLE_SEARCH', 'false').lower() == 'true'
 
     # Database URI (with fallback)
     if not app.config.get('SQLALCHEMY_DATABASE_URI'):
