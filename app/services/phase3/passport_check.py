@@ -76,10 +76,11 @@ def check_passport_mvd(series: str, number: str) -> dict:
                           headers=headers, timeout=15, verify=True)
 
         if r.status_code != 200:
+            logger.info(f"MVD passport check: HTTP {r.status_code}")
             return {
                 'valid': None,
                 'checked': False,
-                'error': f'HTTP {r.status_code}',
+                'error': 'Сервис МВД временно недоступен',
             }
 
         soup = BeautifulSoup(r.text, 'html.parser')
@@ -110,17 +111,13 @@ def check_passport_mvd(series: str, number: str) -> dict:
                 'error': 'Не удалось распознать ответ сервиса',
             }
 
-    except requests.Timeout:
+    except (requests.Timeout, requests.ConnectionError):
+        # MVD passport service is geo-blocked outside Russia — expected
+        logger.info("MVD passport check: service unreachable (geo-blocked or down)")
         return {
             'valid': None,
             'checked': False,
-            'error': 'Таймаут подключения к сервису МВД',
-        }
-    except requests.ConnectionError:
-        return {
-            'valid': None,
-            'checked': False,
-            'error': 'Не удалось подключиться к сервису МВД',
+            'error': 'Сервис МВД временно недоступен',
         }
     except Exception as e:
         logger.warning(f"MVD passport check error: {e}")
