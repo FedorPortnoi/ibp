@@ -1103,46 +1103,148 @@ class BusinessRegistrySearch:
                 )
                 return result
 
-            # Step 3: Parse response
-            # The service may return JSON or HTML depending on CAPTCHA state
+            # Debug: log raw response for troubleshooting
             content_type = check_resp.headers.get('Content-Type', '')
+            logger.info(f"FNS response status: {check_resp.status_code}")
+            logger.info(f"FNS response Content-Type: {content_type}")
+            logger.info(
+                f"FNS response text (first 500): {check_resp.text[:500]}"
+            )
 
+            # Step 3: Parse response — JSON or HTML
             if 'json' in content_type or check_resp.text.strip().startswith('{'):
                 try:
                     data = check_resp.json()
-                    result['checked'] = True
+                    logger.info(f"FNS JSON keys: {list(data.keys())}")
+                    logger.info(f"FNS JSON data: {data}")
 
-                    # Common response patterns:
-                    # {"code": 0, "message": "Задолженность не обнаружена"}
-                    # {"code": 1, "message": "Обнаружена задолженность", "debt": ...}
-                    # {"captchaRequired": true}
-                    if data.get('captchaRequired'):
+                    # CAPTCHA check (multiple field name variants)
+                    captcha_val = (
+                        data.get('captchaRequired')
+                        or data.get('CAPTCHA_REQUIRED')
+                    )
+                    captcha_text = str(
+                        data.get('CAPTCHA', data.get('captcha', ''))
+                    )
+                    if captcha_val or captcha_text.lower() in ('true', '1'):
                         result['checked'] = False
                         result['error'] = 'Требуется CAPTCHA'
                         result['details'] = 'Повторите проверку вручную'
                         return result
 
-                    code = data.get('code')
-                    message = data.get('message', '')
+                    result['checked'] = True
 
-                    if code == 0 or 'не обнаружен' in message.lower():
-                        result['has_debt'] = False
-                        result['details'] = 'Задолженность по налогам не обнаружена'
-                    elif code == 1 or 'обнаружен' in message.lower():
-                        result['has_debt'] = True
-                        debt_amount = data.get('debt', data.get('sum', ''))
-                        if debt_amount:
-                            result['details'] = (
-                                f'Обнаружена задолженность: {debt_amount}'
+                    # Parse errors field
+                    errors = str(data.get('ERRORS', data.get('errors', '')))
+                    if errors and errors.lower() not in ('', 'none'):
+                        result['error'] = errors
+                        result['details'] = errors
+                        logger.warning(f"FNS tax debt: service error: {errors}")
+                        return result
+
+                    # ФНС zd-json.do response format:
+                    # {"ERRORS":"","CAPTCHA":"","COMPLETED":true,
+                    #  "TOTAL":0, "RECORDS":[...]}
+                    # RECORDS is a list of debt entries; empty = no debt
+                    records = data.get('RECORDS', data.get('records', None))
+                    total = data.get('TOTAL', data.get('total', None))
+
+                    if records is not None or total is not None:
+                        # FNS standard format with RECORDS/TOTAL
+                        if records is not None:
+                            has_records = (
+                                len(records) > 0
+                                if isinstance(records, list)
+                                else bool(records)
                             )
                         else:
-                            result['details'] = 'Обнаружена задолженность по налогам'
+                            has_records = (
+                                total is not None and int(total) > 0
+                            )
+
+                        if has_records:
+                            result['has_debt'] = True
+                            if isinstance(records, list) and records:
+                                # Extract debt amounts from records
+                                debts = []
+                                for rec in records:
+                                    amt = rec.get(
+                                        'DEBT', rec.get(
+                                            'debt', rec.get(
+                                                'SUM', rec.get('sum', '')
+                                            )
+                                        )
+                                    )
+                                    if amt:
+                                        debts.append(str(amt))
+                                if debts:
+                                    result['details'] = (
+                                        f'Обнаружена задолженность: '
+                                        f'{", ".join(debts)} руб.'
+                                    )
+                                else:
+                                    result['details'] = (
+                                        'Обнаружена задолженность по налогам'
+                                    )
+                                result['raw_text'] = str(records)[:500]
+                            else:
+                                result['details'] = (
+                                    'Обнаружена задолженность по налогам'
+                                )
+                        else:
+                            result['has_debt'] = False
+                            result['details'] = (
+                                'Задолженность по налогам не обнаружена'
+                            )
                     else:
-                        # Unexpected code — report raw message
-                        result['details'] = message or f'Код ответа: {code}'
+                        # Legacy format: code/message fields
+                        code = data.get('code')
+                        message = data.get('message', '')
+
+                        if code == 0 or 'не обнаружен' in message.lower():
+                            result['has_debt'] = False
+                            result['details'] = (
+                                'Задолженность по налогам не обнаружена'
+                            )
+                        elif code == 1 or 'обнаружен' in message.lower():
+                            result['has_debt'] = True
+                            debt_amount = data.get(
+                                'debt', data.get('sum', '')
+                            )
+                            if debt_amount:
+                                result['details'] = (
+                                    f'Обнаружена задолженность: {debt_amount}'
+                                )
+                            else:
+                                result['details'] = (
+                                    'Обнаружена задолженность по налогам'
+                                )
+                        else:
+                            # Check full JSON text for debt keywords
+                            json_text = str(data).lower()
+                            if ('не имеет' in json_text
+                                    or 'отсутствует' in json_text
+                                    or 'не обнаружен' in json_text):
+                                result['has_debt'] = False
+                                result['details'] = (
+                                    'Задолженность по налогам не обнаружена'
+                                )
+                            elif ('задолженность' in json_text
+                                    and ('имеет' in json_text
+                                         or 'обнаружен' in json_text)):
+                                result['has_debt'] = True
+                                result['details'] = (
+                                    'Обнаружена задолженность по налогам'
+                                )
+                            else:
+                                result['details'] = (
+                                    message
+                                    or f'Код ответа: {code}'
+                                )
 
                     logger.info(
-                        f"FNS tax debt: checked=True, has_debt={result['has_debt']}, "
+                        f"FNS tax debt: checked=True, "
+                        f"has_debt={result['has_debt']}, "
                         f"details='{result['details']}'"
                     )
                     return result
@@ -1157,15 +1259,26 @@ class BusinessRegistrySearch:
                 result['checked'] = True
 
                 page_text = soup.get_text(separator=' ', strip=True).lower()
+                logger.info(
+                    f"FNS parsed text (first 300): {page_text[:300]}"
+                )
 
-                if 'не обнаружен' in page_text:
+                if ('не обнаружен' in page_text
+                        or 'не имеет' in page_text
+                        or 'отсутствует' in page_text):
                     result['has_debt'] = False
-                    result['details'] = 'Задолженность по налогам не обнаружена'
+                    result['details'] = (
+                        'Задолженность по налогам не обнаружена'
+                    )
                 elif 'задолженность' in page_text and (
-                    'обнаружен' in page_text or 'имеется' in page_text
+                    'обнаружен' in page_text
+                    or 'имеется' in page_text
+                    or 'имеет' in page_text
                 ):
                     result['has_debt'] = True
-                    result['details'] = 'Обнаружена задолженность по налогам'
+                    result['details'] = (
+                        'Обнаружена задолженность по налогам'
+                    )
                 elif 'captcha' in page_text or 'капча' in page_text:
                     result['checked'] = False
                     result['has_debt'] = None
@@ -1177,6 +1290,7 @@ class BusinessRegistrySearch:
                         'Результат проверки неоднозначен — '
                         'рекомендуется ручная проверка на service.nalog.ru'
                     )
+                    result['raw_text'] = page_text[:500]
 
                 logger.info(
                     f"FNS tax debt (HTML): checked={result['checked']}, "
