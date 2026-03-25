@@ -9,8 +9,8 @@
 @keyframes pulse-scale { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
 
 @keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(59, 79, 240, 0.2); }
-  50% { box-shadow: 0 0 40px rgba(59, 79, 240, 0.4); }
+  0%, 100% { box-shadow: 0 0 20px rgba(212, 162, 127, 0.2); }
+  50% { box-shadow: 0 0 40px rgba(212, 162, 127, 0.4); }
 }
 
 @keyframes fadeIn {
@@ -54,8 +54,8 @@
 }
 
 @keyframes borderGlow {
-  0%, 100% { border-color: rgba(59, 79, 240, 0.1); }
-  50% { border-color: rgba(59, 79, 240, 0.3); }
+  0%, 100% { border-color: rgba(212, 162, 127, 0.1); }
+  50% { border-color: rgba(212, 162, 127, 0.3); }
 }
 
 @keyframes gradientShift {

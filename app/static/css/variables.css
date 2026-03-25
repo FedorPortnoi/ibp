@@ -1,34 +1,34 @@
 /* =============================================================================
    СЛЕД Design System — Variables
-   Inspired by lusion.co: monochrome foundation, single accent, generous space
+   Claude.ai-inspired: warm monochrome foundation, terracotta accent
    ============================================================================= */
 
 :root {
   /* -------------------------------------------------------------------------
-     Backgrounds — near-black with cool undertone
+     Backgrounds — warm near-black
      ------------------------------------------------------------------------- */
-  --bg-deep: #050508;
-  --bg-dark: #0a0a0f;
-  --bg-panel: #111118;
-  --bg-panel-hover: #18181f;
-  --bg-elevated: #1e1e28;
+  --bg-deep: #1A1A1A;
+  --bg-dark: #1C1C1C;
+  --bg-panel: #262626;
+  --bg-panel-hover: #2F2F2F;
+  --bg-elevated: #333333;
 
   /* -------------------------------------------------------------------------
-     Primary Accent — vibrant blue (lusion-inspired)
+     Primary Accent — warm terracotta (Claude.ai-inspired)
      ------------------------------------------------------------------------- */
-  --accent: #3b4ff0;
-  --accent-dim: #2a3cd4;
-  --accent-bright: #6b7cf5;
-  --accent-subtle: rgba(59, 79, 240, 0.08);
-  --accent-muted: rgba(59, 79, 240, 0.15);
+  --accent: #D4A27F;
+  --accent-dim: #A67C5B;
+  --accent-bright: #E8B896;
+  --accent-subtle: rgba(212, 162, 127, 0.08);
+  --accent-muted: rgba(212, 162, 127, 0.15);
 
   /* -------------------------------------------------------------------------
      Semantic Colors
      ------------------------------------------------------------------------- */
-  --success: #34d399;
-  --warning: #fbbf24;
-  --error: #f87171;
-  --info: #60a5fa;
+  --success: #5C9E6E;
+  --warning: #C4883A;
+  --error: #B85C5C;
+  --info: #5C7FA3;
 
   /* Legacy violet aliases for backward compat */
   --violet: var(--accent);
@@ -36,27 +36,27 @@
   --violet-bright: var(--accent-bright);
 
   /* -------------------------------------------------------------------------
-     Text — off-white hierarchy
+     Text — warm off-white hierarchy
      ------------------------------------------------------------------------- */
-  --text-primary: #f0f1fa;
-  --text-secondary: #8b8d9e;
-  --text-dim: #55566a;
-  --text-muted: #3a3b4a;
+  --text-primary: #ECECEC;
+  --text-secondary: #9B9B9B;
+  --text-dim: #6B6B6B;
+  --text-muted: #4A4A4A;
 
   /* -------------------------------------------------------------------------
-     Borders — barely visible
+     Borders — warm subtle
      ------------------------------------------------------------------------- */
   --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.10);
+  --border-default: #383838;
   --border-bright: rgba(255, 255, 255, 0.18);
 
   /* -------------------------------------------------------------------------
      Shadows & Glows
      ------------------------------------------------------------------------- */
-  --glow-accent: 0 0 30px rgba(59, 79, 240, 0.25);
-  --glow-accent-intense: 0 0 50px rgba(59, 79, 240, 0.35);
-  --glow-success: 0 0 20px rgba(52, 211, 153, 0.25);
-  --glow-error: 0 0 20px rgba(248, 113, 113, 0.25);
+  --glow-accent: 0 0 30px rgba(212, 162, 127, 0.25);
+  --glow-accent-intense: 0 0 50px rgba(212, 162, 127, 0.35);
+  --glow-success: 0 0 20px rgba(92, 158, 110, 0.25);
+  --glow-error: 0 0 20px rgba(184, 92, 92, 0.25);
 
   /* Legacy aliases */
   --glow-violet: var(--glow-accent);

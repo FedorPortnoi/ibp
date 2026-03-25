@@ -180,7 +180,7 @@
                         </div>
                         <span class="flex-shrink-0 ml-2 px-2 py-1 rounded text-xs font-medium
                             {% if record.role in ['director', 'Директор'] %}bg-green-500/20 text-green-400
-                            {% elif record.role in ['founder', 'Учредитель'] %}bg-purple-500/20 text-purple-400
+                            {% elif record.role in ['founder', 'Учредитель'] %}bg-[#3A2E1A] text-[#D4A27F]
                             {% elif record.role == 'ИП' %}bg-blue-500/20 text-blue-400
                             {% else %}bg-gray-500/20 text-gray-400{% endif %}">
                             {{ record.role_display }}

@@ -53,7 +53,7 @@
         font-size: 0.6875rem;
         font-weight: 600;
     }
-    .badge-count { background: rgba(59, 79, 240, 0.2); color: var(--accent-bright); }
+    .badge-count { background: rgba(212, 162, 127, 0.2); color: var(--accent-bright); }
     .badge-empty { background: rgba(100, 116, 139, 0.15); color: var(--text-dim); }
 
     /* Status badges */
@@ -275,7 +275,7 @@
        1b. EXECUTIVE SUMMARY (AI)
        ================================================================ #}
     {% if check.executive_summary %}
-    <div class="dossier-card mb-6" style="border-left: 3px solid rgba(59, 79, 240, 0.6);">
+    <div class="dossier-card mb-6" style="border-left: 3px solid rgba(212, 162, 127, 0.6);">
         <div class="flex items-center gap-2 mb-2">
             <span class="text-sm font-semibold text-accent-bright">AI Executive Summary</span>
             <span class="text-xs px-2 py-0.5 rounded-full bg-accent/[0.1] text-accent-bright border border-accent/[0.2]">Claude</span>
@@ -313,7 +313,7 @@
         <p class="text-sm text-gray-300 mb-3">{{ rc.desc }}</p>
 
         {% if check.risk_narrative %}
-        <div class="rounded-lg p-3 mb-3" style="background: rgba(59, 79, 240, 0.06); border: 1px solid rgba(59, 79, 240, 0.15);">
+        <div class="rounded-lg p-3 mb-3" style="background: rgba(212, 162, 127, 0.06); border: 1px solid rgba(212, 162, 127, 0.15);">
             <div class="flex items-center gap-1.5 mb-1">
                 <span class="text-xs font-medium text-accent-bright">AI Risk Narrative</span>
             </div>
@@ -607,7 +607,7 @@
     </section>
 
     {# ================================================================
-       5. COURTS SECTION
+       5. COURTS SECTION (with confidence badges)
        ================================================================ #}
     <section id="sec-courts" class="mb-10">
         <div class="section-header">
@@ -622,8 +622,45 @@
         {% elif court_records|length == 0 %}
             <div class="empty-state good">Судебных дел не найдено</div>
         {% else %}
+            {# Confidence summary #}
+            {% set verified_count = court_records | selectattr('confidence', 'defined') | selectattr('confidence', 'equalto', 'VERIFIED') | list | length %}
+            {% set likely_count = court_records | selectattr('confidence', 'defined') | selectattr('confidence', 'equalto', 'LIKELY') | list | length %}
+            {% set possible_count = court_records | selectattr('confidence', 'defined') | selectattr('confidence', 'equalto', 'POSSIBLE') | list | length %}
+            {% set unverified_count = court_records | selectattr('confidence', 'defined') | selectattr('confidence', 'equalto', 'UNVERIFIED') | list | length %}
+            {% set has_confidence = (verified_count + likely_count + possible_count + unverified_count) > 0 %}
+
+            {% if has_confidence %}
+            <div class="confidence-summary mb-4 p-3 rounded-lg text-sm" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);">
+                <span class="font-medium text-gray-300">Всего: {{ court_records|length }}</span>
+                {% if verified_count > 0 %}
+                    <span class="conf-badge conf-verified ml-2">Подтверждено: {{ verified_count }}</span>
+                {% endif %}
+                {% if likely_count > 0 %}
+                    <span class="conf-badge conf-likely ml-2">Вероятно: {{ likely_count }}</span>
+                {% endif %}
+                {% if possible_count > 0 %}
+                    <span class="conf-badge conf-possible ml-2">Возможно: {{ possible_count }}</span>
+                {% endif %}
+                {% if unverified_count > 0 %}
+                    <span class="conf-badge conf-unverified ml-2">Не подтверждено: {{ unverified_count }}</span>
+                {% endif %}
+            </div>
+
+            {% if unverified_count > 0 %}
+            <div class="mb-3 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+                {{ unverified_count }} {{ 'дело найдено' if unverified_count == 1 else 'дел найдено' }} только по имени — {{ 'может принадлежать' if unverified_count == 1 else 'могут принадлежать' }} однофамильцам.
+                Требуется ручная проверка.
+            </div>
+            {% endif %}
+            {% endif %}
+
             {% for case in court_records %}
-            <div class="dossier-card">
+            <div class="dossier-card {% if case.get('confidence') == 'VERIFIED' %}border-l-2{% elif case.get('confidence') == 'LIKELY' %}border-l-2{% elif case.get('confidence') == 'POSSIBLE' %}border-l-2{% elif case.get('confidence') == 'UNVERIFIED' %}border-l-2 opacity-70{% endif %}"
+                 {% if case.get('confidence') == 'VERIFIED' %}style="border-left-color: #22c55e;"
+                 {% elif case.get('confidence') == 'LIKELY' %}style="border-left-color: #eab308;"
+                 {% elif case.get('confidence') == 'POSSIBLE' %}style="border-left-color: #f97316;"
+                 {% elif case.get('confidence') == 'UNVERIFIED' %}style="border-left-color: #6b7280;"
+                 {% endif %}>
                 <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
                     <div class="font-semibold text-white text-sm">
                         {% if case.get('case_number') %}{{ case.case_number }} &mdash; {% endif %}
@@ -632,6 +669,16 @@
                     {% set cat = case.get('category', case.get('article', ''))|lower %}
                     {% set role_val = case.get('role', '')|lower %}
                     <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+                        {# Confidence badge #}
+                        {% if case.get('confidence') == 'VERIFIED' %}
+                            <span class="conf-badge conf-verified">VERIFIED</span>
+                        {% elif case.get('confidence') == 'LIKELY' %}
+                            <span class="conf-badge conf-likely">LIKELY</span>
+                        {% elif case.get('confidence') == 'POSSIBLE' %}
+                            <span class="conf-badge conf-possible">POSSIBLE</span>
+                        {% elif case.get('confidence') == 'UNVERIFIED' %}
+                            <span class="conf-badge conf-unverified">UNVERIFIED</span>
+                        {% endif %}
                         {% if 'уголов' in cat %}
                             <span class="status-badge badge-red shrink-0">&#x1F534; Уголовное</span>
                         {% endif %}
@@ -657,9 +704,12 @@
                     {% if case.get('status') %}
                         <div><span class="text-gray-600">Статус:</span> {{ case.status }}</div>
                     {% endif %}
+                    {% if case.get('confidence') == 'VERIFIED' and case.get('verification_method') %}
+                        <div><span class="text-gray-600">Верификация:</span> <span class="text-green-400">{{ case.verification_method }}</span></div>
+                    {% endif %}
                 </div>
                 {% if case.get('ai_summary') %}
-                    <div class="mt-2 p-2 rounded text-xs text-gray-300 leading-relaxed" style="background: rgba(59, 79, 240, 0.05); border: 1px solid var(--accent-subtle);">
+                    <div class="mt-2 p-2 rounded text-xs text-gray-300 leading-relaxed" style="background: rgba(212, 162, 127, 0.05); border: 1px solid var(--accent-subtle);">
                         <span class="text-accent-bright font-medium">AI:</span> {{ case.ai_summary }}
                     </div>
                 {% endif %}
@@ -1405,7 +1455,7 @@
         </div>
 
         {% if check.behavioral_summary %}
-        <div class="dossier-card mb-3" style="border-left: 3px solid rgba(59, 79, 240, 0.6);">
+        <div class="dossier-card mb-3" style="border-left: 3px solid rgba(212, 162, 127, 0.6);">
             <div class="flex items-center gap-2 mb-2">
                 <span class="text-sm font-semibold text-accent-bright">AI Behavioral Profile</span>
                 <span class="text-xs px-2 py-0.5 rounded-full bg-accent/[0.1] text-accent-bright border border-accent/[0.2]">Claude</span>
@@ -1776,7 +1826,7 @@
                 return {
                     from: e.from,
                     to: e.to,
-                    color: {color: 'rgba(59,79,240,0.3)', highlight: 'var(--accent)'},
+                    color: {color: 'rgba(212, 162, 127,0.3)', highlight: 'var(--accent)'},
                 };
             }));
             var options = {

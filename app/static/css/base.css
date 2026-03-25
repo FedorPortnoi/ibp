@@ -44,7 +44,7 @@ body::before {
 * { scrollbar-width: thin; scrollbar-color: var(--text-muted) transparent; }
 
 /* Selection */
-::selection { background: rgba(59, 79, 240, 0.25); color: var(--text-primary); }
+::selection { background: rgba(212, 162, 127, 0.25); color: var(--text-primary); }
 
 /* Typography — light weights, size for hierarchy */
 h1, h2, h3, h4, h5, h6 {

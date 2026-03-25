@@ -6,14 +6,14 @@
 <style>
     #connections-graph {
         height: 600px;
-        border: 1px solid rgba(59, 79, 240, 0.2);
+        border: 1px solid rgba(212, 162, 127, 0.2);
         border-radius: 16px;
         background: linear-gradient(135deg, rgba(3, 0, 20, 0.95) 0%, rgba(17, 10, 31, 0.95) 100%);
     }
 
     .side-panel {
         background: rgba(17, 10, 31, 0.9);
-        border: 1px solid rgba(59, 79, 240, 0.2);
+        border: 1px solid rgba(212, 162, 127, 0.2);
         border-radius: 12px;
         padding: 16px;
     }
@@ -28,12 +28,12 @@
         cursor: pointer;
     }
     .inv-checkbox-item:hover {
-        background: rgba(59, 79, 240, 0.1);
+        background: rgba(212, 162, 127, 0.1);
     }
 
     .edge-detail-card {
-        background: rgba(59, 79, 240, 0.05);
-        border: 1px solid rgba(59, 79, 240, 0.15);
+        background: rgba(212, 162, 127, 0.05);
+        border: 1px solid rgba(212, 162, 127, 0.15);
         border-radius: 10px;
         padding: 12px;
         margin-bottom: 8px;
@@ -51,7 +51,7 @@
 
     .controls-bar {
         background: rgba(17, 10, 31, 0.9);
-        border: 1px solid rgba(59, 79, 240, 0.2);
+        border: 1px solid rgba(212, 162, 127, 0.2);
         border-radius: 12px;
         padding: 12px 16px;
     }
@@ -69,13 +69,13 @@
         font-size: 0.75rem;
         cursor: pointer;
         transition: all 0.15s;
-        border: 1px solid rgba(59, 79, 240, 0.2);
+        border: 1px solid rgba(212, 162, 127, 0.2);
         background: transparent;
         color: #94a3b8;
     }
     .filter-chip:hover, .filter-chip.active {
-        background: rgba(59, 79, 240, 0.2);
-        border-color: #3b4ff0;
+        background: rgba(212, 162, 127, 0.2);
+        border-color: #D4A27F;
         color: #ffffff;
     }
 </style>
@@ -191,11 +191,11 @@
                         <span class="text-sm text-gray-400">Один работодатель</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="legend-line" style="background: #3b4ff0;"></span>
+                        <span class="legend-line" style="background: #E8B896;"></span>
                         <span class="text-sm text-gray-400">Друг друга</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="legend-line" style="background: #a855f7;"></span>
+                        <span class="legend-line" style="background: #D4A27F;"></span>
                         <span class="text-sm text-gray-400">Общая группа</span>
                     </div>
                     <div class="flex items-center gap-2">
@@ -334,7 +334,7 @@ function renderGraph(container, nodes, edges) {
             borderWidth: 3,
             shadow: {
                 enabled: true,
-                color: 'rgba(59, 79, 240, 0.3)',
+                color: 'rgba(212, 162, 127, 0.3)',
                 size: 12
             }
         },
@@ -559,8 +559,8 @@ function getTypeColor(type) {
         'shared_contact': '#ef4444',
         'mutual_friend': '#3b82f6',
         'same_employer': '#22c55e',
-        'friend_of_friend': '#3b4ff0',
-        'same_group': '#a855f7',
+        'friend_of_friend': '#E8B896',
+        'same_group': '#D4A27F',
         'same_city_age': '#f59e0b'
     };
     return colors[type] || '#64748b';
