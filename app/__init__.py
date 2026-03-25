@@ -24,8 +24,9 @@ migrate = Migrate()
 csrf = CSRFProtect()
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["120 per minute"],
+    default_limits=["200 per day", "50 per hour"],
     storage_uri="memory://",
+    strategy="fixed-window-elastic-expiry",
 )
 
 logger = logging.getLogger('ibp')
@@ -43,7 +44,9 @@ def create_app(config_name=None):
 
     app = Flask(__name__)
 
-    # Trust X-Forwarded-For from nginx reverse proxy (1 proxy hop)
+    # Trust X-Forwarded-For from nginx reverse proxy (1 proxy hop).
+    # MUST be applied BEFORE limiter.init_app() so that get_remote_address()
+    # returns the real client IP instead of 127.0.0.1 from nginx.
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # Ensure JSON responses contain proper UTF-8 Cyrillic (not Unicode escapes)
@@ -76,6 +79,10 @@ def create_app(config_name=None):
     migrate.init_app(app, db)
     csrf.init_app(app)
     limiter.init_app(app)
+
+    # DoS/DDoS protection middleware (Layer 3 — behavioral analysis)
+    from app.middleware.dos_protection import init_dos_protection
+    init_dos_protection(app)
 
     # Create required directories
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -224,8 +231,12 @@ def create_app(config_name=None):
 
     @app.errorhandler(429)
     def ratelimit_handler(e):
+        retry_after = int(getattr(e, 'retry_after', 60) or 60)
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'error': 'Слишком много запросов. Попробуйте позже.'}), 429
+            return jsonify({
+                'error': 'Слишком много запросов. Попробуйте позже.',
+                'retry_after': retry_after,
+            }), 429
         return render_template('errors/500.html'), 429
 
     # Create database tables
