@@ -78,7 +78,7 @@ def create_app(config_name=None):
     os.makedirs(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'reports'), exist_ok=True)
 
     # Import and register blueprints directly from each file
-    from app.routes.auth import auth_bp, is_auth_enabled
+    from app.routes.auth import auth_bp
     from app.routes.main import main_bp
     from app.routes.report import report_bp
     from app.routes.scoring import scoring_bp
@@ -108,13 +108,13 @@ def create_app(config_name=None):
         app.register_blueprint(phase4_bp)
         app.register_blueprint(api_search_bp)
 
-    # Global auth check — protect ALL routes except login and static files
+    # Global auth check — protect ALL routes except login, register, and static files
     @app.before_request
     def check_auth():
-        if not is_auth_enabled():
-            return
-
-        allowed_endpoints = {'auth.login', 'auth.logout', 'auth.set_lang', 'static', 'main.health_check'}
+        allowed_endpoints = {
+            'auth.login', 'auth.logout', 'auth.register',
+            'auth.set_lang', 'static', 'main.health_check',
+        }
         if request.endpoint and (
             request.endpoint in allowed_endpoints or
             request.endpoint.startswith('static')
@@ -124,7 +124,7 @@ def create_app(config_name=None):
         if request.path.endswith('favicon.ico'):
             return
 
-        if not session.get('authenticated'):
+        if not session.get('user_id'):
             if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'error': 'Требуется авторизация', 'redirect': '/login'}), 401
             if 'favicon' not in request.path and not request.path.startswith('/static'):
@@ -137,7 +137,6 @@ def create_app(config_name=None):
         if last_active:
             try:
                 last_dt = _dt.datetime.fromisoformat(last_active)
-                # Ensure timezone-aware comparison
                 if last_dt.tzinfo is None:
                     last_dt = last_dt.replace(tzinfo=_dt.timezone.utc)
                 idle_limit = int(os.environ.get('IBP_SESSION_TIMEOUT', 3600))
@@ -149,6 +148,12 @@ def create_app(config_name=None):
             except (ValueError, TypeError):
                 pass
         session['last_active'] = _dt.datetime.now(_dt.timezone.utc).isoformat()
+
+    # Inject current_user into all templates
+    @app.context_processor
+    def inject_user():
+        from app.routes.auth import get_current_user
+        return {'current_user': get_current_user()}
 
     # Security headers on all responses
     @app.after_request
@@ -213,6 +218,8 @@ def _migrate_task_columns(db_instance):
         ('risk_score', 'INTEGER'),
         # Pledge registry (March 2026)
         ('pledge_records', 'TEXT'),
+        # Multi-user (March 2026)
+        ('user_id', 'INTEGER'),
     ]
     for col_name, col_type in columns:
         try:

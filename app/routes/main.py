@@ -84,8 +84,7 @@ def health_check():
 def index():
     """Root — authenticated users go to new check form, others to login."""
     from flask import session as _session
-    from app.routes.auth import is_auth_enabled
-    if not is_auth_enabled() or _session.get('authenticated'):
+    if _session.get('user_id'):
         return redirect(url_for('candidate.new_check'))
     return redirect(url_for('auth.login'))
 

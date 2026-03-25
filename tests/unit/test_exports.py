@@ -63,7 +63,9 @@ def client(app):
     """Flask test client with authenticated session."""
     with app.test_client() as c:
         with c.session_transaction() as sess:
-            sess['authenticated'] = True
+            sess['user_id'] = 1
+            sess['username'] = 'test'
+            sess['role'] = 'admin'
             sess['last_active'] = datetime.datetime.now(
                 datetime.timezone.utc
             ).isoformat()

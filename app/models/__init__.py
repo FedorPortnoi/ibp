@@ -19,6 +19,7 @@ from app.models.friend import Friend
 from app.models.business_record import BusinessRecord
 from app.models.court_record import CourtRecord
 from app.models.candidate_check import CandidateCheck
+from app.models.user import User
 
 __all__ = [
     'Investigation',
@@ -28,4 +29,5 @@ __all__ = [
     'BusinessRecord',
     'CourtRecord',
     'CandidateCheck',
+    'User',
 ]

@@ -54,6 +54,9 @@ class CandidateCheck(db.Model):
     check_mode = db.Column(db.String(20), default='quick')  # 'quick' or 'precise'
     paused_at_stage = db.Column(db.String(50), nullable=True)  # 'awaiting_confirmation' or None
 
+    # --- User ownership ---
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
+
     # --- Investigation Link ---
     investigation_id = db.Column(db.String(36), db.ForeignKey('investigations.id'), nullable=True)
 

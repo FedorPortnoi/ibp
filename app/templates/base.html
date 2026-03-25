@@ -110,7 +110,7 @@
                 </a>
 
                 <!-- Nav Links (desktop) -->
-                {% if session.get('authenticated') %}
+                {% if session.get('user_id') %}
                 <div class="hidden md:flex items-center gap-1">
                     {% if config.get('ENABLE_PEOPLE_SEARCH') %}
                     <a href="{{ url_for('phase1.new_investigation') }}" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-pill {% if request.endpoint == 'phase1.new_investigation' %}text-white{% endif %}">
@@ -132,7 +132,13 @@
                     <span id="vk-status" class="text-xs cursor-pointer font-mono text-gray-500" title="VK API status">
                         <span class="inline-block w-1.5 h-1.5 rounded-full bg-gray-600 mr-1"></span>VK
                     </span>
-                    {% if session.get('authenticated') %}
+                    {% if session.get('user_id') %}
+                    <span class="text-xs text-gray-500 font-mono tracking-wider">
+                        {{ session.get('username', '') }}
+                        {% if session.get('role') == 'admin' %}
+                        <span class="text-[#D4A27F] text-[9px] ml-1">ADMIN</span>
+                        {% endif %}
+                    </span>
                     <a href="/logout" title="Выход" class="text-xs text-gray-500 hover:text-gray-300 transition-colors font-mono uppercase tracking-wider">
                         Выход
                     </a>
@@ -153,7 +159,7 @@
     <!-- Mobile menu overlay -->
     <div id="mobile-menu" class="fixed inset-0 z-40 hidden" style="background: rgba(5,5,8,0.95); backdrop-filter: blur(20px);">
         <div class="flex flex-col items-center justify-center h-full gap-6">
-            {% if session.get('authenticated') %}
+            {% if session.get('user_id') %}
             {% if config.get('ENABLE_PEOPLE_SEARCH') %}
             <a href="{{ url_for('phase1.new_investigation') }}" class="text-2xl text-white hover:text-accent-bright transition-colors">Новый поиск</a>
             {% endif %}

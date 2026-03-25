@@ -12,7 +12,7 @@ import threading
 import logging
 from datetime import datetime, date
 
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, current_app, make_response
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, current_app, make_response, abort
 from werkzeug.utils import secure_filename
 
 from app import db, limiter
@@ -165,6 +165,10 @@ def start_check():
             photo_path = os.path.join(photo_dir, f"{check_id}_{filename}")
             photo.save(photo_path)
 
+    # Get current user for ownership
+    from app.routes.auth import get_current_user
+    current_user = get_current_user()
+
     check = CandidateCheck(
         id=check_id,
         full_name=full_name,
@@ -181,6 +185,7 @@ def start_check():
         check_mode=check_mode,
         task_id=task_id,
         task_started_at=datetime.utcnow(),
+        user_id=current_user.id if current_user else None,
     )
     db.session.add(check)
     db.session.commit()
@@ -347,6 +352,12 @@ def dossier_page(check_id):
     if not check:
         return render_template('errors/404.html'), 404
 
+    # Access control: owner or admin
+    from app.routes.auth import get_current_user
+    user = get_current_user()
+    if user and not user.is_admin and check.user_id != user.id:
+        abort(403)
+
     # If still running, redirect to progress page
     if check.status in ('pending', 'running', 'awaiting_confirmation'):
         if check.status == 'awaiting_confirmation':
@@ -399,8 +410,17 @@ def dossier_page(check_id):
 
 @candidate_bp.route('/history')
 def history():
-    """List past candidate checks."""
-    checks = CandidateCheck.query.order_by(CandidateCheck.created_at.desc()).all()
+    """List past candidate checks — admin sees all, users see own."""
+    from app.routes.auth import get_current_user
+    user = get_current_user()
+    if user and user.is_admin:
+        checks = CandidateCheck.query.order_by(CandidateCheck.created_at.desc()).all()
+    elif user:
+        checks = CandidateCheck.query.filter_by(user_id=user.id).order_by(
+            CandidateCheck.created_at.desc()
+        ).all()
+    else:
+        checks = []
     return render_template('candidate_history.html', checks=checks)
 
 
@@ -411,6 +431,12 @@ def delete_check(check_id):
     check = CandidateCheck.query.get(check_id)
     if not check:
         return jsonify({'error': 'Проверка не найдена'}), 404
+
+    # Access control: owner or admin
+    from app.routes.auth import get_current_user
+    user = get_current_user()
+    if user and not user.is_admin and check.user_id != user.id:
+        abort(403)
 
     logger.info(f"Deleting candidate check {check_id} for '{check.full_name}'")
     db.session.delete(check)
@@ -425,6 +451,12 @@ def export_json(check_id):
     check = CandidateCheck.query.get(check_id)
     if not check:
         return jsonify({'error': 'Проверка не найдена'}), 404
+
+    # Access control: owner or admin
+    from app.routes.auth import get_current_user
+    user = get_current_user()
+    if user and not user.is_admin and check.user_id != user.id:
+        abort(403)
 
     # Build initials for filename (e.g. "Иванов_ИИ")
     parts = check.full_name.strip().split()
@@ -510,6 +542,12 @@ def export_pdf(check_id):
     check = CandidateCheck.query.get(check_id)
     if not check:
         return jsonify({'error': 'Проверка не найдена'}), 404
+
+    # Access control: owner or admin
+    from app.routes.auth import get_current_user
+    user = get_current_user()
+    if user and not user.is_admin and check.user_id != user.id:
+        abort(403)
 
     # Build filename
     parts = check.full_name.strip().split()

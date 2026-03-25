@@ -1,9 +1,8 @@
 """
 Authentication routes for IBP.
-Simple password-only auth gate.
+Multi-user: username + password, open registration, single admin.
 """
 
-import bcrypt
 import os
 import logging
 import datetime
@@ -11,11 +10,11 @@ from functools import wraps
 from urllib.parse import urlparse
 from flask import (
     Blueprint, request, render_template, redirect,
-    url_for, session, flash, current_app, jsonify
+    url_for, session, current_app, jsonify, abort
 )
 import requests as req
 
-from app import limiter
+from app import db, limiter
 
 logger = logging.getLogger('ibp.auth')
 
@@ -29,35 +28,21 @@ _RU_COUNTRIES = frozenset((
 
 
 def detect_language():
-    """Detect user language by IP. Returns 'ru' or 'en'."""
-    # Manual override in session takes priority
-    if session.get('lang') in ('ru', 'en'):
-        return session['lang']
+    """Auto-detect preferred language from session, geo-IP, or Accept-Language."""
+    saved = session.get('lang')
+    if saved in ('ru', 'en'):
+        return saved
 
+    # Geo-IP: try ip-api.com (free, no key)
     try:
-        ip = request.headers.get('X-Forwarded-For',
-             request.headers.get('X-Real-IP',
-             request.remote_addr)) or ''
-        ip = ip.split(',')[0].strip()
-
-        # Private/localhost → fall back to Accept-Language
-        if ip in ('127.0.0.1', 'localhost', '::1') or \
-           ip.startswith('192.168.') or \
-           ip.startswith('10.') or \
-           ip.startswith('172.'):
-            lang_header = request.headers.get('Accept-Language', '')
-            return 'ru' if 'ru' in lang_header.lower() else 'en'
-
-        r = req.get(
-            f'http://ip-api.com/json/{ip}',
-            params={'fields': 'countryCode'},
-            timeout=2,
-        )
-        if r.status_code == 200:
-            country = r.json().get('countryCode', '')
-            if country in _RU_COUNTRIES:
-                return 'ru'
-            return 'en'
+        ip = request.remote_addr
+        if ip and ip not in ('127.0.0.1', '::1'):
+            resp = req.get(f'http://ip-api.com/json/{ip}?fields=countryCode', timeout=1.5)
+            if resp.ok:
+                cc = resp.json().get('countryCode', '')
+                if cc in _RU_COUNTRIES:
+                    return 'ru'
+                return 'en'
     except Exception:
         pass
 
@@ -66,54 +51,42 @@ def detect_language():
     return 'ru' if 'ru' in lang_header.lower() else 'en'
 
 
-_cached_password_hash = None
-_cached_password_source = None
+# ── Helpers ──
 
-
-def get_password_hash():
-    """Get the password hash from environment. Cached to avoid re-hashing on every request."""
-    global _cached_password_hash, _cached_password_source
-
-    pw_hash = os.environ.get('IBP_PASSWORD_HASH', '').strip()
-    if pw_hash:
-        return pw_hash
-
-    plain = os.environ.get('IBP_PASSWORD', '').strip()
-    if plain:
-        # Cache the hash so we don't call bcrypt.gensalt() on every login attempt
-        if _cached_password_hash and _cached_password_source == plain:
-            return _cached_password_hash
-        _cached_password_hash = bcrypt.hashpw(plain.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        _cached_password_source = plain
-        return _cached_password_hash
-
-    return None
-
-
-def is_auth_enabled():
-    """Check if authentication is configured."""
-    return bool(
-        os.environ.get('IBP_PASSWORD_HASH', '').strip() or
-        os.environ.get('IBP_PASSWORD', '').strip()
-    )
+def get_current_user():
+    """Get the currently logged-in User object, or None."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return None
+    from app.models.user import User
+    return User.query.get(user_id)
 
 
 def login_required(f):
     """Decorator to require authentication on routes."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not is_auth_enabled():
-            return f(*args, **kwargs)
-
-        if not session.get('authenticated'):
+        if not session.get('user_id'):
             if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'error': 'Требуется авторизация', 'redirect': '/login'}), 401
             session['next_url'] = request.path
             return redirect(url_for('auth.login'))
-
         return f(*args, **kwargs)
     return decorated_function
 
+
+def admin_required(f):
+    """Decorator to require admin role."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = get_current_user()
+        if not user or not user.is_admin:
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+# ── Routes ──
 
 @auth_bp.route('/set-lang/<lang>')
 def set_lang(lang):
@@ -128,27 +101,29 @@ def set_lang(lang):
 @auth_bp.route('/login', methods=['GET', 'POST'])
 @limiter.limit("10 per minute")
 def login():
-    """Login page."""
-    if not is_auth_enabled():
-        return redirect(url_for('main.dashboard'))
-
-    if session.get('authenticated'):
-        return redirect(url_for('main.dashboard'))
+    """Login page — username + password."""
+    if session.get('user_id'):
+        return redirect(url_for('candidate.new_check'))
 
     lang = detect_language()
 
     error = None
     if request.method == 'POST':
+        username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         remember = request.form.get('remember', False)
 
-        pw_hash = get_password_hash()
-        if pw_hash and bcrypt.checkpw(password.encode('utf-8'), pw_hash.encode('utf-8')):
+        from app.models.user import User
+        user = User.query.filter_by(username=username, is_active=True).first()
+
+        if user and user.check_password(password):
             # Preserve next_url and lang before clearing session (prevents session fixation)
             saved_next_url = session.get('next_url')
             saved_lang = session.get('lang')
             session.clear()
-            session['authenticated'] = True
+            session['user_id'] = user.id
+            session['username'] = user.username
+            session['role'] = user.role
             session['last_active'] = datetime.datetime.utcnow().isoformat()
             session.permanent = True
             if saved_lang:
@@ -161,7 +136,7 @@ def login():
 
             current_app.permanent_session_lifetime = datetime.timedelta(seconds=timeout)
 
-            logger.info("User authenticated successfully")
+            logger.info(f"User '{user.username}' (role={user.role}) authenticated")
 
             next_url = saved_next_url
             # Validate next_url is a safe relative path (prevent open redirect)
@@ -174,9 +149,54 @@ def login():
             return redirect(next_url or url_for('candidate.new_check'))
         else:
             error = 'wrong_password'
-            logger.warning(f"Failed login attempt from {request.remote_addr}")
+            logger.warning(f"Failed login for '{username}' from {request.remote_addr}")
 
-    return render_template('login.html', error=error, lang=lang)
+    return render_template('login.html', error=error, lang=lang, mode='login')
+
+
+@auth_bp.route('/register', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
+def register():
+    """Open registration — creates role='user' only."""
+    if session.get('user_id'):
+        return redirect(url_for('candidate.new_check'))
+
+    lang = detect_language()
+
+    error = None
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        confirm = request.form.get('confirm', '')
+
+        from app.models.user import User
+
+        if not username or len(username) < 3:
+            error = 'username_short'
+        elif len(username) > 64:
+            error = 'username_long'
+        elif User.query.filter_by(username=username).first():
+            error = 'username_taken'
+        elif len(password) < 6:
+            error = 'password_short'
+        elif password != confirm:
+            error = 'password_mismatch'
+        else:
+            user = User(username=username, role='user')
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+
+            session.permanent = True
+            session['user_id'] = user.id
+            session['username'] = user.username
+            session['role'] = user.role
+            session['last_active'] = datetime.datetime.utcnow().isoformat()
+
+            logger.info(f"New user registered: '{user.username}'")
+            return redirect(url_for('candidate.new_check'))
+
+    return render_template('login.html', error=error, lang=lang, mode='register')
 
 
 @auth_bp.route('/logout')
