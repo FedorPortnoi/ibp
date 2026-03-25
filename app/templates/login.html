@@ -704,9 +704,9 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:24px 48px;display:flex
     </form>
     <div class="auth-note">
       {% if mode == 'register' %}
-        <a href="/login" style="color:rgba(255,255,255,.35);text-decoration:none;">{{ t.auth_toggle_login }}</a>
+        <a href="/login#auth" style="color:rgba(255,255,255,.35);text-decoration:none;">{{ t.auth_toggle_login }}</a>
       {% else %}
-        <a href="/register" style="color:rgba(255,255,255,.35);text-decoration:none;">{{ t.auth_toggle_register }}</a>
+        <a href="/register#auth" style="color:rgba(255,255,255,.35);text-decoration:none;">{{ t.auth_toggle_register }}</a>
       {% endif %}
     </div>
   </div>
