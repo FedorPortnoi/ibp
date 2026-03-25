@@ -131,6 +131,10 @@ def start_check():
     else:
         data = request.form.to_dict()
 
+    # --- 152-FZ: PD consent validation ---
+    if not data.get('pd_consent'):
+        return _error('Необходимо подтвердить согласие на обработку персональных данных', 400)
+
     # --- Validate required fields ---
     full_name = (data.get('full_name') or '').strip()[:255]
     dob_raw = (data.get('date_of_birth') or '').strip()
@@ -237,6 +241,8 @@ def start_check():
         task_id=task_id,
         task_started_at=datetime.utcnow(),
         user_id=current_user.id if current_user else None,
+        pd_consent=True,
+        pd_consent_at=datetime.utcnow(),
     )
     db.session.add(check)
     db.session.commit()

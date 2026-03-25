@@ -165,6 +165,21 @@
                 Заполните имя и дату рождения для начала проверки
             </div>
 
+            <!-- PD Consent (152-FZ) -->
+            <div style="margin-bottom:20px;display:flex;align-items:flex-start;gap:10px;">
+                <input type="checkbox" name="pd_consent" id="pd_consent" required
+                       style="accent-color:#D4A27F;width:16px;height:16px;
+                              margin-top:2px;flex-shrink:0;">
+                <label for="pd_consent"
+                       style="font-size:12px;color:#6B6B6B;line-height:1.6;cursor:pointer;">
+                    Я подтверждаю, что имею законное основание для проверки данного лица
+                    и получил его согласие на обработку персональных данных в соответствии
+                    с <a href="/privacy" target="_blank"
+                         style="color:#D4A27F;text-decoration:none;">Политикой конфиденциальности</a>
+                    и требованиями 152-ФЗ.
+                </label>
+            </div>
+
             <!-- Submit Button -->
             {% if current_user and not current_user.is_admin and user_subscription and user_subscription.is_free_tier and user_subscription.free_checks_remaining() == 0 %}
             <a href="/subscribe"
