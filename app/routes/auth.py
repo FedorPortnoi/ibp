@@ -171,7 +171,7 @@ def login():
                     next_url = None
                 elif next_url.startswith('//'):
                     next_url = None
-            return redirect(next_url or url_for('phase1.new_investigation'))
+            return redirect(next_url or url_for('candidate.new_check'))
         else:
             error = 'wrong_password'
             logger.warning(f"Failed login attempt from {request.remote_addr}")

@@ -82,11 +82,11 @@ def health_check():
 
 @main_bp.route('/')
 def index():
-    """Root — authenticated users go to check history, others to login."""
+    """Root — authenticated users go to new check form, others to login."""
     from flask import session as _session
     from app.routes.auth import is_auth_enabled
     if not is_auth_enabled() or _session.get('authenticated'):
-        return redirect(url_for('candidate.history'))
+        return redirect(url_for('candidate.new_check'))
     return redirect(url_for('auth.login'))
 
 
