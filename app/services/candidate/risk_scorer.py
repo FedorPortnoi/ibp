@@ -343,6 +343,26 @@ class RiskScorer:
 
     # ── Court Red Flags ──
 
+    # Confidence weights: UNVERIFIED court records don't affect risk score
+    COURT_CONFIDENCE_WEIGHTS = {
+        'VERIFIED':   1.0,   # Full weight — INN confirmed
+        'LIKELY':     0.7,   # 70% — region + DOB match
+        'POSSIBLE':   0.3,   # 30% — region only
+        'UNVERIFIED': 0.0,   # No impact — name-only match, could be namesake
+    }
+
+    def _get_court_confidence_weight(self, record):
+        """Return confidence weight for a court record. UNVERIFIED = 0."""
+        confidence = record.get('confidence', '')
+        return self.COURT_CONFIDENCE_WEIGHTS.get(confidence, 1.0)
+
+    def _filter_courts_by_confidence(self, records):
+        """Filter out UNVERIFIED records from risk-affecting analysis."""
+        return [
+            r for r in records
+            if r.get('confidence', '') != 'UNVERIFIED'
+        ]
+
     def _analyze_courts(self, check):
         flags = []
         records = getattr(check, 'court_records', None) or []
@@ -353,12 +373,22 @@ class RiskScorer:
         if not real_records:
             return flags
 
+        # Filter: only consider records with confidence > UNVERIFIED for risk
+        risk_records = self._filter_courts_by_confidence(real_records)
+        unverified_count = len(real_records) - len(risk_records)
+        if unverified_count > 0:
+            logger.info(
+                f"Court risk: skipping {unverified_count} UNVERIFIED records "
+                f"(namesake risk), using {len(risk_records)} verified/likely/possible"
+            )
+
+        # Use risk_records (excludes UNVERIFIED) for all risk-affecting checks
         criminal_pattern = re.compile(
             r'ст\.\s*1[5-6][0-9]|уголовн|УК\s+РФ|'
             r'ст\.\s*159|ст\.\s*160|ст\.\s*158',
             re.IGNORECASE,
         )
-        for r in real_records:
+        for r in risk_records:
             text = ' '.join(filter(None, [
                 r.get('category', ''),
                 r.get('article', ''),
@@ -366,43 +396,45 @@ class RiskScorer:
                 r.get('title', ''),
             ]))
             if criminal_pattern.search(text):
+                conf = r.get('confidence', '')
                 flags.append(self._flag(
                     SEVERITY_HIGH, 'courts', 'court_criminal',
                     'Найдено уголовное дело',
                     flag_type='fact',
-                    evidence=f'sudact.ru: Дело {r.get("case_number", "Б/Н")}, {r.get("court_name", r.get("court", ""))}',
+                    evidence=f'sudact.ru: Дело {r.get("case_number", "Б/Н")}, {r.get("court_name", r.get("court", ""))} [{conf}]',
                     details=r.get('case_number', ''),
                 ))
                 break
 
         fraud_keywords = ['мошенничество', 'хищение', 'растрата', 'присвоение']
-        for r in real_records:
+        for r in risk_records:
             text = ' '.join(filter(None, [
                 r.get('category', ''),
                 r.get('text', ''),
                 r.get('title', ''),
             ])).lower()
             if any(kw in text for kw in fraud_keywords):
+                conf = r.get('confidence', '')
                 flags.append(self._flag(
                     SEVERITY_HIGH, 'courts', 'fraud_case',
                     'Судебное дело о мошенничестве/хищении',
                     flag_type='fact',
-                    evidence=f'sudact.ru: Дело {r.get("case_number", "Б/Н")}',
+                    evidence=f'sudact.ru: Дело {r.get("case_number", "Б/Н")} [{conf}]',
                     details=r.get('case_number', ''),
                 ))
                 break
 
-        if len(real_records) >= 5:
+        if len(risk_records) >= 5:
             flags.append(self._flag(
                 SEVERITY_MEDIUM, 'courts', 'many_cases',
-                f'Повышенная судебная активность ({len(real_records)} дел)',
+                f'Повышенная судебная активность ({len(risk_records)} подтверждённых дел)',
                 flag_type='fact',
-                evidence=f'{len(real_records)} судебных дел на sudact.ru/casebook.ru',
+                evidence=f'{len(risk_records)} судебных дел (VERIFIED/LIKELY/POSSIBLE) на sudact.ru/casebook.ru',
             ))
 
         defendant_keywords = ['ответчик', 'defendant', 'обвиняем', 'подсудим']
         defendant_count = sum(
-            1 for r in real_records
+            1 for r in risk_records
             if any(kw in (r.get('role', '') or '').lower() for kw in defendant_keywords)
         )
         if defendant_count >= 3:
@@ -410,7 +442,7 @@ class RiskScorer:
                 SEVERITY_MEDIUM, 'courts', 'defendant_cases',
                 f'Ответчик в {defendant_count} делах',
                 flag_type='fact',
-                evidence=f'Роль «ответчик» в {defendant_count} делах',
+                evidence=f'Роль «ответчик» в {defendant_count} подтверждённых делах',
             ))
 
         return flags

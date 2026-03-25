@@ -91,6 +91,7 @@ def _parse_cards(html: str, search_name: str) -> list:
         logger.debug("reputation.su: no srch-card__affairs-box found")
         return cases
 
+    seen_numbers = set()
     for card in cards[:20]:
         # Case number from <h3>
         h3 = card.select_one('h3')
@@ -126,6 +127,10 @@ def _parse_cards(html: str, search_name: str) -> list:
             if '/participant' not in href:
                 url = f'https://reputation.su{href}' if href.startswith('/') else href
                 break
+
+        if case_number in seen_numbers:
+            continue
+        seen_numbers.add(case_number)
 
         cases.append({
             'case_number': case_number,

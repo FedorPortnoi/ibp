@@ -27,6 +27,50 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
+def _normalize_court_confidence(records, candidate_region=None):
+    """Normalize court confidence to VERIFIED/LIKELY/POSSIBLE/UNVERIFIED scale.
+
+    court_search.py returns 'high'/'medium' but the template and risk_scorer
+    expect the four-level VERIFIED/LIKELY/POSSIBLE/UNVERIFIED system.
+
+    Baseline per source:
+      - судебныерешения.рф / casebook.ru: POSSIBLE (participant-name search)
+      - reputation.su: POSSIBLE (aggregator, name search)
+      - sudact.ru: UNVERIFIED (full-text search, name may appear anywhere)
+
+    If the candidate's region matches the court name → upgrade one level.
+    """
+    SOURCE_BASELINE = {
+        'судебныерешения.рф': 'POSSIBLE',
+        'casebook.ru': 'POSSIBLE',
+        'reputation.su': 'POSSIBLE',
+        'sudact.ru': 'UNVERIFIED',
+    }
+    UPGRADE = {
+        'UNVERIFIED': 'POSSIBLE',
+        'POSSIBLE': 'LIKELY',
+        'LIKELY': 'VERIFIED',
+        'VERIFIED': 'VERIFIED',
+    }
+
+    region_keywords = []
+    if candidate_region:
+        for word in candidate_region.lower().replace('-', ' ').split():
+            if len(word) >= 4:
+                region_keywords.append(word)
+
+    for r in records:
+        source = r.get('source', '')
+        r['confidence'] = SOURCE_BASELINE.get(source, 'UNVERIFIED')
+
+        if region_keywords:
+            court = r.get('court_name', '').lower()
+            if any(kw in court for kw in region_keywords):
+                r['confidence'] = UPGRADE[r['confidence']]
+
+    return records
+
+
 def _is_demo_mode():
     """Check if we're running without real API keys."""
     return not os.environ.get('VK_SERVICE_TOKEN')
@@ -586,7 +630,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 return records
 
             def _search_courts(full_name):
-                """Search court records — sudact.ru + casebook.ru."""
+                """Search court records — sudact.ru + casebook.ru + reputation.su."""
                 records = []
                 # Primary: sudact.ru (general + arbitration, works globally)
                 logger.info(f"Stage 1 Courts: searching sudact.ru for '{full_name}'")
@@ -622,6 +666,27 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                                 existing_numbers.add(d['case_number'])
                 except Exception as e:
                     logger.warning(f"Casebook court search failed: {e}")
+
+                # Supplementary: reputation.su (58M+ court cases aggregator)
+                try:
+                    from app.services.phase3.reputation_su_service import search_reputation_su
+                    rep_results = search_reputation_su(full_name, timeout=20)
+                    if rep_results:
+                        existing_numbers = {r.get('case_number', '') for r in records}
+                        new_count = 0
+                        for r in rep_results:
+                            if r.get('case_number') and r['case_number'] not in existing_numbers:
+                                records.append(r)
+                                existing_numbers.add(r['case_number'])
+                                new_count += 1
+                        logger.info(
+                            f"Stage 1 Courts reputation.su: {len(rep_results)} total, "
+                            f"{new_count} new (not in sudact/casebook)"
+                        )
+                    else:
+                        logger.info("Stage 1 Courts reputation.su: 0 cases")
+                except Exception as e:
+                    logger.warning(f"reputation.su court search failed: {e}")
 
                 return records
 
@@ -797,6 +862,15 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 sources_with_results += 2
                 sources_checked += 3
 
+            # Normalize court confidence: high/medium → VERIFIED/LIKELY/POSSIBLE/UNVERIFIED
+            if court_records:
+                court_records = _normalize_court_confidence(court_records, check.region)
+                conf_counts = {}
+                for r in court_records:
+                    c = r.get('confidence', '?')
+                    conf_counts[c] = conf_counts.get(c, 0) + 1
+                logger.info(f"Stage 1 Court confidence: {conf_counts}")
+
             # AI: Summarize court cases
             try:
                 from app.services.ai.claude_integration import summarize_court_cases
@@ -904,7 +978,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     'found': passport_result.get('valid') is False,  # found=True means INVALID
                     'match_details': passport_result.get('status'),
                     'error': passport_result.get('error'),
-                    'url': 'https://xn--b1ab2a0a.xn--b1aew.xn--p1ai/info-service.htm?sid=2000',
+                    'url': 'https://www.gosuslugi.ru/621102/1',
                 })
 
             check.sanctions_results = sanctions_dicts

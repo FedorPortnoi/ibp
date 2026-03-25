@@ -4,8 +4,16 @@ Passport Validity Check — MVD Database
 Checks a Russian passport (series + number) against the MVD
 invalid passport database (ГУВМ МВД России).
 
-Public service: https://xn--b1ab2a0a.xn--b1aew.xn--p1ai/info-service.htm?sid=2000
-(сервисы.гувм.мвд.рф)
+STATUS (March 2026):
+  - Old service (сервисы.гувм.мвд.рф) is DEAD since July 2023.
+  - МВД stopped updating the invalid passport registry on 2023-06-21.
+  - Госуслуги (gosuslugi.ru/621102/1) requires authentication — not usable for automation.
+  - СМЭВ 3 is the only reliable automated alternative (requires govt registration).
+
+Current approach:
+  1. Try the old ГУВМ МВД endpoint (works from Russian IP, may be restored)
+  2. Graceful "unavailable" fallback when geo-blocked or service is down
+  3. Return clear status so pipeline/dossier can display appropriately
 """
 
 import logging
@@ -15,6 +23,15 @@ import requests
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
+
+# Primary: old ГУВМ МВД service (geo-blocked outside Russia, may return)
+MVD_PRIMARY_URL = 'https://xn--b1ab2a0a.xn--b1aew.xn--p1ai/info-service.htm'
+
+# Status message for when service is unavailable
+MVD_UNAVAILABLE_MSG = (
+    'Сервис ГУВМ МВД недоступен (прекращён с июля 2023). '
+    'Проверка возможна через Госуслуги вручную: gosuslugi.ru/621102/1'
+)
 
 
 def normalize_passport(raw: str) -> tuple:
@@ -57,9 +74,29 @@ def check_passport_mvd(series: str, number: str) -> dict:
             'error': f'Неверный формат: серия={series}, номер={number}',
         }
 
+    # Try the ГУВМ МВД service (may work from Russian IP)
+    result = _try_guvm_mvd(series, number)
+    if result is not None:
+        return result
+
+    # All methods failed — return graceful unavailable
+    logger.info(
+        f"MVD passport check: all methods unavailable for {series} ******"
+    )
+    return {
+        'valid': None,
+        'status': MVD_UNAVAILABLE_MSG,
+        'checked': False,
+        'error': MVD_UNAVAILABLE_MSG,
+    }
+
+
+def _try_guvm_mvd(series: str, number: str) -> dict | None:
+    """
+    Try the old ГУВМ МВД endpoint.
+    Returns result dict on success, None if service is unreachable.
+    """
     try:
-        url = 'https://xn--b1ab2a0a.xn--b1aew.xn--p1ai/info-service.htm'
-        params = {'sid': '2000'}
         data = {
             'sid': '2000',
             'form_name': 'form',
@@ -67,21 +104,27 @@ def check_passport_mvd(series: str, number: str) -> dict:
             'DOC_NUMBER': number,
         }
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Referer': 'https://xn--b1ab2a0a.xn--b1aew.xn--p1ai/info-service.htm?sid=2000',
+            'User-Agent': (
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                'Chrome/131.0.0.0 Safari/537.36'
+            ),
+            'Referer': f'{MVD_PRIMARY_URL}?sid=2000',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         }
 
-        r = requests.post(url, params=params, data=data,
-                          headers=headers, timeout=15, verify=True)
+        r = requests.post(
+            MVD_PRIMARY_URL, params={'sid': '2000'}, data=data,
+            headers=headers, timeout=10, verify=True,
+        )
+
+        if r.status_code == 404:
+            logger.info("MVD passport: HTTP 404 — service endpoint moved or removed")
+            return None  # Signal to try next method
 
         if r.status_code != 200:
             logger.info(f"MVD passport check: HTTP {r.status_code}")
-            return {
-                'valid': None,
-                'checked': False,
-                'error': 'Сервис МВД временно недоступен',
-            }
+            return None
 
         soup = BeautifulSoup(r.text, 'html.parser')
         text = soup.get_text().lower()
@@ -102,8 +145,16 @@ def check_passport_mvd(series: str, number: str) -> dict:
                 'error': None,
             }
         else:
-            # Service returned a response but we couldn't parse it
-            logger.warning(f"MVD passport check: unexpected response for {series} {number}")
+            # Service returned a page but not a result (maybe redirect to Gosuslugi)
+            if 'госуслуг' in text or 'gosuslugi' in text or 'esia' in text:
+                logger.info("MVD passport: redirected to Gosuslugi (auth required)")
+                return {
+                    'valid': None,
+                    'status': 'Сервис МВД перенаправляет на Госуслуги (требуется авторизация)',
+                    'checked': False,
+                    'error': 'Автоматическая проверка невозможна — сервис требует авторизацию на Госуслугах',
+                }
+            logger.warning(f"MVD passport: unexpected response for {series} ******")
             return {
                 'valid': None,
                 'status': 'Статус не определён',
@@ -111,18 +162,10 @@ def check_passport_mvd(series: str, number: str) -> dict:
                 'error': 'Не удалось распознать ответ сервиса',
             }
 
-    except (requests.Timeout, requests.ConnectionError):
-        # MVD passport service is geo-blocked outside Russia — expected
-        logger.info("MVD passport check: service unreachable (geo-blocked or down)")
-        return {
-            'valid': None,
-            'checked': False,
-            'error': 'Сервис МВД временно недоступен',
-        }
+    except (requests.Timeout, requests.ConnectionError) as e:
+        # Expected when geo-blocked or service is down
+        logger.info(f"MVD passport: service unreachable ({type(e).__name__})")
+        return None
     except Exception as e:
         logger.warning(f"MVD passport check error: {e}")
-        return {
-            'valid': None,
-            'checked': False,
-            'error': str(e),
-        }
+        return None
