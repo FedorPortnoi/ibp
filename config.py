@@ -145,6 +145,10 @@ class Config:
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_SECURE = True
+
+    # Never expose stack traces to clients
+    PROPAGATE_EXCEPTIONS = False
 
     # Output
     IDENTITY_CARDS_FOLDER = os.path.join(BASE_DIR, 'app', 'static', 'identity_cards')

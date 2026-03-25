@@ -477,7 +477,7 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:24px 48px;display:flex
 
 <div class="divider"></div>
 
-<!-- ── SCROLL DOSSIER ── -->
+
 <section id="dossier-scroll">
   <div class="doss-header reveal">
     <div class="doss-eyebrow">{{ t.doss_eyebrow }}</div>
@@ -487,7 +487,6 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:24px 48px;display:flex
     <div class="doss-card-wrap" id="doss-card">
       <div class="doss-card-inner">
 
-        <!-- top bar -->
         <div class="dr-topbar">
           <div>
             <div class="dr-name">{{ t.doss_name }} <span style="font-size:11px;font-weight:400;color:rgba(255,255,255,.25);letter-spacing:.1em;text-transform:uppercase;margin-left:8px">{{ t.doss_example }}</span></div>
@@ -500,13 +499,11 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:24px 48px;display:flex
           </div>
         </div>
 
-        <!-- AI summary -->
         <div class="dr-ai-box">
           <div class="dr-ai-label">{{ t.doss_ai_label }}</div>
           <div class="dr-ai-text">{{ t.doss_ai_text | safe }}</div>
         </div>
 
-        <!-- flags -->
         <div class="dr-section">
           <div class="dr-section-title">{{ t.doss_facts_title }}</div>
           <div class="dr-flag-row warn"><div class="dr-flag-icon">⚠️</div><div class="dr-flag-body">{{ t.doss_flag1 }}<div class="dr-flag-sub">{{ t.doss_flag1_sub }}</div></div></div>
@@ -515,7 +512,6 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:24px 48px;display:flex
           <div class="dr-flag-row info"><div class="dr-flag-icon">ℹ️</div><div class="dr-flag-body">{{ t.doss_flag4 }}<div class="dr-flag-sub">{{ t.doss_flag4_sub }}</div></div></div>
         </div>
 
-        <!-- 3-col stats -->
         <div class="dr-grid3">
           <div class="dr-stat-card">
             <div class="dr-stat-label">{{ t.doss_biz }}</div>
@@ -531,7 +527,6 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:24px 48px;display:flex
           </div>
         </div>
 
-        <!-- contacts -->
         <div class="dr-section">
           <div class="dr-section-title">{{ t.doss_contacts }}</div>
           <div class="dr-chips">
@@ -542,7 +537,6 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:24px 48px;display:flex
           </div>
         </div>
 
-        <!-- geography -->
         <div class="dr-section">
           <div class="dr-section-title">{{ t.doss_geo }}</div>
           <div class="dr-chips">
@@ -553,7 +547,6 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:24px 48px;display:flex
           </div>
         </div>
 
-        <!-- timeline -->
         <div class="dr-section">
           <div class="dr-section-title">{{ t.doss_timeline }}</div>
           <div class="dr-timeline">
