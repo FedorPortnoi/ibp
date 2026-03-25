@@ -20,6 +20,7 @@ from app.models.business_record import BusinessRecord
 from app.models.court_record import CourtRecord
 from app.models.candidate_check import CandidateCheck
 from app.models.user import User
+from app.models.subscription import Subscription
 
 __all__ = [
     'Investigation',
@@ -30,4 +31,5 @@ __all__ = [
     'CourtRecord',
     'CandidateCheck',
     'User',
+    'Subscription',
 ]

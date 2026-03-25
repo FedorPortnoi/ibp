@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Статус подписки — ШТИРЛИЦ{% endblock %}
+{% block content %}
+<div style="min-height:80vh;display:flex;align-items:center;
+            justify-content:center;padding:40px 24px;">
+    <div style="width:100%;max-width:400px;background:#1C1C1C;
+                border:1px solid #383838;padding:44px 36px;">
+
+        <div style="font-size:11px;letter-spacing:.2em;color:#6B6B6B;
+                    text-transform:uppercase;margin-bottom:24px;text-align:center;">
+            ШТИРЛИЦ &middot; Подписка
+        </div>
+
+        {% if sub and sub.is_active %}
+        <div style="text-align:center;margin-bottom:24px;">
+            <div style="font-size:13px;color:#5C9E6E;margin-bottom:8px;">
+                &#9679; Активна
+            </div>
+            <div style="font-size:28px;font-weight:300;color:#ECECEC;">
+                {{ sub.days_left }} <span style="font-size:14px;color:#9B9B9B;">дней</span>
+            </div>
+        </div>
+
+        <div style="background:#262626;border:1px solid #383838;
+                    padding:16px 20px;margin-bottom:24px;">
+            <div style="display:flex;justify-content:space-between;
+                        margin-bottom:8px;font-size:12px;">
+                <span style="color:#6B6B6B;">Действует до</span>
+                <span style="color:#ECECEC;">{{ sub.expires_at.strftime('%d.%m.%Y') }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;
+                        font-size:12px;">
+                <span style="color:#6B6B6B;">Авторенью</span>
+                <span style="color:#ECECEC;">{{ 'Вкл' if sub.auto_renew else 'Выкл' }}</span>
+            </div>
+        </div>
+
+        <a href="/candidate/new"
+           style="display:block;text-align:center;background:#D4A27F;color:#000;
+                  padding:12px;text-decoration:none;font-size:11px;font-weight:500;
+                  letter-spacing:.15em;text-transform:uppercase;">
+            ПЕРЕЙТИ К РАБОТЕ &rarr;
+        </a>
+
+        {% elif sub %}
+        <div style="text-align:center;margin-bottom:24px;">
+            <div style="font-size:13px;color:#9B6B6B;margin-bottom:8px;">
+                &#9679; Истекла
+            </div>
+            <p style="color:#9B9B9B;font-size:13px;">
+                Подписка истекла {{ sub.expires_at.strftime('%d.%m.%Y') if sub.expires_at else '' }}
+            </p>
+        </div>
+        <a href="/subscribe"
+           style="display:block;text-align:center;background:#D4A27F;color:#000;
+                  padding:12px;text-decoration:none;font-size:11px;font-weight:500;
+                  letter-spacing:.15em;text-transform:uppercase;">
+            ПРОДЛИТЬ ПОДПИСКУ
+        </a>
+
+        {% else %}
+        <div style="text-align:center;margin-bottom:24px;">
+            <div style="font-size:13px;color:#6B6B6B;margin-bottom:8px;">
+                &#9679; Нет подписки
+            </div>
+        </div>
+        <a href="/subscribe"
+           style="display:block;text-align:center;background:#D4A27F;color:#000;
+                  padding:12px;text-decoration:none;font-size:11px;font-weight:500;
+                  letter-spacing:.15em;text-transform:uppercase;">
+            ОФОРМИТЬ ПОДПИСКУ
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

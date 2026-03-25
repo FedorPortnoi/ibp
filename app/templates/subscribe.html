@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}Подписка — ШТИРЛИЦ{% endblock %}
+{% block content %}
+<div style="min-height:80vh;display:flex;align-items:center;
+            justify-content:center;padding:40px 24px;">
+    <div style="width:100%;max-width:400px;background:#1C1C1C;
+                border:1px solid #383838;padding:44px 36px;">
+
+        <div style="text-align:center;margin-bottom:36px;">
+            <div style="font-size:11px;letter-spacing:.2em;color:#6B6B6B;
+                        text-transform:uppercase;margin-bottom:8px;">
+                ШТИРЛИЦ &middot; Доступ
+            </div>
+            <div style="font-size:32px;font-weight:300;color:#ECECEC;">
+                1 500 <span style="font-size:16px;color:#9B9B9B;">&ruble;</span>
+            </div>
+            <div style="font-size:11px;color:#6B6B6B;margin-top:4px;
+                        letter-spacing:.06em;">
+                30 дней &middot; полный доступ
+            </div>
+        </div>
+
+        <!-- Features -->
+        <div style="border-top:1px solid #2D2D2D;padding-top:24px;
+                    margin-bottom:28px;">
+            <div style="display:flex;align-items:center;gap:10px;
+                        margin-bottom:10px;font-size:13px;color:#9B9B9B;">
+                <span style="color:#5C9E6E;">&#10003;</span> 9-этапный пайплайн проверки
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;
+                        margin-bottom:10px;font-size:13px;color:#9B9B9B;">
+                <span style="color:#5C9E6E;">&#10003;</span> Суды &middot; ФССП &middot; ЕГРЮЛ &middot; Санкции
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;
+                        margin-bottom:10px;font-size:13px;color:#9B9B9B;">
+                <span style="color:#5C9E6E;">&#10003;</span> VK &middot; Telegram &middot; Соцсети
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;
+                        margin-bottom:10px;font-size:13px;color:#9B9B9B;">
+                <span style="color:#5C9E6E;">&#10003;</span> Риск-скоринг 0&ndash;100
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;
+                        margin-bottom:10px;font-size:13px;color:#9B9B9B;">
+                <span style="color:#5C9E6E;">&#10003;</span> PDF и JSON экспорт
+            </div>
+        </div>
+
+        <form method="POST" action="/subscribe/pay">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- Email for receipt -->
+            <div style="margin-bottom:20px;">
+                <label for="email"
+                       style="display:block;font-size:11px;color:#6B6B6B;
+                              letter-spacing:.06em;text-transform:uppercase;
+                              margin-bottom:6px;">
+                    Email (для чека)
+                </label>
+                <input type="email" name="email" id="email"
+                       value="{{ user.email or '' }}"
+                       placeholder="you@example.com"
+                       autocomplete="email"
+                       style="width:100%;background:#262626;border:1px solid #383838;
+                              color:#ECECEC;padding:10px 12px;font-size:13px;
+                              font-family:inherit;outline:none;box-sizing:border-box;">
+            </div>
+
+            <!-- Auto-renew -->
+            <div style="display:flex;align-items:center;gap:10px;
+                        margin-bottom:28px;cursor:pointer;">
+                <input type="checkbox" name="auto_renew" id="auto_renew"
+                       style="accent-color:#D4A27F;width:16px;height:16px;">
+                <label for="auto_renew"
+                       style="font-size:12px;color:#9B9B9B;cursor:pointer;">
+                    Автоматически продлевать каждый месяц
+                </label>
+            </div>
+
+            <!-- STUB payment button -->
+            <button type="submit"
+                    style="width:100%;background:#D4A27F;color:#000;border:none;
+                           padding:14px;font-size:11px;font-weight:500;
+                           letter-spacing:.18em;text-transform:uppercase;
+                           cursor:pointer;">
+                ОПЛАТИТЬ 1 500 &#8381;
+            </button>
+        </form>
+
+        <div style="text-align:center;margin-top:16px;font-size:10px;
+                    color:#6B6B6B;letter-spacing:.06em;">
+            Безопасная оплата &middot; ЮKassa
+        </div>
+    </div>
+</div>
+{% endblock %}

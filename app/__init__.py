@@ -86,6 +86,7 @@ def create_app(config_name=None):
     from app.routes.timeline import timeline_bp
     from app.routes.dossier import dossier_bp
     from app.routes.candidate_check import candidate_bp
+    from app.routes.subscribe import subscribe_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(report_bp)
@@ -94,6 +95,7 @@ def create_app(config_name=None):
     app.register_blueprint(timeline_bp)
     app.register_blueprint(dossier_bp)
     app.register_blueprint(candidate_bp)
+    app.register_blueprint(subscribe_bp)
 
     # People Search blueprints — only registered when ENABLE_PEOPLE_SEARCH=true
     if app.config.get('ENABLE_PEOPLE_SEARCH'):
@@ -114,6 +116,11 @@ def create_app(config_name=None):
         allowed_endpoints = {
             'auth.login', 'auth.logout', 'auth.register',
             'auth.set_lang', 'static', 'main.health_check',
+        }
+        # Subscribe endpoints are public for logged-in users (no subscription needed)
+        subscribe_endpoints = {
+            'subscribe.subscribe_page', 'subscribe.pay',
+            'subscribe.success', 'subscribe.status',
         }
         if request.endpoint and (
             request.endpoint in allowed_endpoints or
@@ -148,6 +155,18 @@ def create_app(config_name=None):
             except (ValueError, TypeError):
                 pass
         session['last_active'] = _dt.datetime.now(_dt.timezone.utc).isoformat()
+
+        # Subscription check — logged-in non-admin users must have active subscription
+        if request.endpoint and request.endpoint not in subscribe_endpoints:
+            from app.models.user import User
+            from app.models.subscription import Subscription
+            user = User.query.get(session['user_id'])
+            if user and not user.is_admin:
+                sub = Subscription.query.filter_by(user_id=user.id).first()
+                if not sub or not sub.is_active:
+                    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'error': 'Требуется подписка', 'redirect': '/subscribe'}), 403
+                    return redirect(url_for('subscribe.subscribe_page'))
 
     # Inject current_user into all templates
     @app.context_processor
@@ -194,6 +213,7 @@ def create_app(config_name=None):
     with app.app_context():
         db.create_all()
         _migrate_task_columns(db)
+        _migrate_user_columns(db)
         logger.info("Database tables created successfully")
 
     return app
@@ -233,6 +253,17 @@ def _migrate_task_columns(db_instance):
     try:
         db_instance.session.execute(
             db_instance.text('CREATE INDEX IF NOT EXISTS ix_candidate_checks_task_id ON candidate_checks (task_id)')
+        )
+        db_instance.session.commit()
+    except Exception:
+        db_instance.session.rollback()
+
+
+def _migrate_user_columns(db_instance):
+    """Add email column to users table if missing (SQLite safe)."""
+    try:
+        db_instance.session.execute(
+            db_instance.text("ALTER TABLE users ADD COLUMN email VARCHAR(120)")
         )
         db_instance.session.commit()
     except Exception:
