@@ -444,7 +444,7 @@ def store_vk_snapshot(check, vk_profile: dict):
     check.vk_snapshot = {
         'name': f"{vk_profile.get('last_name', '')} {vk_profile.get('first_name', '')}",
         'city': (vk_profile.get('city') or {}).get('title', ''),
-        'photo_hash': hashlib.md5(photo_url.encode()).hexdigest() if photo_url else '',
+        'photo_hash': hashlib.md5(photo_url.encode(), usedforsecurity=False).hexdigest() if photo_url else '',
         'is_closed': vk_profile.get('is_closed', False),
         'vk_id': vk_profile.get('id'),
         'snapshot_date': datetime.now().isoformat(),

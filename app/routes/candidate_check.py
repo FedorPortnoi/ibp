@@ -23,6 +23,41 @@ candidate_bp = Blueprint('candidate', __name__, url_prefix='/candidate')
 logger = logging.getLogger(__name__)
 
 
+def _check_owner_or_admin(check):
+    """Verify current user owns this CandidateCheck or is admin. Returns (user, error_response)."""
+    from app.routes.auth import get_current_user
+    user = get_current_user()
+    if not user:
+        return None, abort(403)
+    if user.is_admin:
+        return user, None
+    if check.user_id and check.user_id != user.id:
+        return None, abort(403)
+    return user, None
+
+
+def _check_owner_or_admin_by_task(task_id):
+    """Look up CandidateCheck by task_id and verify ownership. Returns (check, error_response)."""
+    from app.routes.auth import get_current_user
+    user = get_current_user()
+    if not user:
+        abort(403)
+
+    # Try in-memory first
+    task = candidate_tasks.get(task_id)
+    check = None
+    if task:
+        check = CandidateCheck.query.get(task.check_id)
+    if not check:
+        check = CandidateCheck.query.filter_by(task_id=task_id).first()
+    if not check:
+        return None, None  # Let caller handle 404
+
+    if not user.is_admin and check.user_id and check.user_id != user.id:
+        abort(403)
+    return check, None
+
+
 def _safe_filename(name_slug: str) -> str:
     """Sanitize a string for safe use in Content-Disposition filenames.
 
@@ -228,6 +263,9 @@ def start_check():
 @candidate_bp.route('/progress/<task_id>')
 def progress_page(task_id):
     """Render progress page — polls /candidate/progress/<task_id>/status via JS."""
+    # Ownership check
+    check, _ = _check_owner_or_admin_by_task(task_id)
+
     # Try in-memory first (same worker)
     task = candidate_tasks.get(task_id)
     if task:
@@ -238,8 +276,7 @@ def progress_page(task_id):
             full_name=task.full_name,
         )
 
-    # DB fallback (cross-worker)
-    check = CandidateCheck.query.filter_by(task_id=task_id).first()
+    # DB fallback (cross-worker) — check already loaded by ownership check
     if check:
         return render_template(
             'candidate_progress.html',
@@ -254,6 +291,9 @@ def progress_page(task_id):
 @candidate_bp.route('/progress/<task_id>/status')
 def progress_status(task_id):
     """JSON polling endpoint for progress updates — 8 stages."""
+    # Ownership check
+    _check_owner_or_admin_by_task(task_id)
+
     # Try in-memory first (most up-to-date on same worker)
     task = candidate_tasks.get(task_id)
     if task:
@@ -276,6 +316,7 @@ def progress_status(task_id):
 def confirm_profiles(check_id):
     """Show discovered profiles for user confirmation (Precise Mode)."""
     check = CandidateCheck.query.filter_by(id=check_id).first_or_404()
+    _check_owner_or_admin(check)
     if check.status != 'awaiting_confirmation':
         # Already confirmed or not in precise mode — redirect to progress
         for tid, t in candidate_tasks.items():
@@ -294,6 +335,7 @@ def confirm_profiles(check_id):
 def submit_confirmation(check_id):
     """Process profile confirmation and resume pipeline."""
     check = CandidateCheck.query.filter_by(id=check_id).first_or_404()
+    _check_owner_or_admin(check)
     if check.status != 'awaiting_confirmation':
         return redirect(url_for('candidate.dossier_page', check_id=check.id))
 
@@ -328,6 +370,7 @@ def submit_confirmation(check_id):
 def api_social_graph(check_id):
     """Return vis.js social graph data for dossier."""
     check = CandidateCheck.query.filter_by(id=check_id).first_or_404()
+    _check_owner_or_admin(check)
     return jsonify(check.social_graph_data or {})
 
 
@@ -335,6 +378,7 @@ def api_social_graph(check_id):
 def api_geo_data(check_id):
     """Return geo analysis data for dossier map."""
     check = CandidateCheck.query.filter_by(id=check_id).first_or_404()
+    _check_owner_or_admin(check)
     return jsonify(check.geo_analysis or {})
 
 
@@ -342,6 +386,7 @@ def api_geo_data(check_id):
 def api_timeline(check_id):
     """Return activity timeline data."""
     check = CandidateCheck.query.filter_by(id=check_id).first_or_404()
+    _check_owner_or_admin(check)
     return jsonify(check.activity_timeline or [])
 
 

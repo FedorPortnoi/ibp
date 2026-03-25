@@ -127,9 +127,9 @@ class PhotoInvestigation:
         # Seed based on file hash for reproducibility
         if os.path.exists(photo_path):
             with open(photo_path, 'rb') as f:
-                file_hash = hashlib.md5(f.read(4096)).hexdigest()
+                file_hash = hashlib.md5(f.read(4096), usedforsecurity=False).hexdigest()
         else:
-            file_hash = hashlib.md5(photo_path.encode()).hexdigest()
+            file_hash = hashlib.md5(photo_path.encode(), usedforsecurity=False).hexdigest()
 
         rng = random.Random(int(file_hash[:8], 16))
 

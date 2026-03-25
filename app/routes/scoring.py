@@ -7,12 +7,14 @@ API and page routes for automated risk scoring.
 import logging
 from flask import Blueprint, render_template, jsonify, request
 from app import limiter
+from app.routes.auth import admin_required
 
 scoring_bp = Blueprint('scoring', __name__)
 logger = logging.getLogger('ibp.routes.scoring')
 
 
 @scoring_bp.route('/api/scoring/calculate', methods=['POST'])
+@admin_required
 @limiter.limit("10 per minute")
 def calculate_score():
     """Calculate and store risk score for an investigation."""
@@ -32,6 +34,7 @@ def calculate_score():
 
 
 @scoring_bp.route('/api/scoring/breakdown/<investigation_id>')
+@admin_required
 def score_breakdown(investigation_id):
     """Return dimensional breakdown for an investigation."""
     from app.services.risk_scoring import get_score_breakdown
@@ -45,6 +48,7 @@ def score_breakdown(investigation_id):
 
 
 @scoring_bp.route('/risk-report/<investigation_id>')
+@admin_required
 def risk_report(investigation_id):
     """Full risk report page with radar chart."""
     from app.models import Investigation, SocialProfile

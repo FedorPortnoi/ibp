@@ -41,7 +41,7 @@ def check_gravatar(email: str) -> GravatarProfile:
     email = email.lower().strip()
 
     # Create MD5 hash of email
-    email_hash = hashlib.md5(email.encode()).hexdigest()
+    email_hash = hashlib.md5(email.encode(), usedforsecurity=False).hexdigest()
 
     # Check profile JSON endpoint
     profile_url = f"https://gravatar.com/{email_hash}.json"
@@ -103,7 +103,7 @@ def check_gravatar_exists(email: str) -> bool:
         True if Gravatar exists, False otherwise
     """
     email = email.lower().strip()
-    email_hash = hashlib.md5(email.encode()).hexdigest()
+    email_hash = hashlib.md5(email.encode(), usedforsecurity=False).hexdigest()
 
     # Check avatar with d=404 parameter (returns 404 if no avatar)
     avatar_url = f"https://gravatar.com/avatar/{email_hash}?d=404"
@@ -144,5 +144,5 @@ def get_gravatar_avatar_url(email: str, size: int = 200) -> str:
         Avatar URL (returns default gravatar if none exists)
     """
     email = email.lower().strip()
-    email_hash = hashlib.md5(email.encode()).hexdigest()
+    email_hash = hashlib.md5(email.encode(), usedforsecurity=False).hexdigest()
     return f"https://gravatar.com/avatar/{email_hash}?s={size}&d=identicon"

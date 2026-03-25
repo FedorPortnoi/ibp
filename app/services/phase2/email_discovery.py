@@ -578,7 +578,7 @@ class EmailDiscoveryService:
 
         async def check_one(email: str) -> Optional[DiscoveredEmail]:
             try:
-                email_hash = hashlib.md5(email.lower().encode()).hexdigest()
+                email_hash = hashlib.md5(email.lower().encode(), usedforsecurity=False).hexdigest()
                 # Use JSON profile endpoint (more data than just avatar HEAD)
                 url = f"https://gravatar.com/{email_hash}.json"
 

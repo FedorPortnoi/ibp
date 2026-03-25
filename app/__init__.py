@@ -12,6 +12,7 @@ from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -41,6 +42,9 @@ def create_app(config_name=None):
     setup_logging(log_level='INFO')
 
     app = Flask(__name__)
+
+    # Trust X-Forwarded-For from nginx reverse proxy (1 proxy hop)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # Ensure JSON responses contain proper UTF-8 Cyrillic (not Unicode escapes)
     app.json.ensure_ascii = False
@@ -178,10 +182,11 @@ def create_app(config_name=None):
     @app.after_request
     def set_security_headers(response):
         response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-Frame-Options'] = 'DENY'
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+        response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=(), payment=(), usb=()'
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com https://cdnjs.cloudflare.com; "
@@ -189,8 +194,11 @@ def create_app(config_name=None):
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; "
             "img-src 'self' data: https: blob:; "
             "connect-src 'self' https://cdnjs.cloudflare.com; "
-            "frame-ancestors 'self'"
+            "frame-ancestors 'none'"
         )
+        # Remove server fingerprint headers
+        response.headers.pop('Server', None)
+        response.headers.pop('X-Powered-By', None)
         return response
 
     # Register error handlers

@@ -352,7 +352,7 @@ class OKSearchIntegration:
         logger.info(f"OK demo search for: '{query}'")
 
         # Seed RNG from query for reproducibility
-        seed = int(hashlib.md5(query.encode('utf-8')).hexdigest()[:8], 16)
+        seed = int(hashlib.md5(query.encode('utf-8'), usedforsecurity=False).hexdigest()[:8], 16)
         rng = random.Random(seed)
 
         query_parts = query.strip().split()

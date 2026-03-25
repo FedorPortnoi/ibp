@@ -12,6 +12,7 @@ import json
 import io
 
 from app import limiter, csrf
+from app.routes.auth import admin_required
 
 report_bp = Blueprint('report', __name__, url_prefix='/report')
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ def _safe_json_field(value, default=None):
 
 
 @report_bp.route('/<investigation_id>')
+@admin_required
 def view(investigation_id):
     """View the generated identity card."""
     from app.models import Investigation
@@ -48,6 +50,7 @@ def view(investigation_id):
 
 
 @report_bp.route('/api/investigation-data/<investigation_id>')
+@admin_required
 def get_investigation_data(investigation_id):
     """Get full investigation data for identity card generation."""
     from app.models import Investigation, SocialProfile, Friend, BusinessRecord, CourtRecord, Connection

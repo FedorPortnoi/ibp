@@ -10,12 +10,14 @@ from datetime import datetime
 from flask import Blueprint, render_template, jsonify, Response
 
 from app import limiter
+from app.routes.auth import admin_required
 
 dossier_bp = Blueprint('dossier', __name__, url_prefix='/dossier')
 logger = logging.getLogger(__name__)
 
 
 @dossier_bp.route('/<investigation_id>')
+@admin_required
 def view(investigation_id):
     """View professional dossier for an investigation."""
     from app.services.dossier_generator import dossier_generator
@@ -28,6 +30,7 @@ def view(investigation_id):
 
 
 @dossier_bp.route('/<investigation_id>/json')
+@admin_required
 @limiter.limit("5 per minute")
 def export_json(investigation_id):
     """Export dossier as JSON."""
@@ -56,6 +59,7 @@ def export_json(investigation_id):
 
 
 @dossier_bp.route('/<investigation_id>/pdf')
+@admin_required
 @limiter.limit("5 per minute")
 def export_pdf(investigation_id):
     """Export dossier as PDF (Playwright or print-ready HTML fallback)."""

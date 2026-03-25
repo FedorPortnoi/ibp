@@ -406,7 +406,7 @@ class HIBPSource(BaseSource):
         Returns the number of times the password has been seen in breaches,
         or 0 if not found.
         """
-        sha1_hash = hashlib.sha1(password.encode('utf-8')).hexdigest().upper()
+        sha1_hash = hashlib.sha1(password.encode('utf-8'), usedforsecurity=False).hexdigest().upper()
         prefix = sha1_hash[:5]
         suffix = sha1_hash[5:]
 

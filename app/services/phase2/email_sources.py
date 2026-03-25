@@ -144,7 +144,7 @@ class EpieosChecker:
         """
         try:
             # Hash-based lookup pattern used by some Google services
-            email_hash = hashlib.md5(email.lower().encode()).hexdigest()
+            email_hash = hashlib.md5(email.lower().encode(), usedforsecurity=False).hexdigest()
 
             # Check Google+ legacy endpoint (sometimes still works)
             url = f"https://picasaweb.google.com/data/entry/api/user/{email}"

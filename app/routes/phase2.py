@@ -747,7 +747,7 @@ def start_buratino_analysis(investigation_id):
                     task.add_message('Демо-режим: генерация примеров контактов', 'info')
                     import hashlib
                     # Generate deterministic demo data from the name
-                    name_hash = hashlib.md5(input_name.encode()).hexdigest()
+                    name_hash = hashlib.md5(input_name.encode(), usedforsecurity=False).hexdigest()
                     h = int(name_hash[:8], 16)
 
                     # Demo phone

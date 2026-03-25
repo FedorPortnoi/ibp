@@ -12,6 +12,7 @@ from flask import (
     Blueprint, request, render_template, redirect,
     url_for, session, current_app, jsonify, abort
 )
+from sqlalchemy.exc import IntegrityError
 import requests as req
 
 from app import db, limiter
@@ -99,7 +100,7 @@ def set_lang(lang):
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
-@limiter.limit("10 per minute")
+@limiter.limit("5 per minute", methods=["POST"])
 def login():
     """Login page — username + password."""
     if session.get('user_id'):
@@ -184,8 +185,13 @@ def register():
         else:
             user = User(username=username, role='user')
             user.set_password(password)
-            db.session.add(user)
-            db.session.commit()
+            try:
+                db.session.add(user)
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                error = 'username_taken'
+                return render_template('login.html', error=error, lang=lang, mode='register')
 
             session.permanent = True
             session['user_id'] = user.id

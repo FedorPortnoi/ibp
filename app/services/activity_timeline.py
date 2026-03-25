@@ -114,7 +114,7 @@ class ActivityTimeline:
 
     def _generate_demo_timestamps(self, investigation_id: str) -> List[datetime]:
         """Generate realistic demo timestamps for testing."""
-        seed = int(hashlib.md5(investigation_id.encode()).hexdigest()[:8], 16)
+        seed = int(hashlib.md5(investigation_id.encode(), usedforsecurity=False).hexdigest()[:8], 16)
         rng = random.Random(seed)
 
         now = datetime.now()
