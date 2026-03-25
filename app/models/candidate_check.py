@@ -54,6 +54,10 @@ class CandidateCheck(db.Model):
     check_mode = db.Column(db.String(20), default='quick')  # 'quick' or 'precise'
     paused_at_stage = db.Column(db.String(50), nullable=True)  # 'awaiting_confirmation' or None
 
+    # --- 152-FZ PD consent ---
+    pd_consent = db.Column(db.Boolean, default=False)
+    pd_consent_at = db.Column(db.DateTime, nullable=True)
+
     # --- User ownership ---
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
 

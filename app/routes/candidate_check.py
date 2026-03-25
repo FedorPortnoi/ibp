@@ -104,6 +104,22 @@ def start_check():
     Creates a CandidateCheck record, launches pipeline in background,
     redirects to progress page.
     """
+    # --- Free tier enforcement ---
+    from app.routes.auth import get_current_user as _get_user
+    from app.models.subscription import Subscription
+    _user = _get_user()
+    if _user and not _user.is_admin:
+        _sub = Subscription.query.filter_by(user_id=_user.id).first()
+        if not _sub:
+            _sub = Subscription(user_id=_user.id, status='inactive')
+            db.session.add(_sub)
+            db.session.commit()
+        if not _sub.can_run_check():
+            return _error(
+                'Лимит бесплатных проверок исчерпан (2 в неделю). '
+                'Оформите подписку для безлимитного доступа.', 403
+            )
+
     # Parse input — support both form and JSON
     # Explicit UTF-8 decoding to prevent locale-dependent encoding corruption
     if request.is_json:

@@ -133,6 +133,25 @@
                         <span class="inline-block w-1.5 h-1.5 rounded-full bg-gray-600 mr-1"></span>VK
                     </span>
                     {% if session.get('user_id') %}
+                    <!-- Subscription / free tier status -->
+                    {% if current_user and not current_user.is_admin and user_subscription %}
+                        {% if user_subscription.is_active %}
+                        <span class="text-[10px] tracking-wider" style="color:#5C9E6E;">
+                            Pro &middot; {{ user_subscription.expires_at.strftime('%d.%m') }}
+                        </span>
+                        {% else %}
+                            {% set _remaining = user_subscription.free_checks_remaining() %}
+                            {% if _remaining > 0 %}
+                            <span class="text-[10px] tracking-wider" style="color:#D4A27F;">
+                                {{ _remaining }}/2 проверки
+                            </span>
+                            {% else %}
+                            <a href="/subscribe" class="text-[10px] tracking-wider" style="color:#B85C5C;text-decoration:none;">
+                                Лимит &middot; Подписка&nbsp;&rarr;
+                            </a>
+                            {% endif %}
+                        {% endif %}
+                    {% endif %}
                     <span class="text-xs text-gray-500 font-mono tracking-wider">
                         {{ session.get('username', '') }}
                         {% if session.get('role') == 'admin' %}

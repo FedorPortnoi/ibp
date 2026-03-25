@@ -6,6 +6,16 @@
     <div style="width:100%;max-width:400px;background:#1C1C1C;
                 border:1px solid #383838;padding:44px 36px;">
 
+        <!-- Free tier exhaustion message -->
+        {% if user_subscription and user_subscription.is_free_tier and user_subscription.free_checks_remaining() == 0 %}
+        <div style="background:#2E1F12;border:1px solid #C4883A;padding:12px 16px;
+                    margin-bottom:24px;font-size:13px;color:#D4A27F;text-align:left;">
+            Вы использовали 2 бесплатные проверки на этой неделе.
+            Следующие бесплатные проверки &mdash; в понедельник.
+            Или оформите подписку для безлимитного доступа.
+        </div>
+        {% endif %}
+
         <div style="text-align:center;margin-bottom:36px;">
             <div style="font-size:11px;letter-spacing:.2em;color:#6B6B6B;
                         text-transform:uppercase;margin-bottom:8px;">
@@ -23,6 +33,10 @@
         <!-- Features -->
         <div style="border-top:1px solid #2D2D2D;padding-top:24px;
                     margin-bottom:28px;">
+            <div style="display:flex;align-items:center;gap:10px;
+                        margin-bottom:10px;font-size:13px;color:#9B9B9B;">
+                <span style="color:#5C9E6E;">&#10003;</span> Безлимитные проверки <span style="color:#6B6B6B;font-size:11px;">(вместо 2/неделю)</span>
+            </div>
             <div style="display:flex;align-items:center;gap:10px;
                         margin-bottom:10px;font-size:13px;color:#9B9B9B;">
                 <span style="color:#5C9E6E;">&#10003;</span> 9-этапный пайплайн проверки

@@ -4,6 +4,27 @@
 {% block content %}
 <div class="max-w-3xl mx-auto" style="padding: 0 var(--padding-x);">
 
+    <!-- Free tier limit banner -->
+    {% if current_user and not current_user.is_admin and user_subscription and user_subscription.is_free_tier %}
+        {% set _checks_left = user_subscription.free_checks_remaining() %}
+        {% if _checks_left == 0 %}
+        <div class="mb-6 p-4 rounded-xl border text-sm" style="background:#2E1F12;border-color:#C4883A;color:#D4A27F;">
+            Вы использовали 2 бесплатные проверки на этой неделе.
+            Новые бесплатные проверки будут доступны в понедельник.
+            <a href="/subscribe" style="color:#E8B896;text-decoration:underline;margin-left:4px;">Оформить подписку</a> для безлимитного доступа.
+        </div>
+        {% elif _checks_left == 1 %}
+        <div class="mb-6 p-4 rounded-xl border text-sm" style="background:#1C2620;border-color:#3D6B4F;color:#9B9B9B;">
+            Осталась <span style="color:#D4A27F;font-weight:500;">1 бесплатная проверка</span> на этой неделе.
+            <a href="/subscribe" style="color:#9B9B9B;text-decoration:underline;margin-left:4px;">Подписка</a> &mdash; безлимит.
+        </div>
+        {% else %}
+        <div class="mb-6 p-4 rounded-xl border text-sm" style="background:#1C2620;border-color:#2D4D3A;color:#9B9B9B;">
+            Бесплатный тариф: <span style="color:#5C9E6E;font-weight:500;">{{ _checks_left }}/2 проверки</span> на этой неделе.
+        </div>
+        {% endif %}
+    {% endif %}
+
     <!-- Info Banner -->
     <div class="mb-8 flex items-start gap-4 bg-bg-panel border border-white/[0.06] rounded-2xl p-5">
         <div class="w-10 h-10 rounded-xl bg-accent/[0.1] border border-accent/20 flex items-center justify-center flex-shrink-0">
@@ -145,10 +166,18 @@
             </div>
 
             <!-- Submit Button -->
+            {% if current_user and not current_user.is_admin and user_subscription and user_subscription.is_free_tier and user_subscription.free_checks_remaining() == 0 %}
+            <a href="/subscribe"
+               class="btn btn-xl w-full text-center block"
+               style="background:#D4A27F;color:#000;text-decoration:none;">
+                Оформить подписку
+            </a>
+            {% else %}
             <button type="submit" id="candidate-submit-btn"
                     class="btn btn-primary btn-xl w-full">
                 Начать проверку
             </button>
+            {% endif %}
         </div>
     </form>
 

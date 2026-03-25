@@ -120,6 +120,7 @@ def create_app(config_name=None):
         allowed_endpoints = {
             'auth.login', 'auth.logout', 'auth.register',
             'auth.set_lang', 'static', 'main.health_check',
+            'main.privacy',
         }
         # Subscribe endpoints are public for logged-in users (no subscription needed)
         subscribe_endpoints = {
@@ -160,23 +161,33 @@ def create_app(config_name=None):
                 pass
         session['last_active'] = _dt.datetime.now(_dt.timezone.utc).isoformat()
 
-        # Subscription check — logged-in non-admin users must have active subscription
+        # Subscription / free-tier check
+        # Free tier: users get 2 checks per week without paying.
+        # Paid subscription: unlimited. Admin: always unlimited.
         if request.endpoint and request.endpoint not in subscribe_endpoints:
             from app.models.user import User
             from app.models.subscription import Subscription
             user = User.query.get(session['user_id'])
             if user and not user.is_admin:
                 sub = Subscription.query.filter_by(user_id=user.id).first()
-                if not sub or not sub.is_active:
-                    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                        return jsonify({'error': 'Требуется подписка', 'redirect': '/subscribe'}), 403
-                    return redirect(url_for('subscribe.subscribe_page'))
+                # Auto-create subscription row for new users (free tier)
+                if not sub:
+                    sub = Subscription(user_id=user.id, status='inactive')
+                    db.session.add(sub)
+                    db.session.commit()
+                # Free tier users can browse the app freely.
+                # Limit is enforced at /candidate/start (see candidate_check.py).
 
-    # Inject current_user into all templates
+    # Inject current_user + subscription into all templates
     @app.context_processor
     def inject_user():
         from app.routes.auth import get_current_user
-        return {'current_user': get_current_user()}
+        from app.models.subscription import Subscription
+        user = get_current_user()
+        sub = None
+        if user:
+            sub = Subscription.query.filter_by(user_id=user.id).first()
+        return {'current_user': user, 'user_subscription': sub}
 
     # Security headers on all responses
     @app.after_request
@@ -248,6 +259,9 @@ def _migrate_task_columns(db_instance):
         ('pledge_records', 'TEXT'),
         # Multi-user (March 2026)
         ('user_id', 'INTEGER'),
+        # 152-FZ PD consent (March 2026)
+        ('pd_consent', 'BOOLEAN DEFAULT 0'),
+        ('pd_consent_at', 'DATETIME'),
     ]
     for col_name, col_type in columns:
         try:

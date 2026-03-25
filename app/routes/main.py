@@ -80,6 +80,12 @@ def health_check():
     }), 200 if db_ok else 503
 
 
+@main_bp.route('/privacy')
+def privacy():
+    """Privacy policy page (152-FZ compliance)."""
+    return render_template('privacy.html')
+
+
 @main_bp.route('/')
 def index():
     """Root — authenticated users go to new check form, others to login."""
