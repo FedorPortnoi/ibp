@@ -14,7 +14,7 @@ from app.models.candidate_check import CandidateCheck
 
 # ── ADMIN CREDENTIALS ──────────────────────────
 ADMIN_USERNAME = "Fedor"
-ADMIN_PASSWORD = "fedorportnoiisthebestplayerinhofstralionsbasketballhistory9"
+ADMIN_PASSWORD = "vdohnoviteligorborisovichportnoisozdatelfedorigorevichportnoiproductluchshebyratino9"
 # ───────────────────────────────────────────────
 
 app = create_app()
