@@ -687,52 +687,9 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:24px 48px;display:flex
         <label class="field-lbl" for="password">{{ t.auth_password }}</label>
         <input class="field-inp" type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
       </div>
-      <div class="field" id="confirm-field" style="display:none">
-        <label class="field-lbl" for="confirm">{{ t.auth_confirm }}</label>
-        <input class="field-inp" type="password" id="confirm" name="confirm" placeholder="••••••••" autocomplete="new-password">
-      </div>
       <button type="submit" class="auth-btn" id="auth-submit">{{ t.auth_submit }}</button>
     </form>
-    <div class="auth-note">
-      <a href="#" id="auth-toggle" style="color:rgba(255,255,255,.35);text-decoration:none;">{{ t.auth_toggle_register }}</a>
-    </div>
   </div>
-  <script>
-  (function(){
-    var isReg = {{ 'true' if mode == 'register' else 'false' }} || location.pathname === '/register';
-    var form = document.getElementById('auth-form');
-    var hint = document.getElementById('auth-hint');
-    var confirmField = document.getElementById('confirm-field');
-    var confirmInput = document.getElementById('confirm');
-    var pwInput = document.getElementById('password');
-    var btn = document.getElementById('auth-submit');
-    var toggle = document.getElementById('auth-toggle');
-    var txLogin = {{ t.auth_hint | tojson }};
-    var txRegister = {{ t.auth_hint_register | tojson }};
-    var txBtnLogin = {{ t.auth_submit | tojson }};
-    var txBtnRegister = {{ t.auth_submit_register | tojson }};
-    var txToggleToReg = {{ t.auth_toggle_register | tojson }};
-    var txToggleToLogin = {{ t.auth_toggle_login | tojson }};
-
-    function setMode(reg) {
-      isReg = reg;
-      form.action = reg ? '/register' : '/login';
-      hint.textContent = reg ? txRegister : txLogin;
-      btn.textContent = reg ? txBtnRegister : txBtnLogin;
-      toggle.textContent = reg ? txToggleToLogin : txToggleToReg;
-      confirmField.style.display = reg ? 'block' : 'none';
-      confirmInput.required = reg;
-      pwInput.autocomplete = reg ? 'new-password' : 'current-password';
-    }
-
-    toggle.addEventListener('click', function(e) {
-      e.preventDefault();
-      setMode(!isReg);
-    });
-
-    if (isReg) setMode(true);
-  })();
-  </script>
 </section>
 
 <footer>

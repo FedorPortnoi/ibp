@@ -156,53 +156,9 @@ def login():
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
-@limiter.limit("5 per minute")
 def register():
-    """Open registration — creates role='user' only."""
-    if session.get('user_id'):
-        return redirect(url_for('candidate.new_check'))
-
-    lang = detect_language()
-
-    error = None
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-        confirm = request.form.get('confirm', '')
-
-        from app.models.user import User
-
-        if not username or len(username) < 3:
-            error = 'username_short'
-        elif len(username) > 64:
-            error = 'username_long'
-        elif User.query.filter_by(username=username).first():
-            error = 'username_taken'
-        elif len(password) < 6:
-            error = 'password_short'
-        elif password != confirm:
-            error = 'password_mismatch'
-        else:
-            user = User(username=username, role='user')
-            user.set_password(password)
-            try:
-                db.session.add(user)
-                db.session.commit()
-            except IntegrityError:
-                db.session.rollback()
-                error = 'username_taken'
-                return render_template('login.html', error=error, lang=lang, mode='register')
-
-            session.permanent = True
-            session['user_id'] = user.id
-            session['username'] = user.username
-            session['role'] = user.role
-            session['last_active'] = datetime.datetime.utcnow().isoformat()
-
-            logger.info(f"New user registered: '{user.username}'")
-            return redirect(url_for('candidate.new_check'))
-
-    return render_template('login.html', error=error, lang=lang, mode='register')
+    """Registration disabled — redirect to login."""
+    return redirect(url_for('auth.login'))
 
 
 @auth_bp.route('/logout')
