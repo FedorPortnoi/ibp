@@ -1,0 +1,16 @@
+HTTP/1.1 302 FOUND
+Server: nginx/1.24.0 (Ubuntu)
+Date: Wed, 18 Mar 2026 22:47:57 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 209
+Connection: keep-alive
+Location: /phase1/new
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https: blob:; connect-src 'self'; frame-ancestors 'self'
+Vary: Cookie
+Set-Cookie: session=eyJfcGVybWFuZW50Ijp0cnVlLCJhdXRoZW50aWNhdGVkIjp0cnVlLCJsYXN0X2FjdGl2ZSI6IjIwMjYtMDMtMThUMjI6NDc6NTcuMzUxOTg2In0.absrnQ.GKSQ1VnnueCVm3NL3WmwEgzoc9k; Expires=Wed, 18 Mar 2026 23:47:57 GMT; HttpOnly; Path=/; SameSite=Lax
+

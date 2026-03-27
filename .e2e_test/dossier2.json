@@ -1,0 +1,1791 @@
+{
+  "meta": {
+    "generated_at": "2026-03-18T22:53:54.989665",
+    "ibp_version": "1.0",
+    "check_id": "2136803c81e84b10b053b54cdb8235c2",
+    "check_mode": "quick",
+    "duration_seconds": 227.971651,
+    "check_level": "Расширенная проверка",
+    "sources_checked": 16,
+    "sources_with_results": 4,
+    "status": "complete",
+    "report_generated": true
+  },
+  "candidate": {
+    "full_name": "Стасюк Сергей Анатольевич",
+    "date_of_birth": "1967-10-31",
+    "inn": "233500829075",
+    "region": null,
+    "phone": null,
+    "email": null
+  },
+  "risk_assessment": {
+    "risk_level": "low",
+    "risk_level_display": "НИЗКИЙ РИСК",
+    "risk_score_numeric": 20.0,
+    "red_flag_count": 3,
+    "red_flags": [
+      {
+        "severity": "medium",
+        "category": "sanctions",
+        "code": "sanctions_unchecked",
+        "text": "Не удалось проверить санкционные списки — рекомендуется ручная проверка",
+        "details": "Источники: Перечень экстремистов, МВД — розыск, Росфинмониторинг"
+      },
+      {
+        "severity": "low",
+        "category": "identity",
+        "code": "identity_not_confirmed",
+        "text": "ИНН не подтверждён через ЕГРЮЛ (нет записей)"
+      },
+      {
+        "severity": "low",
+        "category": "business",
+        "code": "serial_entrepreneur",
+        "text": "Связан с 19 компаниями",
+        "details": "Информационный флаг — множественные бизнес-связи"
+      }
+    ],
+    "risk_breakdown": {
+      "sanctions": {
+        "count": 1,
+        "score": 10,
+        "max_severity": "medium",
+        "flags": [
+          "sanctions_unchecked"
+        ]
+      },
+      "identity": {
+        "count": 1,
+        "score": 5,
+        "max_severity": "low",
+        "flags": [
+          "identity_not_confirmed"
+        ]
+      },
+      "business": {
+        "count": 1,
+        "score": 5,
+        "max_severity": "low",
+        "flags": [
+          "serial_entrepreneur"
+        ]
+      }
+    }
+  },
+  "business_records": [
+    {
+      "company_name": "ИП СТАСЮК СТАНИСЛАВ АНАТОЛЬЕВИЧ",
+      "inn": "140865206832",
+      "ogrn": "322140000006403",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "08.02.2022",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК ИГОРЬ АНАТОЛЬЕВИЧ",
+      "inn": "372103029625",
+      "ogrn": "325370000019480",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "15.04.2025",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК АЛЕКСЕЙ АНАТОЛЬЕВИЧ",
+      "inn": "591705385497",
+      "ogrn": "304591725800050",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "14.09.2004",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК АЛЕКСАНДР АНАТОЛЬЕВИЧ",
+      "inn": "722409581487",
+      "ogrn": "326723200026677",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "10.03.2026",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК ЕВГЕНИЙ АНАТОЛЬЕВИЧ",
+      "inn": "251800924402",
+      "ogrn": "326774600132741",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "19.02.2026",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК АЛЕКСАНДР АНАТОЛЬЕВИЧ",
+      "inn": "234311604945",
+      "ogrn": "322237500085131",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "10.03.2022",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК ДМИТРИЙ АНАТОЛЬЕВИЧ",
+      "inn": "270314575930",
+      "ogrn": "317272400001020",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "17.01.2017",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК АЛЕКСАНДР АНАТОЛЬЕВИЧ",
+      "inn": "222202889698",
+      "ogrn": "304222228100191",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "07.10.2004",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК АНАТОЛИЙ АНАТОЛЬЕВИЧ",
+      "inn": "280128965337",
+      "ogrn": "322280100019368",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "24.06.2022",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК АНДРЕЙ АНАТОЛЬЕВИЧ",
+      "inn": "623011787440",
+      "ogrn": "319623400002336",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "23.01.2019",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК ВАДИМ АНАТОЛЬЕВИЧ",
+      "inn": "280122536204",
+      "ogrn": "318280100002335",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "31.01.2018",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК СЕРГЕЙ ВИКТОРОВИЧ",
+      "inn": "920157025890",
+      "ogrn": "323920000001553",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "24.01.2023",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК СЕРГЕЙ ВЛАДИМИРОВИЧ",
+      "inn": "860900359064",
+      "ogrn": "311860931800016",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "14.11.2011",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК СЕРГЕЙ НИКОЛАЕВИЧ",
+      "inn": "232500100499",
+      "ogrn": "304232535200014",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "17.12.2004",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК СЕРГЕЙ СЕРГЕЕВИЧ",
+      "inn": "542706278353",
+      "ogrn": "321547600147249",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "11.10.2021",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП Стасюк Сергей Петрович",
+      "inn": "543670848545",
+      "ogrn": "308546205000031",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "19.02.2008",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК СЕРГЕЙ НИКОЛАЕВИЧ",
+      "inn": "500400042111",
+      "ogrn": "305500400103481",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "01.01.2005",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК СЕРГЕЙ АЛЕКСЕЕВИЧ",
+      "inn": "382002836178",
+      "ogrn": "306382032800026",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "24.11.2006",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    },
+    {
+      "company_name": "ИП СТАСЮК СЕРГЕЙ ГРИГОРЬЕВИЧ",
+      "inn": "744900197305",
+      "ogrn": "305744914941172",
+      "role": "ИП",
+      "status": "Действующее",
+      "registration_date": "29.05.2005",
+      "address": "",
+      "capital": "",
+      "source": "egrul.nalog.ru",
+      "url": "https://egrul.nalog.ru/index.html",
+      "confidence": "high",
+      "company_type": "ИП",
+      "okved": "",
+      "okved_name": ""
+    }
+  ],
+  "court_records": [
+    {
+      "case_number": "22-2812/2019",
+      "court_name": "Пермский краевой суд",
+      "case_type": "уголовное",
+      "date": "22 мая 2019",
+      "role": "участник",
+      "category": "",
+      "result": "",
+      "url": "https://sudact.ru/regular/doc/CHOwcE1i0NxR/",
+      "source": "sudact.ru",
+      "confidence": "high"
+    }
+  ],
+  "fssp_records": [],
+  "bankruptcy_records": [
+    {
+      "debtor_name": "Стасюк Сергей Анатольевич",
+      "debtor_inn": null,
+      "debtor_address": null,
+      "case_number": "Требуется ручная проверка",
+      "court_name": null,
+      "stage": "Автоматический поиск недоступен. Проверьте вручную.",
+      "arbitration_manager": null,
+      "publication_date": null,
+      "is_active": false,
+      "source": "manual",
+      "url": "https://bankrot.fedresurs.ru/DebtorsSearch.aspx",
+      "type": "bankruptcy"
+    }
+  ],
+  "sanctions_results": [
+    {
+      "source_name": "Перечень экстремистов",
+      "checked": false,
+      "found": false,
+      "match_details": null,
+      "error": "Локальная база экстремистов не загружена",
+      "url": "https://minjust.gov.ru/ru/extremist-materials/"
+    },
+    {
+      "source_name": "МВД — розыск",
+      "checked": false,
+      "found": false,
+      "match_details": null,
+      "error": "Локальная база МВД не загружена",
+      "url": "https://xn--b1aew.xn--p1ai/wanted"
+    },
+    {
+      "source_name": "Росфинмониторинг",
+      "checked": false,
+      "found": false,
+      "match_details": null,
+      "error": "Сайт недоступен (возможна геоблокировка)",
+      "url": "https://www.fedsfm.ru/documents/terrorists-catalog-portal-act"
+    },
+    {
+      "source_name": "OpenSanctions",
+      "checked": true,
+      "found": false,
+      "match_details": null,
+      "error": null,
+      "url": "https://opensanctions.org/"
+    },
+    {
+      "source_name": "Интерпол",
+      "checked": true,
+      "found": false,
+      "match_details": null,
+      "error": null,
+      "url": "https://www.interpol.int/en/How-we-work/Notices/View-Red-Notices"
+    },
+    {
+      "source_name": "МВД Розыск",
+      "checked": true,
+      "found": false,
+      "match_details": null,
+      "error": null,
+      "url": "https://xn--b1aew.xn--p1ai/wanted"
+    }
+  ],
+  "social_media_profiles": [
+    {
+      "platform": "vk",
+      "platform_id": 752684773,
+      "display_name": "Сергей Стасюк",
+      "username": "id752684773",
+      "url": "https://vk.com/id752684773",
+      "avatar_url": "https://sun1-93.userapi.com/impg/DW4IDqvukChyc-WPXmzIot46En40R00idiUAXw/l5w5aIHioYc.jpg?quality=96&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360&sign=10ad7d7953daabb7b0e707fdfb7ebefd&u=I6EtahnrCRLlyd0MhT2raQt6ydhuyxX4s72EHGuUSoM&cs=240x240",
+      "photo_url": "https://sun1-93.userapi.com/impg/DW4IDqvukChyc-WPXmzIot46En40R00idiUAXw/l5w5aIHioYc.jpg?quality=96&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360&sign=10ad7d7953daabb7b0e707fdfb7ebefd&u=I6EtahnrCRLlyd0MhT2raQt6ydhuyxX4s72EHGuUSoM&cs=240x240",
+      "confidence": "высокая",
+      "confidence_score": 1.0,
+      "dob_match": false,
+      "source_method": "VK People Search",
+      "city": null
+    }
+  ],
+  "confirmed_profiles": [],
+  "contact_discoveries": {
+    "phones": [],
+    "emails": []
+  },
+  "social_graph_data": {
+    "nodes": [
+      {
+        "id": "vk_752684773",
+        "label": "",
+        "title": "\n\nConnections: 35",
+        "level": 0,
+        "shape": "dot",
+        "size": 50,
+        "font": {
+          "size": 14,
+          "color": "#fff"
+        },
+        "vkId": 752684773,
+        "color": {
+          "background": "#8b5cf6",
+          "border": "#7c3aed",
+          "highlight": {
+            "background": "#a78bfa",
+            "border": "#8b5cf6"
+          },
+          "hover": {
+            "background": "#a78bfa",
+            "border": "#8b5cf6"
+          }
+        },
+        "borderWidth": 3
+      },
+      {
+        "id": "vk_961582",
+        "label": "Сергей Кузнецов",
+        "title": "Сергей Кузнецов\n{'id': 147, 'title': 'Тюмень'}\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 961582,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_18167996",
+        "label": "Алексей Паламарчук",
+        "title": "Алексей Паламарчук\n{'id': 1426, 'title': 'Радужный'}\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 18167996,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_24248380",
+        "label": "Вова Стасюк",
+        "title": "Вова Стасюк\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 24248380,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_29881165",
+        "label": "Владимир Фисенко",
+        "title": "Владимир Фисенко\n{'id': 1145365, 'title': 'Исилькуль'}\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 29881165,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_30263481",
+        "label": "Денис Голев",
+        "title": "Денис Голев\n{'id': 1426, 'title': 'Радужный'}\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 30263481,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_56411567",
+        "label": "Архип Ковальчук",
+        "title": "Архип Ковальчук\n{'id': 1515864, 'title': 'Boston'}\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 56411567,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_68431999",
+        "label": "Екатерина Голева",
+        "title": "Екатерина Голева\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 68431999,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_101897325",
+        "label": "Дмитрий Борисюк",
+        "title": "Дмитрий Борисюк\n{'id': 147, 'title': 'Тюмень'}\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 101897325,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_136349098",
+        "label": "Влад Дрёмин",
+        "title": "Влад Дрёмин\n{'id': 147, 'title': 'Тюмень'}\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 136349098,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_148265563",
+        "label": "Розалия Кузьмина",
+        "title": "Розалия Кузьмина\n{'id': 1426, 'title': 'Радужный'}\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 148265563,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_178946836",
+        "label": "Ильгиз Давлетов",
+        "title": "Ильгиз Давлетов\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 178946836,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_197519934",
+        "label": "Андрюха С-Радужного",
+        "title": "Андрюха С-Радужного\n{'id': 1426, 'title': 'Радужный'}\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 197519934,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_212643938",
+        "label": "Ruslan Gadjiev",
+        "title": "Ruslan Gadjiev\n{'id': 136, 'title': 'Сургут'}\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 212643938,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_294434960",
+        "label": "Анастасия Антипова",
+        "title": "Анастасия Антипова\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 294434960,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_378885213",
+        "label": "Наталья Стасюк",
+        "title": "Наталья Стасюк\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 378885213,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_440277770",
+        "label": "Сергей Калашников",
+        "title": "Сергей Калашников\n{'id': 1426, 'title': 'Радужный'}\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 440277770,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_523813904",
+        "label": "Александр Кузьмин",
+        "title": "Александр Кузьмин\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 523813904,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_528595778",
+        "label": "Татьяна Малышева",
+        "title": "Татьяна Малышева\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 528595778,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_532424706",
+        "label": "Александр Кучеря",
+        "title": "Александр Кучеря\n{'id': 1426, 'title': 'Радужный'}\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 532424706,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_545610040",
+        "label": "Игорь Варгола",
+        "title": "Игорь Варгола\n{'id': 1426, 'title': 'Радужный'}\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 545610040,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_557657819",
+        "label": "Михаил Голев",
+        "title": "Михаил Голев\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 557657819,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_574918001",
+        "label": "Nate Diaz",
+        "title": "Nate Diaz\n{'id': 1519218, 'title': 'Stockton'}\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 574918001,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_623804054",
+        "label": "Екатерина Паламарчук",
+        "title": "Екатерина Паламарчук\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 623804054,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_652461550",
+        "label": "Галина Ковальчук",
+        "title": "Галина Ковальчук\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 652461550,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_676974390",
+        "label": "Александр Кузьмин",
+        "title": "Александр Кузьмин\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 676974390,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_708209180",
+        "label": "Наталья Гулина",
+        "title": "Наталья Гулина\n{'id': 1426, 'title': 'Радужный'}\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 708209180,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_714389515",
+        "label": "Елена Маркова",
+        "title": "Елена Маркова\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 714389515,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_747453336",
+        "label": "Валерий Якубенко",
+        "title": "Валерий Якубенко\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 747453336,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_781562673",
+        "label": "Сергей Голев",
+        "title": "Сергей Голев\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 781562673,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_802316752",
+        "label": "Илхам Керимов",
+        "title": "Илхам Керимов\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 802316752,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_825270629",
+        "label": "Руслан Махмутов",
+        "title": "Руслан Махмутов\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 825270629,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_831169459",
+        "label": "Александр Кузьмин",
+        "title": "Александр Кузьмин\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 831169459,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_837987629",
+        "label": "Абдулла Аскеров",
+        "title": "Абдулла Аскеров\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 837987629,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_859445814",
+        "label": "Владимир Куликов",
+        "title": "Владимир Куликов\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 859445814,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      },
+      {
+        "id": "vk_883446432",
+        "label": "Леонид Семенюк",
+        "title": "Леонид Семенюк\n\nConnections: 1",
+        "level": 1,
+        "shape": "dot",
+        "size": 26,
+        "font": {
+          "size": 11,
+          "color": "#fff"
+        },
+        "vkId": 883446432,
+        "color": {
+          "background": "#ff6b6b",
+          "border": "#ff6b6b",
+          "highlight": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          },
+          "hover": {
+            "background": "#ff6b6b",
+            "border": "#fff"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "vk_178946836",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_29881165",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_136349098",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_752684773",
+        "to": "vk_781562673",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_623804054",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_652461550",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_212643938",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_197519934",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_24248380",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_101897325",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_532424706",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_440277770",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_68431999",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_148265563",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_752684773",
+        "to": "vk_961582",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_714389515",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_708209180",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_523813904",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_56411567",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_747453336",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_545610040",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_574918001",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_294434960",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_528595778",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_752684773",
+        "to": "vk_859445814",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_557657819",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_752684773",
+        "to": "vk_831169459",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_752684773",
+        "to": "vk_883446432",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_30263481",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_676974390",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_378885213",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_752684773",
+        "to": "vk_825270629",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_752684773",
+        "to": "vk_837987629",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_752684773",
+        "to": "vk_802316752",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      },
+      {
+        "from": "vk_18167996",
+        "to": "vk_752684773",
+        "color": {
+          "color": "rgba(255,255,255,0.2)",
+          "highlight": "#8b5cf6"
+        },
+        "width": 1
+      }
+    ],
+    "stats": {
+      "node_count": 36,
+      "edge_count": 35,
+      "density": 0.05555555555555555,
+      "avg_degree": 1.9444444444444444,
+      "max_degree": 35,
+      "level_counts": {
+        "0": 1,
+        "1": 35
+      }
+    },
+    "clusters": [
+      {
+        "id": 0,
+        "members": [
+          "vk_752684773",
+          "vk_961582",
+          "vk_18167996",
+          "vk_24248380",
+          "vk_29881165",
+          "vk_30263481",
+          "vk_56411567",
+          "vk_68431999",
+          "vk_101897325",
+          "vk_136349098",
+          "vk_148265563",
+          "vk_178946836",
+          "vk_197519934",
+          "vk_212643938",
+          "vk_294434960",
+          "vk_378885213",
+          "vk_440277770",
+          "vk_523813904",
+          "vk_528595778",
+          "vk_532424706",
+          "vk_545610040",
+          "vk_557657819",
+          "vk_574918001",
+          "vk_623804054",
+          "vk_652461550",
+          "vk_676974390",
+          "vk_708209180",
+          "vk_714389515",
+          "vk_747453336",
+          "vk_781562673",
+          "vk_802316752",
+          "vk_825270629",
+          "vk_831169459",
+          "vk_837987629",
+          "vk_859445814",
+          "vk_883446432"
+        ],
+        "size": 36,
+        "label": "Community 1",
+        "color": "#ff6b6b"
+      }
+    ]
+  },
+  "face_matches": [],
+  "username_accounts": [],
+  "geo_analysis": {
+    "locations": [],
+    "home_location": null,
+    "work_location": null,
+    "frequent_places": [],
+    "travel_destinations": [],
+    "timeline": [],
+    "stats": {},
+    "map_data": {
+      "center": [
+        55.7558,
+        37.6173
+      ],
+      "zoom": 6,
+      "markers": []
+    }
+  },
+  "text_analysis": {},
+  "activity_timeline": [
+    {
+      "timestamp": "2026-03-18T22:49:34.197848",
+      "type": "check_started",
+      "source": "system",
+      "summary": "Проверка начата"
+    }
+  ]
+}

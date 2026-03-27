@@ -1,0 +1,46 @@
+{
+  "candidate": "Судин Артем Алексеевич",
+  "inn": "232308435186",
+  "region": "Краснодарский край",
+  "total_cases": 1,
+  "stats": {
+    "VERIFIED": 0,
+    "LIKELY": 0,
+    "POSSIBLE": 0,
+    "UNVERIFIED": 1
+  },
+  "cases_by_confidence": {
+    "UNVERIFIED": [
+      {
+        "source": "sudact.ru",
+        "confidence": "UNVERIFIED",
+        "case_number": "3А-101/2024",
+        "court_name": "Верховный Суд Республики Саха (Якутия)",
+        "date": "28.04.2025",
+        "category": "Административное",
+        "text_preview": "Решение по делу о зонировании СНТ 'Сатал' в Якутии. Участники анонимизированы (ФИО1-ФИО15). Имя 'Судин' не найдено в тексте документа. Регион: Якутия (не Краснодарский край). Год 1990 не упоминается.",
+        "url": "https://sudact.ru/regular/doc/WFOVJGMFzeVB/",
+        "notes": "Full-text match only. Likely false positive from search index."
+      }
+    ]
+  },
+  "all_cases": [
+    {
+      "source": "sudact.ru",
+      "confidence": "UNVERIFIED",
+      "case_number": "3А-101/2024",
+      "court_name": "Верховный Суд Республики Саха (Якутия)",
+      "date": "28.04.2025",
+      "category": "Административное",
+      "text_preview": "Решение по делу о зонировании СНТ 'Сатал' в Якутии. Участники анонимизированы (ФИО1-ФИО15). Имя 'Судин' не найдено в тексте документа. Регион: Якутия (не Краснодарский край). Год 1990 не упоминается.",
+      "url": "https://sudact.ru/regular/doc/WFOVJGMFzeVB/",
+      "notes": "Full-text match only. Likely false positive from search index."
+    }
+  ],
+  "search_details": {
+    "sudact_krasnodar": "0 results — searched with region filter Краснодарский край",
+    "sudact_all_regions": "1 result — Якутия, administrative zoning case, UNVERIFIED",
+    "sudebnye_resheniya_rf": "0 results",
+    "reputation_su": "0 results"
+  }
+}

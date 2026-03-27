@@ -100,7 +100,7 @@ def set_lang(lang):
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per minute", methods=["POST"])
+@limiter.limit("5 per minute; 20 per hour", methods=["POST"])
 def login():
     """Login page — username + password."""
     if session.get('user_id'):

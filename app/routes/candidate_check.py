@@ -95,7 +95,7 @@ def new_check():
 
 
 @candidate_bp.route('/start', methods=['POST'])
-@limiter.limit("10 per minute")
+@limiter.limit("10 per minute; 50 per hour")
 def start_check():
     """
     Start a candidate background check.

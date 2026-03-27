@@ -1,0 +1,8 @@
+HTTP/1.1 302 Found
+Date: Mon, 23 Mar 2026 16:37:04 GMT
+Server: Apache/2.4.29 (Ubuntu)
+Cache-Control: no-cache
+Location: /search
+Content-Length: 272
+Content-Type: text/html; charset=UTF-8
+

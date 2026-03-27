@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Поиск решений судов общей юрисдикции</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="description" content="Самая полная база данных решений и дел судов общей юрисдикции России. Удобный поиск и подписки на обновления.">
+                    <!-- Bootstrap -->
+        <link href="/css/bootstrap.css" rel="stylesheet" media="screen">
+        <link href="/bundles/akjudgementcard/css/decorate.css" rel="stylesheet" media="screen">
+    
+    <link href="/bundles/akjudgementcard/css/datepicker.css" rel="stylesheet" />
+    <link href="/bundles/akjudgementcard/css/aciTree.css" rel="stylesheet" />
+
+        <!-- HTML5 Shim and Respond.js add IE8 support of HTML5 elements and media queries -->
+        <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv-printshiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+<![endif]-->
+
+                <!-- jQuery (necessary for Bootstraps JavaScript plugins) -->
+        <script src="/js/jquery.js"></script>
+    
+    <script src="/bundles/akjudgementcard/js/datepicker.js"></script>
+    <script src="/bundles/akjudgementcard/js/jquery.aciPlugin.min.js"></script>
+    <script src="/bundles/akjudgementcard/js/jquery.aciTree.dom.js"></script>
+    <script src="/bundles/akjudgementcard/js/jquery.aciTree.core.js"></script>
+    <script src="/bundles/akjudgementcard/js/jquery.aciTree.selectable.js"></script>
+    <script src="/bundles/akjudgementcard/js/jquery.aciTree.checkbox.js"></script>
+    <script src="/bundles/akjudgementcard/js/jquery.aciTree.utils.js"></script>
+	<!-- Yandex.Metrika counter -->
+	<script type="text/javascript" >
+	   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+	   m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+	   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+	   ym(45642543, "init", {
+		clickmap:true,
+		trackLinks:true,
+		accurateTrackBounce:true
+	   });
+	</script>
+	<noscript><div><img src="https://mc.yandex.ru/watch/45642543" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+	<!-- /Yandex.Metrika counter -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2" />
+</head>
+
+<body>
+<div id="content" style="padding-bottom:30px; padding-top:10px">
+<div class="container">
+<div class="row">
+    <div class="col-md-3 col-sm-4 col-xs-4"><a href="/"><img class="img-responsive" src="/images/logo.png"></a></div>
+    <div class="col-md-9 col-sm-8 col-xs-8" id="top-banner">
+                    <!--/* Revive Adserver Javascript Tag v3.0.2 */-->
+            <script type='text/javascript'><!--//<![CDATA[
+   var m3_u = (location.protocol=='https:'?'https://ox.ruscourt.ru/www/delivery/ajs.php':'http://ox.ruscourt.ru/www/delivery/ajs.php');
+      var m3_r = Math.floor(Math.random()*99999999999);
+         if (!document.MAX_used) document.MAX_used = ',';
+            document.write ("<scr"+"ipt type='text/javascript' src='"+m3_u);
+               document.write ("?zoneid=18&amp;target=_blank&amp;charset=UTF-8");
+                  document.write ('&amp;cb=' + m3_r);
+                     if (document.MAX_used != ',') document.write ("&amp;exclude=" + document.MAX_used);
+                        document.write ('&amp;charset=UTF-8');
+                           document.write ("&amp;loc=" + escape(window.location));
+                              if (document.referrer) document.write ("&amp;referer=" + escape(document.referrer));
+                                 if (document.context) document.write ("&context=" + escape(document.context));
+                                    if (document.mmm_fo) document.write ("&amp;mmm_fo=1");
+                                       document.write ("'><\/scr"+"ipt>");
+                                       //]]>--></script><noscript>gt<a href='http://ox.ruscourt.ru/www/delivery/ck.php?n=aebb3ae5&amp;cb=3475935628455757' target='_blank'><img src='http://ox.ruscourt.ru/www/delivery/avw.php?zoneid=18&amp;charset=UTF-8&amp;cb=3475935628455757&amp;n=aebb3ae5' border='0' alt='' /></a></noscript>
+
+    </div>
+</div>
+<div class="row"><div class="col-md-12">
+    <div style="height:2px; background-color:#317bba"></div>
+</div></div>
+<div class="row" style="margin-top:30px">
+    <div class="col-md-9">
+        <div class="row"><div class="col-md-12">
+        <ul class="nav nav-tabs">
+            <li role="presentation" class="active"><a href="#">Простой поиск</a></li>
+            <li role="presentation"><a href="/extended-search">Расширенный поиск</a></li>
+      <!--      <li role="presentation"><a href="/pci650981/">Личный кабинет</a></li> -->
+        </ul>
+    </div></div>
+    <div class="row">
+    <div class="col-md-12" style="margin-bottom:20px">
+        <div style="background-color:#e7e8ea; padding:10px">
+                <form  name="simpleSearch" method="post" action="/simple_filter" class="form-horizontal" id="search-form" role="form">
+                
+
+            <div class="form-group">
+                    <label class="col-md-2 control-label" for="simpleSearch_content">Текст документа</label>
+                <div class="col-md-5">
+                        <input type="text"     id="simpleSearch_content" name="simpleSearch[content]"        class="form-control" >
+                </div>
+                    <label class="col-md-2 control-label" for="simpleSearch_case_number">Номер&nbsp;дела</label>
+                <div class="col-md-3">
+                        <input type="text"     id="simpleSearch_case_number" name="simpleSearch[case_number]"        class="form-control" >
+                </div>
+            </div>
+
+                            <div class="form-group">
+                        <label class="col-md-2 control-label" for="simpleSearch_person_info_0_person">Участник дела</label>
+                    <div class="col-md-5">
+                            <input type="text"     id="simpleSearch_person_info_0_person" name="simpleSearch[person_info][0][person]"        class="form-control" >
+                    </div>
+                        <label class="col-md-2 control-label" for="simpleSearch_person_info_0_person_status">Статус участника</label>
+                    <div class="col-md-3">
+                            <select     id="simpleSearch_person_info_0_person_status" name="simpleSearch[person_info][0][person_status]"        class="form-control"><option  value=""></option><option value="1">ОТВЕТЧИК</option><option value="2">ИСТЕЦ</option><option value="4">ЗАЯВИТЕЛЬ</option><option value="5">ЗАИНТЕРЕСОВАННОЕ ЛИЦО</option><option value="8">ТРЕТЬЕ ЛИЦО</option><option value="10">ДОЛЖНИК</option><option value="11">ВЗЫСКАТЕЛЬ</option><option value="13">ПРОКУРОР</option><option value="15">Эксперт</option><option value="16">Свидетель</option><option value="17">Специалист</option><option value="18">Переводчик</option><option value="19">Медиатор</option><option value="42">Подсудимый (осужденный)</option></select>
+                    </div>
+                </div>
+            
+
+            
+            <div class="form-group" style="min-height:390px">
+                <label for="simpleSearch_court" class="col-md-2 control-label">Суд</label>
+                <div class="col-md-10" style="padding-top:10px"><div id="tree" class="aciTree aciTreeBig aciTreeNoBranches"></div></div>
+            </div>
+
+            <div class="form-group">
+                    <label class="col-md-2 control-label" for="simpleSearch_case_vid">Вид производства</label>
+                <div class="col-md-10">
+                        <select     id="simpleSearch_case_vid" name="simpleSearch[case_vid]"        class="form-control"><option  value=""></option><option value="gr">Гражданские и административные дела</option><option value="adm">Дела по административным правонарушениям</option><option value="ug">Уголовные дела</option></select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                    <label class="col-md-2 control-label" for="simpleSearch_case_stage">Этап производства</label>
+                <div class="col-md-10">
+                        <select     id="simpleSearch_case_stage" name="simpleSearch[case_stage]"        class="form-control"><option  value=""></option><option value="first">Первая инстанция</option><option value="appeal">Апелляция</option><option value="cass">Кассация</option><option value="nadzor">Надзор</option></select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="col-md-2 col-md-push-10">
+                        <button type="submit" id="simpleSearch_search" name="simpleSearch[search]" class="btn btn-primary col-md-12 btn-sm btn btn-primary">Поиск</button>
+                </div>
+                <div class="col-md-2">
+                        <button type="submit" id="simpleSearch_reset" name="simpleSearch[reset]" class="btn btn-danger col-md-12 btn-sm btn btn-primary">Очистить</button>
+                </div>
+            </div>
+                <input type="hidden"     id="simpleSearch__token" name="simpleSearch[_token]"        class="form-control" value="BZTDgHevAyEe57gw4f0A0VCKt9k__eWNLdTJO1Rh2YA" ></form>
+        </div>
+    </div>
+</div>
+
+<script>
+var hiddenCourts = [];
+var hiddenRegions = [];
+jQuery(document).ready(function() {
+
+    $("#tree").aciTree({
+        ajax: {
+            url: "/loadCourtTree/simple"
+        },
+        checkbox: true,
+        collapse: true,
+        animateRoot: false
+    });
+
+    $('#tree').on('acitree', function(event, api, item, eventName, options) {
+        switch (eventName) {
+            case 'checked':
+            case 'unchecked':
+            case 'loaded':
+                hiddenCourts = [];
+                hiddenRegions = [];
+                api.branch(null, function(item) {
+                    if(api.isChecked(item)) {
+                        if(api.hasChildren(item)) {
+                            hiddenRegions.push('<input type="hidden" name="simpleSearch[region][]" value="'+api.getId(item)+'">');
+                        } else {
+                            hiddenCourts.push('<input type="hidden" name="simpleSearch[court][]" value="'+api.getId(item)+'">');
+                        }
+                    }
+                });
+                break;
+        }
+    });
+
+    $("#search-form").submit(function(event) {
+        $(this).append(hiddenCourts.join(''));
+        $(this).append(hiddenRegions.join(''));
+    });
+});
+</script>
+
+        <div class="row"><div class="col-md-12">
+                <p class="case_quantity">Всего решений в базе:&nbsp;
+                            <span>9</span><span>4</span><span>4</span><span>6</span><span>9</span><span>8</span><span>0</span><span>7</span></p>    </div></div>
+
+    <div class="row"><div class="col-md-12">
+        <div class="well center-block" style="margin-top:20px"><p class="text-center"><a href="/search">Список всех дел</a></p></div>
+    </div></div>
+    </div>
+    <div class="col-md-3" style="padding-top:40px">
+<!-- R-138237-1 Яндекс.RTB-блок  -->
+<div id="yandex_ad_R-138237-1"></div>
+<script type="text/javascript">
+(function(w, d, n, s, t) {
+w[n] = w[n] || [];
+w[n].push(function() {
+Ya.Context.AdvManager.render({
+	blockId: "R-138237-1",
+	renderTo: "yandex_ad_R-138237-1",
+	async: true
+});
+});
+t = d.getElementsByTagName("script")[0];
+s = d.createElement("script");
+s.type = "text/javascript";
+s.src = "//an.yandex.ru/system/context.js";
+s.async = true;
+t.parentNode.insertBefore(s, t);
+})(this, this.document, "yandexContextAsyncCallbacks");
+</script>
+
+
+        <div style="margin-top:20px">
+</div>
+
+
+<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- СудРеш_справа --> <ins class="adsbygoogle" style="display:inline-block;width:240px;height:400px" data-ad-client="ca-pub-3942066338277934" data-ad-slot="8693429207"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+                    <!--/* Revive Adserver Javascript Tag v3.0.2 */-->
+            <script type='text/javascript'><!--//<![CDATA[
+   var m3_u = (location.protocol=='https:'?'https://ox.ruscourt.ru/www/delivery/ajs.php':'http://ox.ruscourt.ru/www/delivery/ajs.php');
+      var m3_r = Math.floor(Math.random()*99999999999);
+         if (!document.MAX_used) document.MAX_used = ',';
+            document.write ("<scr"+"ipt type='text/javascript' src='"+m3_u);
+               document.write ("?zoneid=10&amp;target=_blank&amp;charset=UTF-8");
+                  document.write ('&amp;cb=' + m3_r);
+                     if (document.MAX_used != ',') document.write ("&amp;exclude=" + document.MAX_used);
+                        document.write ('&amp;charset=UTF-8');
+                           document.write ("&amp;loc=" + escape(window.location));
+                              if (document.referrer) document.write ("&amp;referer=" + escape(document.referrer));
+                                 if (document.context) document.write ("&context=" + escape(document.context));
+                                    if (document.mmm_fo) document.write ("&amp;mmm_fo=1");
+                                       document.write ("'><\/scr"+"ipt>");
+                                       //]]>--></script><noscript>gt<a href='http://ox.ruscourt.ru/www/delivery/ck.php?n=a2fa485b&amp;cb=8943956285628542' target='_blank'><img src='http://ox.ruscourt.ru/www/delivery/avw.php?zoneid=10&amp;charset=UTF-8&amp;cb=8943956285628542&amp;n=a2fa485b' border='0' alt='' /></a></noscript>
+
+                    <!--/* Revive Adserver Javascript Tag v3.0.2 */-->
+            <script type='text/javascript'><!--//<![CDATA[
+   var m3_u = (location.protocol=='https:'?'https://ox.ruscourt.ru/www/delivery/ajs.php':'http://ox.ruscourt.ru/www/delivery/ajs.php');
+      var m3_r = Math.floor(Math.random()*99999999999);
+         if (!document.MAX_used) document.MAX_used = ',';
+            document.write ("<scr"+"ipt type='text/javascript' src='"+m3_u);
+               document.write ("?zoneid=11&amp;target=_blank&amp;charset=UTF-8");
+                  document.write ('&amp;cb=' + m3_r);
+                     if (document.MAX_used != ',') document.write ("&amp;exclude=" + document.MAX_used);
+                        document.write ('&amp;charset=UTF-8');
+                           document.write ("&amp;loc=" + escape(window.location));
+                              if (document.referrer) document.write ("&amp;referer=" + escape(document.referrer));
+                                 if (document.context) document.write ("&context=" + escape(document.context));
+                                    if (document.mmm_fo) document.write ("&amp;mmm_fo=1");
+                                       document.write ("'><\/scr"+"ipt>");
+                                       //]]>--></script><noscript>gt<a href='http://ox.ruscourt.ru/www/delivery/ck.php?n=a8971d1a&amp;cb=3486749764967596' target='_blank'><img src='http://ox.ruscourt.ru/www/delivery/avw.php?zoneid=11&amp;charset=UTF-8&amp;cb=3486749764967596&amp;n=a8971d1a' border='0' alt='' /></a></noscript>
+
+    </div>
+</div>
+<div class="row" style="margin-top:100px">
+    <div class="col-md-4 blue-stripe"><p style="line-height:40px">&nbsp;</p></div>
+    <div class="col-md-4 blue-stripe"><p style="font-weight:normal; line-height:40px; text-align:center"><a href="/about">О проекте</a>&nbsp;|&nbsp;<a href="http://old.судебныерешения.рф" target="_blank">Переход на старый сайт</a></p></div>
+    <div class="col-md-4 blue-stripe"><p style="font-weight:normal; line-height:40px; text-align:right">&copy; Павел Нетупский ООО «ПИК-пресс».</p></div>
+</div>
+</div>
+</div>
+
+    <!-- Include all JavaScripts, compiled by Assetic -->
+    <script src="/js/bootstrap.js"></script>
+</body>
+</html>

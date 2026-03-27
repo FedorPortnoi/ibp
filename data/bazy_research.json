@@ -1,0 +1,226 @@
+{
+  "has_api": true,
+  "api_endpoints": [
+    {
+      "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/js/jquery.js",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/bundles/akjudgementcard/js/jquery.aciPlugin.min.js",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/bundles/akjudgementcard/js/jquery.aciTree.dom.js",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/bundles/akjudgementcard/js/jquery.aciTree.core.js",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/bundles/akjudgementcard/js/jquery.aciTree.selectable.js",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/bundles/akjudgementcard/js/jquery.aciTree.checkbox.js",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/bundles/akjudgementcard/js/jquery.aciTree.utils.js",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://googleads.g.doubleclick.net/pagead/ads?client=ca-pub-3942066338277934&output=html&adk=1812271804&adf=3025194257&lmt=1774457318&plat=3%3A16%2C4%3A16%2C9%3A32776%2C16%3A8388608%2C17%3A32%2C24%3A32%2C25%3A32%2C30%3A1081344%2C32%3A32%2C41%3A32%2C42%3A32%2C43%3A32&format=0x0&url=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2F&pra=7&aiof=9&asro=0&aiapmd=0.1423&aiapmid=1&aiactd=0&aicctd=0&ailctd=0&aimartd=4&aieuf=1&aicrs=1&uach=WyJXaW5kb3dzIiwiMTAuMCIsIng4NiIsIiIsIjE0My4wLjc0OTkuNCIsbnVsbCwwLG51bGwsIjY0IixbWyJIZWFkbGVzc0Nocm9tZSIsIjE0My4wLjc0OTkuNCJdLFsiQ2hyb21pdW0iLCIxNDMuMC43NDk5LjQiXSxbIk5vdCBBKEJyYW5kIiwiMjQuMC4wLjAiXV0sMF0.&abgtt=1&dt=1774457318752&bpp=6&bdt=10686&idt=6&shv=r20260324&mjsv=m202603190101&ptt=9&saldr=aa&abxe=1&cookie_enabled=1&eoidce=1&prev_fmts=240x400&nras=1&correlator=7156201761349&frm=20&pv=1&u_tz=-300&u_his=2&u_h=720&u_w=1280&u_ah=720&u_aw=1280&u_cd=24&u_sd=1&dmc=8&adx=-12245933&ady=-12245933&biw=1280&bih=720&scr_x=0&scr_y=0&eid=95385807%2C95386332%2C95386649%2C95386956&oid=2&pvsid=4828166551671957&tmod=949493865&uas=0&nvt=1&fsapi=1&fc=896&brdim=0%2C0%2C0%2C0%2C1280%2C0%2C1280%2C720%2C1280%2C720&vis=1&rsz=%7C%7Cs%7C&abl=NS&fu=32768&bc=31&bz=1&ifi=2&uci=a!2&fsb=1&dtd=33",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://www.google.com/recaptcha/api2/aframe",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://shopnetic.com/api/rtb/dmp/pixel?partner=yandex",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://ssp.al-adtech.com/api/sync/yandex",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://www.temu.com/api/x/m/opr?adx_uid=a5acfef8a4e13178&gdpr=&gdpr_consent=&us_privacy=&redir=https%3A%2F%2Ft.oa.opera.com%2Fsync%3Fvendor%3D60369%26pubid%3Dpub9166643429696%26gdpr%3D%26consent%3D%26us_privacy%3D%26custom_data%3D",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://mc.yandex.com/watch/45642543/1?page-url=form%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2F%3Fi%3Dsearch-form%26n%3DsimpleSearch%26p%3DFAAA1AA2AA&page-ref=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2F&charset=utf-8&uah=chu%0A%22HeadlessChrome%22%3Bv%3D%22143%22%2C%22Chromium%22%3Bv%3D%22143%22%2C%22Not%20A(Brand%22%3Bv%3D%2224%22%0Acha%0Ax86%0Achb%0A64%0Achf%0A143.0.7499.4%0Achl%0A%22HeadlessChrome%22%3Bv%3D%22143.0.7499.4%22%2C%22Chromium%22%3Bv%3D%22143.0.7499.4%22%2C%22Not%20A(Brand%22%3Bv%3D%2224.0.0.0%22%0Achm%0A%3F0%0Achp%0AWindows%0Achv%0A10.0&hidv2=1465414304969261445&hittoken=1774457311_4292cc9d4c7b3ed65c1f50792c051480232e2f83fb668041526ba5573693702a&browser-info=ar%3A1%3Avf%3Acw41qwg7gpyuh49ouobqqknpj5bkr%3Afu%3A3%3Aen%3Autf-8%3Ala%3Aru-RU%3Av%3A2421%3Acn%3A1%3Adp%3A0%3Als%3A266796335446%3Ahid%3A325819234%3Az%3A-300%3Ai%3A20260325114846%3Aet%3A1774457326%3Ac%3A1%3Arn%3A597962445%3Arqn%3A3%3Au%3A1774457312797288976%3Aw%3A1280x720%3As%3A1280x720x24%3Ask%3A1%3Awv%3A2%3Ads%3A%2C%2C%2C%2C%2C%2C%2C%2C%2C22128%2C22128%2C3%2C%3Aco%3A0%3Ahdl%3A1%3Antf%3A1%3Aeu%3A2%3Ans%3A1774457297840%3Aadb%3A2%3Arqnl%3A1%3Ast%3A1774457326%3At%3A%D0%9F%D0%BE%D0%B8%D1%81%D0%BA%20%D1%80%D0%B5%D1%88%D0%B5%D0%BD%D0%B8%D0%B9%20%D1%81%D1%83%D0%B4%D0%BE%D0%B2%20%D0%BE%D0%B1%D1%89%D0%B5%D0%B9%20%D1%8E%D1%80%D0%B8%D1%81%D0%B4%D0%B8%D0%BA%D1%86%D0%B8%D0%B8&t=gdpr(14)mc(p-2-h-1)clc(1-0-0)rqnt(3)aw(1)rcm(1)cdl(na)eco(83952128)prs(2)wss(2)w2s(0)evs(NDU2NDI1NDM6MDo3LDQ1NjQyNTQzOjA6OCw0NTY0MjU0MzowOjksMTM4MjM3OjE6NywxMzgyMzc6MTo5)evt(2022)ti(0)&force-urlencoded=1&site-info=%7B%22__ym%22%3A%7B%22ite%22%3A1%7D%7D",
+      "method": "POST",
+      "post_data": null
+    },
+    {
+      "url": "https://mc.yandex.com/watch/138237/1?page-url=form%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2F%3Fi%3Dsearch-form%26n%3DsimpleSearch%26p%3DFAAA1AA2AA&page-ref=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2F&charset=utf-8&cnt-class=1&uah=chu%0A%22HeadlessChrome%22%3Bv%3D%22143%22%2C%22Chromium%22%3Bv%3D%22143%22%2C%22Not%20A(Brand%22%3Bv%3D%2224%22%0Acha%0Ax86%0Achb%0A64%0Achf%0A143.0.7499.4%0Achl%0A%22HeadlessChrome%22%3Bv%3D%22143.0.7499.4%22%2C%22Chromium%22%3Bv%3D%22143.0.7499.4%22%2C%22Not%20A(Brand%22%3Bv%3D%2224.0.0.0%22%0Achm%0A%3F0%0Achp%0AWindows%0Achv%0A10.0&hidv2=1465416489565159516&hittoken=1774457319_23a3aaa93b34d4566d8f1c3428496a802c71ee4b85bcb03112796617286facc4&browser-info=ar%3A1%3Avf%3Acw41qwg7gpyuh49ouobqqknpj5bkr%3Afu%3A3%3Aen%3Autf-8%3Ala%3Aru-RU%3Av%3A2421%3Acn%3A2%3Adp%3A0%3Als%3A1156916394260%3Ahid%3A325819234%3Az%3A-300%3Ai%3A20260325114846%3Aet%3A1774457326%3Ac%3A1%3Arn%3A564599468%3Arqn%3A3%3Au%3A1774457312797288976%3Aw%3A1280x720%3As%3A1280x720x24%3Ask%3A1%3Awv%3A2%3Aco%3A0%3Ahdl%3A1%3Antf%3A1%3Aeu%3A2%3Ans%3A1774457297840%3Aadb%3A2%3Arqnl%3A1%3Ast%3A1774457326%3At%3A%D0%9F%D0%BE%D0%B8%D1%81%D0%BA%20%D1%80%D0%B5%D1%88%D0%B5%D0%BD%D0%B8%D0%B9%20%D1%81%D1%83%D0%B4%D0%BE%D0%B2%20%D0%BE%D0%B1%D1%89%D0%B5%D0%B9%20%D1%8E%D1%80%D0%B8%D1%81%D0%B4%D0%B8%D0%BA%D1%86%D0%B8%D0%B8&t=mc(p-2-h-1)clc(1-0-0)rqnt(3)aw(1)rcm(1)cdl(na)eco(8470592)prs(2)wss(2)w2s(0)evs(NDU2NDI1NDM6MDo3LDQ1NjQyNTQzOjA6OCw0NTY0MjU0MzowOjksMTM4MjM3OjE6NywxMzgyMzc6MTo5)evt(346)ti(0)&force-urlencoded=1&site-info=%7B%22__ym%22%3A%7B%22ite%22%3A1%7D%7D",
+      "method": "POST",
+      "post_data": null
+    },
+    {
+      "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/search",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/js/jquery.js",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/bundles/akjudgementcard/js/jquery.aciPlugin.min.js",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/bundles/akjudgementcard/js/jquery.aciTree.dom.js",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/bundles/akjudgementcard/js/jquery.aciTree.core.js",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/bundles/akjudgementcard/js/jquery.aciTree.selectable.js",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/bundles/akjudgementcard/js/jquery.aciTree.checkbox.js",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/bundles/akjudgementcard/js/jquery.aciTree.utils.js",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://ox.ruscourt.ru/www/delivery/ajs.php?zoneid=18&target=_blank&charset=UTF-8&cb=25441049006&charset=UTF-8&loc=https%3A//xn--90afdbaav0bd1afy6eub5d.xn--p1ai/search&referer=https%3A//xn--90afdbaav0bd1afy6eub5d.xn--p1ai/",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://mc.yandex.com/watch/45642543?wmode=7&page-url=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2Fsearch&page-ref=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2F&charset=utf-8&uah=chu%0A%22HeadlessChrome%22%3Bv%3D%22143%22%2C%22Chromium%22%3Bv%3D%22143%22%2C%22Not%20A(Brand%22%3Bv%3D%2224%22%0Acha%0Ax86%0Achb%0A64%0Achf%0A143.0.7499.4%0Achl%0A%22HeadlessChrome%22%3Bv%3D%22143.0.7499.4%22%2C%22Chromium%22%3Bv%3D%22143.0.7499.4%22%2C%22Not%20A(Brand%22%3Bv%3D%2224.0.0.0%22%0Achm%0A%3F0%0Achp%0AWindows%0Achv%0A10.0&browser-info=pv%3A1%3Avf%3Acw41qwg7gpyuh49ouobqqknpj5bkr%3Afu%3A0%3Aen%3Autf-8%3Ala%3Aru-RU%3Av%3A2421%3Acn%3A1%3Adp%3A0%3Als%3A266796335446%3Ahid%3A908946032%3Az%3A-300%3Ai%3A20260325114846%3Aet%3A1774457327%3Ac%3A1%3Arn%3A1009325096%3Arqn%3A4%3Au%3A1774457312797288976%3Aw%3A1280x720%3As%3A1280x720x24%3Ask%3A1%3Awv%3A2%3Ads%3A0%2C0%2C447%2C1%2C216%2C214%2C1%2C%2C%2C%2C%2C%2C%3Aco%3A0%3Ahdl%3A1%3Antf%3A1%3Ans%3A1774457326082%3Aadb%3A2%3Arqnl%3A1%3Ast%3A1774457327%3At%3A%D0%9F%D0%BE%D0%B8%D1%81%D0%BA%20%D1%80%D0%B5%D1%88%D0%B5%D0%BD%D0%B8%D0%B9%20%D1%81%D1%83%D0%B4%D0%BE%D0%B2%20%D0%BE%D0%B1%D1%89%D0%B5%D0%B9%20%D1%8E%D1%80%D0%B8%D1%81%D0%B4%D0%B8%D0%BA%D1%86%D0%B8%D0%B8&t=gdpr(14)clc(0-0-0)rqnt(1)aw(1)rcm(0)cdl(na)eco(83952128)ti(1)",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://ox.ruscourt.ru/www/delivery/lg.php?bannerid=84&campaignid=19&zoneid=18&loc=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2Fsearch&referer=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2F&cb=c5f40a2fde",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://ox.ruscourt.ru/www/delivery/ajs.php?zoneid=10&target=_blank&charset=UTF-8&cb=52293210370&charset=UTF-8&loc=https%3A//xn--90afdbaav0bd1afy6eub5d.xn--p1ai/search&referer=https%3A//xn--90afdbaav0bd1afy6eub5d.xn--p1ai/",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://yandex.ru/ads/meta/138237?target-ref=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2Fsearch&page-ref=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2F&pcode-version=1304356&pcodever=1304356&comboblock-unencoded-vast=1&ad-session-id=6167271774457327079&target-id=85846660&pcode-test-ids=1387854%2C0%2C98%3B1414493%2C0%2C38%3B1480630%2C0%2C82%3B1500299%2C0%2C73%3B1519126%2C0%2C90%3B1447467%2C0%2C64%3B1471934%2C0%2C53%3B1516345%2C0%2C57%3B1506237%2C0%2C83%3B1511932%2C0%2C34%3B1503321%2C0%2C5%3B1507986%2C0%2C32%3B1513751%2C0%2C49%3B1513548%2C0%2C99%3B1513735%2C0%2C80%3B1485711%2C0%2C80%3B1499387%2C0%2C4%3B1519157%2C0%2C68%3B1511645%2C0%2C58&csrf-token=a0884809bea97113039c2ddff1523595899f7232%3A1774457317&pcode-uid=9721485251774457317&pcode-flags-map=eJyFlFFv2zYUhf%2BLnoOCFEWJ1BstXTtEaFLlpZx5w3DhLsaaoY271t0KFPnvgyQvhZzNfhIokN89vOdcfs%2B2BjtMZuFgAzGrf%2Fme%2FbX78HWf1Rl%2FU2n1hgvFdHaTHfdfjvZh%2BC250pXOnn%2B9yTYGaTpMG4hog58TBOOlKmenRVEVUr2cdmFFTfAJfKK2jybZ4KmD2IBPc9ackleszEdKa3EU0AKmGLYEPyWI3jhqIphkN0CmpR4hUuMCAsHmHL3%2F9mkGLwqdVzJ7vrmyJX%2B5RYTGuKZ3JgFFeNsDJlpDug0tLUOk%2B2i6DiL10V0uLJks5Eh9G2nhTHNHzmKixtmhQbbFeU%2BYzoXShayVqqo856wWTLMyZ6WsOZNFUWqpasF1qatSilqwgrNcMFFrzQvGZFVzzhjnecVqwRUvWFkN23jOmMrnPS8qznI%2BqjNtS3ZtVkAr4xzELVlPHvoYBhvsyl%2B%2BpuKaFf%2BCrF%2FR8BmcN446E80aEkQcW9daTNEu%2BnSerdfQUmt12bRhy1QX%2FJiZLsLCttT2tr0Il0xpPRnTIxAOFvtkjSMXTDsEbNCKd7ajFO7gslLJhVBshHVNaOHKBBVCzidI5qwU1ZR97MiufIhAiztC%2BzNMXTOt6Yboz1i%2FHT%2Bc6SjFKW2ndmCKYNa0sS0EuodFwJxxdRnCyvwkBrGjtbGOYn9CLK1LZ4%2FKaxFcix%2BDNLxGp8PgV9bDsDDmigQhTrnE23BPjYmhR3DkzDb0aYjmOiysgysWV1qVUyj7FDpnGliPr5JNzS29rGeQd4fj%2B3NvK8lfvBkTEZZLhHSlC0IWalbcnIr%2FT%2Fy%2F%2FPl193kfD4fjq%2Fpi8vTWdJ31gEjYxw1syTbnI%2FTx8Mfj2YTIiv8Y8c5sxzgBIvhm3r%2FHj58On4%2B7pyP9vX%2F8%2Ff1cRqG1UFMqoAlrMoiQkIL%2FT9Tu3e7p4fC0fzi7iuZyYnQmItA0LNYvA1mfwum9aYJf2tWVgePlGPTnfwCfaPum&pcode-icookie=1bbGlmfY9g3TC9hKHjiEv1hk70aNHKyPQl2qHZ5IzToeTK99wf%2Feq4aopPbUixYbb0Uuk8MwEGfBHyO2V7fP26lVGM0%3D&disable-base64=1&duid=MTc3NDQ1NzMxMjc5NzI4ODk3Ng%3D%3D&imp-id=1&ecma-version=es2017&same-node-hit-number=0&test-tag=442003674365954&tga-with-creatives=1&top-ancestor=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai&top-ancestor-undetermined=0&layout-config=%7B%22win_width%22%3A1280%2C%22win_height%22%3A720%2C%22pixel_ratio%22%3A1%2C%22bandwidth%22%3A9.1%2C%22isInIframe%22%3Afalse%2C%22w%22%3A263%2C%22h%22%3A0%2C%22width%22%3A263%2C%22height%22%3A0%2C%22visible%22%3A1%2C%22fullscreenHeaderHeight%22%3A80%2C%22left%22%3A948%2C%22top%22%3A172%2C%22ad_no%22%3A0%2C%22safeArea%22%3A%7B%22top%22%3A0%2C%22bottom%22%3A0%2C%22left%22%3A0%2C%22right%22%3A0%7D%2C%22req_no%22%3A0%7D&grab-orig-len=992&grab=eyJncmFiX3ZlcnNpb24iOjJ9CjqpJLEkv-8Camog4ryF_BsHqFWyHe20QSqhLC3Y_RWyUnU7hCT_MGr9snv227eDPhPgiplyXCdGqFeCN5kYTcyMmTlMlEl7GKWZNBmyNOtxj5L0gT33rSZ5_mz4L2hgX_C8tx5lNknDfeG10ObR6A3MtW8E8iq3QHi1_Ab-KCvLzaRZmPQxgxEmylKWOHI39nrsB-WU-0FPgq4sH-tFj_SihjMf8VIhX9C6o98A9UXzMoluyGugGwSNv29tR_DIlHs5X_zcq5Dsrp6PUXGib_xNh8j5sFW7Co-q453z1t1asUHPpep1w1GXeZrlpuUUvowgzWQxYaWnPBqOoyz3zoiDxC31E9eHXGoLoyKUFSRzyU5YkFYyJKcgvcK8psqNJEzxkalYCmnFLOlktCNjFAzC0xhh0YfCuX4Up9k4cT7LrLHwztZsxsvyca5vLXyd-JQkOf1ZqzdTVYzx53ZEyfPqVK2B6ruh0VtCIfXdGOKqP9Jhqz0i17e9vTwUSaRNpqpS5d5eW2X6mOcGfz_NKsb8k0Ok_XwXROfEljL1ESZH01RGBnFJLlHDRxCbwkEvBWwGugD0dxgNXNUrXgUx-ZN6_yl6iLUWbXgNt0nm0fqAtG45SZTIe5r5lWVfHA7ZaMOh0bGWT3MchvN02HdOeLKw4PKRUI9xH2uuD9DovSAjBzgngK5uHxHAOMWSQzXhyZ7tSM2oCrt3PzAKFT2YByw8Nw6HSzA5_L2OnHBq60t2pDDLzaTMPTUiMAooGwFR4lIdEfhJg1UNZx2oD0oTC55aw2untJiAx5kNJ4EGxR7BITobDfsuCh7Ic1lRLjQDRRIQz8zxRpCSnHYXwFxh0V9h6FcdRlL9Sq5foRtr7lFxkqVpB33PnL7Z_i3C8iiVk_J20_CVQ0SIzxrpJFcjiBfXqoBvQsdpYmf1h3If2FGumGhUWC-9pMyZIOMaPWVCv_MKSQT8&uniformat=true&callback=Ya%5B9012006853301%5D",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://mc.yandex.com/watch/45642543/1?page-url=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2Fsearch&charset=utf-8&uah=chu%0A%22HeadlessChrome%22%3Bv%3D%22143%22%2C%22Chromium%22%3Bv%3D%22143%22%2C%22Not%20A(Brand%22%3Bv%3D%2224%22%0Acha%0Ax86%0Achb%0A64%0Achf%0A143.0.7499.4%0Achl%0A%22HeadlessChrome%22%3Bv%3D%22143.0.7499.4%22%2C%22Chromium%22%3Bv%3D%22143.0.7499.4%22%2C%22Not%20A(Brand%22%3Bv%3D%2224.0.0.0%22%0Achm%0A%3F0%0Achp%0AWindows%0Achv%0A10.0&hidv2=1465417982106927196&hittoken=1774457325_639ab10e506b8e1483f987e1976ea0d829fa114f6470677c73d41b49302138c1&browser-info=pa%3A1%3Aar%3A1%3Avf%3Acw41qwg7gpyuh49ouobqqknpj5bkr%3Afu%3A1%3Aen%3Autf-8%3Ala%3Aru-RU%3Av%3A2421%3Acn%3A1%3Adp%3A0%3Als%3A266796335446%3Ahid%3A908946032%3Az%3A-300%3Ai%3A20260325114847%3Aet%3A1774457327%3Ac%3A1%3Arn%3A203495976%3Arqn%3A5%3Au%3A1774457312797288976%3Aw%3A1280x720%3As%3A1280x720x24%3Ask%3A1%3Afp%3A760%3Awv%3A2%3Aco%3A0%3Ahdl%3A1%3Antf%3A1%3Ans%3A1774457326082%3Aadb%3A2%3Arqnl%3A1%3Ast%3A1774457327&t=gdpr(14)mc(p-1)clc(0-0-0)rqnt(2)aw(1)rcm(0)cdl(na)eco(83952128)w2s(0)ti(0)&force-urlencoded=1&site-info=%7B%22__ym%22%3A%7B%22adSessionID%22%3A%226167271774457327079%22%7D%7D",
+      "method": "POST",
+      "post_data": null
+    },
+    {
+      "url": "https://ox.ruscourt.ru/www/delivery/ajs.php?zoneid=11&target=_blank&charset=UTF-8&cb=87676568484&charset=UTF-8&loc=https%3A//xn--90afdbaav0bd1afy6eub5d.xn--p1ai/search&referer=https%3A//xn--90afdbaav0bd1afy6eub5d.xn--p1ai/",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://googleads.g.doubleclick.net/pagead/ads?client=ca-pub-3942066338277934&output=html&h=400&slotname=8693429207&adk=3471458308&adf=826767375&pi=t.ma~as.8693429207&w=240&lmt=1774457327&format=240x400&url=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2Fsearch&aieuf=1&aicrs=1&uach=WyJXaW5kb3dzIiwiMTAuMCIsIng4NiIsIiIsIjE0My4wLjc0OTkuNCIsbnVsbCwwLG51bGwsIjY0IixbWyJIZWFkbGVzc0Nocm9tZSIsIjE0My4wLjc0OTkuNCJdLFsiQ2hyb21pdW0iLCIxNDMuMC43NDk5LjQiXSxbIk5vdCBBKEJyYW5kIiwiMjQuMC4wLjAiXV0sMF0.&abgtt=1&dt=1774457327140&bpp=3&bdt=349&idt=89&shv=r20260324&mjsv=m202603190101&ptt=9&saldr=aa&abxe=1&cookie_enabled=1&eoidce=1&correlator=7332085573166&frm=20&pv=2&u_tz=-300&u_his=3&u_h=720&u_w=1280&u_ah=720&u_aw=1280&u_cd=24&u_sd=1&dmc=8&adx=948&ady=192&biw=1280&bih=720&scr_x=0&scr_y=0&eid=95385807%2C95386332%2C95386957&oid=2&pvsid=1074131725662783&tmod=949493865&uas=1&nvt=1&ref=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2F&fc=640&brdim=0%2C0%2C0%2C0%2C1280%2C0%2C1280%2C720%2C1280%2C720&vis=1&rsz=%7C%7CeE%7C&abl=CS&pfx=0&fu=0&bc=31&bz=1&ifi=1&uci=a!1&fsb=1&dtd=109",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://googleads.g.doubleclick.net/pagead/ads?client=ca-pub-3942066338277934&output=html&adk=1812271804&adf=3025194257&lmt=1774457327&plat=3%3A16%2C4%3A16%2C9%3A32776%2C16%3A8388608%2C17%3A32%2C24%3A32%2C25%3A32%2C30%3A1081344%2C32%3A32%2C41%3A32%2C42%3A32%2C43%3A32&format=0x0&url=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2Fsearch&pra=7&aiof=9&asro=0&aiapmd=0.1423&aiapmid=1&aiactd=0&aicctd=0&ailctd=0&aimartd=4&aieuf=1&aicrs=1&uach=WyJXaW5kb3dzIiwiMTAuMCIsIng4NiIsIiIsIjE0My4wLjc0OTkuNCIsbnVsbCwwLG51bGwsIjY0IixbWyJIZWFkbGVzc0Nocm9tZSIsIjE0My4wLjc0OTkuNCJdLFsiQ2hyb21pdW0iLCIxNDMuMC43NDk5LjQiXSxbIk5vdCBBKEJyYW5kIiwiMjQuMC4wLjAiXV0sMF0.&abgtt=1&dt=1774457327401&bpp=1&bdt=609&idt=2&shv=r20260324&mjsv=m202603190101&ptt=9&saldr=aa&abxe=1&cookie_enabled=1&eoidce=1&prev_fmts=240x400&nras=1&correlator=7332085573166&frm=20&pv=1&u_tz=-300&u_his=3&u_h=720&u_w=1280&u_ah=720&u_aw=1280&u_cd=24&u_sd=1&dmc=8&adx=-12245933&ady=-12245933&biw=1280&bih=720&scr_x=0&scr_y=0&eid=95385807%2C95386332%2C95386957&oid=2&pvsid=1074131725662783&tmod=949493865&uas=1&nvt=1&fsapi=1&ref=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2F&fc=896&brdim=0%2C0%2C0%2C0%2C1280%2C0%2C1280%2C720%2C1280%2C720&vis=1&rsz=%7C%7Cs%7C&abl=NS&fu=32768&bc=31&bz=1&ifi=2&uci=a!2&fsb=1&dtd=24",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://www.google.com/recaptcha/api2/aframe",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://mc.yandex.com/watch/138237?wmode=7&page-url=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2Fsearch&page-ref=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2F&nohit=1&charset=utf-8&cnt-class=1&uah=chu%0A%22HeadlessChrome%22%3Bv%3D%22143%22%2C%22Chromium%22%3Bv%3D%22143%22%2C%22Not%20A(Brand%22%3Bv%3D%2224%22%0Acha%0Ax86%0Achb%0A64%0Achf%0A143.0.7499.4%0Achl%0A%22HeadlessChrome%22%3Bv%3D%22143.0.7499.4%22%2C%22Chromium%22%3Bv%3D%22143.0.7499.4%22%2C%22Not%20A(Brand%22%3Bv%3D%2224.0.0.0%22%0Achm%0A%3F0%0Achp%0AWindows%0Achv%0A10.0&browser-info=pv%3A1%3Avf%3Acw41qwg7gpyuh49ouobqqknpj5bkr%3Afu%3A0%3Aen%3Autf-8%3Ala%3Aru-RU%3Av%3A2421%3Acn%3A2%3Adp%3A0%3Als%3A1156916394260%3Ahid%3A908946032%3Az%3A-300%3Ai%3A20260325114847%3Aet%3A1774457328%3Ac%3A1%3Arn%3A474450366%3Au%3A1774457312797288976%3Aw%3A1280x720%3As%3A1280x720x24%3Ask%3A1%3Awv%3A2%3Aco%3A0%3Ahdl%3A1%3Antf%3A1%3Aeu%3A2%3Ans%3A1774457326082%3Aadb%3A2%3Arqnl%3A1%3Ast%3A1774457328%3At%3A%D0%9F%D0%BE%D0%B8%D1%81%D0%BA%20%D1%80%D0%B5%D1%88%D0%B5%D0%BD%D0%B8%D0%B9%20%D1%81%D1%83%D0%B4%D0%BE%D0%B2%20%D0%BE%D0%B1%D1%89%D0%B5%D0%B9%20%D1%8E%D1%80%D0%B8%D1%81%D0%B4%D0%B8%D0%BA%D1%86%D0%B8%D0%B8&t=mc(p-1)clc(0-0-0)aw(1)rcm(0)cdl(na)eco(8470592)prs(2)wss(1)w2s(0)evs(NDU2NDI1NDM6MDo3LDQ1NjQyNTQzOjA6OCw0NTY0MjU0MzowOjk%3D)ti(1)",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://mc.yandex.com/watch/138237?wmode=7&page-url=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2Fsearch&page-ref=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2F&charset=utf-8&cnt-class=1&uah=chu%0A%22HeadlessChrome%22%3Bv%3D%22143%22%2C%22Chromium%22%3Bv%3D%22143%22%2C%22Not%20A(Brand%22%3Bv%3D%2224%22%0Acha%0Ax86%0Achb%0A64%0Achf%0A143.0.7499.4%0Achl%0A%22HeadlessChrome%22%3Bv%3D%22143.0.7499.4%22%2C%22Chromium%22%3Bv%3D%22143.0.7499.4%22%2C%22Not%20A(Brand%22%3Bv%3D%2224.0.0.0%22%0Achm%0A%3F0%0Achp%0AWindows%0Achv%0A10.0&hittoken=1774457326_7fd9f784016044bd2ef6d041c370a0e561f0a55732c4e27d6d3e52eac4349044&browser-info=pv%3A1%3Aar%3A1%3Avf%3Acw41qwg7gpyuh49ouobqqknpj5bkr%3Afu%3A0%3Aen%3Autf-8%3Ala%3Aru-RU%3Av%3A2421%3Acn%3A2%3Adp%3A0%3Als%3A1156916394260%3Ahid%3A908946032%3Az%3A-300%3Ai%3A20260325114847%3Aet%3A1774457328%3Ac%3A1%3Arn%3A509362992%3Arqn%3A5%3Au%3A1774457312797288976%3Aw%3A1280x720%3As%3A1280x720x24%3Ask%3A1%3Awv%3A2%3Aco%3A0%3Ahdl%3A1%3Antf%3A1%3Aeu%3A2%3Ans%3A1774457326082%3Aadb%3A2%3Arqnl%3A1%3Ast%3A1774457328%3At%3A%D0%9F%D0%BE%D0%B8%D1%81%D0%BA%20%D1%80%D0%B5%D1%88%D0%B5%D0%BD%D0%B8%D0%B9%20%D1%81%D1%83%D0%B4%D0%BE%D0%B2%20%D0%BE%D0%B1%D1%89%D0%B5%D0%B9%20%D1%8E%D1%80%D0%B8%D1%81%D0%B4%D0%B8%D0%BA%D1%86%D0%B8%D0%B8&t=mc(p-2-h-1)clc(0-0-0)rqnt(2)aw(1)rcm(0)cdl(na)eco(8470592)prs(2)wss(2)w2s(0)evs(NDU2NDI1NDM6MDo3LDQ1NjQyNTQzOjA6OCw0NTY0MjU0MzowOjk%3D)ti(1)",
+      "method": "GET",
+      "post_data": null
+    },
+    {
+      "url": "https://mc.yandex.com/watch/138237/1?page-url=https%3A%2F%2Fxn--90afdbaav0bd1afy6eub5d.xn--p1ai%2Fsearch&charset=utf-8&cnt-class=1&uah=chu%0A%22HeadlessChrome%22%3Bv%3D%22143%22%2C%22Chromium%22%3Bv%3D%22143%22%2C%22Not%20A(Brand%22%3Bv%3D%2224%22%0Acha%0Ax86%0Achb%0A64%0Achf%0A143.0.7499.4%0Achl%0A%22HeadlessChrome%22%3Bv%3D%22143.0.7499.4%22%2C%22Chromium%22%3Bv%3D%22143.0.7499.4%22%2C%22Not%20A(Brand%22%3Bv%3D%2224.0.0.0%22%0Achm%0A%3F0%0Achp%0AWindows%0Achv%0A10.0&hidv2=1465418268613279836&hittoken=1774457326_7fd9f784016044bd2ef6d041c370a0e561f0a55732c4e27d6d3e52eac4349044&browser-info=pa%3A1%3Aar%3A1%3Avf%3Acw41qwg7gpyuh49ouobqqknpj5bkr%3Afu%3A1%3Aen%3Autf-8%3Ala%3Aru-RU%3Av%3A2421%3Acn%3A2%3Adp%3A0%3Als%3A1156916394260%3Ahid%3A908946032%3Az%3A-300%3Ai%3A20260325114847%3Aet%3A1774457328%3Ac%3A1%3Arn%3A765813785%3Arqn%3A4%3Au%3A1774457312797288976%3Aw%3A1280x720%3As%3A1280x720x24%3Ask%3A1%3Afp%3A760%3Awv%3A2%3Ads%3A0%2C0%2C447%2C1%2C216%2C214%2C1%2C646%2C43%2C1409%2C1409%2C1%2C1313%3Aco%3A0%3Ahdl%3A1%3Antf%3A1%3Aeu%3A2%3Ans%3A1774457326082%3Aadb%3A2%3Arqnl%3A1%3Ast%3A1774457328&t=mc(p-2-h-1)clc(0-0-0)rqnt(1)aw(1)rcm(0)cdl(na)eco(8470592)prs(2)wss(2)w2s(0)evs(NDU2NDI1NDM6MDo3LDQ1NjQyNTQzOjA6OCw0NTY0MjU0MzowOjk%3D)ti(0)&force-urlencoded=1&site-info=%7B%22__ym%22%3A%7B%22adSessionID%22%3A%226167271774457327079%22%7D%7D",
+      "method": "POST",
+      "post_data": null
+    }
+  ],
+  "search_types": [],
+  "result_structure": null,
+  "auth_required": false,
+  "captcha": true,
+  "data_categories": [],
+  "notes": [],
+  "page_length": 1406522,
+  "navigation": [
+    {
+      "href": "#",
+      "text": "Простой поиск"
+    },
+    {
+      "href": "/extended-search",
+      "text": "Расширенный поиск"
+    },
+    {
+      "href": "/search",
+      "text": "Список всех дел"
+    },
+    {
+      "href": "/about",
+      "text": "О проекте"
+    },
+    {
+      "href": "http://old.судебныерешения.рф",
+      "text": "Переход на старый сайт"
+    }
+  ],
+  "forms": [
+    {
+      "action": "/simple_filter",
+      "method": "post",
+      "inputs": [
+        "simpleSearch[content](text)",
+        "simpleSearch[case_number](text)",
+        "simpleSearch[person_info][0][person](text)",
+        "simpleSearch[person_info][0][person_status]()",
+        "simpleSearch[case_vid]()",
+        "simpleSearch[case_stage]()",
+        "simpleSearch[_token](hidden)"
+      ]
+    }
+  ],
+  "search_page_text": "Простой поиск\nРасширенный поиск\nТекст документа\nНомер дела\nУчастник дела\nСтатус участника\nОТВЕТЧИК\nИСТЕЦ\nЗАЯВИТЕЛЬ\nЗАИНТЕРЕСОВАННОЕ ЛИЦО\nТРЕТЬЕ ЛИЦО\nДОЛЖНИК\nВЗЫСКАТЕЛЬ\nПРОКУРОР\nЭксперт\nСвидетель\nСпециалист\nПереводчик\nМедиатор\nПодсудимый (осужденный)\nСуд\nОкружные суды\nМосква\nСанкт-Петербург\nЦентральный ФО\nСеверо-Западный ФО\nЮжный ФО\nПриволжский ФО\nУральский ФО\nСибирский ФО\nДальневосточный ФО\nСеверо-Кавказский ФО\nКрымский ФО\nВид производства\nГражданские и административные дела\nДела по административным правонарушениям\nУголовные дела\nЭтап производства\nПервая инстанция\nАпелляция\nКассация\nНадзор\nПоиск\nОчистить\n\nВсего решений в базе:  94469807\n\nВсего найдено документов: 0. Показано документов: 0\n\n \n\nО проекте | Переход на старый сайт\n\n© Павел Нетупский ООО «ПИК-пресс».",
+  "paywall": false
+}

@@ -1,0 +1,179 @@
+{
+  "meta": {
+    "generated_at": "2026-03-18T22:48:06.784147",
+    "ibp_version": "1.0",
+    "check_id": "20304b99430b467ca11efbe6ea0cedee",
+    "check_mode": "quick",
+    "duration_seconds": 185.271943,
+    "check_level": "Расширенная проверка",
+    "sources_checked": 16,
+    "sources_with_results": 1,
+    "status": "complete",
+    "report_generated": true
+  },
+  "candidate": {
+    "full_name": "?????? ?????? ???????????",
+    "date_of_birth": "1967-10-31",
+    "inn": "233500829075",
+    "region": null,
+    "phone": null,
+    "email": null
+  },
+  "risk_assessment": {
+    "risk_level": "low",
+    "risk_level_display": "НИЗКИЙ РИСК",
+    "risk_score_numeric": 25.0,
+    "red_flag_count": 3,
+    "red_flags": [
+      {
+        "severity": "medium",
+        "category": "sanctions",
+        "code": "sanctions_unchecked",
+        "text": "Не удалось проверить санкционные списки — рекомендуется ручная проверка",
+        "details": "Источники: МВД — розыск, Перечень экстремистов, Росфинмониторинг, Интерпол"
+      },
+      {
+        "severity": "medium",
+        "category": "social",
+        "code": "no_social_presence",
+        "text": "Не обнаружено присутствие в соцсетях (необычно)"
+      },
+      {
+        "severity": "low",
+        "category": "identity",
+        "code": "identity_not_confirmed",
+        "text": "ИНН не подтверждён через ЕГРЮЛ (нет записей)"
+      }
+    ],
+    "risk_breakdown": {
+      "sanctions": {
+        "count": 1,
+        "score": 10,
+        "max_severity": "medium",
+        "flags": [
+          "sanctions_unchecked"
+        ]
+      },
+      "social": {
+        "count": 1,
+        "score": 10,
+        "max_severity": "medium",
+        "flags": [
+          "no_social_presence"
+        ]
+      },
+      "identity": {
+        "count": 1,
+        "score": 5,
+        "max_severity": "low",
+        "flags": [
+          "identity_not_confirmed"
+        ]
+      }
+    }
+  },
+  "business_records": [],
+  "court_records": [],
+  "fssp_records": [],
+  "bankruptcy_records": [
+    {
+      "debtor_name": "?????? ?????? ???????????",
+      "debtor_inn": null,
+      "debtor_address": null,
+      "case_number": "Требуется ручная проверка",
+      "court_name": null,
+      "stage": "Автоматический поиск недоступен. Проверьте вручную.",
+      "arbitration_manager": null,
+      "publication_date": null,
+      "is_active": false,
+      "source": "manual",
+      "url": "https://bankrot.fedresurs.ru/DebtorsSearch.aspx",
+      "type": "bankruptcy"
+    }
+  ],
+  "sanctions_results": [
+    {
+      "source_name": "МВД — розыск",
+      "checked": false,
+      "found": false,
+      "match_details": null,
+      "error": "Локальная база МВД не загружена",
+      "url": "https://xn--b1aew.xn--p1ai/wanted"
+    },
+    {
+      "source_name": "Перечень экстремистов",
+      "checked": false,
+      "found": false,
+      "match_details": null,
+      "error": "Локальная база экстремистов не загружена",
+      "url": "https://minjust.gov.ru/ru/extremist-materials/"
+    },
+    {
+      "source_name": "Росфинмониторинг",
+      "checked": false,
+      "found": false,
+      "match_details": null,
+      "error": "Сайт недоступен (возможна геоблокировка)",
+      "url": "https://www.fedsfm.ru/documents/terrorists-catalog-portal-act"
+    },
+    {
+      "source_name": "OpenSanctions",
+      "checked": true,
+      "found": false,
+      "match_details": null,
+      "error": null,
+      "url": "https://opensanctions.org/"
+    },
+    {
+      "source_name": "МВД Розыск",
+      "checked": true,
+      "found": false,
+      "match_details": null,
+      "error": null,
+      "url": "https://xn--b1aew.xn--p1ai/wanted"
+    },
+    {
+      "source_name": "Интерпол",
+      "checked": false,
+      "found": false,
+      "match_details": null,
+      "error": "Ошибка: 500 Server Error: Internal Server Error for url: https://ws-public.interpol.int/notices/v1/red?forename=%3F%3F%3F%3F%3F%3F&name=%3F%3F%3F%3F%3F%3F&nationality=RU&resultPerPage=20",
+      "url": "https://www.interpol.int/en/How-we-work/Notices/View-Red-Notices"
+    }
+  ],
+  "social_media_profiles": [],
+  "confirmed_profiles": [],
+  "contact_discoveries": {
+    "phones": [],
+    "emails": []
+  },
+  "social_graph_data": {},
+  "face_matches": [],
+  "username_accounts": [],
+  "geo_analysis": {
+    "locations": [],
+    "home_location": null,
+    "work_location": null,
+    "frequent_places": [],
+    "travel_destinations": [],
+    "timeline": [],
+    "stats": {},
+    "map_data": {
+      "center": [
+        55.7558,
+        37.6173
+      ],
+      "zoom": 6,
+      "markers": []
+    }
+  },
+  "text_analysis": {},
+  "activity_timeline": [
+    {
+      "timestamp": "2026-03-18T22:35:42.487344",
+      "type": "check_started",
+      "source": "system",
+      "summary": "Проверка начата"
+    }
+  ]
+}

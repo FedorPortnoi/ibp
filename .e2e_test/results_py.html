@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Поиск решений судов общей юрисдикции</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="description" content="Самая полная база данных решений и дел судов общей юрисдикции России. Удобный поиск и подписки на обновления.">
+                    <!-- Bootstrap -->
+        <link href="/css/bootstrap.css" rel="stylesheet" media="screen">
+        <link href="/bundles/akjudgementcard/css/decorate.css" rel="stylesheet" media="screen">
+    
+    <link href="/bundles/akjudgementcard/css/aciTree.css" rel="stylesheet" />
+
+        <!-- HTML5 Shim and Respond.js add IE8 support of HTML5 elements and media queries -->
+        <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv-printshiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+<![endif]-->
+
+                <!-- jQuery (necessary for Bootstraps JavaScript plugins) -->
+        <script src="/js/jquery.js"></script>
+    
+    <script src="/bundles/akjudgementcard/js/jquery.aciPlugin.min.js"></script>
+    <script src="/bundles/akjudgementcard/js/jquery.aciTree.dom.js"></script>
+    <script src="/bundles/akjudgementcard/js/jquery.aciTree.core.js"></script>
+    <script src="/bundles/akjudgementcard/js/jquery.aciTree.selectable.js"></script>
+    <script src="/bundles/akjudgementcard/js/jquery.aciTree.checkbox.js"></script>
+    <script src="/bundles/akjudgementcard/js/jquery.aciTree.utils.js"></script>
+	<!-- Yandex.Metrika counter -->
+	<script type="text/javascript" >
+	   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+	   m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+	   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+	   ym(45642543, "init", {
+		clickmap:true,
+		trackLinks:true,
+		accurateTrackBounce:true
+	   });
+	</script>
+	<noscript><div><img src="https://mc.yandex.ru/watch/45642543" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+	<!-- /Yandex.Metrika counter -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2" />
+</head>
+
+<body>
+<div id="content" style="padding-bottom:30px; padding-top:10px">
+<div class="container">
+<div class="row">
+    <div class="col-md-3 col-sm-4 col-xs-4"><a href="/"><img class="img-responsive" src="/images/logo.png"></a></div>
+    <div class="col-md-9 col-sm-8 col-xs-8" id="top-banner">
+                    <!--/* Revive Adserver Javascript Tag v3.0.2 */-->
+            <script type='text/javascript'><!--//<![CDATA[
+   var m3_u = (location.protocol=='https:'?'https://ox.ruscourt.ru/www/delivery/ajs.php':'http://ox.ruscourt.ru/www/delivery/ajs.php');
+      var m3_r = Math.floor(Math.random()*99999999999);
+         if (!document.MAX_used) document.MAX_used = ',';
+            document.write ("<scr"+"ipt type='text/javascript' src='"+m3_u);
+               document.write ("?zoneid=18&amp;target=_blank&amp;charset=UTF-8");
+                  document.write ('&amp;cb=' + m3_r);
+                     if (document.MAX_used != ',') document.write ("&amp;exclude=" + document.MAX_used);
+                        document.write ('&amp;charset=UTF-8');
+                           document.write ("&amp;loc=" + escape(window.location));
+                              if (document.referrer) document.write ("&amp;referer=" + escape(document.referrer));
+                                 if (document.context) document.write ("&context=" + escape(document.context));
+                                    if (document.mmm_fo) document.write ("&amp;mmm_fo=1");
+                                       document.write ("'><\/scr"+"ipt>");
+                                       //]]>--></script><noscript>gt<a href='http://ox.ruscourt.ru/www/delivery/ck.php?n=aebb3ae5&amp;cb=3475935628455757' target='_blank'><img src='http://ox.ruscourt.ru/www/delivery/avw.php?zoneid=18&amp;charset=UTF-8&amp;cb=3475935628455757&amp;n=aebb3ae5' border='0' alt='' /></a></noscript>
+
+    </div>
+</div>
+<div class="row"><div class="col-md-12">
+    <div style="height:2px; background-color:#317bba"></div>
+</div></div>
+<div class="row" style="margin-top:30px">
+    <div class="col-md-9">
+        <div class="row"><div class="col-md-12">
+        <ul class="nav nav-tabs">
+            <li role="presentation" class="active"><a href="#">Простой поиск</a></li>
+            <li role="presentation"><a href="/extended-search">Расширенный поиск</a></li>
+           <!-- <li role="presentation"><a href="/pci650981/">Личный кабинет</a></li> -->
+        </ul>
+    </div></div>
+    <div class="row">
+    <div class="col-md-12" style="margin-bottom:20px">
+        <div style="background-color:#e7e8ea; padding:10px">
+                <form  name="simpleSearch" method="post" action="/simple_filter" class="form-horizontal" id="search-form" role="form">
+                
+
+            <div class="form-group">
+                    <label class="col-md-2 control-label" for="simpleSearch_content">Текст документа</label>
+                <div class="col-md-5">
+                        <input type="text"     id="simpleSearch_content" name="simpleSearch[content]"        class="form-control" >
+                </div>
+                    <label class="col-md-2 control-label" for="simpleSearch_case_number">Номер&nbsp;дела</label>
+                <div class="col-md-3">
+                        <input type="text"     id="simpleSearch_case_number" name="simpleSearch[case_number]"        class="form-control" >
+                </div>
+            </div>
+
+                            <div class="form-group">
+                        <label class="col-md-2 control-label" for="simpleSearch_person_info_0_person">Участник дела</label>
+                    <div class="col-md-5">
+                            <input type="text"     id="simpleSearch_person_info_0_person" name="simpleSearch[person_info][0][person]"        class="form-control" value="Иванов Иван" >
+                    </div>
+                        <label class="col-md-2 control-label" for="simpleSearch_person_info_0_person_status">Статус участника</label>
+                    <div class="col-md-3">
+                            <select     id="simpleSearch_person_info_0_person_status" name="simpleSearch[person_info][0][person_status]"        class="form-control"><option  value=""></option><option value="1">ОТВЕТЧИК</option><option value="2">ИСТЕЦ</option><option value="4">ЗАЯВИТЕЛЬ</option><option value="5">ЗАИНТЕРЕСОВАННОЕ ЛИЦО</option><option value="8">ТРЕТЬЕ ЛИЦО</option><option value="10">ДОЛЖНИК</option><option value="11">ВЗЫСКАТЕЛЬ</option><option value="13">ПРОКУРОР</option><option value="15">Эксперт</option><option value="16">Свидетель</option><option value="17">Специалист</option><option value="18">Переводчик</option><option value="19">Медиатор</option><option value="42">Подсудимый (осужденный)</option></select>
+                    </div>
+                </div>
+            
+
+            
+            <div class="form-group" style="min-height:390px">
+                <label for="simpleSearch_court" class="col-md-2 control-label">Суд</label>
+                <div class="col-md-10" style="padding-top:10px"><div id="tree" class="aciTree aciTreeBig aciTreeNoBranches"></div></div>
+            </div>
+
+            <div class="form-group">
+                    <label class="col-md-2 control-label" for="simpleSearch_case_vid">Вид производства</label>
+                <div class="col-md-10">
+                        <select     id="simpleSearch_case_vid" name="simpleSearch[case_vid]"        class="form-control"><option  value=""></option><option value="gr" selected="selected">Гражданские и административные дела</option><option value="adm">Дела по административным правонарушениям</option><option value="ug">Уголовные дела</option></select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                    <label class="col-md-2 control-label" for="simpleSearch_case_stage">Этап производства</label>
+                <div class="col-md-10">
+                        <select     id="simpleSearch_case_stage" name="simpleSearch[case_stage]"        class="form-control"><option  value=""></option><option value="first">Первая инстанция</option><option value="appeal">Апелляция</option><option value="cass">Кассация</option><option value="nadzor">Надзор</option></select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="col-md-2 col-md-push-10">
+                        <button type="submit" id="simpleSearch_search" name="simpleSearch[search]" class="btn btn-primary col-md-12 btn-sm btn btn-primary">Поиск</button>
+                </div>
+                <div class="col-md-2">
+                        <button type="submit" id="simpleSearch_reset" name="simpleSearch[reset]" class="btn btn-danger col-md-12 btn-sm btn btn-primary">Очистить</button>
+                </div>
+            </div>
+                <input type="hidden"     id="simpleSearch__token" name="simpleSearch[_token]"        class="form-control" value="BZTDgHevAyEe57gw4f0A0VCKt9k__eWNLdTJO1Rh2YA" ></form>
+        </div>
+    </div>
+</div>
+
+<script>
+var hiddenCourts = [];
+var hiddenRegions = [];
+jQuery(document).ready(function() {
+
+    $("#tree").aciTree({
+        ajax: {
+            url: "/loadCourtTree/simple"
+        },
+        checkbox: true,
+        collapse: true,
+        animateRoot: false
+    });
+
+    $('#tree').on('acitree', function(event, api, item, eventName, options) {
+        switch (eventName) {
+            case 'checked':
+            case 'unchecked':
+            case 'loaded':
+                hiddenCourts = [];
+                hiddenRegions = [];
+                api.branch(null, function(item) {
+                    if(api.isChecked(item)) {
+                        if(api.hasChildren(item)) {
+                            hiddenRegions.push('<input type="hidden" name="simpleSearch[region][]" value="'+api.getId(item)+'">');
+                        } else {
+                            hiddenCourts.push('<input type="hidden" name="simpleSearch[court][]" value="'+api.getId(item)+'">');
+                        }
+                    }
+                });
+                break;
+        }
+    });
+
+    $("#search-form").submit(function(event) {
+        $(this).append(hiddenCourts.join(''));
+        $(this).append(hiddenRegions.join(''));
+    });
+});
+</script>
+
+        <div class="row"><div class="col-md-12">
+                <p class="case_quantity">Всего решений в базе:&nbsp;
+                            <span>9</span><span>4</span><span>4</span><span>6</span><span>9</span><span>8</span><span>0</span><span>7</span></p>    </div></div>
+
+<div class="row"><div class="col-md-12">
+<div id="list">
+        <div class="count">
+        <p><b>Всего найдено документов:</b> 913.&nbsp;<b>Показано документов:</b> 913</p>
+    </div>
+                <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Верховный Суд Республики Бурятия</td>
+            <td>
+                <a target="_blank" href="/94661656"><b>
+                33-304/2026 (33-3475/2025;)
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 26 декабря 2025 г.
+                <br>
+                                                Решение вынесено: 18 февраля 2026 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Заместитель прокурора Октябрьского района г. Улан-Удэ в интересах собственников, арендаторов жилых помещений в МКД № 46, 50 по ул. Ключевская, г. Улан-Удэ<br>
+                                    ООО Россервис<br>
+                                    Покидкина Мария Олеговна<br>
+                                    Покидкина Ольга Владимировна<br>
+                                    Плеханова Ольга Борисовна, 
+Плеханов Александр Владимирович<br>
+                                    Папаев Алдар Александрович, 
+Папаева Надежда Николаевна, 
+Папаев Александр Цыденович<br>
+                                    Очиров Виктор Жамьянович<br>
+                                    Ошорова Раджана Баировна<br>
+                                    Пурбуев Баир Доржиевич<br>
+                                    Пурбуева Оюна Бадмажаповна<br>
+                                    Сапожникова Галина Нестеровна<br>
+                                    Сизых Любовь Петровна<br>
+                                    Санжеева Елена Дамбаиновна<br>
+                                    Рябова Катерина Юрьевна, 
+Вторушина Елена Юрьевна, 
+Рябов Дмитрий Юрьевич<br>
+                                    Ринчинова Оюна Цыдыповна<br>
+                                    Раднаев Зорикто Владимирович<br>
+                                    Ситникова Любовь Анатольевна<br>
+                                    Маншеева Ирина Эдуардовна<br>
+                                    Мареева Наталья Андреевна<br>
+                                    Манзарханов Ким Николаевич<br>
+                                    Мандарханова Александра Митаповна<br>
+                                    Лохмакова Нина Алексеевна<br>
+                                    Лыкова Екатерина Валерьевна<br>
+                                    Медведева Наталья Георгиевна<br>
+                                    Михалева Нина Иннокентьевна<br>
+                                    Новокрещенных Мария Матвеевна<br>
+                                    Носкова Галина Сергеевна, 
+Носков Фёдор Лукьянович<br>
+                                    Ней Галина Николаевна<br>
+                                    Мунконова Сыбык Сырендоржиевна, 
+Пастыков Цырен Доржиевич<br>
+                                    Молчанов Александр<br>
+                                    Лемешева Алла Доржиевна<br>
+                                    Ситникова Любовь Анатольевна<br>
+                                    Цырендоржиев Буянто Дондокович<br>
+                                    Цыренова Евгения Владимировна<br>
+                                    Цыдыпова Аяна Эрдэмовна<br>
+                                    Цыдендамбаева Людмила Цыдыпдоржиевна<br>
+                                    Цыбикова Дарима Цыденовна<br>
+                                    Цыбиктарова Аюна Цыренмункуевна,
+Цыбиктаров Игорь Валерьевич<br>
+                                    Шакиров Табриз Таирович<br>
+                                    Шаликова Людмила Григорьевна<br>
+                                    Юможапов Иван Сергеевич<br>
+                                    Яковлева Юлия Алексеевна<br>
+                                    Шклярук Наталья Юрьевна, 
+Грудинина Анастасия Дмитриевна<br>
+                                    Шитиков Алексей Олегович<br>
+                                    Шатохина Надежда Владимировна, 
+Агафонова Елизавета Алексеевна<br>
+                                    Шешкина Людмила Николаевна<br>
+                                    Ходоева Эржена Сампиловна<br>
+                                    Хинданова Галина Николаевна<br>
+                                    Соколов Александр Николаевич<br>
+                                    Сорокина Любовь Михайловна, 
+Горшкова Екатерина Михайловна, 
+Сорокина Татьяна Витальевна<br>
+                                    Снитко Лариса Викторовна<br>
+                                    Смолин Сергей Николаевич<br>
+                                    Ситникова Любовь Анатольевна<br>
+                                    Скрицкая Марина Яковлевна<br>
+                                    Сыдыков Руслан Михайлович<br>
+                                    Сыщикова Ирина Григорьевна<br>
+                                    Фетисов Андрей Леонидович<br>
+                                    Хандиров Ким Николаевич<br>
+                                    Федченко Екатерина Георгиевна<br>
+                                    Турич Елена Эдуардовна<br>
+                                    Трифонова Наталья Липатовна<br>
+                                    Лейфер Лариса Николаевна, 
+Долгобородова Ольга Валерьевна, 
+Долгобородов Максим Андреевич<br>
+                                    Кузнецова Татьяна Сергеевна<br>
+                                    Будаев Валерий Бальжинович<br>
+                                    Будаева Ирина Дымбрыловна<br>
+                                    Битуева Наталья Георгиевна, 
+Битуев Антон Константинович<br>
+                                    Билтуева Евгения Борисовна<br>
+                                    Безызвестных Борис Анатольевич<br>
+                                    Белоплотова Елеонора Николаевна<br>
+                                    Будаева Ирина Дымбрыловна<br>
+                                    Гаевая Галина Ивановна<br>
+                                    Горбатых Анастасия Федоровна<br>
+                                    Дабацыренова Виктория Цыденбаловна,
+Дабацыренов Даши Базарович<br>
+                                    Гомбоева Эржена Константиновна, 
+Борбоева Эржена Константиновна<br>
+                                    Гармаева Надежда Владимировна<br>
+                                    Гайнуллина Марина Руслановна<br>
+                                    Гармаев Тумэн Бадмаевич<br>
+                                    Батуева Субат Сультимовна<br>
+                                    Батуева Дарима Арсалановна<br>
+                                    Афанасьев Сергей Петрович<br>
+                                    Бадмаев Андрей Зарбович, 
+Бадмаева Тамара Андреевна<br>
+                                    Андреев Дмитрий Николаевич<br>
+                                    Алечко Павел Михайлович<br>
+                                    Александров Юрий Тихонович<br>
+                                    Алексеева Юлия Лосоловна<br>
+                                    Балданова Нэлля Анатольевна<br>
+                                    Балтакова Земфира Павловна<br>
+                                    Батуева Анастасия Максимовна<br>
+                                    Батуева Аюна Абидуевна<br>
+                                    Батуев Баир Доржиевич<br>
+                                    Банщикова Нина Викторовна<br>
+                                    Бальжирова Римма Бумаевна<br>
+                                    Дамдинова Раджана Дамдиновна, 
+Дамдинов Аламжи Дамдинович,
+Арзухаева Суржана Сономовна<br>
+                                    Данзанова Людмила Доржиевна<br>
+                                    Казанцева Галина Николаевна<br>
+                                    Каперский Михаил Васильевич<br>
+                                    Иннокентьев Афанасий Афанасьевич<br>
+                                    Иванова Эржена Альбертовна<br>
+                                    Иванова Екатерина Ивановна, 
+Петров Виталий Васильевич, 
+Осеева Елена Георгиевна<br>
+                                    Иванова Ольга Игоревна, 
+Иванов Роман Андреевич, 
+Иванов Иван Андреевич, 
+Иванов Андрей Николаевич<br>
+                                    Карась Иван Юрьевич<br>
+                                    Карякина Елена Львовна<br>
+                                    Кравченко Наталья Сергеевна, 
+Кравченко Петр Сергеевич<br>
+                                    Агафонова Марина Сергеевна<br>
+                                    Копылов Максим Михайлович<br>
+                                    Колмакова Галина Акимовна<br>
+                                    Ковалева Мария Матвеевна<br>
+                                    Ковалевский Александр Евгеньевич, 
+Ковалевский Егор Александрович, 
+Зиновьева Оксана Евгеньевна<br>
+                                    Замбалова Татьяна Лодоевна<br>
+                                    Заиграева Ирина Сергеевна<br>
+                                    Дорофеева Ольга Сергеевна, 
+Дорофеев Игорь Васильевич<br>
+                                    Дружинина Александра Максимовна, 
+Дружинина Ольга Валентиновна<br>
+                                    Дондукова Санжидма Цыбиковна<br>
+                                    Добоева Тамара Павловна<br>
+                                    Демьяненко Ирина Петровна<br>
+                                    Дмитриева Цыцык Зундановна<br>
+                                    Дубанова Виктория Анатольевна<br>
+                                    Дугарова Елена Нимаевна<br>
+                                    Жамбалов Булат Эрдэмович, 
+Швалов Павел Юрьевич<br>
+                                    Жербаханова Ирина Дашиевна<br>
+                                    Жадамбаева Лидия Баировна<br>
+                                    Егунова Мария Филипповна<br>
+                                    Дымбрылов Жаргал Баирович<br>
+                                    Купин Андрей Александрович<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Златоустовский городской суд Челябинской области</td>
+            <td>
+                <a target="_blank" href="/94564324"><b>
+                2а-623/2026 (2а-5022/2025;)
+                                &nbsp;(М-4697/2025)
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 25 декабря 2025 г.
+                <br>
+                                                Решение вынесено: 12 января 2026 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Отдел МВД Российской Федерации по Златоустовскому городскому округу Челябинской области<br>
+                                    Иванов Иван Владимирович<br>
+                                    прокурор<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Верхневилюйский районный суд Республики Саха (Якутия)</td>
+            <td>
+                <a target="_blank" href="/94416240"><b>
+                5-75/2025
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 23 декабря 2025 г.
+                <br>
+                                                Решение вынесено: 23 декабря 2025 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Иванов Иван Иванович<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Таганрогский городской суд Ростовской области</td>
+            <td>
+                <a target="_blank" href="/94414204"><b>
+                5-902/2025
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 22 декабря 2025 г.
+                <br>
+                                                Решение вынесено: 22 декабря 2025 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Иванов Иван Владимирович<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Московский областной суд</td>
+            <td>
+                <a target="_blank" href="/94434665"><b>
+                33а-47373/2025
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 17 декабря 2025 г.
+                <br>
+                                                Решение вынесено: 24 декабря 2025 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Хачатрян Роман Гарникович<br>
+                                    Администрация г.о. Пушкинский<br>
+                                    Министерство экологии и природопользования МО<br>
+                                    Иванов Иван Васильевич<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Северский районный суд Краснодарского края</td>
+            <td>
+                <a target="_blank" href="/94358879"><b>
+                5-334/2025
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 17 декабря 2025 г.
+                <br>
+                                                Решение вынесено: 17 декабря 2025 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Иванов Иван Валерьевич<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Раменский городской суд Московской области</td>
+            <td>
+                <a target="_blank" href="/94262643"><b>
+                2а-10411/2025
+                                &nbsp;(М-11097/2025)
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 3 декабря 2025 г.
+                <br>
+                                                Решение вынесено: 10 декабря 2025 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Межрайонная ИНФС №1 по МО<br>
+                                    ИВАНОВ ИВАН КОНСТАНТИНОВИЧ<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Пушкинский городской суд Московской области</td>
+            <td>
+                <a target="_blank" href="/94132688"><b>
+                2-9570/2025
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 1 декабря 2025 г.
+                <br></p>            </td>
+            <td>
+                <p>
+                                    Фомичев Евгений Алексеевич<br>
+                                    Бережной Алексей Васильевич<br>
+                                    Степашкин Роман Анатольевич<br>
+                                    Администрация г.о. Пушкинский<br>
+                                    Иванов Иван Васильевич<br>
+                                    Коваль Светлана Юрьевна<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Вилюйский районный суд Республики Саха (Якутия)</td>
+            <td>
+                <a target="_blank" href="/94367560"><b>
+                1-107/2025
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 28 ноября 2025 г.
+                <br>
+                                                Решение вынесено: 18 декабря 2025 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Махаров Сергей Иванович<br>
+                                    Тимофеева М.С.<br>
+                                    Иванов Иван Николаевич<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Чистопольский городской суд Республики Татарстан</td>
+            <td>
+                <a target="_blank" href="/94128036"><b>
+                1-48/2026 (1-298/2025;)
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 26 ноября 2025 г.
+                <br>
+                                                Решение вынесено: 21 января 2026 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Исхакова Р.Ш.<br>
+                                    Гайнуллина Ч.Ф.<br>
+                                    Иванов Иван Иванович<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Московский областной суд</td>
+            <td>
+                <a target="_blank" href="/94133290"><b>
+                33-44088/2025
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 26 ноября 2025 г.
+                <br>
+                                                Решение вынесено: 17 декабря 2025 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Иванов Иван Иванович<br>
+                                    ООО Эллада Интертрейд<br>
+                                    ООО Киа НК<br>
+                                    Серегина Кристина Олеговна<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Фрунзенский районный суд г. Владивосток</td>
+            <td>
+                <a target="_blank" href="/94271916"><b>
+                2-508/2026 (2-4035/2025;)
+                                &nbsp;(М-3623/2025)
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 25 ноября 2025 г.
+                <br>
+                                                Решение вынесено: 14 января 2026 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Гудина Наталья Владимировна<br>
+                                    ИП Ким Таекдонг<br>
+                                    ИВАНОВ ИВАН ИГОРЕВИЧ<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Смольнинский районный суд Санкт-Петербурга</td>
+            <td>
+                <a target="_blank" href="/94493328"><b>
+                2а-8733/2025
+                                &nbsp;(М-6939/2025)
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 25 ноября 2025 г.
+                <br>
+                                                Решение вынесено: 26 декабря 2025 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    МИФНС России № 11 по Санкт-Петербургу<br>
+                                    Иванов Иван Сергеевич<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Кировский районный суд г. Екатеринбурга</td>
+            <td>
+                <a target="_blank" href="/94275130"><b>
+                2-7201/2025
+                                &nbsp;(М-6294/2025)
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 25 ноября 2025 г.
+                <br>
+                                                Решение вынесено: 25 декабря 2025 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Иванов Иван Андреевич<br>
+                                    ООО &quot;Специализированный застройщик &quot;Эталон-Екатеринбург&quot;<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Мирнинский районный суд Республики Саха (Якутия)</td>
+            <td>
+                <a target="_blank" href="/94056366"><b>
+                2-AI-210/2025
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 25 ноября 2025 г.
+                <br>
+                                                Решение вынесено: 15 декабря 2025 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Брудерс Борис Рабазанович<br>
+                                    Мамедов Хаким Ханыш оглы<br>
+                                    Рябов Алексей Васильевич<br>
+                                    Иванов Иван Дмитриевич<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Мегино-Кангаласский районный суд Республики Саха (Якутия)</td>
+            <td>
+                <a target="_blank" href="/94312723"><b>
+                12-74/2025
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 25 ноября 2025 г.
+                <br></p>            </td>
+            <td>
+                <p>
+                                    Романов Иван Иванов<br>
+                                    Холмогоров Сергей Аполлонович<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Чурапчинский районный суд Республики Саха (Якутия)</td>
+            <td>
+                <a target="_blank" href="/94205120"><b>
+                2-367/2025
+                                &nbsp;(М-360/2025)
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 24 ноября 2025 г.
+                <br>
+                                                Решение вынесено: 8 декабря 2025 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Иванов Иван Павлович<br>
+                                    Администрация СП &quot;Сыланский наслег&quot;<br>
+                                    Управление Федеральной службы государственной регистрации, кадастра и картографии по Республике Саха (Якутия)<br>
+                                    Федорова Зинаида Николаевна<br>
+                                    Протодьяконов Виктор Николаевич<br>
+                                    Иванова Акулина Николаевна<br>
+                                    Протодьяконов Анатолий Николаевич<br>
+                                    Александрова Дария Николаевна<br>
+                                    адвокат Посельская Катерина Павловна<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Усть-Донецкий районный суд Ростовской области</td>
+            <td>
+                <a target="_blank" href="/93990050"><b>
+                2а-39/2026 (2а-1053/2025;)
+                                &nbsp;(М-1069/2025)
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 20 ноября 2025 г.
+                <br>
+                                                Решение вынесено: 12 января 2026 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    МИФНС России №12 по Ростовской области<br>
+                                    Иванов Иван Егорович<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Петуховский районный суд Курганской области</td>
+            <td>
+                <a target="_blank" href="/94140583"><b>
+                5-62/2025
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 20 ноября 2025 г.
+                <br>
+                                                Решение вынесено: 3 декабря 2025 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Иванов Иван Иванович<br></p>                </td>
+            </tr>
+        </table>
+            <table class="table table-bordered">
+        <tr class="active">
+            <td style="width:20%">Петуховский районный суд Курганской области</td>
+            <td>
+                <a target="_blank" href="/94140584"><b>
+                5-61/2025
+                                </b></a>            </td>
+        </tr> 
+        <tr>
+            <td width="32%">
+                <p>
+                                Поступило: 20 ноября 2025 г.
+                <br>
+                                                Решение вынесено: 3 декабря 2025 г.
+                                </p>            </td>
+            <td>
+                <p>
+                                    Иванов Иван Иванович<br></p>                </td>
+            </tr>
+        </table>
+    </div>
+</div></div>
+
+    <div class="row"><div class="col-md-12">
+        <div class="navigation">
+            
+    
+                
+        <ul class="pagination">
+            
+                            <li class="disabled"><span>&laquo;</span></li>
+            
+                                                <li class="active"><span>1</span></li>
+                
+                                                <li><a href="/search?page=2">2</a></li>
+                
+                                                <li><a href="/search?page=3">3</a></li>
+                
+                                                <li><a href="/search?page=4">4</a></li>
+                
+                                                <li><a href="/search?page=5">5</a></li>
+                
+            
+                            <li><a href="/search?page=2">&raquo;</a></li>
+            
+                    </ul>
+    
+        </div>
+    </div></div>
+    </div>
+    <div class="col-md-3" style="padding-top:40px">
+<!-- R-138237-1 Яндекс.RTB-блок  -->
+<div id="yandex_ad_R-138237-1"></div>
+<script type="text/javascript">
+(function(w, d, n, s, t) {
+w[n] = w[n] || [];
+w[n].push(function() {
+Ya.Context.AdvManager.render({
+	blockId: "R-138237-1",
+	renderTo: "yandex_ad_R-138237-1",
+	async: true
+});
+});
+t = d.getElementsByTagName("script")[0];
+s = d.createElement("script");
+s.type = "text/javascript";
+s.src = "//an.yandex.ru/system/context.js";
+s.async = true;
+t.parentNode.insertBefore(s, t);
+})(this, this.document, "yandexContextAsyncCallbacks");
+</script>
+
+<!-- Яндекс.Директ -->
+<div style="margin-top:20px" id="yandex_ad"></div>
+<script type="text/javascript">
+(function(w, d, n, s, t) {
+w[n] = w[n] || [];
+w[n].push(function() {
+Ya.Direct.insertInto(138237, "yandex_ad", {
+stat_id: 2,
+ad_format: "direct",
+type: "posterVertical",
+border_type: "ad",
+limit: 3,
+title_font_size: 3,
+links_underline: true,
+site_bg_color: "FFFFFF",
+border_color: "6666CC",
+title_color: "000099",
+url_color: "000099",
+text_color: "000000",
+hover_color: "6666CC",
+sitelinks_color: "000099",
+favicon: true,
+no_sitelinks: false
+});
+});
+t = d.getElementsByTagName("script")[0];
+s = d.createElement("script");
+s.src = "//an.yandex.ru/system/context.js";
+s.type = "text/javascript";
+s.async = true;
+t.parentNode.insertBefore(s, t);
+})(window, document, "yandex_context_callbacks");
+</script>
+
+        <div style="margin-top:20px">
+</div>
+
+
+<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- СудРеш_справа --> <ins class="adsbygoogle" style="display:inline-block;width:240px;height:400px" data-ad-client="ca-pub-3942066338277934" data-ad-slot="8693429207"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+                    <!--/* Revive Adserver Javascript Tag v3.0.2 */-->
+            <script type='text/javascript'><!--//<![CDATA[
+   var m3_u = (location.protocol=='https:'?'https://ox.ruscourt.ru/www/delivery/ajs.php':'http://ox.ruscourt.ru/www/delivery/ajs.php');
+      var m3_r = Math.floor(Math.random()*99999999999);
+         if (!document.MAX_used) document.MAX_used = ',';
+            document.write ("<scr"+"ipt type='text/javascript' src='"+m3_u);
+               document.write ("?zoneid=10&amp;target=_blank&amp;charset=UTF-8");
+                  document.write ('&amp;cb=' + m3_r);
+                     if (document.MAX_used != ',') document.write ("&amp;exclude=" + document.MAX_used);
+                        document.write ('&amp;charset=UTF-8');
+                           document.write ("&amp;loc=" + escape(window.location));
+                              if (document.referrer) document.write ("&amp;referer=" + escape(document.referrer));
+                                 if (document.context) document.write ("&context=" + escape(document.context));
+                                    if (document.mmm_fo) document.write ("&amp;mmm_fo=1");
+                                       document.write ("'><\/scr"+"ipt>");
+                                       //]]>--></script><noscript>gt<a href='http://ox.ruscourt.ru/www/delivery/ck.php?n=a2fa485b&amp;cb=8943956285628542' target='_blank'><img src='http://ox.ruscourt.ru/www/delivery/avw.php?zoneid=10&amp;charset=UTF-8&amp;cb=8943956285628542&amp;n=a2fa485b' border='0' alt='' /></a></noscript>
+
+                    <!--/* Revive Adserver Javascript Tag v3.0.2 */-->
+            <script type='text/javascript'><!--//<![CDATA[
+   var m3_u = (location.protocol=='https:'?'https://ox.ruscourt.ru/www/delivery/ajs.php':'http://ox.ruscourt.ru/www/delivery/ajs.php');
+      var m3_r = Math.floor(Math.random()*99999999999);
+         if (!document.MAX_used) document.MAX_used = ',';
+            document.write ("<scr"+"ipt type='text/javascript' src='"+m3_u);
+               document.write ("?zoneid=11&amp;target=_blank&amp;charset=UTF-8");
+                  document.write ('&amp;cb=' + m3_r);
+                     if (document.MAX_used != ',') document.write ("&amp;exclude=" + document.MAX_used);
+                        document.write ('&amp;charset=UTF-8');
+                           document.write ("&amp;loc=" + escape(window.location));
+                              if (document.referrer) document.write ("&amp;referer=" + escape(document.referrer));
+                                 if (document.context) document.write ("&context=" + escape(document.context));
+                                    if (document.mmm_fo) document.write ("&amp;mmm_fo=1");
+                                       document.write ("'><\/scr"+"ipt>");
+                                       //]]>--></script><noscript>gt<a href='http://ox.ruscourt.ru/www/delivery/ck.php?n=a8971d1a&amp;cb=3486749764967596' target='_blank'><img src='http://ox.ruscourt.ru/www/delivery/avw.php?zoneid=11&amp;charset=UTF-8&amp;cb=3486749764967596&amp;n=a8971d1a' border='0' alt='' /></a></noscript>
+
+    </div>
+</div>
+<div class="row" style="margin-top:100px">
+    <div class="col-md-4 blue-stripe"><p style="line-height:40px">&nbsp;</p></div>
+    <div class="col-md-4 blue-stripe"><p style="font-weight:normal; line-height:40px; text-align:center"><a href="/about">О проекте</a>&nbsp;|&nbsp;<a href="http://old.судебныерешения.рф" target="_blank">Переход на старый сайт</a></p></div>
+    <div class="col-md-4 blue-stripe"><p style="font-weight:normal; line-height:40px; text-align:right">&copy; Павел Нетупский ООО «ПИК-пресс».</p></div>
+</div>
+</div>
+</div>
+
+    <!-- Include all JavaScripts, compiled by Assetic -->
+    <script src="/js/bootstrap.js"></script>
+</body>
+</html>

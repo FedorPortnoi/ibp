@@ -1,0 +1,9 @@
+{
+  "source": "kad.arbitr.ru",
+  "inn_used": "232308435186",
+  "candidate": "Судин Артем Алексеевич",
+  "total_verified": 0,
+  "cases": [],
+  "errors": [],
+  "notes": "HTTP 200 — site accessible. Search by INN returned 'Нет результатов' (no arbitration cases found). Confirmed via MCP Playwright interactive session."
+}
