@@ -72,6 +72,9 @@ class CandidateCheck(db.Model):
     _face_matches = db.Column('face_matches', db.Text, default='[]')
     _username_accounts = db.Column('username_accounts', db.Text, default='[]')
 
+    # --- Geo Intelligence (aggregated from all stages) ---
+    _geo_intelligence = db.Column('geo_intelligence', db.Text, default='{}')
+
     # --- Stage 6: Behavioral Intelligence ---
     _geo_analysis = db.Column('geo_analysis', db.Text, default='{}')
     _text_analysis = db.Column('text_analysis', db.Text, default='{}')
@@ -243,6 +246,15 @@ class CandidateCheck(db.Model):
     @username_accounts.setter
     def username_accounts(self, value):
         self._username_accounts = self._dump_json(value)
+
+    # geo_intelligence
+    @property
+    def geo_intelligence(self):
+        return self._load_json(self._geo_intelligence, {})
+
+    @geo_intelligence.setter
+    def geo_intelligence(self, value):
+        self._geo_intelligence = self._dump_json(value)
 
     # geo_analysis
     @property

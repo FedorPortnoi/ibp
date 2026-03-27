@@ -268,6 +268,8 @@ def _migrate_task_columns(db_instance):
         ('risk_score', 'INTEGER'),
         # Pledge registry (March 2026)
         ('pledge_records', 'TEXT'),
+        # Geo intelligence (March 2026)
+        ('geo_intelligence', 'TEXT'),
         # Multi-user (March 2026)
         ('user_id', 'INTEGER'),
         # 152-FZ PD consent (March 2026)

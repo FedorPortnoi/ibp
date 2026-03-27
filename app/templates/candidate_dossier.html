@@ -443,9 +443,11 @@
                 <span class="badge badge-count">{{ social_graph_data.get('nodes', [])|length }}</span>
             </a>
             {% endif %}
-            {% if geo_analysis and geo_analysis.get('locations') %}
+            {% set gi = geo_intelligence or {} %}
+            {% set gi_points = gi.get('location_points', []) %}
+            {% if gi_points or (geo_analysis and geo_analysis.get('locations')) %}
             <a href="#sec-geo" class="nav-pill">&#x1F4CD; Гео
-                <span class="badge badge-count">{{ geo_analysis.get('locations', [])|length }}</span>
+                <span class="badge badge-count">{{ gi_points|length or geo_analysis.get('locations', [])|length }}</span>
             </a>
             {% endif %}
             {% if text_analysis %}
@@ -1405,10 +1407,109 @@
     {% endif %}
 
     {# ================================================================
-       13. GEOGRAPHY (Stage 6)
+       13. GEO INTELLIGENCE (aggregated from all stages)
        ================================================================ #}
-    {% if geo_analysis and geo_analysis.get('locations') %}
+    {% set gi = geo_intelligence or {} %}
+    {% set gi_points = gi.get('location_points', []) %}
+    {% set gi_timeline = gi.get('activity_timeline', []) %}
+    {% set gi_history = gi.get('location_history', []) %}
+    {% set gi_summary = gi.get('summary', {}) %}
+
+    {% if gi_points or (geo_analysis and geo_analysis.get('locations')) %}
     <section id="sec-geo" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F30D; Геоинтеллект</h2>
+            <span class="section-count">{{ gi_summary.get('total_locations', gi_points|length) }} локаций &middot; {{ gi_summary.get('sources_count', 0) }} источников</span>
+        </div>
+
+        {# ── 13a. Presence Map ── #}
+        <div class="dossier-card" style="padding: 0; overflow: hidden; border-radius: 12px;">
+            <div id="geo-intel-map" style="height: 400px; background: var(--bg-dark);"></div>
+        </div>
+
+        {# Map legend #}
+        <div class="flex flex-wrap gap-4 mt-2 mb-4 text-xs text-gray-400 px-1">
+            <span><span style="color: #ef4444;">&#x25CF;</span> ЕГРЮЛ / Анкета</span>
+            <span><span style="color: #eab308;">&#x25CF;</span> VK профиль</span>
+            <span><span style="color: #22c55e;">&#x25CF;</span> VK геотег</span>
+            <span><span style="color: #3b82f6;">&#x25CF;</span> Telegram</span>
+        </div>
+
+        {% if gi_summary.get('primary_city') %}
+        <div class="px-3 py-2 mb-3 rounded-lg bg-accent/[0.05] border border-white/[0.08] text-sm">
+            <span class="text-gray-400">Основной город:</span>
+            <span class="text-white font-medium">{{ gi_summary.primary_city }}</span>
+            {% if gi_summary.get('has_relocation') %}
+                <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-yellow-500/[0.12] text-yellow-400 border border-yellow-500/[0.2]">Сменил локацию</span>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {# ── 13b. Activity Timeline (7-day) ── #}
+        {% if gi_timeline %}
+        <div class="dossier-card mt-3">
+            <h3 class="text-sm font-medium text-gray-400 mb-3">Активность за 7 дней</h3>
+            <div class="flex gap-2 justify-between">
+                {% for day in gi_timeline %}
+                <div class="flex-1 text-center">
+                    <div class="text-[10px] text-gray-500 mb-1">{{ day.day_label }}</div>
+                    <div class="flex flex-col gap-[2px]">
+                        {# Night #}
+                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(212, 162, 127, 0.7)' if day.slots.night else 'rgba(255,255,255,0.04)' }};"></div>
+                        {# Evening #}
+                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(212, 162, 127, 0.7)' if day.slots.evening else 'rgba(255,255,255,0.04)' }};"></div>
+                        {# Afternoon #}
+                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(212, 162, 127, 0.7)' if day.slots.afternoon else 'rgba(255,255,255,0.04)' }};"></div>
+                        {# Morning #}
+                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(212, 162, 127, 0.7)' if day.slots.morning else 'rgba(255,255,255,0.04)' }};"></div>
+                    </div>
+                    <div class="text-[10px] text-gray-600 mt-1">{{ day.date[-5:] }}</div>
+                    {% if day.platform %}
+                    <div class="text-[9px] text-gray-500 mt-0.5">{{ day.platform }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="flex gap-4 mt-2 text-[10px] text-gray-500 justify-end">
+                <span>&#x2B06; Утро &middot; День &middot; Вечер &middot; Ночь &#x2B07;</span>
+                <span><span style="color: #D4A27F;">&#x25A0;</span> Активен</span>
+                <span style="color: rgba(255,255,255,0.15);">&#x25A0; Неактивен</span>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── 13c. Location Change History ── #}
+        {% if gi_history %}
+        <div class="dossier-card mt-3">
+            <h3 class="text-sm font-medium text-gray-400 mb-3">История локаций</h3>
+            <div class="space-y-2">
+                {% for entry in gi_history %}
+                <div class="flex items-center gap-3 text-sm py-1.5 px-2 rounded-lg" style="background: rgba(255,255,255,0.02);">
+                    <span class="text-gray-500 font-mono text-xs w-16 shrink-0">{{ entry.date_display }}</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-medium w-20 text-center shrink-0
+                        {% if entry.source == 'egrul' or entry.source == 'form' %}bg-red-500/[0.12] text-red-400
+                        {% elif entry.source == 'vk_profile' %}bg-yellow-500/[0.12] text-yellow-400
+                        {% elif entry.source == 'vk_post' %}bg-green-500/[0.12] text-green-400
+                        {% elif entry.source == 'telegram' %}bg-blue-500/[0.12] text-blue-400
+                        {% else %}bg-gray-500/[0.12] text-gray-400{% endif %}">{{ entry.source_label }}</span>
+                    <span class="text-white flex-1">{{ entry.location }}</span>
+                    <span class="text-gray-500 shrink-0">
+                        {% if entry.confidence == 'high' %}&#x25CF;&#x25CF;&#x25CF;
+                        {% elif entry.confidence == 'medium' %}&#x25CF;&#x25CF;&#x25CB;
+                        {% else %}&#x25CF;&#x25CB;&#x25CB;{% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </section>
+    {% endif %}
+
+    {# Fallback: show old geo_analysis if no geo_intelligence data #}
+    {% if (not gi_points) and geo_analysis and geo_analysis.get('locations') %}
+    <section id="sec-geo-legacy" class="mb-10">
         <div class="section-header">
             <h2>&#x1F4CD; География</h2>
             <span class="section-count">{{ geo_analysis.get('locations', [])|length }} локаций</span>
@@ -1845,7 +1946,77 @@
 </script>
 {% endif %}
 
-{% if geo_analysis and geo_analysis.get('locations') %}
+{% set _gi = geo_intelligence or {} %}
+{% set _gi_points = _gi.get('location_points', []) %}
+{% if _gi_points %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function() {
+    var container = document.getElementById('geo-intel-map');
+    if (!container) return;
+
+    var COLOR_MAP = {
+        'red': '#ef4444',
+        'yellow': '#eab308',
+        'green': '#22c55e',
+        'blue': '#3b82f6',
+    };
+
+    fetch('/candidate/api/geo-intelligence/{{ check.id }}')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var points = data.location_points || [];
+            var geoPoints = points.filter(function(p) { return p.lat && p.lon; });
+            if (geoPoints.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Нет геоданных с координатами</div>';
+                return;
+            }
+
+            var map = L.map(container, {zoomControl: true}).setView([55.75, 37.62], 5);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: 'CartoDB',
+                maxZoom: 19,
+            }).addTo(map);
+
+            var bounds = [];
+            geoPoints.forEach(function(pt) {
+                var color = COLOR_MAP[pt.icon_color] || '#D4A27F';
+                var marker = L.circleMarker([pt.lat, pt.lon], {
+                    radius: 8,
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 0.7,
+                    weight: 2,
+                }).addTo(map);
+
+                var conf = pt.confidence === 'high' ? '\u25CF\u25CF\u25CF'
+                         : pt.confidence === 'medium' ? '\u25CF\u25CF\u25CB'
+                         : '\u25CF\u25CB\u25CB';
+                var popup = '<div style="font-size:12px;line-height:1.5;">'
+                    + '<b>' + (pt.label || '') + '</b><br>'
+                    + '<span style="color:#888;">' + (pt.location || '') + '</span><br>'
+                    + (pt.timestamp ? '<span style="color:#aaa;">' + pt.timestamp + '</span><br>' : '')
+                    + '<span style="color:#aaa;">Уверенность: </span>' + conf
+                    + '</div>';
+                marker.bindPopup(popup);
+                bounds.push([pt.lat, pt.lon]);
+            });
+
+            if (bounds.length > 1) {
+                map.fitBounds(bounds, {padding: [30, 30]});
+            } else if (bounds.length === 1) {
+                map.setView(bounds[0], 10);
+            }
+        })
+        .catch(function() {
+            container.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Ошибка загрузки карты</div>';
+        });
+})();
+</script>
+
+{% elif geo_analysis and geo_analysis.get('locations') %}
+{# Legacy geo map fallback #}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -1877,8 +2048,8 @@
                     var freq = loc.frequency || loc.count || 1;
                     var marker = L.circleMarker([lat, lng], {
                         radius: Math.min(6 + freq * 2, 20),
-                        color: 'var(--accent)',
-                        fillColor: 'var(--accent-bright)',
+                        color: '#D4A27F',
+                        fillColor: '#D4A27F',
                         fillOpacity: 0.6,
                     }).addTo(map);
                     marker.bindPopup('<b>' + name + '</b><br>Частота: ' + freq);

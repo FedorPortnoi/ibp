@@ -404,6 +404,14 @@ def api_geo_data(check_id):
     return jsonify(check.geo_analysis or {})
 
 
+@candidate_bp.route('/api/geo-intelligence/<check_id>')
+def api_geo_intelligence(check_id):
+    """Return aggregated geo intelligence data for dossier."""
+    check = CandidateCheck.query.filter_by(id=check_id).first_or_404()
+    _check_owner_or_admin(check)
+    return jsonify(check.geo_intelligence or {})
+
+
 @candidate_bp.route('/api/timeline/<check_id>')
 def api_timeline(check_id):
     """Return activity timeline data."""
@@ -465,6 +473,7 @@ def dossier_page(check_id):
         face_matches=check.face_matches or [],
         username_accounts=check.username_accounts or [],
         geo_analysis=check.geo_analysis or {},
+        geo_intelligence=check.geo_intelligence or {},
         text_analysis=check.text_analysis or {},
         activity_timeline=check.activity_timeline or [],
         risk_breakdown=check.risk_breakdown or {},
@@ -580,6 +589,7 @@ def export_json(check_id):
         'face_matches': check.face_matches,
         'username_accounts': check.username_accounts,
         'geo_analysis': check.geo_analysis,
+        'geo_intelligence': check.geo_intelligence,
         'text_analysis': check.text_analysis,
         'activity_timeline': check.activity_timeline,
         'group_analysis': check.group_analysis,
@@ -656,6 +666,7 @@ def export_pdf(check_id):
         face_matches=check.face_matches or [],
         username_accounts=check.username_accounts or [],
         geo_analysis=check.geo_analysis or {},
+        geo_intelligence=check.geo_intelligence or {},
         text_analysis=check.text_analysis or {},
         activity_timeline=check.activity_timeline or [],
         risk_breakdown=check.risk_breakdown or {},

@@ -1557,8 +1557,27 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             except Exception as e:
                 logger.debug(f"AI behavioral summary skipped: {e}")
 
-            task.update('behavioral', 'Поведенческий анализ завершён', 83)
+            task.update('behavioral', 'Поведенческий анализ завершён', 82)
             logger.info(f"Stage 6 completed in {time.time() - stage6_start:.1f}s")
+
+            # ── Geo Intelligence (aggregated from all stages) ──
+            task.update('geo_intelligence', 'Сбор геоданных...', 82)
+            try:
+                from app.services.phase3.geo_intelligence import collect_geo_intelligence
+                geo_intel = collect_geo_intelligence(check, is_demo=_is_demo_mode())
+                check.geo_intelligence = geo_intel
+                db.session.commit()
+                n_loc = geo_intel.get('summary', {}).get('total_locations', 0)
+                if n_loc:
+                    task.add_message(f'Геоинтеллект: {n_loc} локаций', 'success')
+                    sources_with_results += 1
+                sources_checked += 1
+            except Exception as e:
+                logger.error(f"Geo intelligence collection error: {e}", exc_info=True)
+                task.add_message('Геоинтеллект: ошибка (пропущен)', 'warning')
+                sources_checked += 1
+
+            task.update('behavioral', 'Поведенческий анализ завершён', 83)
             _pause()
 
             # ══════════════════════════════════════════════
