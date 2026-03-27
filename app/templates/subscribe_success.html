@@ -4,18 +4,18 @@
 <div style="min-height:80vh;display:flex;align-items:center;
             justify-content:center;padding:40px 24px;text-align:center;">
     <div>
-        <div style="font-size:32px;margin-bottom:16px;color:#5C9E6E;">&#10003;</div>
+        <div style="font-size:32px;margin-bottom:16px;color:#4ADE80;">&#10003;</div>
         <h1 style="font-size:20px;font-weight:300;color:#ECECEC;
                    letter-spacing:.1em;margin-bottom:8px;">
             Подписка активирована
         </h1>
         {% if sub %}
-        <p style="color:#9B9B9B;font-size:13px;margin-bottom:32px;">
+        <p style="color:rgba(232,224,212,0.6);font-size:13px;margin-bottom:32px;">
             Действует до {{ sub.expires_at.strftime('%d.%m.%Y') }}
         </p>
         {% endif %}
         <a href="/candidate/new"
-           style="display:inline-block;background:#D4A27F;color:#000;padding:12px 28px;
+           style="display:inline-block;background:#C4955A;color:#000;padding:12px 28px;
                   text-decoration:none;font-size:11px;font-weight:500;
                   letter-spacing:.15em;text-transform:uppercase;">
             НАЧАТЬ РАБОТУ &rarr;

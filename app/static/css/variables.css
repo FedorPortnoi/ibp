@@ -1,33 +1,33 @@
 /* =============================================================================
    СЛЕД Design System — Variables
-   Claude.ai-inspired: warm monochrome foundation, terracotta accent
+   shtirlitz-landing palette: deep black, gold accent, cream text
    ============================================================================= */
 
 :root {
   /* -------------------------------------------------------------------------
-     Backgrounds — warm near-black
+     Backgrounds — true black
      ------------------------------------------------------------------------- */
-  --bg-deep: #1A1A1A;
-  --bg-dark: #1C1C1C;
-  --bg-panel: #262626;
-  --bg-panel-hover: #2F2F2F;
-  --bg-elevated: #333333;
+  --bg-deep: #0A0A0A;
+  --bg-dark: #111111;
+  --bg-panel: #1A1A1A;
+  --bg-panel-hover: #222222;
+  --bg-elevated: #252525;
 
   /* -------------------------------------------------------------------------
-     Primary Accent — warm terracotta (Claude.ai-inspired)
+     Primary Accent — gold (shtirlitz-landing)
      ------------------------------------------------------------------------- */
-  --accent: #D4A27F;
-  --accent-dim: #A67C5B;
-  --accent-bright: #E8B896;
-  --accent-subtle: rgba(212, 162, 127, 0.08);
-  --accent-muted: rgba(212, 162, 127, 0.15);
+  --accent: #C4955A;
+  --accent-dim: #A07A42;
+  --accent-bright: #D4A56A;
+  --accent-subtle: rgba(196, 149, 90, 0.08);
+  --accent-muted: rgba(196, 149, 90, 0.15);
 
   /* -------------------------------------------------------------------------
      Semantic Colors
      ------------------------------------------------------------------------- */
-  --success: #5C9E6E;
-  --warning: #C4883A;
-  --error: #B85C5C;
+  --success: #4ADE80;
+  --warning: #C4955A;
+  --error: #EF4444;
   --info: #5C7FA3;
 
   /* Legacy violet aliases for backward compat */
@@ -36,27 +36,27 @@
   --violet-bright: var(--accent-bright);
 
   /* -------------------------------------------------------------------------
-     Text — warm off-white hierarchy
+     Text — cream hierarchy (E8E0D4)
      ------------------------------------------------------------------------- */
-  --text-primary: #ECECEC;
-  --text-secondary: #9B9B9B;
-  --text-dim: #6B6B6B;
-  --text-muted: #4A4A4A;
+  --text-primary: #E8E0D4;
+  --text-secondary: rgba(232, 224, 212, 0.6);
+  --text-dim: rgba(232, 224, 212, 0.4);
+  --text-muted: rgba(232, 224, 212, 0.2);
 
   /* -------------------------------------------------------------------------
-     Borders — warm subtle
+     Borders — cream-based subtle
      ------------------------------------------------------------------------- */
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-default: #383838;
-  --border-bright: rgba(255, 255, 255, 0.18);
+  --border-subtle: rgba(232, 224, 212, 0.06);
+  --border-default: rgba(232, 224, 212, 0.15);
+  --border-bright: rgba(232, 224, 212, 0.25);
 
   /* -------------------------------------------------------------------------
      Shadows & Glows
      ------------------------------------------------------------------------- */
-  --glow-accent: 0 0 30px rgba(212, 162, 127, 0.25);
-  --glow-accent-intense: 0 0 50px rgba(212, 162, 127, 0.35);
-  --glow-success: 0 0 20px rgba(92, 158, 110, 0.25);
-  --glow-error: 0 0 20px rgba(184, 92, 92, 0.25);
+  --glow-accent: 0 0 30px rgba(196, 149, 90, 0.25);
+  --glow-accent-intense: 0 0 50px rgba(196, 149, 90, 0.35);
+  --glow-success: 0 0 20px rgba(74, 222, 128, 0.25);
+  --glow-error: 0 0 20px rgba(239, 68, 68, 0.25);
 
   /* Legacy aliases */
   --glow-violet: var(--glow-accent);
@@ -69,9 +69,9 @@
   /* -------------------------------------------------------------------------
      Typography
      ------------------------------------------------------------------------- */
-  --font-body: 'Outfit', system-ui, -apple-system, sans-serif;
-  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', monospace;
-  --font-display: 'Outfit', system-ui, sans-serif;
+  --font-body: 'Mulish', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+  --font-display: 'Bebas Neue', 'Mulish', system-ui, sans-serif;
 
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
@@ -100,13 +100,13 @@
   --space-3xl: 5rem;
 
   /* -------------------------------------------------------------------------
-     Border Radius
+     Border Radius — sharp / minimal
      ------------------------------------------------------------------------- */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
-  --radius-pill: 100px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-pill: 0px;
   --radius-full: 9999px;
 
   /* -------------------------------------------------------------------------
@@ -131,5 +131,5 @@
      ------------------------------------------------------------------------- */
   --content-width: 1080px;
   --padding-x: max(5vw, 24px);
-  --global-border-radius: 20px;
+  --global-border-radius: 0px;
 }

@@ -6,10 +6,10 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}СЛЕД — Identity-Based Profiler{% endblock %}</title>
 
-    <!-- Fonts: Outfit (body) + IBM Plex Mono (data) -->
+    <!-- Fonts: Bebas Neue (headings) + JetBrains Mono (data) + Mulish (body) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;600;700&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- СЛЕД Design System -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
@@ -24,47 +24,47 @@
             theme: {
                 extend: {
                     colors: {
-                        'bg-deep': '#1A1A1A',
-                        'bg-dark': '#1C1C1C',
-                        'bg-panel': '#262626',
-                        'bg-panel-hover': '#2F2F2F',
-                        'bg-elevated': '#333333',
+                        'bg-deep': '#0A0A0A',
+                        'bg-dark': '#111111',
+                        'bg-panel': '#1A1A1A',
+                        'bg-panel-hover': '#222222',
+                        'bg-elevated': '#252525',
                         accent: {
-                            DEFAULT: '#D4A27F',
-                            dim: '#A67C5B',
-                            bright: '#E8B896',
+                            DEFAULT: '#C4955A',
+                            dim: '#A07A42',
+                            bright: '#D4A56A',
                         },
                         // Legacy violet aliases
                         violet: {
-                            DEFAULT: '#D4A27F',
-                            dim: '#A67C5B',
-                            bright: '#E8B896',
-                            50: 'rgba(212, 162, 127, 0.05)',
-                            100: 'rgba(212, 162, 127, 0.08)',
-                            200: 'rgba(212, 162, 127, 0.15)',
-                            400: 'rgba(212, 162, 127, 0.4)',
+                            DEFAULT: '#C4955A',
+                            dim: '#A07A42',
+                            bright: '#D4A56A',
+                            50: 'rgba(196, 149, 90, 0.05)',
+                            100: 'rgba(196, 149, 90, 0.08)',
+                            200: 'rgba(196, 149, 90, 0.15)',
+                            400: 'rgba(196, 149, 90, 0.4)',
                         },
                         gray: {
-                            900: '#1A1A1A',
-                            800: '#1C1C1C',
-                            700: '#262626',
-                            600: '#333333',
-                            500: '#6B6B6B',
-                            400: '#9B9B9B',
-                            300: '#BFBFBF',
-                            200: '#DFDFDF',
-                            100: '#ECECEC',
+                            900: '#0A0A0A',
+                            800: '#111111',
+                            700: '#1A1A1A',
+                            600: '#252525',
+                            500: 'rgba(232, 224, 212, 0.4)',
+                            400: 'rgba(232, 224, 212, 0.6)',
+                            300: '#E8E0D4',
+                            200: '#E8E0D4',
+                            100: '#E8E0D4',
                         },
                     },
                     fontFamily: {
-                        sans: ['Outfit', 'system-ui', 'sans-serif'],
-                        mono: ['IBM Plex Mono', 'monospace'],
-                        display: ['Outfit', 'system-ui', 'sans-serif'],
+                        sans: ['Mulish', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                        display: ['Bebas Neue', 'system-ui', 'sans-serif'],
                     },
                     borderRadius: {
-                        'xl': '14px',
-                        '2xl': '20px',
-                        'pill': '100px',
+                        'xl': '0px',
+                        '2xl': '0px',
+                        'pill': '0px',
                     }
                 }
             }
@@ -102,68 +102,67 @@
     <!-- Navigation -->
     <nav class="fixed top-0 left-0 right-0 z-50 transition-all duration-300" id="main-nav">
         <div class="max-w-[var(--content-width)] mx-auto" style="padding: 0 var(--padding-x);">
-            <div class="flex items-center justify-between h-20">
-                <!-- Logo -->
-                <a href="/logout" class="flex items-center gap-3 group">
-                    <span class="text-xl font-medium tracking-tight text-white group-hover:text-accent-bright transition-colors">СЛЕД</span>
-                    <span class="hidden sm:inline text-xs font-mono text-gray-500 uppercase tracking-widest">Profiler</span>
+            <div class="flex items-center justify-between h-16">
+                <!-- Monogram -->
+                <a href="/" class="flex items-center gap-3 group" style="text-decoration:none;">
+                    <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#C4955A;letter-spacing:3px;line-height:1;">Ш</span>
                 </a>
 
-                <!-- Nav Links (desktop) -->
+                <!-- Nav Links (desktop) — centered mono -->
                 {% if session.get('user_id') %}
-                <div class="hidden md:flex items-center gap-1">
+                <div class="hidden md:flex items-center gap-6">
                     {% if config.get('ENABLE_PEOPLE_SEARCH') %}
-                    <a href="{{ url_for('phase1.new_investigation') }}" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-pill {% if request.endpoint == 'phase1.new_investigation' %}text-white{% endif %}">
-                        Новый поиск
+                    <a href="{{ url_for('phase1.new_investigation') }}" class="text-xs tracking-widest uppercase transition-colors {% if request.endpoint == 'phase1.new_investigation' %}text-[#C4955A]{% else %}text-[#E8E0D4]/40 hover:text-[#E8E0D4]{% endif %}" style="font-family:'JetBrains Mono',monospace;text-decoration:none;">
+                        Поиск
                     </a>
                     {% endif %}
-                    <a href="{{ url_for('candidate.history') }}" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-pill {% if request.endpoint == 'candidate.history' %}text-white{% endif %}">
+                    <a href="{{ url_for('candidate.history') }}" class="text-xs tracking-widest uppercase transition-colors {% if request.endpoint == 'candidate.history' %}text-[#C4955A]{% else %}text-[#E8E0D4]/40 hover:text-[#E8E0D4]{% endif %}" style="font-family:'JetBrains Mono',monospace;text-decoration:none;">
                         Проверки
                     </a>
-                    <a href="/connections" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-pill {% if request.endpoint == 'connections.connections_page' %}text-white{% endif %}">
+                    <a href="/connections" class="text-xs tracking-widest uppercase transition-colors {% if request.endpoint == 'connections.connections_page' %}text-[#C4955A]{% else %}text-[#E8E0D4]/40 hover:text-[#E8E0D4]{% endif %}" style="font-family:'JetBrains Mono',monospace;text-decoration:none;">
                         Связи
                     </a>
                 </div>
                 {% endif %}
 
                 <!-- Right side -->
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-4">
                     <!-- VK Status -->
-                    <span id="vk-status" class="text-xs cursor-pointer font-mono text-gray-500" title="VK API status">
-                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-gray-600 mr-1"></span>VK
+                    <span id="vk-status" class="text-xs cursor-pointer" style="font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,0.4);" title="VK API status">
+                        <span class="inline-block w-1.5 h-1.5 rounded-full mr-1" style="background:rgba(232,224,212,0.2);"></span>VK
                     </span>
                     {% if session.get('user_id') %}
                     <!-- Subscription / free tier status -->
                     {% if current_user and not current_user.is_admin and user_subscription %}
                         {% if user_subscription.is_active %}
-                        <span class="text-[10px] tracking-wider" style="color:#5C9E6E;">
-                            Pro &middot; {{ user_subscription.expires_at.strftime('%d.%m') }}
+                        <span class="text-[10px] tracking-wider" style="font-family:'JetBrains Mono',monospace;color:#4ADE80;">
+                            PRO &middot; {{ user_subscription.expires_at.strftime('%d.%m') }}
                         </span>
                         {% else %}
                             {% set _remaining = user_subscription.free_checks_remaining() %}
                             {% if _remaining > 0 %}
-                            <span class="text-[10px] tracking-wider" style="color:#D4A27F;">
+                            <span class="text-[10px] tracking-wider" style="font-family:'JetBrains Mono',monospace;color:#C4955A;">
                                 {{ _remaining }}/2 проверки
                             </span>
                             {% else %}
-                            <a href="/subscribe" class="text-[10px] tracking-wider" style="color:#B85C5C;text-decoration:none;">
+                            <a href="/subscribe" class="text-[10px] tracking-wider" style="font-family:'JetBrains Mono',monospace;color:#EF4444;text-decoration:none;">
                                 Лимит &middot; Подписка&nbsp;&rarr;
                             </a>
                             {% endif %}
                         {% endif %}
                     {% endif %}
-                    <span class="text-xs text-gray-500 font-mono tracking-wider">
+                    <span class="text-xs" style="font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,0.4);letter-spacing:0.1em;">
                         {{ session.get('username', '') }}
                         {% if session.get('role') == 'admin' %}
-                        <span class="text-[#D4A27F] text-[9px] ml-1">ADMIN</span>
+                        <span class="text-[9px] ml-1" style="color:#C4955A;">ADMIN</span>
                         {% endif %}
                     </span>
-                    <a href="/logout" title="Выход" class="text-xs text-gray-500 hover:text-gray-300 transition-colors font-mono uppercase tracking-wider">
+                    <a href="/logout" title="Выход" class="text-xs uppercase tracking-widest transition-colors" style="font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,0.4);text-decoration:none;border:1px solid rgba(232,224,212,0.15);padding:4px 12px;">
                         Выход
                     </a>
                     {% endif %}
                     <!-- Mobile menu toggle -->
-                    <button id="menu-toggle" class="md:hidden btn btn-ghost btn-sm px-3 text-gray-400">
+                    <button id="menu-toggle" class="md:hidden px-3 py-2" style="color:rgba(232,224,212,0.4);background:none;border:1px solid rgba(232,224,212,0.15);">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M4 6h16M4 12h16M4 18h16"/>
                         </svg>
@@ -171,20 +170,20 @@
                 </div>
             </div>
         </div>
-        <!-- Nav backdrop blur line -->
-        <div class="absolute inset-0 -z-10 backdrop-blur-xl bg-bg-deep/80 border-b border-white/[0.04]"></div>
+        <!-- Nav backdrop -->
+        <div class="absolute inset-0 -z-10 backdrop-blur-xl border-b" style="background:rgba(10,10,10,0.85);border-color:rgba(232,224,212,0.06);"></div>
     </nav>
 
     <!-- Mobile menu overlay -->
-    <div id="mobile-menu" class="fixed inset-0 z-40 hidden" style="background: rgba(5,5,8,0.95); backdrop-filter: blur(20px);">
+    <div id="mobile-menu" class="fixed inset-0 z-40 hidden" style="background: rgba(10,10,10,0.95); backdrop-filter: blur(20px);">
         <div class="flex flex-col items-center justify-center h-full gap-6">
             {% if session.get('user_id') %}
             {% if config.get('ENABLE_PEOPLE_SEARCH') %}
-            <a href="{{ url_for('phase1.new_investigation') }}" class="text-2xl text-white hover:text-accent-bright transition-colors">Новый поиск</a>
+            <a href="{{ url_for('phase1.new_investigation') }}" class="text-2xl text-[#E8E0D4] hover:text-[#C4955A] transition-colors" style="font-family:'Bebas Neue',sans-serif;letter-spacing:3px;text-decoration:none;">Поиск</a>
             {% endif %}
-            <a href="{{ url_for('candidate.history') }}" class="text-2xl text-white hover:text-accent-bright transition-colors">Проверки</a>
-            <a href="/connections" class="text-2xl text-white hover:text-accent-bright transition-colors">Связи</a>
-            <a href="/logout" class="text-xl text-gray-400 hover:text-white transition-colors mt-4">Выход</a>
+            <a href="{{ url_for('candidate.history') }}" class="text-2xl text-[#E8E0D4] hover:text-[#C4955A] transition-colors" style="font-family:'Bebas Neue',sans-serif;letter-spacing:3px;text-decoration:none;">Проверки</a>
+            <a href="/connections" class="text-2xl text-[#E8E0D4] hover:text-[#C4955A] transition-colors" style="font-family:'Bebas Neue',sans-serif;letter-spacing:3px;text-decoration:none;">Связи</a>
+            <a href="/logout" class="text-xl transition-colors mt-4" style="font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,0.4);text-decoration:none;border:1px solid rgba(232,224,212,0.15);padding:8px 24px;">Выход</a>
             {% else %}
             <a href="/login" class="btn btn-primary btn-lg">Войти</a>
             {% endif %}
@@ -197,16 +196,16 @@
     </main>
 
     <!-- Footer -->
-    <footer class="border-t border-white/[0.04] py-8">
+    <footer style="border-top:1px solid rgba(232,224,212,0.06);padding:32px 0;">
         <div class="max-w-[var(--content-width)] mx-auto text-center" style="padding: 0 var(--padding-x);">
-            <span class="font-mono text-xs text-gray-600 tracking-wider uppercase">СЛЕД &mdash; Identity-Based Profiler &mdash; Authorized Use Only</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(232,224,212,0.2);letter-spacing:0.15em;text-transform:uppercase;">СЛЕД — Identity-Based Profiler — Authorized Use Only</span>
             <a href="/privacy"
-               style="font-size:10px;color:#6B6B6B;text-decoration:none;
+               style="font-size:10px;color:rgba(232,224,212,0.2);text-decoration:none;
                       letter-spacing:.1em;text-transform:uppercase;
-                      margin-left:24px;">
+                      margin-left:24px;font-family:'JetBrains Mono',monospace;">
                 Политика конфиденциальности
             </a>
-            <span style="font-size:10px;color:#383838;margin-left:24px;">
+            <span style="font-size:10px;color:rgba(232,224,212,0.1);margin-left:24px;font-family:'JetBrains Mono',monospace;">
                 152-ФЗ
             </span>
         </div>
@@ -254,13 +253,13 @@
                     var el = document.getElementById('vk-status');
                     if (!el) return;
                     if (data.valid === true) {
-                        el.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1"></span>VK';
+                        el.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full mr-1" style="background:#4ADE80;"></span>VK';
                         el.title = 'VK token valid';
                     } else if (data.valid === false && data.token_set) {
-                        el.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full bg-red-400 mr-1"></span><a href="/vk/auth" class="text-red-400 hover:text-red-300">VK</a>';
+                        el.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full mr-1" style="background:#EF4444;"></span><a href="/vk/auth" style="color:#EF4444;">VK</a>';
                         el.title = 'VK token expired';
                     } else {
-                        el.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 mr-1"></span>VK';
+                        el.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full mr-1" style="background:#C4955A;"></span>VK';
                         el.title = 'VK token not set';
                     }
                 })
@@ -288,9 +287,8 @@
 
     <style>
     .nav-scrolled .backdrop-blur-xl {
-        background: rgba(5, 5, 8, 0.92) !important;
+        background: rgba(10, 10, 10, 0.95) !important;
     }
-
     </style>
 
     {% block scripts %}{% endblock %}

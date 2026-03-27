@@ -8,19 +8,19 @@
     {% if current_user and not current_user.is_admin and user_subscription and user_subscription.is_free_tier %}
         {% set _checks_left = user_subscription.free_checks_remaining() %}
         {% if _checks_left == 0 %}
-        <div class="mb-6 p-4 rounded-xl border text-sm" style="background:#2E1F12;border-color:#C4883A;color:#D4A27F;">
+        <div class="mb-6 p-4 rounded-xl border text-sm" style="background:rgba(196,149,90,0.06);border-color:#C4955A;color:#C4955A;">
             Вы использовали 2 бесплатные проверки на этой неделе.
             Новые бесплатные проверки будут доступны в понедельник.
-            <a href="/subscribe" style="color:#E8B896;text-decoration:underline;margin-left:4px;">Оформить подписку</a> для безлимитного доступа.
+            <a href="/subscribe" style="color:#D4A56A;text-decoration:underline;margin-left:4px;">Оформить подписку</a> для безлимитного доступа.
         </div>
         {% elif _checks_left == 1 %}
-        <div class="mb-6 p-4 rounded-xl border text-sm" style="background:#1C2620;border-color:#3D6B4F;color:#9B9B9B;">
-            Осталась <span style="color:#D4A27F;font-weight:500;">1 бесплатная проверка</span> на этой неделе.
-            <a href="/subscribe" style="color:#9B9B9B;text-decoration:underline;margin-left:4px;">Подписка</a> &mdash; безлимит.
+        <div class="mb-6 p-4 rounded-xl border text-sm" style="background:rgba(74,222,128,0.06);border-color:rgba(74,222,128,0.15);color:rgba(232,224,212,0.6);">
+            Осталась <span style="color:#C4955A;font-weight:500;">1 бесплатная проверка</span> на этой неделе.
+            <a href="/subscribe" style="color:rgba(232,224,212,0.6);text-decoration:underline;margin-left:4px;">Подписка</a> &mdash; безлимит.
         </div>
         {% else %}
-        <div class="mb-6 p-4 rounded-xl border text-sm" style="background:#1C2620;border-color:#2D4D3A;color:#9B9B9B;">
-            Бесплатный тариф: <span style="color:#5C9E6E;font-weight:500;">{{ _checks_left }}/2 проверки</span> на этой неделе.
+        <div class="mb-6 p-4 rounded-xl border text-sm" style="background:rgba(74,222,128,0.06);border-color:rgba(74,222,128,0.10);color:rgba(232,224,212,0.6);">
+            Бесплатный тариф: <span style="color:#4ADE80;font-weight:500;">{{ _checks_left }}/2 проверки</span> на этой неделе.
         </div>
         {% endif %}
     {% endif %}
@@ -168,14 +168,14 @@
             <!-- PD Consent (152-FZ) -->
             <div style="margin-bottom:20px;display:flex;align-items:flex-start;gap:10px;">
                 <input type="checkbox" name="pd_consent" id="pd_consent" required
-                       style="accent-color:#D4A27F;width:16px;height:16px;
+                       style="accent-color:#C4955A;width:16px;height:16px;
                               margin-top:2px;flex-shrink:0;">
                 <label for="pd_consent"
-                       style="font-size:12px;color:#6B6B6B;line-height:1.6;cursor:pointer;">
+                       style="font-size:12px;color:rgba(232,224,212,0.4);line-height:1.6;cursor:pointer;">
                     Я подтверждаю, что имею законное основание для проверки данного лица
                     и получил его согласие на обработку персональных данных в соответствии
                     с <a href="/privacy" target="_blank"
-                         style="color:#D4A27F;text-decoration:none;">Политикой конфиденциальности</a>
+                         style="color:#C4955A;text-decoration:none;">Политикой конфиденциальности</a>
                     и требованиями 152-ФЗ.
                 </label>
             </div>
@@ -184,7 +184,7 @@
             {% if current_user and not current_user.is_admin and user_subscription and user_subscription.is_free_tier and user_subscription.free_checks_remaining() == 0 %}
             <a href="/subscribe"
                class="btn btn-xl w-full text-center block"
-               style="background:#D4A27F;color:#000;text-decoration:none;">
+               style="background:#C4955A;color:#000;text-decoration:none;">
                 Оформить подписку
             </a>
             {% else %}

@@ -53,7 +53,7 @@
         font-size: 0.6875rem;
         font-weight: 600;
     }
-    .badge-count { background: rgba(212, 162, 127, 0.2); color: var(--accent-bright); }
+    .badge-count { background: rgba(196, 149, 90, 0.2); color: var(--accent-bright); }
     .badge-empty { background: rgba(100, 116, 139, 0.15); color: var(--text-dim); }
 
     /* Status badges */
@@ -178,7 +178,7 @@
         border-radius: 9999px;
         font-size: 0.6875rem;
         font-weight: 600;
-        font-family: 'IBM Plex Mono', monospace;
+        font-family: 'JetBrains Mono', monospace;
     }
     .conf-high { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
     .conf-medium { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
@@ -275,7 +275,7 @@
        1b. EXECUTIVE SUMMARY (AI)
        ================================================================ #}
     {% if check.executive_summary %}
-    <div class="dossier-card mb-6" style="border-left: 3px solid rgba(212, 162, 127, 0.6);">
+    <div class="dossier-card mb-6" style="border-left: 3px solid rgba(196, 149, 90, 0.6);">
         <div class="flex items-center gap-2 mb-2">
             <span class="text-sm font-semibold text-accent-bright">AI Executive Summary</span>
             <span class="text-xs px-2 py-0.5 rounded-full bg-accent/[0.1] text-accent-bright border border-accent/[0.2]">Claude</span>
@@ -313,7 +313,7 @@
         <p class="text-sm text-gray-300 mb-3">{{ rc.desc }}</p>
 
         {% if check.risk_narrative %}
-        <div class="rounded-lg p-3 mb-3" style="background: rgba(212, 162, 127, 0.06); border: 1px solid rgba(212, 162, 127, 0.15);">
+        <div class="rounded-lg p-3 mb-3" style="background: rgba(196, 149, 90, 0.06); border: 1px solid rgba(196, 149, 90, 0.15);">
             <div class="flex items-center gap-1.5 mb-1">
                 <span class="text-xs font-medium text-accent-bright">AI Risk Narrative</span>
             </div>
@@ -658,7 +658,7 @@
 
             {% for case in court_records %}
             <div class="dossier-card {% if case.get('confidence') == 'VERIFIED' %}border-l-2{% elif case.get('confidence') == 'LIKELY' %}border-l-2{% elif case.get('confidence') == 'POSSIBLE' %}border-l-2{% elif case.get('confidence') == 'UNVERIFIED' %}border-l-2 opacity-70{% endif %}"
-                 {% if case.get('confidence') == 'VERIFIED' %}style="border-left-color: #22c55e;"
+                 {% if case.get('confidence') == 'VERIFIED' %}style="border-left-color: #4ADE80;"
                  {% elif case.get('confidence') == 'LIKELY' %}style="border-left-color: #eab308;"
                  {% elif case.get('confidence') == 'POSSIBLE' %}style="border-left-color: #f97316;"
                  {% elif case.get('confidence') == 'UNVERIFIED' %}style="border-left-color: #6b7280;"
@@ -711,7 +711,7 @@
                     {% endif %}
                 </div>
                 {% if case.get('ai_summary') %}
-                    <div class="mt-2 p-2 rounded text-xs text-gray-300 leading-relaxed" style="background: rgba(212, 162, 127, 0.05); border: 1px solid var(--accent-subtle);">
+                    <div class="mt-2 p-2 rounded text-xs text-gray-300 leading-relaxed" style="background: rgba(196, 149, 90, 0.05); border: 1px solid var(--accent-subtle);">
                         <span class="text-accent-bright font-medium">AI:</span> {{ case.ai_summary }}
                     </div>
                 {% endif %}
@@ -1429,9 +1429,9 @@
 
         {# Map legend #}
         <div class="flex flex-wrap gap-4 mt-2 mb-4 text-xs text-gray-400 px-1">
-            <span><span style="color: #ef4444;">&#x25CF;</span> ЕГРЮЛ / Анкета</span>
+            <span><span style="color: #EF4444;">&#x25CF;</span> ЕГРЮЛ / Анкета</span>
             <span><span style="color: #eab308;">&#x25CF;</span> VK профиль</span>
-            <span><span style="color: #22c55e;">&#x25CF;</span> VK геотег</span>
+            <span><span style="color: #4ADE80;">&#x25CF;</span> VK геотег</span>
             <span><span style="color: #3b82f6;">&#x25CF;</span> Telegram</span>
         </div>
 
@@ -1455,13 +1455,13 @@
                     <div class="text-[10px] text-gray-500 mb-1">{{ day.day_label }}</div>
                     <div class="flex flex-col gap-[2px]">
                         {# Night #}
-                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(212, 162, 127, 0.7)' if day.slots.night else 'rgba(255,255,255,0.04)' }};"></div>
+                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(196, 149, 90, 0.7)' if day.slots.night else 'rgba(255,255,255,0.04)' }};"></div>
                         {# Evening #}
-                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(212, 162, 127, 0.7)' if day.slots.evening else 'rgba(255,255,255,0.04)' }};"></div>
+                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(196, 149, 90, 0.7)' if day.slots.evening else 'rgba(255,255,255,0.04)' }};"></div>
                         {# Afternoon #}
-                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(212, 162, 127, 0.7)' if day.slots.afternoon else 'rgba(255,255,255,0.04)' }};"></div>
+                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(196, 149, 90, 0.7)' if day.slots.afternoon else 'rgba(255,255,255,0.04)' }};"></div>
                         {# Morning #}
-                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(212, 162, 127, 0.7)' if day.slots.morning else 'rgba(255,255,255,0.04)' }};"></div>
+                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(196, 149, 90, 0.7)' if day.slots.morning else 'rgba(255,255,255,0.04)' }};"></div>
                     </div>
                     <div class="text-[10px] text-gray-600 mt-1">{{ day.date[-5:] }}</div>
                     {% if day.platform %}
@@ -1472,7 +1472,7 @@
             </div>
             <div class="flex gap-4 mt-2 text-[10px] text-gray-500 justify-end">
                 <span>&#x2B06; Утро &middot; День &middot; Вечер &middot; Ночь &#x2B07;</span>
-                <span><span style="color: #D4A27F;">&#x25A0;</span> Активен</span>
+                <span><span style="color: #C4955A;">&#x25A0;</span> Активен</span>
                 <span style="color: rgba(255,255,255,0.15);">&#x25A0; Неактивен</span>
             </div>
         </div>
@@ -1556,7 +1556,7 @@
         </div>
 
         {% if check.behavioral_summary %}
-        <div class="dossier-card mb-3" style="border-left: 3px solid rgba(212, 162, 127, 0.6);">
+        <div class="dossier-card mb-3" style="border-left: 3px solid rgba(196, 149, 90, 0.6);">
             <div class="flex items-center gap-2 mb-2">
                 <span class="text-sm font-semibold text-accent-bright">AI Behavioral Profile</span>
                 <span class="text-xs px-2 py-0.5 rounded-full bg-accent/[0.1] text-accent-bright border border-accent/[0.2]">Claude</span>
@@ -1927,7 +1927,7 @@
                 return {
                     from: e.from,
                     to: e.to,
-                    color: {color: 'rgba(212, 162, 127,0.3)', highlight: 'var(--accent)'},
+                    color: {color: 'rgba(196, 149, 90,0.3)', highlight: 'var(--accent)'},
                 };
             }));
             var options = {
@@ -1957,9 +1957,9 @@
     if (!container) return;
 
     var COLOR_MAP = {
-        'red': '#ef4444',
+        'red': '#EF4444',
         'yellow': '#eab308',
-        'green': '#22c55e',
+        'green': '#4ADE80',
         'blue': '#3b82f6',
     };
 
@@ -1981,7 +1981,7 @@
 
             var bounds = [];
             geoPoints.forEach(function(pt) {
-                var color = COLOR_MAP[pt.icon_color] || '#D4A27F';
+                var color = COLOR_MAP[pt.icon_color] || '#C4955A';
                 var marker = L.circleMarker([pt.lat, pt.lon], {
                     radius: 8,
                     color: color,
@@ -2048,8 +2048,8 @@
                     var freq = loc.frequency || loc.count || 1;
                     var marker = L.circleMarker([lat, lng], {
                         radius: Math.min(6 + freq * 2, 20),
-                        color: '#D4A27F',
-                        fillColor: '#D4A27F',
+                        color: '#C4955A',
+                        fillColor: '#C4955A',
                         fillOpacity: 0.6,
                     }).addTo(map);
                     marker.bindPopup('<b>' + name + '</b><br>Частота: ' + freq);

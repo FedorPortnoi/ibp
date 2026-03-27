@@ -1,6 +1,6 @@
 /* =============================================================================
    СЛЕД Design System — Base Styles
-   Monochrome foundation, light-weight typography, generous whitespace
+   Deep black foundation, cream text, gold accents, sharp edges
    ============================================================================= */
 
 /* Reset */
@@ -39,19 +39,21 @@ body::before {
 /* Scrollbar */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 10px; }
+::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 0; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
 * { scrollbar-width: thin; scrollbar-color: var(--text-muted) transparent; }
 
 /* Selection */
-::selection { background: rgba(212, 162, 127, 0.25); color: var(--text-primary); }
+::selection { background: rgba(196, 149, 90, 0.25); color: var(--text-primary); }
 
-/* Typography — light weights, size for hierarchy */
+/* Typography — Bebas Neue headings, wide tracking */
 h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
   font-weight: 400;
   line-height: var(--line-height-tight);
   color: var(--text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 h1 { font-size: var(--font-size-5xl); }
@@ -68,28 +70,28 @@ p {
 }
 
 a {
-  color: var(--accent-bright);
+  color: var(--accent);
   text-decoration: none;
   transition: color var(--transition-fast);
 }
-a:hover { color: var(--accent); }
+a:hover { color: var(--accent-bright); }
 
-strong, b { font-weight: 500; }
+strong, b { font-weight: 600; }
 
 code, pre, kbd, samp { font-family: var(--font-mono); }
 
 code {
   background: var(--bg-panel);
   padding: 0.15em 0.4em;
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   font-size: 0.88em;
-  color: var(--accent-bright);
+  color: var(--accent);
 }
 
 pre {
   background: var(--bg-panel);
   padding: var(--space-lg);
-  border-radius: var(--radius-lg);
+  border-radius: 0;
   overflow-x: auto;
   border: 1px solid var(--border-subtle);
 }
@@ -102,8 +104,8 @@ img { max-width: 100%; height: auto; display: block; }
 
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: var(--space-sm) var(--space-md); text-align: left; border-bottom: 1px solid var(--border-subtle); }
-th { font-weight: 500; color: var(--text-dim); font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.08em; }
-td { color: var(--text-secondary); }
+th { font-weight: 500; color: var(--text-dim); font-size: var(--font-size-xs); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
+td { color: var(--text-secondary); font-family: var(--font-mono); font-size: var(--font-size-sm); }
 tr:hover td { background: var(--accent-subtle); }
 
 hr { border: none; height: 1px; background: var(--border-default); margin: var(--space-xl) 0; }
@@ -126,7 +128,7 @@ hr { border: none; height: 1px; background: var(--border-default); margin: var(-
 .text-error { color: var(--error); }
 .text-info { color: var(--info); }
 
-/* Monospace labels — like IBM Plex Mono on lusion.co */
+/* Monospace labels */
 .mono-label {
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);

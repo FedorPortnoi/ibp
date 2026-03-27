@@ -213,8 +213,8 @@ function renderHeatmap(grid, dayNames) {
 }
 
 function getHeatmapColor(intensity) {
-    if (intensity === 0) return 'rgba(212, 162, 127, 0.05)';
-    // Warm terracotta scale: from dim (#A67C5B) to bright (#E8B896)
+    if (intensity === 0) return 'rgba(196, 149, 90, 0.05)';
+    // Warm terracotta scale: from dim (#A07A42) to bright (#D4A56A)
     const alpha = 0.15 + intensity * 0.85;
     const r = Math.round(166 + (232 - 166) * intensity);
     const g = Math.round(124 + (184 - 124) * intensity);
@@ -235,12 +235,12 @@ function renderMonthlyChart(monthly) {
             datasets: [{
                 label: 'Публикации',
                 data: values,
-                borderColor: '#D4A27F',
-                backgroundColor: 'rgba(212, 162, 127, 0.1)',
+                borderColor: '#C4955A',
+                backgroundColor: 'rgba(196, 149, 90, 0.1)',
                 fill: true,
                 tension: 0.3,
                 pointRadius: 3,
-                pointBackgroundColor: '#D4A27F',
+                pointBackgroundColor: '#C4955A',
             }]
         },
         options: {
@@ -259,12 +259,12 @@ function renderMonthlyChart(monthly) {
             scales: {
                 x: {
                     ticks: { color: '#64748b', maxRotation: 45 },
-                    grid: { color: 'rgba(212, 162, 127, 0.1)' }
+                    grid: { color: 'rgba(196, 149, 90, 0.1)' }
                 },
                 y: {
                     beginAtZero: true,
                     ticks: { color: '#64748b', precision: 0 },
-                    grid: { color: 'rgba(212, 162, 127, 0.1)' }
+                    grid: { color: 'rgba(196, 149, 90, 0.1)' }
                 }
             }
         }

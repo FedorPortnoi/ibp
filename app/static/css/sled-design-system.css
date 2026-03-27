@@ -1,54 +1,55 @@
 /* =============================================================================
-   СЛЕД Design System v2 — PainScan × Claude Dark
+   СЛЕД Design System v2 — shtirlitz-landing palette
    Unified token set + reusable component classes
    ============================================================================= */
 
-/* ── Design Tokens ── */
+/* -- Design Tokens -- */
 :root {
   /* Backgrounds */
-  --sled-bg:          #111110;
-  --sled-surface:     #1c1c1a;
-  --sled-surface-raised: #212120;
-  --sled-surface-dim: #181817;
+  --sled-bg:          #0A0A0A;
+  --sled-surface:     #1A1A1A;
+  --sled-surface-raised: #222222;
+  --sled-surface-dim: #111111;
 
   /* Borders */
-  --sled-border:      #2c2c2a;
-  --sled-border-hover:#444441;
-  --sled-border-dim:  #232321;
+  --sled-border:      rgba(232, 224, 212, 0.06);
+  --sled-border-hover:rgba(232, 224, 212, 0.15);
+  --sled-border-dim:  rgba(232, 224, 212, 0.04);
 
-  /* Radius */
-  --sled-radius-card: 12px;
-  --sled-radius-pill: 99px;
-  --sled-radius-sm:   8px;
-  --sled-radius-xs:   6px;
+  /* Radius — sharp */
+  --sled-radius-card: 0px;
+  --sled-radius-pill: 0px;
+  --sled-radius-sm:   0px;
+  --sled-radius-xs:   0px;
 
   /* Text */
-  --sled-text:        #e8e6e0;
-  --sled-text-2:      #888780;
-  --sled-text-muted:  #555552;
-  --sled-text-dim:    #444441;
+  --sled-text:        #E8E0D4;
+  --sled-text-2:      rgba(232, 224, 212, 0.6);
+  --sled-text-muted:  rgba(232, 224, 212, 0.4);
+  --sled-text-dim:    rgba(232, 224, 212, 0.2);
 
   /* Accents */
-  --sled-teal:        #5dcaa5;
-  --sled-amber:       #ef9f27;
-  --sled-red:         #e24b4a;
+  --sled-teal:        #4ADE80;
+  --sled-amber:       #C4955A;
+  --sled-red:         #EF4444;
   --sled-blue:        #85b7eb;
-  --sled-purple:      #D4A27F;
+  --sled-purple:      #C4955A;
 
   /* Accent tints (low-opacity backgrounds) */
-  --sled-teal-tint:   rgba(93,202,165,0.10);
-  --sled-amber-tint:  rgba(239,159,39,0.10);
-  --sled-red-tint:    rgba(226,75,74,0.10);
-  --sled-blue-tint:   rgba(133,183,235,0.10);
-  --sled-purple-tint: rgba(212,162,127,0.10);
+  --sled-teal-tint:   rgba(74, 222, 128, 0.10);
+  --sled-amber-tint:  rgba(196, 149, 90, 0.10);
+  --sled-red-tint:    rgba(239, 68, 68, 0.10);
+  --sled-blue-tint:   rgba(133, 183, 235, 0.10);
+  --sled-purple-tint: rgba(196, 149, 90, 0.10);
 
   /* Fonts */
-  --sled-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Outfit', system-ui, sans-serif;
-  --sled-font-mono: 'IBM Plex Mono', 'SF Mono', 'Consolas', monospace;
+  --sled-font: 'Mulish', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --sled-font-mono: 'JetBrains Mono', 'IBM Plex Mono', 'SF Mono', 'Consolas', monospace;
+  --sled-font-display: 'Bebas Neue', 'Mulish', system-ui, sans-serif;
 }
 
 
-/* ── Base Overrides ── */
+/* -- Base Overrides -- */
 .sled-page {
   background: var(--sled-bg) !important;
   color: var(--sled-text);
@@ -56,11 +57,11 @@
 }
 
 
-/* ── Cards ── */
+/* -- Cards -- */
 .sled-card {
   background: var(--sled-surface);
-  border: 0.5px solid var(--sled-border);
-  border-radius: var(--sled-radius-card);
+  border: 1px solid var(--sled-border);
+  border-radius: 0;
   padding: 16px 18px;
   transition: border-color 0.2s ease;
 }
@@ -79,11 +80,11 @@
 }
 .sled-card-selected {
   border-color: var(--sled-teal);
-  box-shadow: 0 0 0 1px var(--sled-teal), 0 4px 20px rgba(93,202,165,0.12);
+  box-shadow: 0 0 0 1px var(--sled-teal), 0 4px 20px rgba(74,222,128,0.12);
 }
 
 
-/* ── Score Circle ── */
+/* -- Score Circle -- */
 .sled-score-circle {
   width: 72px;
   height: 72px;
@@ -92,7 +93,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 3px solid var(--sled-teal);
+  border: 3px solid var(--sled-amber);
   background: var(--sled-surface);
   flex-shrink: 0;
 }
@@ -101,6 +102,7 @@
   font-weight: 600;
   font-family: var(--sled-font-mono);
   line-height: 1;
+  color: var(--sled-amber);
 }
 .sled-score-circle .sled-score-label {
   font-size: 8px;
@@ -129,34 +131,40 @@
 }
 
 
-/* ── Score Pill (inline) ── */
+/* -- Score Pill (inline) -- */
 .sled-score-pill {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: var(--sled-radius-pill);
+  border-radius: 0;
   font-size: 11px;
   font-weight: 600;
   font-family: var(--sled-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   background: var(--sled-teal-tint);
   color: var(--sled-teal);
+  border: 1px solid var(--sled-teal);
 }
 .sled-score-pill.warn {
   background: var(--sled-amber-tint);
   color: var(--sled-amber);
+  border-color: var(--sled-amber);
 }
 .sled-score-pill.danger {
   background: var(--sled-red-tint);
   color: var(--sled-red);
+  border-color: var(--sled-red);
 }
 .sled-score-pill.info {
   background: var(--sled-blue-tint);
   color: var(--sled-blue);
+  border-color: var(--sled-blue);
 }
 
 
-/* ── Metrics Row ── */
+/* -- Metrics Row -- */
 .sled-metrics-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
@@ -166,8 +174,8 @@
   text-align: center;
   padding: 12px 8px;
   background: var(--sled-surface);
-  border: 0.5px solid var(--sled-border);
-  border-radius: var(--sled-radius-sm);
+  border: 1px solid var(--sled-border);
+  border-radius: 0;
 }
 .sled-metric-value {
   font-size: 20px;
@@ -189,15 +197,15 @@
 }
 
 
-/* ── Source Card (pipeline/ranking rows) ── */
+/* -- Source Card (pipeline/ranking rows) -- */
 .sled-source-card {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
   background: var(--sled-surface);
-  border: 0.5px solid var(--sled-border);
-  border-radius: var(--sled-radius-sm);
+  border: 1px solid var(--sled-border);
+  border-radius: 0;
   transition: border-color 0.2s;
   margin-bottom: 6px;
 }
@@ -207,7 +215,7 @@
 .sled-src-rank {
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -239,25 +247,25 @@
 }
 
 
-/* ── Evidence Item ── */
+/* -- Evidence Item -- */
 .sled-ev-item {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   padding: 10px 14px;
-  border-radius: var(--sled-radius-sm);
+  border-radius: 0;
   font-size: 13px;
   margin-bottom: 4px;
-  border: 0.5px solid transparent;
+  border: 1px solid transparent;
 }
 .sled-ev-item.warn {
-  background: #2c1f08;
-  border-color: #412402;
+  background: rgba(196, 149, 90, 0.06);
+  border-color: rgba(196, 149, 90, 0.15);
   color: var(--sled-amber);
 }
 .sled-ev-item.ok {
-  background: #0f2518;
-  border-color: #1d6b35;
+  background: rgba(74, 222, 128, 0.06);
+  border-color: rgba(74, 222, 128, 0.15);
   color: var(--sled-teal);
 }
 .sled-ev-item.info {
@@ -266,13 +274,13 @@
   color: var(--sled-blue);
 }
 .sled-ev-item.danger {
-  background: #2c0f0f;
-  border-color: #6b1d1d;
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.15);
   color: var(--sled-red);
 }
 .sled-ev-item.critical {
-  background: #3a0f0f;
-  border-color: #8b2020;
+  background: rgba(239, 68, 68, 0.10);
+  border-color: rgba(239, 68, 68, 0.25);
   color: #ff6b6b;
 }
 .sled-ev-text {
@@ -292,13 +300,13 @@
 }
 
 
-/* ── Trend Box ── */
+/* -- Trend Box -- */
 .sled-trend-box {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: var(--sled-radius-sm);
+  border-radius: 0;
   font-size: 11px;
   font-weight: 500;
 }
@@ -316,11 +324,11 @@
 }
 
 
-/* ── AI Box (Claude style) ── */
+/* -- AI Box (Claude style) -- */
 .sled-ai-box {
-  background: #1a1b1e;
-  border-radius: 10px;
-  border: 0.5px solid var(--sled-border);
+  background: #111111;
+  border-radius: 0;
+  border: 1px solid var(--sled-border);
   padding: 16px 18px;
   position: relative;
 }
@@ -332,7 +340,6 @@
   bottom: 0;
   width: 3px;
   background: var(--sled-purple);
-  border-radius: 3px 0 0 3px;
 }
 .sled-ai-header {
   display: flex;
@@ -355,52 +362,52 @@
 }
 .sled-ai-text {
   font-size: 13px;
-  color: #b4b2a9;
+  color: rgba(232, 224, 212, 0.6);
   line-height: 1.8;
 }
 
 
-/* ── Flag Row (risk flags) ── */
+/* -- Flag Row (risk flags) -- */
 .sled-flag-row {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   padding: 10px 14px;
-  border-radius: var(--sled-radius-sm);
+  border-radius: 0;
   font-size: 13px;
   margin-bottom: 4px;
 }
 .sled-flag-row.warn {
-  background: #2c1f08;
-  border: 0.5px solid #412402;
+  background: rgba(196, 149, 90, 0.06);
+  border: 1px solid rgba(196, 149, 90, 0.15);
 }
 .sled-flag-row.ok {
-  background: #0f2518;
-  border: 0.5px solid #1d6b35;
+  background: rgba(74, 222, 128, 0.06);
+  border: 1px solid rgba(74, 222, 128, 0.15);
 }
 .sled-flag-row.info {
-  background: #1a1b1e;
-  border: 0.5px solid var(--sled-border);
+  background: #111111;
+  border: 1px solid var(--sled-border);
 }
 .sled-flag-row.danger {
-  background: #2c0f0f;
-  border: 0.5px solid #6b1d1d;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.15);
 }
 .sled-flag-row.critical {
-  background: #3a0f0f;
-  border: 0.5px solid #8b2020;
+  background: rgba(239, 68, 68, 0.10);
+  border: 1px solid rgba(239, 68, 68, 0.25);
 }
 
 
-/* ── Pipeline Row (stage progress) ── */
+/* -- Pipeline Row (stage progress) -- */
 .sled-pipeline-row {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
   background: var(--sled-surface);
-  border: 0.5px solid var(--sled-border);
-  border-radius: var(--sled-radius-sm);
+  border: 1px solid var(--sled-border);
+  border-radius: 0;
   margin-bottom: 6px;
   transition: border-color 0.2s, background 0.2s;
 }
@@ -409,17 +416,17 @@
 }
 .sled-pipeline-row.active {
   border-color: var(--sled-amber);
-  background: rgba(239,159,39,0.04);
+  background: rgba(196, 149, 90, 0.04);
 }
 .sled-pipeline-row.done {
-  border-color: rgba(93,202,165,0.25);
+  border-color: rgba(74, 222, 128, 0.25);
 }
 .sled-pipeline-row.failed {
-  border-color: rgba(226,75,74,0.25);
+  border-color: rgba(239, 68, 68, 0.25);
 }
 .sled-pipeline-row.paused {
-  border-color: rgba(239,159,39,0.4);
-  background: rgba(239,159,39,0.04);
+  border-color: rgba(196, 149, 90, 0.4);
+  background: rgba(196, 149, 90, 0.04);
 }
 
 /* Stage status dot */
@@ -428,7 +435,7 @@
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
-  background: var(--sled-border);
+  background: var(--sled-border-hover);
 }
 .sled-stage-dot.done {
   background: var(--sled-teal);
@@ -450,7 +457,7 @@
 }
 
 
-/* ── Filters ── */
+/* -- Filters -- */
 .sled-filters {
   display: flex;
   flex-wrap: wrap;
@@ -462,15 +469,18 @@
   align-items: center;
   gap: 4px;
   padding: 6px 14px;
-  border-radius: var(--sled-radius-pill);
+  border-radius: 0;
   font-size: 12px;
   font-weight: 500;
   background: var(--sled-surface);
-  border: 0.5px solid var(--sled-border);
+  border: 1px solid var(--sled-border);
   color: var(--sled-text-2);
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
+  font-family: var(--sled-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 .sled-filter:hover {
   border-color: var(--sled-border-hover);
@@ -483,15 +493,15 @@
 }
 
 
-/* ── Search Row ── */
+/* -- Search Row -- */
 .sled-search-row {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 8px;
   background: var(--sled-surface);
-  border: 0.5px solid var(--sled-border);
-  border-radius: var(--sled-radius-card);
+  border: 1px solid var(--sled-border);
+  border-radius: 0;
 }
 .sled-search-input {
   flex: 1;
@@ -508,15 +518,18 @@
 }
 .sled-search-btn {
   padding: 10px 20px;
-  border-radius: var(--sled-radius-sm);
-  background: var(--sled-text);
-  color: var(--sled-bg);
+  border-radius: 0;
+  background: var(--sled-amber);
+  color: #0A0A0A;
   font-size: 13px;
   font-weight: 600;
   border: none;
   cursor: pointer;
   transition: opacity 0.2s;
   white-space: nowrap;
+  font-family: var(--sled-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 .sled-search-btn:hover {
   opacity: 0.85;
@@ -527,15 +540,15 @@
 }
 
 
-/* ── Pulse Bar (stats header) ── */
+/* -- Pulse Bar (stats header) -- */
 .sled-pulse-bar {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 14px 18px;
   background: var(--sled-surface);
-  border: 0.5px solid var(--sled-border);
-  border-radius: var(--sled-radius-card);
+  border: 1px solid var(--sled-border);
+  border-radius: 0;
 }
 .sled-pulse-dot {
   width: 8px;
@@ -569,27 +582,30 @@
 }
 
 
-/* ── Buttons ── */
+/* -- Buttons -- */
 .sled-btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   padding: 10px 24px;
-  border-radius: var(--sled-radius-sm);
-  background: var(--sled-text);
-  color: var(--sled-bg);
+  border-radius: 0;
+  background: var(--sled-amber);
+  color: #0A0A0A;
   font-size: 13px;
   font-weight: 600;
-  border: none;
+  border: 1px solid var(--sled-amber);
   cursor: pointer;
   transition: opacity 0.2s;
   text-decoration: none;
   white-space: nowrap;
+  font-family: var(--sled-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 .sled-btn-primary:hover {
   opacity: 0.85;
-  color: var(--sled-bg);
+  color: #0A0A0A;
 }
 .sled-btn-primary:disabled {
   opacity: 0.3;
@@ -602,20 +618,23 @@
   justify-content: center;
   gap: 8px;
   padding: 10px 24px;
-  border-radius: var(--sled-radius-sm);
+  border-radius: 0;
   background: transparent;
   color: var(--sled-text-2);
   font-size: 13px;
   font-weight: 500;
-  border: 0.5px solid var(--sled-border);
+  border: 1px solid var(--sled-border-hover);
   cursor: pointer;
   transition: all 0.2s;
   text-decoration: none;
   white-space: nowrap;
+  font-family: var(--sled-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 .sled-btn-ghost:hover {
-  border-color: var(--sled-border-hover);
-  color: var(--sled-text);
+  border-color: var(--sled-amber);
+  color: var(--sled-amber);
 }
 
 .sled-btn-accent {
@@ -624,23 +643,26 @@
   justify-content: center;
   gap: 8px;
   padding: 10px 24px;
-  border-radius: var(--sled-radius-sm);
+  border-radius: 0;
   background: var(--sled-teal);
-  color: #111110;
+  color: #0A0A0A;
   font-size: 13px;
   font-weight: 600;
-  border: none;
+  border: 1px solid var(--sled-teal);
   cursor: pointer;
   transition: opacity 0.2s;
   text-decoration: none;
+  font-family: var(--sled-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 .sled-btn-accent:hover {
   opacity: 0.85;
-  color: #111110;
+  color: #0A0A0A;
 }
 
 
-/* ── Section Label ── */
+/* -- Section Label -- */
 .sled-section-label {
   font-size: 10px;
   letter-spacing: 1.5px;
@@ -651,7 +673,7 @@
 }
 
 
-/* ── Source Dots (platform indicators) ── */
+/* -- Source Dots (platform indicators) -- */
 .sled-sdots {
   display: flex;
   align-items: center;
@@ -669,81 +691,87 @@
 .sled-sdot.fb { background: #1877f2; }
 
 
-/* ── Platform Badges ── */
+/* -- Platform Badges -- */
 .sled-platform-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: var(--sled-radius-pill);
+  border-radius: 0;
   font-size: 10px;
   font-weight: 600;
   font-family: var(--sled-font-mono);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  border: 1px solid;
 }
 .sled-platform-badge.vk {
   background: rgba(76,117,163,0.15);
   color: #6d9fd6;
+  border-color: rgba(76,117,163,0.3);
 }
 .sled-platform-badge.tg {
   background: rgba(42,171,238,0.15);
   color: #5ec3f2;
+  border-color: rgba(42,171,238,0.3);
 }
 .sled-platform-badge.ok {
   background: rgba(249,116,0,0.15);
   color: #ff9133;
+  border-color: rgba(249,116,0,0.3);
 }
 
-/* ── Confidence Badges (court verification) ── */
+/* -- Confidence Badges (court verification) -- */
 .conf-badge {
   display: inline-block;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.03em;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: 0;
   white-space: nowrap;
+  font-family: var(--sled-font-mono);
+  text-transform: uppercase;
 }
 .conf-verified {
-  background: #1E3A2A;
-  color: #6DBF8A;
-  border: 1px solid rgba(109,191,138,0.25);
+  background: rgba(74, 222, 128, 0.1);
+  color: #4ADE80;
+  border: 1px solid rgba(74, 222, 128, 0.25);
 }
 .conf-likely {
-  background: #3A2E1A;
-  color: #D4A27F;
-  border: 1px solid rgba(212,162,127,0.25);
+  background: rgba(196, 149, 90, 0.1);
+  color: #C4955A;
+  border: 1px solid rgba(196, 149, 90, 0.25);
 }
 .conf-possible {
-  background: #2E221A;
-  color: #B87D5A;
-  border: 1px solid rgba(184,125,90,0.25);
+  background: rgba(160, 122, 66, 0.1);
+  color: #A07A42;
+  border: 1px solid rgba(160, 122, 66, 0.25);
 }
 .conf-unverified {
-  background: #242424;
-  color: #6B6B6B;
-  border: 1px solid rgba(107,107,107,0.2);
+  background: rgba(232, 224, 212, 0.04);
+  color: rgba(232, 224, 212, 0.4);
+  border: 1px solid rgba(232, 224, 212, 0.1);
 }
 .confidence-summary .conf-badge {
   font-size: 11px;
 }
 
 
-/* ── Avatar ── */
+/* -- Avatar -- */
 .sled-avatar {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: 0;
   object-fit: cover;
   flex-shrink: 0;
-  border: 0.5px solid var(--sled-border);
+  border: 1px solid var(--sled-border);
 }
 .sled-avatar-placeholder {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
-  background: #042c53;
+  border-radius: 0;
+  background: rgba(133, 183, 235, 0.1);
   color: var(--sled-blue);
   display: flex;
   align-items: center;
@@ -758,17 +786,17 @@
 }
 
 
-/* ── Progress Bar ── */
+/* -- Progress Bar -- */
 .sled-progress {
   height: 3px;
   background: var(--sled-surface-raised);
-  border-radius: 99px;
+  border-radius: 0;
   overflow: hidden;
 }
 .sled-progress-bar {
   height: 100%;
-  background: var(--sled-teal);
-  border-radius: 99px;
+  background: var(--sled-amber);
+  border-radius: 0;
   transition: width 0.4s cubic-bezier(0.16,1,0.3,1);
   position: relative;
 }
@@ -785,10 +813,10 @@
 }
 
 
-/* ── Skeleton Loading ── */
+/* -- Skeleton Loading -- */
 .sled-skeleton {
   background: var(--sled-surface-raised);
-  border-radius: var(--sled-radius-sm);
+  border-radius: 0;
   animation: sled-skeleton-pulse 1.5s ease-in-out infinite;
 }
 @keyframes sled-skeleton-pulse {
@@ -797,7 +825,7 @@
 }
 
 
-/* ── Status Dots (inline) ── */
+/* -- Status Dots (inline) -- */
 .sled-status-dot {
   display: inline-flex;
   align-items: center;
@@ -814,10 +842,10 @@
 .sled-status-dot.teal::before { background: var(--sled-teal); }
 .sled-status-dot.amber::before { background: var(--sled-amber); }
 .sled-status-dot.red::before { background: var(--sled-red); }
-.sled-status-dot.dim::before { background: var(--sled-border); }
+.sled-status-dot.dim::before { background: var(--sled-border-hover); }
 
 
-/* ── Responsive ── */
+/* -- Responsive -- */
 @media (max-width: 768px) {
   .sled-metrics-row {
     grid-template-columns: repeat(2, 1fr);
