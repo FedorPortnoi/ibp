@@ -72,7 +72,7 @@ async def check_email_holehe_async(email: str) -> HoleheResults:
                 module_list.append(modname)
 
         # Create async client
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=5.0) as client:
             out = []
 
             # Run checks for each module
@@ -168,7 +168,7 @@ def _check_email_via_library(email: str) -> HoleheResults:
         total_checked = 0
         out = []
 
-        async with httpx.AsyncClient(timeout=12.0) as client:
+        async with httpx.AsyncClient(timeout=5.0) as client:
             # Run all checks concurrently in batches
             batch_size = 30
             for i in range(0, len(websites), batch_size):
@@ -205,7 +205,7 @@ def _check_email_via_library(email: str) -> HoleheResults:
 
     async def _safe_check(func, email_addr, client, out):
         try:
-            await asyncio.wait_for(func(email_addr, client, out), timeout=8.0)
+            await asyncio.wait_for(func(email_addr, client, out), timeout=3.0)
         except (asyncio.TimeoutError, Exception):
             pass
 
@@ -214,7 +214,7 @@ def _check_email_via_library(email: str) -> HoleheResults:
         loop = asyncio.new_event_loop()
         try:
             result = loop.run_until_complete(
-                asyncio.wait_for(_run_checks(), timeout=30.0)
+                asyncio.wait_for(_run_checks(), timeout=5.0)
             )
             return result
         finally:
@@ -245,10 +245,10 @@ def check_email_cli(email: str) -> HoleheResults:
     try:
         # Run holehe CLI command with short timeout
         result = subprocess.run(
-            ['holehe', email, '--only-used', '--no-color', '--no-clear', '-T', '5'],
+            ['holehe', email, '--only-used', '--no-color', '--no-clear', '-T', '3'],
             capture_output=True,
             text=True,
-            timeout=15,  # 15 second timeout
+            timeout=5,  # 5 second hard timeout
             encoding='utf-8',
             errors='replace'
         )

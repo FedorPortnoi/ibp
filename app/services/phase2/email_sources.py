@@ -122,7 +122,7 @@ class EpieosChecker:
                 'flowEntry': 'ServiceLogin'
             }
 
-            response = self.session.get(url, params=params, timeout=10)
+            response = self.session.get(url, params=params, timeout=5)
 
             # Parse page for form action URL
             if response.status_code == 200:
@@ -148,7 +148,7 @@ class EpieosChecker:
 
             # Check Google+ legacy endpoint (sometimes still works)
             url = f"https://picasaweb.google.com/data/entry/api/user/{email}"
-            response = self.session.get(url, timeout=10, allow_redirects=False)
+            response = self.session.get(url, timeout=5, allow_redirects=False)
 
             if response.status_code == 302:
                 # Redirect indicates account exists
@@ -210,7 +210,7 @@ class HunterIOChecker:
                 'api_key': self.api_key
             }
 
-            response = self.session.get(url, params=params, timeout=15)
+            response = self.session.get(url, params=params, timeout=5)
             self._requests_made += 1
 
             if response.status_code == 200:
@@ -290,7 +290,7 @@ class HunterIOChecker:
                 'api_key': self.api_key
             }
 
-            response = self.session.get(url, params=params, timeout=15)
+            response = self.session.get(url, params=params, timeout=5)
 
             if response.status_code == 200:
                 data = response.json().get('data', {})
@@ -340,7 +340,7 @@ class EmailRepChecker:
 
         try:
             url = f"{self.BASE_URL}/{email}"
-            response = self.session.get(url, timeout=15)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code == 200:
                 data = response.json()
@@ -399,7 +399,7 @@ class EmailRepChecker:
         self.session.close()
 
 
-def smtp_verify_email(email: str, timeout: int = 10) -> Dict:
+def smtp_verify_email(email: str, timeout: int = 5) -> Dict:
     """
     Verify email using SMTP protocol.
 
@@ -501,7 +501,7 @@ class SnovIOChecker:
                 'client_secret': self.client_secret
             }
 
-            response = self.session.post(url, data=params, timeout=15)
+            response = self.session.post(url, data=params, timeout=5)
 
             if response.status_code == 200:
                 data = response.json()
@@ -542,7 +542,7 @@ class SnovIOChecker:
             headers = {'Authorization': f'Bearer {token}'}
             params = {'emails': [email]}
 
-            response = self.session.post(url, headers=headers, json=params, timeout=15)
+            response = self.session.post(url, headers=headers, json=params, timeout=5)
 
             if response.status_code == 200:
                 # Wait briefly for verification
@@ -552,7 +552,7 @@ class SnovIOChecker:
                 result_url = f"{self.BASE_URL}/v1/get-emails-verification-status"
                 result_params = {'emails': [email]}
 
-                response = self.session.post(result_url, headers=headers, json=result_params, timeout=15)
+                response = self.session.post(result_url, headers=headers, json=result_params, timeout=5)
 
                 if response.status_code == 200:
                     data = response.json()
@@ -744,7 +744,7 @@ class VKEmailExtractor:
         results = []
 
         try:
-            response = self.session.get(profile_url, timeout=15)
+            response = self.session.get(profile_url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -824,7 +824,7 @@ class OKEmailExtractor:
         results = []
 
         try:
-            response = self.session.get(profile_url, timeout=15)
+            response = self.session.get(profile_url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -914,7 +914,7 @@ class GitHubEmailExtractor:
         try:
             # Method 1: Check user profile
             user_url = f"{self.BASE_URL}/users/{username}"
-            response = self.session.get(user_url, timeout=15)
+            response = self.session.get(user_url, timeout=5)
 
             if response.status_code == 200:
                 user_data = response.json()
@@ -927,7 +927,7 @@ class GitHubEmailExtractor:
 
             # Method 2: Check user events for commit emails
             events_url = f"{self.BASE_URL}/users/{username}/events/public"
-            response = self.session.get(events_url, timeout=15)
+            response = self.session.get(events_url, timeout=5)
 
             if response.status_code == 200:
                 events = response.json()
@@ -948,7 +948,7 @@ class GitHubEmailExtractor:
 
             # Method 3: Check recent repos for commit emails
             repos_url = f"{self.BASE_URL}/users/{username}/repos?sort=pushed&per_page=5"
-            response = self.session.get(repos_url, timeout=15)
+            response = self.session.get(repos_url, timeout=5)
 
             if response.status_code == 200:
                 repos = response.json()
@@ -958,7 +958,7 @@ class GitHubEmailExtractor:
                     if repo_name:
                         # Get recent commits
                         commits_url = f"{self.BASE_URL}/repos/{repo_name}/commits?per_page=10"
-                        commits_response = self.session.get(commits_url, timeout=15)
+                        commits_response = self.session.get(commits_url, timeout=5)
 
                         if commits_response.status_code == 200:
                             commits = commits_response.json()
@@ -998,7 +998,7 @@ class GitHubEmailExtractor:
         try:
             # GitHub search API
             search_url = f"{self.BASE_URL}/search/users?q={email}+in:email"
-            response = self.session.get(search_url, timeout=15)
+            response = self.session.get(search_url, timeout=5)
 
             if response.status_code == 200:
                 data = response.json()
@@ -1041,7 +1041,7 @@ class TelegramEmailExtractor:
         try:
             # Check t.me preview page
             url = f"https://t.me/{username}"
-            response = self.session.get(url, timeout=15)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')

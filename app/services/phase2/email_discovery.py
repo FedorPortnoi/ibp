@@ -151,7 +151,7 @@ class EmailDiscoveryService:
                 try:
                     task_results = await asyncio.wait_for(
                         asyncio.gather(*tasks, return_exceptions=True),
-                        timeout=45.0  # 45 second overall timeout
+                        timeout=15.0  # 15 second overall timeout
                     )
                 except asyncio.TimeoutError:
                     logger.warning("Overall timeout reached, using partial results")
@@ -315,7 +315,7 @@ class EmailDiscoveryService:
                         self._holehe_check_single,
                         email
                     ),
-                    timeout=12.0  # 12s per email
+                    timeout=5.0  # 5s per email
                 )
                 if result:
                     services = result.get('services', [])
@@ -383,7 +383,7 @@ class EmailDiscoveryService:
                 websites = get_functions(modules)
 
                 out = []
-                async with httpx.AsyncClient(timeout=10.0) as client:
+                async with httpx.AsyncClient(timeout=5.0) as client:
                     # Run in batches for speed
                     batch_size = 30
                     for i in range(0, len(websites), batch_size):
@@ -430,10 +430,10 @@ class EmailDiscoveryService:
         import subprocess
         try:
             result = subprocess.run(
-                ['holehe', email, '--only-used', '--no-color', '--no-clear', '-T', '5'],
+                ['holehe', email, '--only-used', '--no-color', '--no-clear', '-T', '3'],
                 capture_output=True,
                 text=True,
-                timeout=15,
+                timeout=5,
                 encoding='utf-8',
                 errors='replace'
             )
@@ -496,7 +496,7 @@ class EmailDiscoveryService:
                         self._smtp_verify_single,
                         email
                     ),
-                    timeout=10.0
+                    timeout=5.0
                 )
 
                 checked_count += 1
@@ -822,7 +822,7 @@ class EmailDiscoveryService:
                         asyncio.run,
                         self.discover(first_name, last_name, usernames, profile_urls)
                     )
-                    return future.result(timeout=60)
+                    return future.result(timeout=15)
             else:
                 return loop.run_until_complete(
                     self.discover(first_name, last_name, usernames, profile_urls)
@@ -901,7 +901,7 @@ def verify_emails_with_holehe(emails: List[str], max_emails: int = 5) -> List[Di
         }
         for future in as_completed(future_to_email, timeout=30):
             try:
-                result = future.result(timeout=12)
+                result = future.result(timeout=5)
                 results.append(result)
             except Exception as e:
                 email = future_to_email[future]

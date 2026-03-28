@@ -158,9 +158,43 @@ class ContactDiscoveryService:
         self.found_emails: List[DiscoveredEmail] = []
         self._oracle_results: list = []  # raw forgot-password oracle results for cross-ref
 
+    # Overall time budget for discover() — pipeline enforces 30s via ThreadPoolExecutor,
+    # but we also track internally so we can skip slow steps gracefully.
+    STAGE_TIMEOUT = 30  # seconds
+
+    def _time_left(self) -> float:
+        """Seconds remaining in the time budget."""
+        return max(0, self.STAGE_TIMEOUT - (time.time() - self._start_time))
+
+    def _has_time(self, min_seconds: float = 2.0) -> bool:
+        """Check if enough time remains for another step."""
+        return self._time_left() > min_seconds
+
+    def _run_step(self, name: str, func, *args, **kwargs):
+        """Run a discovery step with 5s hard timeout via thread. Log and continue on timeout."""
+        if not self._has_time():
+            logger.info(f"Contact discovery: skipping {name} (time budget exhausted, {self._time_left():.1f}s left)")
+            return None
+
+        timeout = min(5.0, self._time_left())
+        try:
+            pool = ThreadPoolExecutor(max_workers=1)
+            future = pool.submit(func, *args, **kwargs)
+            try:
+                return future.result(timeout=timeout)
+            except Exception as e:
+                logger.warning(f"{name}: timeout/error after {timeout:.0f}s — {e}")
+                return None
+            finally:
+                pool.shutdown(wait=False, cancel_futures=True)
+        except Exception as e:
+            logger.warning(f"{name}: failed to start — {e}")
+            return None
+
     def discover(self, check) -> dict:
         """
         Main entry point. Runs all discovery steps in order.
+        Overall 30s time budget — steps are skipped when time runs out.
 
         Args:
             check: CandidateCheck model instance
@@ -168,6 +202,8 @@ class ContactDiscoveryService:
         Returns:
             {"phones": [...], "emails": [...]} with serialized results
         """
+        self._start_time = time.time()
+
         # Add input contacts first (if provided on the form)
         if check.phone:
             normalized = normalize_phone(check.phone)
@@ -199,90 +235,66 @@ class ContactDiscoveryService:
         birth_year_str = str(check.date_of_birth.year) if check.date_of_birth else None
 
         # Step 1: VK profiles (API contacts)
-        try:
-            self._extract_from_vk(social_profiles)
-        except Exception as e:
-            logger.warning(f"VK contact extraction error: {e}")
+        self._run_step('VK contact extraction', self._extract_from_vk, social_profiles)
 
         # Step 1b: Deep VK wall mining (posts, comments, tagged posts, photos)
-        try:
-            self._deep_vk_wall_extraction(social_profiles)
-        except Exception as e:
-            logger.warning(f"Deep VK wall extraction error: {e}")
+        self._run_step('Deep VK wall extraction', self._deep_vk_wall_extraction, social_profiles)
 
         # Step 2: Telegram profiles
-        try:
-            self._extract_from_telegram(social_profiles)
-        except Exception as e:
-            logger.warning(f"Telegram contact extraction error: {e}")
+        self._run_step('Telegram contact extraction', self._extract_from_telegram, social_profiles)
 
-        # Step 3: Business/FSSP records
+        # Step 3: Business/FSSP records (fast, local data)
         try:
             self._extract_from_business(check.business_records or [])
             self._extract_from_fssp(check.fssp_records or [])
         except Exception as e:
             logger.warning(f"Business/FSSP contact extraction error: {e}")
 
-        # Step 4: Email guessing from usernames
+        # Step 4: Email guessing from usernames (fast, no network)
         try:
             self._guess_emails(social_profiles, effective_name, birth_year=birth_year_str)
         except Exception as e:
             logger.warning(f"Email guessing error: {e}")
 
         # Step 4b: Hunter.io corporate email search (if employer known from VK career)
-        try:
-            self._hunter_corporate_search(social_profiles, effective_name)
-        except Exception as e:
-            logger.warning(f"Hunter.io corporate search error: {e}")
+        self._run_step('Hunter.io corporate search', self._hunter_corporate_search, social_profiles, effective_name)
 
         # Step 5: LeakDB name lookup
-        try:
-            self._query_leakdb_by_name(effective_name)
-        except Exception as e:
-            logger.warning(f"LeakDB name lookup error: {e}")
+        self._run_step('LeakDB name lookup', self._query_leakdb_by_name, effective_name)
 
         # Step 6: Breach API enrichment
-        try:
-            self._query_breach_apis(social_profiles)
-        except Exception as e:
-            logger.warning(f"Breach API query error: {e}")
+        self._run_step('Breach API enrichment', self._query_breach_apis, social_profiles)
 
         # Step 6.5: Breach intelligence analysis (services, old emails/phones)
         breach_intelligence = {}
-        try:
-            breach_intelligence = self._analyze_breach_intelligence()
-        except Exception as e:
-            logger.warning(f"Breach intelligence analysis error: {e}")
+        if self._has_time():
+            try:
+                breach_intelligence = self._analyze_breach_intelligence()
+            except Exception as e:
+                logger.warning(f"Breach intelligence analysis error: {e}")
 
         # Step 7: LeakDB cross-reference (snowball)
-        try:
-            self._cross_lookup_leakdb()
-        except Exception as e:
-            logger.warning(f"LeakDB cross-lookup error: {e}")
+        self._run_step('LeakDB cross-reference', self._cross_lookup_leakdb)
 
         # Step 8: Forgot-password oracle
-        try:
-            self._run_forgot_password_oracle(check)
-        except Exception as e:
-            logger.warning(f"Forgot-password oracle error: {e}")
+        self._run_step('Forgot-password oracle', self._run_forgot_password_oracle, check)
 
         # Step 8.5: Cross-reference partial phones from oracle
-        try:
-            self._cross_reference_partial_phones(check)
-        except Exception as e:
-            logger.warning(f"Partial phone cross-reference error: {e}")
+        if self._has_time():
+            try:
+                self._cross_reference_partial_phones(check)
+            except Exception as e:
+                logger.warning(f"Partial phone cross-reference error: {e}")
 
         # Step 9: Marketplace mining
-        try:
-            self._run_marketplace_scan(check)
-        except Exception as e:
-            logger.warning(f"Marketplace scan error: {e}")
+        self._run_step('Marketplace mining', self._run_marketplace_scan, check)
 
         # Step 10: Holehe verification
-        try:
-            self._verify_with_holehe()
-        except Exception as e:
-            logger.warning(f"Holehe verification error: {e}")
+        self._run_step('Holehe verification', self._verify_with_holehe)
+
+        elapsed = time.time() - self._start_time
+        logger.info(f"Contact discovery completed in {elapsed:.1f}s "
+                     f"({len(self.found_phones)} phones, {len(self.found_emails)} emails)")
 
         # Step 11: Deduplicate, merge sources, score
         self._deduplicate_contacts()
@@ -500,7 +512,7 @@ class ContactDiscoveryService:
                     'access_token': self.vk_token,
                     'v': VK_API_VERSION,
                 },
-                timeout=10,
+                timeout=5,
             )
             data = resp.json()
             if 'error' in data:
@@ -965,9 +977,9 @@ class ContactDiscoveryService:
                 ))
 
             try:
-                for future in as_completed(futures, timeout=30):
+                for future in as_completed(futures, timeout=10):
                     try:
-                        results = future.result(timeout=15)
+                        results = future.result(timeout=5)
                         for r in (results or []):
                             if r.data_type == 'email' and r.value:
                                 email_lower = r.value.lower()

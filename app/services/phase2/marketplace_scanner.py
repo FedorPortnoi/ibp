@@ -110,7 +110,7 @@ class MarketplaceScanner:
         """Sleep 2-5 seconds between requests."""
         time.sleep(random.uniform(2.0, 5.0))
 
-    def _safe_get(self, url: str, timeout: float = 15.0) -> Optional[requests.Response]:
+    def _safe_get(self, url: str, timeout: float = 5.0) -> Optional[requests.Response]:
         """GET with error handling."""
         try:
             resp = self.session.get(url, timeout=timeout, allow_redirects=True)
@@ -285,7 +285,7 @@ class AvitoScanner(MarketplaceScanner):
                     viewport={'width': 1280, 'height': 720},
                 )
                 page = context.new_page()
-                page.set_default_timeout(15000)
+                page.set_default_timeout(5000)
 
                 # Anti-detection
                 page.add_init_script(
@@ -294,7 +294,7 @@ class AvitoScanner(MarketplaceScanner):
                 )
 
                 # Navigate to search results
-                page.goto(search_url, wait_until='domcontentloaded', timeout=30000)
+                page.goto(search_url, wait_until='domcontentloaded', timeout=5000)
                 time.sleep(random.uniform(2.0, 4.0))
 
                 # Check for anti-bot / CAPTCHA
@@ -337,7 +337,7 @@ class AvitoScanner(MarketplaceScanner):
     def _extract_listing_phone(self, page, listing_url: str,
                                result: ScannerResult):
         """Navigate to a single Avito listing and extract the phone number."""
-        page.goto(listing_url, wait_until='domcontentloaded', timeout=30000)
+        page.goto(listing_url, wait_until='domcontentloaded', timeout=5000)
         time.sleep(random.uniform(1.5, 3.0))
 
         listing = MarketplaceListing(source=self.name, url=listing_url)

@@ -181,7 +181,7 @@ class BreachChecker:
                 f"{self.HIBP_BREACH_URL}/{email}",
                 headers=headers,
                 params={'truncateResponse': 'false'},
-                timeout=15
+                timeout=5
             )
 
             if response.status_code == 200:
@@ -225,7 +225,7 @@ class BreachChecker:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=60,
+                timeout=5,
                 encoding='utf-8',
                 errors='replace'
             )
@@ -264,7 +264,7 @@ class BreachChecker:
             response = requests.get(
                 f"https://leakcheck.io/api/public",
                 params={'check': email, 'key': self.leakcheck_api_key},
-                timeout=15
+                timeout=5
             )
 
             if response.status_code == 200:

@@ -111,7 +111,7 @@ class ForgotPasswordChecker(ABC):
         '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     ]
 
-    def __init__(self, timeout: int = 15):
+    def __init__(self, timeout: int = 5):
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({
@@ -129,7 +129,7 @@ class ForgotPasswordChecker(ABC):
 
     # ---- helpers ----
 
-    def _random_delay(self, min_s: float = 2.0, max_s: float = 5.0):
+    def _random_delay(self, min_s: float = 0.3, max_s: float = 0.8):
         """Sleep random amount to mimic human behaviour."""
         delay = random.uniform(min_s, max_s)
         time.sleep(delay)

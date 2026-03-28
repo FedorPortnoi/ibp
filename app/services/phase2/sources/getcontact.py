@@ -143,7 +143,7 @@ class GetContactAPI:
                 url,
                 data=body,
                 headers=headers,
-                timeout=15
+                timeout=5
             )
 
             if resp.status_code == 403:

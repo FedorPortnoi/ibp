@@ -129,7 +129,7 @@ class GetContactChecker:
             query = f'"{clean_phone}" OR "{phone}" имя владелец'
             url = f"https://www.google.com/search?q={query}"
 
-            response = self.session.get(url, timeout=15)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -277,7 +277,7 @@ class NumBusterChecker:
             clean_phone = phone.replace('+', '').replace(' ', '').replace('-', '')
 
             url = f"https://kto-zvonil.com/nomer/{clean_phone}"
-            response = self.session.get(url, timeout=15)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -322,7 +322,7 @@ class NumBusterChecker:
             clean_phone = phone.replace('+', '').replace(' ', '').replace('-', '')
 
             url = f"https://www.neberitrubku.ru/nomer-telefona/{clean_phone}"
-            response = self.session.get(url, timeout=15)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -439,7 +439,7 @@ class TelegramPhoneLookup:
             query = f'"{phone}" (site:t.me OR telegram OR "@")'
             url = f"https://www.google.com/search?q={query}"
 
-            response = self.session.get(url, timeout=15)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -479,7 +479,7 @@ class TelegramPhoneLookup:
         try:
             # tgstat.ru is a Telegram analytics service
             url = f"https://tgstat.ru/search?q={phone}"
-            response = self.session.get(url, timeout=10)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -506,7 +506,7 @@ class TelegramPhoneLookup:
         try:
             # combot.org tracks Telegram users in groups
             url = f"https://combot.org/search?q={phone}"
-            response = self.session.get(url, timeout=10)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -622,7 +622,7 @@ class VKPhoneSearcher:
                 'v': self.VK_API_VERSION
             }
 
-            response = requests.get(url, params=params, timeout=15)
+            response = requests.get(url, params=params, timeout=5)
             data = response.json()
 
             if 'response' in data and data['response'].get('items'):
@@ -646,7 +646,7 @@ class VKPhoneSearcher:
         """Search VK via web interface."""
         try:
             url = f"https://vk.com/search?c[q]={phone}&c[section]=people"
-            response = self.session.get(url, timeout=15)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -693,7 +693,7 @@ class VKPhoneSearcher:
             query = f'site:vk.com "{phone}"'
             url = f"https://www.google.com/search?q={query}"
 
-            response = self.session.get(url, timeout=15)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -813,7 +813,7 @@ class OKPhoneSearcher:
 
             for url in urls:
                 try:
-                    response = self.session.get(url, timeout=15)
+                    response = self.session.get(url, timeout=5)
 
                     if response.status_code == 200:
                         soup = BeautifulSoup(response.text, 'html.parser')
@@ -866,7 +866,7 @@ class OKPhoneSearcher:
             query = f'site:ok.ru "{phone}"'
             url = f"https://www.google.com/search?q={query}"
 
-            response = self.session.get(url, timeout=15)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -908,7 +908,7 @@ class OKPhoneSearcher:
         """Search OK.ru mobile version."""
         try:
             url = f"https://m.ok.ru/search?query={phone}"
-            response = self.session.get(url, timeout=15)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -1035,7 +1035,7 @@ class TrueCallerChecker:
                 formatted = clean
 
             url = f"{self.SEARCH_URL}/{formatted}"
-            response = self.session.get(url, timeout=15, allow_redirects=True)
+            response = self.session.get(url, timeout=5, allow_redirects=True)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -1076,7 +1076,7 @@ class TrueCallerChecker:
             query = f'site:truecaller.com "{clean}"'
 
             url = f"https://www.google.com/search?q={query}"
-            response = self.session.get(url, timeout=15)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -1114,7 +1114,7 @@ class TrueCallerChecker:
 
                 for url in urls_to_try:
                     try:
-                        response = self.session.get(url, timeout=10)
+                        response = self.session.get(url, timeout=5)
                         if response.status_code == 200:
                             soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -1236,7 +1236,7 @@ class SyncMeChecker:
                 number = clean
 
             url = f"{self.BASE_URL}/search/{country}/{number}"
-            response = self.session.get(url, timeout=15, allow_redirects=True)
+            response = self.session.get(url, timeout=5, allow_redirects=True)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -1275,7 +1275,7 @@ class SyncMeChecker:
             query = f'site:sync.me "{clean}"'
 
             url = f"https://www.google.com/search?q={query}"
-            response = self.session.get(url, timeout=15)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -1307,7 +1307,7 @@ class SyncMeChecker:
             if clean.startswith('7'):
                 try:
                     url = f"https://www.114.ru/search/?q={clean}"
-                    response = self.session.get(url, timeout=10)
+                    response = self.session.get(url, timeout=5)
 
                     if response.status_code == 200:
                         soup = BeautifulSoup(response.text, 'html.parser')
@@ -1326,7 +1326,7 @@ class SyncMeChecker:
             # Try spravnik.com (Russian phone database)
             try:
                 url = f"https://spravnik.com/phone/{clean}"
-                response = self.session.get(url, timeout=10)
+                response = self.session.get(url, timeout=5)
 
                 if response.status_code == 200:
                     soup = BeautifulSoup(response.text, 'html.parser')
@@ -1389,7 +1389,7 @@ class EyeconChecker:
             query = f'"{clean}" (профиль OR profile OR vk.com OR ok.ru)'
             url = f"https://www.google.com/search?q={query}"
 
-            response = self.session.get(url, timeout=15)
+            response = self.session.get(url, timeout=5)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -1461,7 +1461,7 @@ class CallAppChecker:
             if clean.startswith('7'):
                 try:
                     url = f"https://phonenumber.to/+{clean}"
-                    response = self.session.get(url, timeout=10)
+                    response = self.session.get(url, timeout=5)
 
                     if response.status_code == 200:
                         soup = BeautifulSoup(response.text, 'html.parser')
@@ -1482,7 +1482,7 @@ class CallAppChecker:
             if not result.name_found:
                 try:
                     url = f"https://www.findandtrace.com/trace-mobile-number-location?mobilenumber={clean}"
-                    response = self.session.get(url, timeout=10)
+                    response = self.session.get(url, timeout=5)
 
                     if response.status_code == 200:
                         soup = BeautifulSoup(response.text, 'html.parser')

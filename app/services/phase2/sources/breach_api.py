@@ -66,7 +66,7 @@ class HudsonRockSource(BaseSource):
     rate_limit_per_minute = 30
 
     BASE_URL = "https://cavalier.hudsonrock.com/api/json/v2/osint-tools"
-    REQUEST_TIMEOUT = 10
+    REQUEST_TIMEOUT = 5
     DELAY_BETWEEN_REQUESTS = 1.0
 
     def is_available(self) -> bool:
@@ -323,7 +323,7 @@ class HIBPSource(BaseSource):
 
     PWNED_PASSWORDS_URL = "https://api.pwnedpasswords.com/range"
     BREACHED_ACCOUNT_URL = "https://haveibeenpwned.com/api/v3/breachedaccount"
-    REQUEST_TIMEOUT = 10
+    REQUEST_TIMEOUT = 5
 
     def is_available(self) -> bool:
         return True
@@ -451,7 +451,7 @@ class LeakCheckSource(BaseSource):
 
     PUBLIC_URL = "https://leakcheck.io/api/public"
     PRO_URL = "https://leakcheck.io/api/v2/query"
-    REQUEST_TIMEOUT = 10
+    REQUEST_TIMEOUT = 5
     DELAY_BETWEEN_REQUESTS = 0.5
     MAX_RETRIES = 2
     RETRY_DELAY = 2.0
@@ -765,7 +765,7 @@ class ProxyNovaCOMBSource(BaseSource):
     rate_limit_per_minute = 100
 
     BASE_URL = "https://api.proxynova.com/comb"
-    REQUEST_TIMEOUT = 15
+    REQUEST_TIMEOUT = 5
     MAX_RESULTS = 100
 
     def is_available(self) -> bool:

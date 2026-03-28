@@ -39,7 +39,7 @@ class SourceManager:
     - Provides source status dashboard for UI
     """
 
-    def __init__(self, max_workers: int = 8, timeout: float = 60.0):
+    def __init__(self, max_workers: int = 8, timeout: float = 30.0):
         """
         Initialize SourceManager.
 
@@ -152,7 +152,7 @@ class SourceManager:
                 for future in as_completed(future_to_source, timeout=self.timeout):
                     source = future_to_source[future]
                     try:
-                        results = future.result(timeout=self.timeout)
+                        results = future.result(timeout=5)
                         if results:
                             all_results.extend(results)
                             logger.info(

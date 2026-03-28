@@ -1373,11 +1373,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     discovery = ContactDiscoveryService()
                     return discovery.discover(check)
 
-                # Run with 120s timeout
+                # Run with 30s hard timeout
                 cd_pool = ThreadPoolExecutor(max_workers=1)
                 cd_future = cd_pool.submit(_run_contact_discovery)
                 try:
-                    contacts = cd_future.result(timeout=120)
+                    contacts = cd_future.result(timeout=30)
                 except Exception as e:
                     logger.warning(f"Contact discovery timeout/error: {e}")
                     contacts = input_contacts  # preserve input contacts on timeout
