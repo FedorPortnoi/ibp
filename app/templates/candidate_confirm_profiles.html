@@ -73,6 +73,7 @@
     .conf-high { background: #4ADE80; }
     .conf-medium { background: #eab308; }
     .conf-low { background: #EF4444; }
+    .conf-manual { background: #8B5CF6; }
     .bottom-bar {
         position: sticky;
         bottom: 0;
@@ -82,6 +83,125 @@
         backdrop-filter: blur(20px);
         z-index: 50;
     }
+    .no-match-panel {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-default);
+        border-radius: 12px;
+        padding: 24px;
+        margin-top: 16px;
+        display: none;
+    }
+    .no-match-panel.visible {
+        display: block;
+        animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .nm-option-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 12px 16px;
+        background: var(--bg-dark);
+        border: 1px solid var(--border-subtle);
+        border-radius: 10px;
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: left;
+    }
+    .nm-option-btn:hover {
+        border-color: rgba(196, 149, 90, 0.4);
+        color: var(--text-primary);
+        background: rgba(196, 149, 90, 0.06);
+    }
+    .nm-option-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .nm-sub-panel {
+        margin-top: 12px;
+        padding: 16px;
+        background: var(--bg-dark);
+        border: 1px solid var(--border-subtle);
+        border-radius: 10px;
+        display: none;
+    }
+    .nm-sub-panel.visible {
+        display: block;
+        animation: fadeIn 0.2s ease;
+    }
+    .nm-input {
+        width: 100%;
+        padding: 10px 14px;
+        background: var(--bg-panel);
+        border: 1px solid var(--border-default);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+    .nm-input:focus {
+        border-color: var(--accent);
+    }
+    .nm-submit-btn {
+        padding: 8px 20px;
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .nm-submit-btn:hover {
+        background: var(--accent-dim);
+    }
+    .nm-submit-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .badge-expanded {
+        background: rgba(139, 92, 246, 0.15);
+        color: #a78bfa;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        font-size: 0.65rem;
+        font-weight: 600;
+    }
+    .badge-manual {
+        background: rgba(139, 92, 246, 0.2);
+        color: #c4b5fd;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        font-size: 0.65rem;
+        font-weight: 600;
+    }
+    .loading-spinner-sm {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(196, 149, 90, 0.3);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .nm-result-msg {
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        margin-top: 10px;
+    }
+    .nm-result-msg.success { background: rgba(74, 222, 128, 0.1); color: #4ADE80; }
+    .nm-result-msg.error { background: rgba(239, 68, 68, 0.1); color: #EF4444; }
+    .nm-result-msg.info { background: rgba(234, 179, 8, 0.1); color: #eab308; }
 </style>
 {% endblock %}
 
@@ -104,6 +224,7 @@
 
     <form id="confirm-form" method="POST" action="/candidate/confirm/{{ check.id }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" name="action" id="form-action" value=""/>
 
         {% if profiles|length == 0 %}
             <div class="text-center py-12 text-gray-500">
@@ -111,7 +232,7 @@
             </div>
         {% else %}
             <!-- Profile Grid -->
-            <div class="profile-grid mb-8">
+            <div class="profile-grid mb-8" id="profile-grid">
                 {% for profile in profiles %}
                 <label class="profile-card" id="card-{{ loop.index0 }}" onclick="toggleCard(this)">
                     <input type="checkbox" name="confirmed_profiles"
@@ -159,12 +280,22 @@
 
                         <!-- Confidence -->
                         {% set conf_score = profile.confidence_score or 0 %}
-                        {% if conf_score > 0.8 or profile.confidence == 'высокая' %}
+                        {% if profile.confidence == 'ручной ввод' %}
+                            <span class="text-xs" style="color: #a78bfa;"><span class="confidence-dot conf-manual"></span>ручной ввод</span>
+                        {% elif conf_score > 0.8 or profile.confidence == 'высокая' %}
                             <span class="text-xs text-green-400"><span class="confidence-dot conf-high"></span>высокая</span>
                         {% elif conf_score > 0.5 or profile.confidence == 'средняя' %}
                             <span class="text-xs text-yellow-400"><span class="confidence-dot conf-medium"></span>средняя</span>
                         {% elif conf_score > 0 %}
                             <span class="text-xs text-red-400"><span class="confidence-dot conf-low"></span>низкая</span>
+                        {% endif %}
+
+                        <!-- Source badges -->
+                        {% if profile.expanded_search %}
+                            <span class="badge-expanded">расширенный</span>
+                        {% endif %}
+                        {% if profile.manual_entry %}
+                            <span class="badge-manual">ручной</span>
                         {% endif %}
                     </div>
 
@@ -193,16 +324,72 @@
 
         <!-- Bottom action bar -->
         <div class="bottom-bar">
-            <div class="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-center gap-3">
-                <button type="submit" id="confirm-btn"
-                        class="px-8 py-3 bg-accent hover:bg-accent-dim text-white font-semibold rounded-lg transition">
-                    Подтвердить выбранные
-                </button>
-                <button type="submit" id="skip-btn"
-                        class="px-8 py-3 bg-transparent border border-gray-600 hover:border-gray-400 text-gray-400 hover:text-white font-medium rounded-lg transition"
-                        onclick="uncheckAll()">
-                    Ни один не подходит
-                </button>
+            <div class="max-w-4xl mx-auto px-4">
+                <!-- Primary row: Confirm + Retry expanded -->
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <button type="submit" id="confirm-btn"
+                            class="px-8 py-3 bg-accent hover:bg-accent-dim text-white font-semibold rounded-lg transition">
+                        Подтвердить выбранные
+                    </button>
+                    <button type="button" id="retry-expanded-btn"
+                            class="px-6 py-3 bg-transparent border border-violet-500/40 hover:border-violet-400 text-violet-400 hover:text-violet-300 font-medium rounded-lg transition"
+                            onclick="retryExpanded()">
+                        Повторить поиск с расширенными параметрами
+                    </button>
+                    <button type="button" id="none-match-btn"
+                            class="px-8 py-3 bg-transparent border border-gray-600 hover:border-gray-400 text-gray-400 hover:text-white font-medium rounded-lg transition"
+                            onclick="showNoMatchPanel()">
+                        Ни один не подходит
+                    </button>
+                </div>
+
+                <!-- No-match expanded panel -->
+                <div id="no-match-panel" class="no-match-panel">
+                    <div class="text-sm text-gray-400 mb-4">Профиль не найден. Что делать дальше?</div>
+
+                    <div class="flex flex-col gap-3">
+                        <button type="button" class="nm-option-btn" onclick="showSearchByName()">
+                            <span style="font-size: 1.1rem;">&#x1F50D;</span>
+                            <span>Искать по другому имени</span>
+                        </button>
+
+                        <button type="button" class="nm-option-btn" onclick="showManualVK()">
+                            <span style="font-size: 1.1rem;">&#x1F517;</span>
+                            <span>Ввести VK профиль вручную</span>
+                        </button>
+
+                        <button type="button" class="nm-option-btn" onclick="skipWithoutVK()" id="skip-vk-btn">
+                            <span style="font-size: 1.1rem;">&#x27A1;&#xFE0F;</span>
+                            <span>Продолжить без VK</span>
+                        </button>
+                    </div>
+
+                    <!-- Search by name sub-panel -->
+                    <div id="search-name-panel" class="nm-sub-panel">
+                        <div class="text-xs text-gray-500 mb-2">Введите альтернативное имя (девичья фамилия, псевдоним и т.д.)</div>
+                        <div class="flex gap-2">
+                            <input type="text" id="alt-name-input" class="nm-input flex-1"
+                                   placeholder="Иванова Мария" maxlength="255">
+                            <button type="button" class="nm-submit-btn" onclick="searchByName()" id="search-name-submit">
+                                Найти
+                            </button>
+                        </div>
+                        <div id="search-name-result"></div>
+                    </div>
+
+                    <!-- Manual VK sub-panel -->
+                    <div id="manual-vk-panel" class="nm-sub-panel">
+                        <div class="text-xs text-gray-500 mb-2">Введите ссылку на профиль или username</div>
+                        <div class="flex gap-2">
+                            <input type="text" id="manual-vk-input" class="nm-input flex-1"
+                                   placeholder="https://vk.com/username или username" maxlength="500">
+                            <button type="button" class="nm-submit-btn" onclick="addManualVK()" id="manual-vk-submit">
+                                Добавить
+                            </button>
+                        </div>
+                        <div id="manual-vk-result"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </form>
@@ -211,10 +398,11 @@
 
 {% block scripts %}
 <script>
+var checkId = '{{ check.id }}';
+
 function toggleCard(label) {
     var cb = label.querySelector('.profile-checkbox');
     var icon = label.querySelector('.check-icon');
-    // The label click already toggles the checkbox — we just update visuals
     setTimeout(function() {
         if (cb.checked) {
             label.classList.add('checked');
@@ -246,5 +434,258 @@ function uncheckAll() {
         card.querySelector('.check-icon').classList.add('hidden');
     });
 }
+
+function showNoMatchPanel() {
+    var panel = document.getElementById('no-match-panel');
+    panel.classList.toggle('visible');
+}
+
+function getCSRFToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+}
+
+/* ── Retry expanded search ── */
+function retryExpanded() {
+    var btn = document.getElementById('retry-expanded-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner-sm"></span> Поиск...';
+
+    fetch('/candidate/confirm/' + checkId + '/retry-expanded', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+        },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.textContent = 'Повторить поиск с расширенными параметрами';
+        if (data.error) {
+            showResultMsg('no-match-panel', data.error, 'error');
+            return;
+        }
+        if (data.new_count === 0) {
+            showResultMsg('no-match-panel', 'Новых профилей не найдено', 'info');
+            return;
+        }
+        appendProfilesToGrid(data.profiles);
+        showResultMsg('no-match-panel', 'Найдено ' + data.new_count + ' новых профилей', 'success');
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.textContent = 'Повторить поиск с расширенными параметрами';
+        showResultMsg('no-match-panel', 'Ошибка сети', 'error');
+    });
+}
+
+/* ── Search by alternative name ── */
+function showSearchByName() {
+    document.getElementById('search-name-panel').classList.toggle('visible');
+    document.getElementById('manual-vk-panel').classList.remove('visible');
+    var input = document.getElementById('alt-name-input');
+    if (document.getElementById('search-name-panel').classList.contains('visible')) {
+        input.focus();
+    }
+}
+
+function searchByName() {
+    var name = document.getElementById('alt-name-input').value.trim();
+    if (!name || name.split(/\s+/).length < 2) {
+        showResultMsg('search-name-result', 'Укажите имя и фамилию', 'error');
+        return;
+    }
+    var btn = document.getElementById('search-name-submit');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner-sm"></span>';
+
+    fetch('/candidate/confirm/' + checkId + '/search-name', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+        },
+        body: JSON.stringify({ name: name }),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.textContent = 'Найти';
+        if (data.error) {
+            showResultMsg('search-name-result', data.error, 'error');
+            return;
+        }
+        if (data.new_count === 0) {
+            showResultMsg('search-name-result', 'По имени "' + data.searched_name + '" ничего не найдено', 'info');
+            return;
+        }
+        appendProfilesToGrid(data.profiles);
+        showResultMsg('search-name-result', 'Найдено ' + data.new_count + ' профилей по "' + data.searched_name + '"', 'success');
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.textContent = 'Найти';
+        showResultMsg('search-name-result', 'Ошибка сети', 'error');
+    });
+}
+
+/* ── Manual VK profile ── */
+function showManualVK() {
+    document.getElementById('manual-vk-panel').classList.toggle('visible');
+    document.getElementById('search-name-panel').classList.remove('visible');
+    var input = document.getElementById('manual-vk-input');
+    if (document.getElementById('manual-vk-panel').classList.contains('visible')) {
+        input.focus();
+    }
+}
+
+function addManualVK() {
+    var vkUrl = document.getElementById('manual-vk-input').value.trim();
+    if (!vkUrl) {
+        showResultMsg('manual-vk-result', 'Введите ссылку или username', 'error');
+        return;
+    }
+    var btn = document.getElementById('manual-vk-submit');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner-sm"></span>';
+
+    fetch('/candidate/confirm/' + checkId + '/manual-vk', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+        },
+        body: JSON.stringify({ vk_url: vkUrl }),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.textContent = 'Добавить';
+        if (data.error) {
+            showResultMsg('manual-vk-result', data.error, 'error');
+            return;
+        }
+        if (data.duplicate) {
+            showResultMsg('manual-vk-result', data.message, 'info');
+            return;
+        }
+        appendProfilesToGrid([data.profile]);
+        showResultMsg('manual-vk-result', 'Профиль "' + data.profile.display_name + '" добавлен', 'success');
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.textContent = 'Добавить';
+        showResultMsg('manual-vk-result', 'Ошибка сети', 'error');
+    });
+}
+
+/* ── Skip without VK ── */
+function skipWithoutVK() {
+    document.getElementById('form-action').value = 'skip_no_vk';
+    uncheckAll();
+    document.getElementById('confirm-form').submit();
+}
+
+/* ── Helpers ── */
+function showResultMsg(containerId, msg, type) {
+    var container = document.getElementById(containerId);
+    // Remove old message if any
+    var old = container.querySelector('.nm-result-msg');
+    if (old) old.remove();
+
+    var el = document.createElement('div');
+    el.className = 'nm-result-msg ' + type;
+    el.textContent = msg;
+    container.appendChild(el);
+
+    setTimeout(function() { if (el.parentNode) el.remove(); }, 8000);
+}
+
+function appendProfilesToGrid(profiles) {
+    var grid = document.getElementById('profile-grid');
+    if (!grid) return;
+
+    profiles.forEach(function(p, idx) {
+        var cardIdx = grid.children.length;
+        var label = document.createElement('label');
+        label.className = 'profile-card';
+        label.id = 'card-' + cardIdx;
+        label.setAttribute('onclick', 'toggleCard(this)');
+
+        var value = p.url || p.username || cardIdx;
+        var platform = p.platform || '';
+        var confScore = p.confidence_score || 0;
+        var confidence = p.confidence || '';
+        var isExpanded = p.expanded_search || p.alt_name_search;
+        var isManual = p.manual_entry;
+
+        // Confidence badge
+        var confHtml = '';
+        if (confidence === 'ручной ввод') {
+            confHtml = '<span class="text-xs" style="color: #a78bfa;"><span class="confidence-dot conf-manual"></span>ручной ввод</span>';
+        } else if (confScore > 0.8 || confidence === 'высокая') {
+            confHtml = '<span class="text-xs text-green-400"><span class="confidence-dot conf-high"></span>высокая</span>';
+        } else if (confScore > 0.5 || confidence === 'средняя') {
+            confHtml = '<span class="text-xs text-yellow-400"><span class="confidence-dot conf-medium"></span>средняя</span>';
+        } else if (confScore > 0) {
+            confHtml = '<span class="text-xs text-red-400"><span class="confidence-dot conf-low"></span>низкая</span>';
+        }
+
+        // Platform badge
+        var platHtml = '';
+        if (platform === 'vk') {
+            platHtml = '<span class="px-2 py-0.5 rounded-full text-xs font-semibold" style="background: rgba(0, 119, 255, 0.2); color: #4da6ff;">VK</span>';
+        } else if (platform === 'telegram') {
+            platHtml = '<span class="px-2 py-0.5 rounded-full text-xs font-semibold" style="background: rgba(38, 165, 228, 0.2); color: #26a5e4;">Telegram</span>';
+        }
+
+        // Source badge
+        var sourceBadge = '';
+        if (isExpanded) sourceBadge = '<span class="badge-expanded">расширенный</span>';
+        if (isManual) sourceBadge = '<span class="badge-manual">ручной</span>';
+
+        // Avatar
+        var avatarUrl = p.avatar_url || p.photo_url;
+        var avatarHtml = avatarUrl
+            ? '<img src="' + avatarUrl + '" alt="" class="profile-avatar-lg" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';"><div class="avatar-placeholder-lg" style="display:none;">VK</div>'
+            : '<div class="avatar-placeholder-lg">VK</div>';
+
+        var linkHtml = p.url
+            ? '<div class="mt-2"><a href="' + p.url + '" target="_blank" rel="noopener" class="text-xs text-accent hover:text-accent-bright transition" onclick="event.stopPropagation(); event.preventDefault(); window.open(this.href, \'_blank\');">Открыть профиль &#x2197;</a></div>'
+            : '';
+
+        label.innerHTML =
+            '<input type="checkbox" name="confirmed_profiles" value="' + value + '" class="hidden profile-checkbox">' +
+            '<div class="check-indicator"><svg class="w-4 h-4 text-white hidden check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>' +
+            '<div class="flex items-start gap-3 mb-3">' + avatarHtml +
+            '<div class="flex-1 min-w-0"><div class="font-semibold text-white text-sm truncate">' + (p.display_name || 'Без имени') + '</div>' +
+            (p.username ? '<div class="text-xs text-gray-500 truncate">@' + p.username + '</div>' : '') +
+            '</div></div>' +
+            '<div class="flex flex-wrap items-center gap-2 mb-2">' + platHtml + confHtml + sourceBadge + '</div>' +
+            '<div class="text-xs text-gray-500 space-y-0.5">' +
+            (p.city ? '<div>' + p.city + '</div>' : '') +
+            (p.source_method ? '<div class="text-gray-600">' + p.source_method + '</div>' : '') +
+            '</div>' + linkHtml;
+
+        grid.appendChild(label);
+    });
+}
+
+/* Enter key in search fields */
+document.addEventListener('DOMContentLoaded', function() {
+    var altNameInput = document.getElementById('alt-name-input');
+    if (altNameInput) {
+        altNameInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); searchByName(); }
+        });
+    }
+    var manualVkInput = document.getElementById('manual-vk-input');
+    if (manualVkInput) {
+        manualVkInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); addManualVK(); }
+        });
+    }
+});
 </script>
 {% endblock %}

@@ -361,9 +361,16 @@ def submit_confirmation(check_id):
     if check.status != 'awaiting_confirmation':
         return redirect(url_for('candidate.dossier_page', check_id=check.id))
 
+    action = request.form.get('action', '')
     confirmed_ids = request.form.getlist('confirmed_profiles')
 
-    if confirmed_ids:
+    if action == 'skip_no_vk':
+        # Explicit skip — mark VK as not found
+        check.confirmed_profiles = []
+        identity_conf = check.identity_confirmation or {}
+        identity_conf['vk_status'] = 'not_found_manual_skip'
+        check.identity_confirmation = identity_conf
+    elif confirmed_ids:
         all_profiles = check.social_media_profiles or []
         confirmed = [
             p for p in all_profiles
@@ -386,6 +393,303 @@ def submit_confirmation(check_id):
     if check.task_id:
         return redirect(f'/candidate/progress/{check.task_id}')
     return redirect(url_for('candidate.dossier_page', check_id=check.id))
+
+
+@candidate_bp.route('/confirm/<check_id>/retry-expanded', methods=['POST'])
+@limiter.limit("5 per minute")
+def retry_expanded_search(check_id):
+    """Re-run VK search with relaxed matching thresholds."""
+    check = CandidateCheck.query.filter_by(id=check_id).first_or_404()
+    _check_owner_or_admin(check)
+    if check.status != 'awaiting_confirmation':
+        return jsonify({'error': 'Проверка не в режиме подтверждения'}), 400
+
+    try:
+        from app.services.phase1.buratino_vk_search import BuratinoVKSearch
+
+        buratino = BuratinoVKSearch()
+        effective_name = check.confirmed_name or check.full_name
+        name_parts = effective_name.strip().split()
+
+        vk_age_from = None
+        vk_age_to = None
+        if check.date_of_birth:
+            from datetime import date as _date
+            today = _date.today()
+            age = today.year - check.date_of_birth.year - (
+                (today.month, today.day) < (check.date_of_birth.month, check.date_of_birth.day)
+            )
+            vk_age_from = max(age - 5, 16)
+            vk_age_to = age + 5
+
+        expanded_profiles = buratino.search_expanded(
+            query=effective_name,
+            city=check.region,
+            age_from=vk_age_from,
+            age_to=vk_age_to,
+            count=50,
+        )
+
+        new_profiles = []
+        existing_ids = {
+            p.get('platform_id') for p in (check.social_media_profiles or [])
+            if p.get('platform') == 'vk'
+        }
+
+        for p in expanded_profiles[:20]:
+            d = p.to_dict() if hasattr(p, 'to_dict') else p
+            sim = d.get('name_similarity', 0)
+            if sim < 30:
+                continue
+            vk_id = d.get('vk_id')
+            if vk_id in existing_ids:
+                continue
+
+            if sim >= 75:
+                confidence = 'высокая'
+            elif sim >= 50:
+                confidence = 'средняя'
+            else:
+                confidence = 'низкая'
+
+            new_profiles.append({
+                'platform': 'vk',
+                'platform_id': vk_id,
+                'display_name': d.get('full_name', ''),
+                'username': d.get('screen_name', ''),
+                'url': d.get('profile_url', ''),
+                'avatar_url': d.get('photo_url'),
+                'photo_url': d.get('photo_url'),
+                'confidence': confidence,
+                'confidence_score': round(sim / 100, 2),
+                'source_method': 'VK расширенный поиск',
+                'city': d.get('city', ''),
+                'expanded_search': True,
+            })
+
+        # Merge into existing profiles
+        all_profiles = check.social_media_profiles or []
+        all_profiles.extend(new_profiles)
+        check.social_media_profiles = all_profiles
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'new_count': len(new_profiles),
+            'profiles': new_profiles,
+        })
+
+    except Exception as e:
+        logger.error(f"Expanded VK search failed for {check_id}: {e}")
+        return jsonify({'error': 'Ошибка расширенного поиска'}), 500
+
+
+@candidate_bp.route('/confirm/<check_id>/search-name', methods=['POST'])
+@limiter.limit("5 per minute")
+def search_by_name(check_id):
+    """Search VK by an alternative name (maiden name, alias, etc.)."""
+    check = CandidateCheck.query.filter_by(id=check_id).first_or_404()
+    _check_owner_or_admin(check)
+    if check.status != 'awaiting_confirmation':
+        return jsonify({'error': 'Проверка не в режиме подтверждения'}), 400
+
+    data = request.get_json() or {}
+    alt_name = (data.get('name') or '').strip()[:255]
+    if re.search(r'<[^>]+>', alt_name):
+        alt_name = re.sub(r'<[^>]+>', '', alt_name).strip()
+
+    if not alt_name or len(alt_name.split()) < 2:
+        return jsonify({'error': 'Укажите имя и фамилию'}), 400
+
+    try:
+        from app.services.phase1.buratino_vk_search import BuratinoVKSearch
+
+        buratino = BuratinoVKSearch()
+
+        vk_age_from = None
+        vk_age_to = None
+        if check.date_of_birth:
+            from datetime import date as _date
+            today = _date.today()
+            age = today.year - check.date_of_birth.year - (
+                (today.month, today.day) < (check.date_of_birth.month, check.date_of_birth.day)
+            )
+            vk_age_from = max(age - 3, 16)
+            vk_age_to = age + 3
+
+        profiles, _ = buratino.search(
+            query=alt_name,
+            city=check.region,
+            age_from=vk_age_from,
+            age_to=vk_age_to,
+            target_name=alt_name,
+            strict_mode=False,
+        )
+
+        new_profiles = []
+        existing_ids = {
+            p.get('platform_id') for p in (check.social_media_profiles or [])
+            if p.get('platform') == 'vk'
+        }
+
+        for p in profiles[:15]:
+            d = p.to_dict() if hasattr(p, 'to_dict') else p
+            sim = d.get('name_similarity', 0)
+            if sim < 30:
+                continue
+            vk_id = d.get('vk_id')
+            if vk_id in existing_ids:
+                continue
+
+            if sim >= 75:
+                confidence = 'высокая'
+            elif sim >= 50:
+                confidence = 'средняя'
+            else:
+                confidence = 'низкая'
+
+            new_profiles.append({
+                'platform': 'vk',
+                'platform_id': vk_id,
+                'display_name': d.get('full_name', ''),
+                'username': d.get('screen_name', ''),
+                'url': d.get('profile_url', ''),
+                'avatar_url': d.get('photo_url'),
+                'photo_url': d.get('photo_url'),
+                'confidence': confidence,
+                'confidence_score': round(sim / 100, 2),
+                'source_method': f'VK поиск: {alt_name}',
+                'city': d.get('city', ''),
+                'alt_name_search': True,
+            })
+
+        all_profiles = check.social_media_profiles or []
+        all_profiles.extend(new_profiles)
+        check.social_media_profiles = all_profiles
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'new_count': len(new_profiles),
+            'profiles': new_profiles,
+            'searched_name': alt_name,
+        })
+
+    except Exception as e:
+        logger.error(f"Alt-name VK search failed for {check_id}: {e}")
+        return jsonify({'error': 'Ошибка поиска'}), 500
+
+
+@candidate_bp.route('/confirm/<check_id>/manual-vk', methods=['POST'])
+@limiter.limit("5 per minute")
+def manual_vk_profile(check_id):
+    """Validate and add a manually entered VK profile."""
+    check = CandidateCheck.query.filter_by(id=check_id).first_or_404()
+    _check_owner_or_admin(check)
+    if check.status != 'awaiting_confirmation':
+        return jsonify({'error': 'Проверка не в режиме подтверждения'}), 400
+
+    data = request.get_json() or {}
+    vk_input = (data.get('vk_url') or '').strip()[:500]
+    if re.search(r'<[^>]+>', vk_input):
+        vk_input = re.sub(r'<[^>]+>', '', vk_input).strip()
+
+    if not vk_input:
+        return jsonify({'error': 'Введите ссылку или username'}), 400
+
+    # Extract screen name from various VK URL formats
+    screen_name = vk_input
+    for prefix in ['https://vk.com/', 'http://vk.com/', 'vk.com/', 'https://m.vk.com/', 'http://m.vk.com/']:
+        if screen_name.lower().startswith(prefix):
+            screen_name = screen_name[len(prefix):]
+            break
+    screen_name = screen_name.strip('/').split('?')[0]
+
+    if not screen_name or not re.match(r'^[a-zA-Z0-9_.]+$', screen_name):
+        return jsonify({'error': 'Неверный формат VK ссылки или username'}), 400
+
+    try:
+        import requests as http_requests
+        from app.utils.vk_token_manager import get_vk_token
+
+        token = get_vk_token('search')
+        if not token:
+            return jsonify({'error': 'VK токен не настроен'}), 500
+
+        # Resolve screen name to user ID
+        resp = http_requests.post(
+            'https://api.vk.com/method/utils.resolveScreenName',
+            data={
+                'screen_name': screen_name,
+                'access_token': token,
+                'v': '5.199',
+            },
+            timeout=10,
+        )
+        resolve_data = resp.json().get('response', {})
+        if not resolve_data or resolve_data.get('type') != 'user':
+            return jsonify({'error': 'Профиль не найден или это не пользователь'}), 404
+
+        user_id = resolve_data['object_id']
+
+        # Get full profile
+        resp = http_requests.post(
+            'https://api.vk.com/method/users.get',
+            data={
+                'user_ids': str(user_id),
+                'fields': 'photo_200,screen_name,city,bdate,verified',
+                'access_token': token,
+                'v': '5.199',
+            },
+            timeout=10,
+        )
+        users = resp.json().get('response', [])
+        if not users:
+            return jsonify({'error': 'Не удалось загрузить профиль'}), 404
+
+        user = users[0]
+        display_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip()
+        profile_url = f"https://vk.com/{user.get('screen_name', f'id{user_id}')}"
+
+        new_profile = {
+            'platform': 'vk',
+            'platform_id': user_id,
+            'display_name': display_name,
+            'username': user.get('screen_name', ''),
+            'url': profile_url,
+            'avatar_url': user.get('photo_200'),
+            'photo_url': user.get('photo_200'),
+            'confidence': 'ручной ввод',
+            'confidence_score': 0.0,
+            'source_method': 'Введён вручную',
+            'city': (user.get('city') or {}).get('title', ''),
+            'manual_entry': True,
+        }
+
+        all_profiles = check.social_media_profiles or []
+
+        # Check duplicate
+        for p in all_profiles:
+            if p.get('platform_id') == user_id and p.get('platform') == 'vk':
+                return jsonify({
+                    'success': True,
+                    'profile': p,
+                    'duplicate': True,
+                    'message': 'Этот профиль уже в списке',
+                })
+
+        all_profiles.append(new_profile)
+        check.social_media_profiles = all_profiles
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'profile': new_profile,
+        })
+
+    except Exception as e:
+        logger.error(f"Manual VK profile failed for {check_id}: {e}")
+        return jsonify({'error': 'Ошибка проверки профиля'}), 500
 
 
 @candidate_bp.route('/api/social-graph/<check_id>')
