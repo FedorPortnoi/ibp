@@ -711,11 +711,15 @@ def search_telegram_public_messages(full_name: str, username: str = None) -> dic
         from telethon.tl.functions.messages import SearchGlobalRequest
         from telethon.tl.types import InputMessagesFilterEmpty
 
-        client = TelegramClient(session_path, int(api_id), api_hash)
+        client = TelegramClient(
+            session_path, int(api_id), api_hash,
+            connection_retries=1, retry_delay=0, timeout=10,
+            request_retries=1,
+        )
         try:
             await asyncio.wait_for(client.connect(), timeout=10)
-        except asyncio.TimeoutError:
-            logger.warning("Telegram public search: connect() timed out after 10s")
+        except (asyncio.TimeoutError, RuntimeError, OSError) as e:
+            logger.warning(f"Telegram public search: connect failed: {e}")
             try:
                 await client.disconnect()
             except Exception:
@@ -774,7 +778,10 @@ def search_telegram_public_messages(full_name: str, username: str = None) -> dic
             total_found = getattr(result, 'count', len(result.messages)) if hasattr(result, 'count') else len(result.messages)
 
         finally:
-            await client.disconnect()
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
 
         return {
             'messages': messages,
@@ -787,18 +794,18 @@ def search_telegram_public_messages(full_name: str, username: str = None) -> dic
         loop = asyncio.new_event_loop()
         try:
             result = loop.run_until_complete(
-                asyncio.wait_for(_search_global(), timeout=45)
+                asyncio.wait_for(_search_global(), timeout=15)
             )
         finally:
             loop.close()
         return result
-    except asyncio.TimeoutError:
-        logger.warning("Telegram public search: timed out after 45s")
+    except (asyncio.TimeoutError, RuntimeError) as e:
+        logger.warning(f"Telegram public search: timeout/event loop error: {e}")
         return {
             'messages': [],
             'total_found': 0,
             'groups_mentioned': [],
-            'error': 'Timeout after 30s',
+            'error': f'Telegram error: {e}',
         }
     except ImportError:
         logger.info("Telegram public search: Telethon not installed, skipping")

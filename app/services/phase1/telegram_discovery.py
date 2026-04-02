@@ -465,8 +465,20 @@ class TelegramDiscoveryService:
                 search_queries.append(latin_name)
 
             async def _search():
-                client = TelegramClient(session_path, int(api_id), api_hash)
-                await client.connect()
+                client = TelegramClient(
+                    session_path, int(api_id), api_hash,
+                    connection_retries=1, retry_delay=0, timeout=10,
+                    request_retries=1,
+                )
+                try:
+                    await asyncio.wait_for(client.connect(), timeout=10)
+                except (asyncio.TimeoutError, RuntimeError, OSError) as e:
+                    logger.warning(f"TG Method C: connect failed: {e}")
+                    try:
+                        await client.disconnect()
+                    except Exception:
+                        pass
+                    return []
 
                 if not await client.is_user_authorized():
                     logger.warning(
@@ -485,10 +497,13 @@ class TelegramDiscoveryService:
 
                         logger.info(f'TG Method C (Telethon): searching directory for "{query}"...')
                         try:
-                            result = await client(SearchRequest(
-                                q=query,
-                                limit=self.MAX_TELETHON_RESULTS,
-                            ))
+                            result = await asyncio.wait_for(
+                                client(SearchRequest(
+                                    q=query,
+                                    limit=self.MAX_TELETHON_RESULTS,
+                                )),
+                                timeout=10,
+                            )
 
                             for user in result.users:
                                 if getattr(user, 'bot', False):
@@ -548,17 +563,27 @@ class TelegramDiscoveryService:
                         except FloodWaitError as e:
                             logger.warning(f"TG Method C: Telethon flood wait: {e.seconds}s, stopping search")
                             break
+                        except asyncio.TimeoutError:
+                            logger.warning(f"TG Method C: search request timed out for '{query}', skipping")
                         except Exception as e:
                             logger.warning(f"TG Method C: Telethon search error for '{query}': {e}")
 
                 finally:
-                    await client.disconnect()
+                    try:
+                        await client.disconnect()
+                    except Exception:
+                        pass
 
                 return profiles
 
             loop = asyncio.new_event_loop()
             try:
-                found = loop.run_until_complete(_search())
+                found = loop.run_until_complete(
+                    asyncio.wait_for(_search(), timeout=15)
+                )
+            except asyncio.TimeoutError:
+                logger.warning("TG Method C: overall timeout after 15s")
+                found = []
             finally:
                 loop.close()
 
@@ -571,6 +596,9 @@ class TelegramDiscoveryService:
 
         except ImportError:
             logger.info("TG Method C: Telethon not installed, skipping directory search")
+            return []
+        except (RuntimeError, asyncio.TimeoutError) as e:
+            logger.warning(f"TG Method C: Telethon event loop/timeout error: {e}")
             return []
         except Exception as e:
             logger.warning(f"TG Method C: Telethon error: {e}")
@@ -844,8 +872,20 @@ class TelegramDiscoveryService:
             session_path = os.path.join(session_dir, 'ibp_session')
 
             async def _lookup():
-                client = TelegramClient(session_path, int(api_id), api_hash)
-                await client.connect()
+                client = TelegramClient(
+                    session_path, int(api_id), api_hash,
+                    connection_retries=1, retry_delay=0, timeout=10,
+                    request_retries=1,
+                )
+                try:
+                    await asyncio.wait_for(client.connect(), timeout=10)
+                except (asyncio.TimeoutError, RuntimeError, OSError) as e:
+                    logger.warning(f"TG phone lookup: connect failed: {e}")
+                    try:
+                        await client.disconnect()
+                    except Exception:
+                        pass
+                    return []
 
                 if not await client.is_user_authorized():
                     logger.warning("TG phone lookup: session not authorized")
@@ -897,7 +937,10 @@ class TelegramDiscoveryService:
                             logger.debug(f"TG phone lookup: contact cleanup error: {e}")
 
                 finally:
-                    await client.disconnect()
+                    try:
+                        await client.disconnect()
+                    except Exception:
+                        pass
 
                 return results
 
@@ -917,6 +960,9 @@ class TelegramDiscoveryService:
 
         except ImportError:
             logger.info("TG phone lookup: Telethon not installed, skipping")
+            return []
+        except (RuntimeError, asyncio.TimeoutError) as e:
+            logger.warning(f"TG phone lookup event loop/timeout error: {e}")
             return []
         except Exception as e:
             logger.warning(f"TG phone lookup failed: {e}")
