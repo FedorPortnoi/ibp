@@ -10,6 +10,7 @@ import logging
 import os
 import random
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
@@ -944,51 +945,7 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
     _update('Загрузка постов VK', 72)
     posts = _fetch_vk_wall_posts(vk_profiles, vk_token)
 
-    # 6a. Text analysis
-    _update('Анализ текстов', 75)
-    try:
-        if posts:
-            results['text_analysis'] = _run_text_analysis(posts)
-    except Exception as e:
-        logger.error(f"Text analysis failed: {e}")
-
-    # 6b. Geo extraction
-    _update('Извлечение геоданных', 78)
-    try:
-        results['geo_analysis'] = _run_geo_extraction(all_profiles)
-    except Exception as e:
-        logger.error(f"Geo extraction failed: {e}")
-
-    # 6b2. Geo extraction from post text (supplement profile-based geo)
-    try:
-        if posts:
-            from app.services.phase3.geo_extractor import GeoExtractor
-            text_geo = GeoExtractor()
-            text_locations = text_geo.extract_locations_from_posts(posts)
-            if text_locations:
-                existing_geo = results.get('geo_analysis', {})
-                existing_locs = existing_geo.get('locations', [])
-                for loc in text_locations:
-                    loc_dict = loc.to_dict()
-                    # Avoid duplicates by city name
-                    if not any(el.get('city', '').lower() == loc.city.lower() for el in existing_locs):
-                        existing_locs.append(loc_dict)
-                existing_geo['locations'] = existing_locs
-                # Update stats
-                existing_geo.setdefault('stats', {})['total_locations'] = len(existing_locs)
-                existing_geo['stats']['unique_cities'] = len(set(
-                    l.get('city', '') for l in existing_locs if l.get('city')
-                ))
-                results['geo_analysis'] = existing_geo
-                logger.info(f"Post text geo: found {len(text_locations)} locations from {len(posts)} posts")
-    except Exception as e:
-        logger.error(f"Post text geo extraction failed: {e}")
-
-    # 6c. Activity timeline (last_seen_data added later after 6f)
-    _update('Построение таймлайна', 80)
-    # Defer timeline build until after last_seen is fetched (done below)
-
-    # 6d. VK Groups Intelligence
+    # --- Pre-compute vk_id (no I/O, just a loop) ---
     vk_id = None
     for p in vk_profiles:
         vk_id = p.get('platform_id') or p.get('vk_id') or p.get('id')
@@ -1002,18 +959,78 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
         if vk_id:
             break
 
-    if vk_id:
-        _update('Анализ групп VK', 80)
+    # --- Pre-compute telegram username (no I/O) ---
+    tg_username = None
+    for p in all_profiles:
+        if p.get('platform') == 'telegram':
+            tg_username = p.get('username') or p.get('screen_name')
+            if tg_username:
+                break
+
+    # --- Define parallel worker functions ---
+    # Each returns a (key, value) tuple for merging into results.
+
+    def _worker_text_analysis():
+        """6a. Text analysis from VK wall posts."""
+        try:
+            if posts:
+                return ('text_analysis', _run_text_analysis(posts))
+        except Exception as e:
+            logger.error(f"Text analysis failed: {e}")
+        return ('text_analysis', {})
+
+    def _worker_geo_extraction():
+        """6b + 6b2. Geo extraction from profiles + post text."""
+        geo_result = {}
+        try:
+            geo_result = _run_geo_extraction(all_profiles)
+        except Exception as e:
+            logger.error(f"Geo extraction failed: {e}")
+
+        # 6b2. Supplement with geo from post text
+        try:
+            if posts:
+                from app.services.phase3.geo_extractor import GeoExtractor
+                text_geo = GeoExtractor()
+                text_locations = text_geo.extract_locations_from_posts(posts)
+                if text_locations:
+                    existing_locs = geo_result.get('locations', [])
+                    for loc in text_locations:
+                        loc_dict = loc.to_dict()
+                        # Avoid duplicates by city name
+                        if not any(el.get('city', '').lower() == loc.city.lower() for el in existing_locs):
+                            existing_locs.append(loc_dict)
+                    geo_result['locations'] = existing_locs
+                    # Update stats
+                    geo_result.setdefault('stats', {})['total_locations'] = len(existing_locs)
+                    geo_result['stats']['unique_cities'] = len(set(
+                        l.get('city', '') for l in existing_locs if l.get('city')
+                    ))
+                    logger.info(f"Post text geo: found {len(text_locations)} locations from {len(posts)} posts")
+        except Exception as e:
+            logger.error(f"Post text geo extraction failed: {e}")
+
+        return ('geo_analysis', geo_result)
+
+    def _worker_groups():
+        """6d. VK Groups Intelligence."""
+        if not vk_id:
+            return ('group_analysis', {})
         try:
             groups = fetch_vk_groups(int(vk_id), vk_token)
             if groups:
-                results['group_analysis'] = analyze_groups(groups)
-                flagged_count = len(results['group_analysis'].get('flagged_groups', []))
+                group_result = analyze_groups(groups)
+                flagged_count = len(group_result.get('flagged_groups', []))
                 logger.info(f"VK groups: {len(groups)} total, {flagged_count} flagged")
+                return ('group_analysis', group_result)
         except Exception as e:
             logger.error(f"VK groups analysis failed: {e}")
+        return ('group_analysis', {})
 
-        # 6e. Profile anomaly detection
+    def _worker_anomaly_detection():
+        """6e. Profile anomaly detection."""
+        if not vk_id:
+            return ('profile_anomalies', [])
         try:
             # Fetch full VK profile for anomaly check
             resp = requests.get('https://api.vk.com/method/users.get', params={
@@ -1026,26 +1043,71 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
             vk_users = vk_data.get('response', [])
             if vk_users:
                 vk_profile = vk_users[0]
-                results['profile_anomalies'] = detect_profile_anomalies(
+                anomalies = detect_profile_anomalies(
                     vk_profile, check.full_name,
                 )
                 store_vk_snapshot(check, vk_profile)
+                return ('profile_anomalies', anomalies)
         except Exception as e:
             logger.error(f"Profile anomaly detection failed: {e}")
+        return ('profile_anomalies', [])
 
-    # 6f. Last seen analysis
-    last_seen_data = {}
-    if vk_profiles and vk_token:
-        _update('Анализ последнего визита VK', 81)
+    def _worker_last_seen():
+        """6f. Last seen analysis."""
+        if not (vk_profiles and vk_token):
+            return ('last_seen_analysis', {})
         try:
-            last_seen_data = analyze_last_seen_patterns(vk_profiles, vk_token)
-            if last_seen_data:
-                results['last_seen_analysis'] = last_seen_data
-                most_recent = last_seen_data.get('most_recent', {})
+            lsd = analyze_last_seen_patterns(vk_profiles, vk_token)
+            if lsd:
+                most_recent = lsd.get('most_recent', {})
                 if most_recent.get('time_ago'):
                     logger.info(f"VK last seen: {most_recent['time_ago']}, platform: {most_recent.get('platform_name', '?')}")
+                return ('last_seen_analysis', lsd)
         except Exception as e:
             logger.error(f"Last seen analysis failed: {e}")
+        return ('last_seen_analysis', {})
+
+    def _worker_telegram_public():
+        """6i. Telegram public message search."""
+        try:
+            tg_public = search_telegram_public_messages(
+                full_name=check.full_name or '',
+                username=tg_username,
+            )
+            if tg_public and (tg_public.get('messages') or tg_public.get('error')):
+                msg_count = len(tg_public.get('messages', []))
+                if msg_count:
+                    logger.info(f"Telegram public messages: found {msg_count} messages in {len(tg_public.get('groups_mentioned', []))} groups")
+                return ('telegram_public_activity', tg_public)
+        except Exception as e:
+            logger.error(f"Telegram public message search failed: {e}")
+        return ('telegram_public_activity', None)
+
+    # --- Run all substeps in parallel ---
+    _update('Параллельный анализ: тексты, гео, группы, аномалии, Telegram', 75)
+
+    workers = [
+        _worker_text_analysis,
+        _worker_geo_extraction,
+        _worker_groups,
+        _worker_anomaly_detection,
+        _worker_last_seen,
+        _worker_telegram_public,
+    ]
+
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futures = {executor.submit(fn): fn.__doc__ for fn in workers}
+        for future in as_completed(futures):
+            label = futures[future]
+            try:
+                key, value = future.result()
+                if value is not None:
+                    results[key] = value
+            except Exception as e:
+                logger.error(f"Parallel worker '{label}' raised: {e}")
+
+    # --- Post-parallel sequential steps (depend on last_seen_data) ---
+    last_seen_data = results.get('last_seen_analysis', {})
 
     # 6g. Activity patterns (combines post timestamps + last_seen)
     if posts or last_seen_data:
@@ -1060,27 +1122,6 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
         results['activity_timeline'] = _build_activity_timeline(posts, check, last_seen_data)
     except Exception as e:
         logger.error(f"Activity timeline failed: {e}")
-
-    # 6i. Telegram public message search
-    _update('Поиск публичных сообщений Telegram', 82)
-    try:
-        tg_username = None
-        for p in all_profiles:
-            if p.get('platform') == 'telegram':
-                tg_username = p.get('username') or p.get('screen_name')
-                if tg_username:
-                    break
-        tg_public = search_telegram_public_messages(
-            full_name=check.full_name or '',
-            username=tg_username,
-        )
-        if tg_public and (tg_public.get('messages') or tg_public.get('error')):
-            results['telegram_public_activity'] = tg_public
-            msg_count = len(tg_public.get('messages', []))
-            if msg_count:
-                logger.info(f"Telegram public messages: found {msg_count} messages in {len(tg_public.get('groups_mentioned', []))} groups")
-    except Exception as e:
-        logger.error(f"Telegram public message search failed: {e}")
 
     _update('Поведенческий анализ завершён', 82)
     return results

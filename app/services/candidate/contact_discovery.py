@@ -158,9 +158,9 @@ class ContactDiscoveryService:
         self.found_emails: List[DiscoveredEmail] = []
         self._oracle_results: list = []  # raw forgot-password oracle results for cross-ref
 
-    # Overall time budget for discover() — pipeline enforces 30s via ThreadPoolExecutor,
+    # Overall time budget for discover() — pipeline enforces 60s via ThreadPoolExecutor,
     # but we also track internally so we can skip slow steps gracefully.
-    STAGE_TIMEOUT = 30  # seconds
+    STAGE_TIMEOUT = 60  # seconds
 
     def _time_left(self) -> float:
         """Seconds remaining in the time budget."""
@@ -191,10 +191,54 @@ class ContactDiscoveryService:
             logger.warning(f"{name}: failed to start — {e}")
             return None
 
+    def _run_wave(self, wave_name: str, tasks: list, max_workers: int) -> dict:
+        """Run a list of (name, func, args, kwargs) tasks in parallel within the time budget.
+
+        Returns:
+            dict mapping task name -> result (or None on error/timeout)
+        """
+        if not self._has_time():
+            logger.info(f"Contact discovery: skipping wave '{wave_name}' (time budget exhausted)")
+            return {}
+
+        results = {}
+        timeout = self._time_left()
+        logger.info(f"Contact discovery wave '{wave_name}': {len(tasks)} tasks, "
+                     f"max_workers={max_workers}, timeout={timeout:.1f}s")
+
+        pool = ThreadPoolExecutor(max_workers=max_workers)
+        try:
+            future_to_name = {}
+            for name, func, args, kwargs in tasks:
+                future = pool.submit(func, *args, **kwargs)
+                future_to_name[future] = name
+
+            for future in as_completed(future_to_name, timeout=timeout):
+                name = future_to_name[future]
+                try:
+                    results[name] = future.result()
+                except Exception as e:
+                    logger.warning(f"Wave '{wave_name}' task '{name}' error: {e}")
+                    results[name] = None
+        except TimeoutError:
+            logger.warning(f"Wave '{wave_name}' timed out after {timeout:.1f}s "
+                           f"(completed {len(results)}/{len(tasks)} tasks)")
+        except Exception as e:
+            logger.warning(f"Wave '{wave_name}' error: {e}")
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
+
+        return results
+
     def discover(self, check) -> dict:
         """
-        Main entry point. Runs all discovery steps in order.
-        Overall 30s time budget — steps are skipped when time runs out.
+        Main entry point. Runs discovery steps in parallel waves.
+        Overall 60s time budget — waves are skipped when time runs out.
+
+        Wave 1 (Group A — no dependencies): VK, TG, Business/FSSP, email guessing, Hunter.io
+        Wave 2 (Group B — needs emails/phones from Wave 1): LeakDB, Breach APIs, breach intel
+        Wave 3 (Group C — needs Wave 2): LeakDB xref, Oracle, Marketplace, partial phones
+        Wave 4 (Group D — needs all emails): Holehe
 
         Args:
             check: CandidateCheck model instance
@@ -234,69 +278,58 @@ class ContactDiscoveryService:
         effective_name = getattr(check, 'confirmed_name', None) or check.full_name
         birth_year_str = str(check.date_of_birth.year) if check.date_of_birth else None
 
-        # Step 1: VK profiles (API contacts)
-        self._run_step('VK contact extraction', self._extract_from_vk, social_profiles)
-
-        # Step 1b: Deep VK wall mining (posts, comments, tagged posts, photos)
-        self._run_step('Deep VK wall extraction', self._deep_vk_wall_extraction, social_profiles)
-
-        # Step 2: Telegram profiles
-        self._run_step('Telegram contact extraction', self._extract_from_telegram, social_profiles)
-
-        # Step 3: Business/FSSP records (fast, local data)
-        try:
+        # ── Wave 1: Independent sources (no cross-dependencies) ──────
+        def _wave1_business_fssp():
             self._extract_from_business(check.business_records or [])
             self._extract_from_fssp(check.fssp_records or [])
-        except Exception as e:
-            logger.warning(f"Business/FSSP contact extraction error: {e}")
 
-        # Step 4: Email guessing from usernames (fast, no network)
-        try:
+        def _wave1_email_guess():
             self._guess_emails(social_profiles, effective_name, birth_year=birth_year_str)
-        except Exception as e:
-            logger.warning(f"Email guessing error: {e}")
 
-        # Step 4b: Hunter.io corporate email search (if employer known from VK career)
-        self._run_step('Hunter.io corporate search', self._hunter_corporate_search, social_profiles, effective_name)
+        wave1_tasks = [
+            ('VK contact extraction',     self._extract_from_vk,          [social_profiles], {}),
+            ('Deep VK wall extraction',    self._deep_vk_wall_extraction,  [social_profiles], {}),
+            ('Telegram contact extraction', self._extract_from_telegram,   [social_profiles], {}),
+            ('Business/FSSP extraction',   _wave1_business_fssp,           [], {}),
+            ('Email guessing',             _wave1_email_guess,             [], {}),
+            ('Hunter.io corporate search', self._hunter_corporate_search,  [social_profiles, effective_name], {}),
+        ]
+        self._run_wave('Wave 1 (independent sources)', wave1_tasks, max_workers=6)
 
-        # Step 5: LeakDB name lookup
-        self._run_step('LeakDB name lookup', self._query_leakdb_by_name, effective_name)
-
-        # Step 6: Breach API enrichment
-        self._run_step('Breach API enrichment', self._query_breach_apis, social_profiles)
-
-        # Step 6.5: Breach intelligence analysis (services, old emails/phones)
-        breach_intelligence = {}
+        # ── Wave 2: Needs emails/phones from Wave 1 ─────────────────
         if self._has_time():
-            try:
-                breach_intelligence = self._analyze_breach_intelligence()
-            except Exception as e:
-                logger.warning(f"Breach intelligence analysis error: {e}")
+            wave2_tasks = [
+                ('LeakDB name lookup',          self._query_leakdb_by_name,      [effective_name], {}),
+                ('Breach API enrichment',        self._query_breach_apis,          [social_profiles], {}),
+                ('Breach intelligence analysis', self._analyze_breach_intelligence, [], {}),
+            ]
+            wave2_results = self._run_wave('Wave 2 (breach/leak enrichment)', wave2_tasks, max_workers=3)
+            breach_intelligence = wave2_results.get('Breach intelligence analysis') or {}
+        else:
+            breach_intelligence = {}
 
-        # Step 7: LeakDB cross-reference (snowball)
-        self._run_step('LeakDB cross-reference', self._cross_lookup_leakdb)
-
-        # Step 8: Forgot-password oracle
-        self._run_step('Forgot-password oracle', self._run_forgot_password_oracle, check)
-
-        # Step 8.5: Cross-reference partial phones from oracle
+        # ── Wave 3: Needs Wave 2 results ─────────────────────────────
         if self._has_time():
-            try:
-                self._cross_reference_partial_phones(check)
-            except Exception as e:
-                logger.warning(f"Partial phone cross-reference error: {e}")
+            wave3_tasks = [
+                ('LeakDB cross-reference',    self._cross_lookup_leakdb,           [], {}),
+                ('Forgot-password oracle',    self._run_forgot_password_oracle,     [check], {}),
+                ('Marketplace mining',        self._run_marketplace_scan,           [check], {}),
+                ('Partial phone cross-ref',   self._cross_reference_partial_phones, [check], {}),
+            ]
+            self._run_wave('Wave 3 (cross-reference & oracle)', wave3_tasks, max_workers=4)
 
-        # Step 9: Marketplace mining
-        self._run_step('Marketplace mining', self._run_marketplace_scan, check)
-
-        # Step 10: Holehe verification
-        self._run_step('Holehe verification', self._verify_with_holehe)
+        # ── Wave 4: Holehe verification (needs all emails discovered) ─
+        if self._has_time():
+            wave4_tasks = [
+                ('Holehe verification', self._verify_with_holehe, [], {}),
+            ]
+            self._run_wave('Wave 4 (email verification)', wave4_tasks, max_workers=1)
 
         elapsed = time.time() - self._start_time
         logger.info(f"Contact discovery completed in {elapsed:.1f}s "
                      f"({len(self.found_phones)} phones, {len(self.found_emails)} emails)")
 
-        # Step 11: Deduplicate, merge sources, score
+        # Final: Deduplicate, merge sources, score
         self._deduplicate_contacts()
 
         result = {

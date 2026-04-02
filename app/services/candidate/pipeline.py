@@ -3,18 +3,19 @@ Candidate Check Pipeline
 ========================
 Orchestrates the 9-stage unified background check (Stage 0-8).
 
-Wave-based execution for speed:
-  Wave 0: Stage 0 — Identity Confirmation (ЕГРЮЛ by INN)     [0-8%]
-  Wave 1: Stage 1 + Stage 2 in parallel                       [8-27%]
+Wave-based parallel execution for speed:
+  Wave 0: Stage 0 — Identity Confirmation (ЕГРЮЛ by INN)      [0-8%]
+  Wave 1: Stage 1 + Stage 2 in parallel                        [8-27%]
           Stage 1 — Gov Registries (courts, ФССП, checko.ru)
           Stage 2 — Security (sanctions + MVD passport)
-  Wave 2: Stage 3 — Social Media Discovery (VK, TG, phone)    [27-42%]
-  Wave 3: Stage 4 + Stage 5 in parallel                       [42-72%]
-          Stage 4 — Contact Discovery (breach APIs, oracle)
+  Wave 2: Stage 3 — Social Media (VK first, then TG+OK+Phone   [27-42%]
+          in parallel)
+  Wave 3: Stage 4 + Stage 5 in parallel                        [42-72%]
+          Stage 4 — Contact Discovery (4 internal waves)
           Stage 5 — Deep Social Analysis (face, Snoop, graph)
-  Wave 4: Stage 6 — Behavioral Intelligence                   [72-83%]
-  Wave 5: Stage 7 — Risk Scoring                              [83-93%]
-  Wave 6: Stage 8 — Report Generation                         [93-100%]
+  Wave 4: Stage 6 — Behavioral Intelligence (6 parallel subs)  [72-83%]
+  Wave 5: Stage 7 — Risk Scoring                               [83-93%]
+  Wave 6: Stage 8 — Report Generation                          [93-100%]
 """
 
 import json
@@ -1143,38 +1144,103 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 sources_checked += 1
             _pause()
 
-            # 3.2 Telegram search — uses VK screen_names for cross-ref
-            task.update('social', 'Telegram — поиск профилей...', 36)
-            try:
+            # 3.2–3.4 Telegram + OK.ru + Phone→TG — parallel search
+            task.update('social', 'Telegram + OK.ru + Телефон — параллельный поиск...', 36)
+
+            # Capture values needed by workers (no DB/task access inside workers)
+            _tg_birth_year = check.date_of_birth.year if check.date_of_birth else None
+            _tg_first = name_parts['first']
+            _tg_last = name_parts['last']
+            _tg_city = check.region or ''
+            _tg_vk_sns = list(vk_screen_names)
+
+            _ok_query = effective_name
+            _ok_city = check.region
+            _ok_birth_year = check.date_of_birth.year if check.date_of_birth else None
+
+            _phone = check.phone
+
+            def _tg_search_worker():
+                """Telegram discovery — pure computation, returns list."""
                 from app.services.phase1.telegram_discovery import TelegramDiscoveryService
-
-                tg_birth_year = check.date_of_birth.year if check.date_of_birth else None
-
-                def _tg_search():
-                    svc = TelegramDiscoveryService()
-                    try:
-                        return svc.discover(
-                            first_name=name_parts['first'],
-                            last_name=name_parts['last'],
-                            vk_screen_names=vk_screen_names,
-                            city=check.region or '',
-                            birth_year=tg_birth_year,
-                        )
-                    finally:
-                        svc.close()
-
-                # Timeout: 60s max for Telegram search
-                tg_pool = ThreadPoolExecutor(max_workers=1)
-                tg_future = tg_pool.submit(_tg_search)
+                svc = TelegramDiscoveryService()
                 try:
-                    tg_results = tg_future.result(timeout=60)
+                    return svc.discover(
+                        first_name=_tg_first,
+                        last_name=_tg_last,
+                        vk_screen_names=_tg_vk_sns,
+                        city=_tg_city,
+                        birth_year=_tg_birth_year,
+                    )
+                finally:
+                    svc.close()
+
+            def _ok_search_worker():
+                """OK.ru search — returns (results, is_demo_mode)."""
+                from app.services.phase1.ok_search_integration import OKSearchIntegration
+                ok_svc = OKSearchIntegration()
+
+                ok_age_from = None
+                ok_age_to = None
+                if _ok_birth_year:
+                    from datetime import date as _date_ok
+                    today_ok = _date_ok.today()
+                    ok_age = today_ok.year - _ok_birth_year
+                    ok_age_from = max(ok_age - 3, 16)
+                    ok_age_to = ok_age + 3
+
+                results = ok_svc.search(
+                    query=_ok_query,
+                    city=_ok_city,
+                    age_from=ok_age_from,
+                    age_to=ok_age_to,
+                    count=10,
+                )
+                return (results, ok_svc.is_demo_mode)
+
+            def _phone_tg_worker():
+                """Phone → Telegram lookup — returns list or None if no phone."""
+                if not _phone:
+                    return None
+                from app.services.phase1.telegram_discovery import TelegramDiscoveryService
+                tg_svc = TelegramDiscoveryService()
+                try:
+                    return tg_svc.search_by_phone(_phone)
+                finally:
+                    tg_svc.close()
+
+            social_pool = ThreadPoolExecutor(max_workers=3)
+            try:
+                tg_future = social_pool.submit(_tg_search_worker)
+                ok_future = social_pool.submit(_ok_search_worker)
+                phone_future = social_pool.submit(_phone_tg_worker)
+
+                # Collect results with 45s timeout each
+                try:
+                    tg_results = tg_future.result(timeout=45)
                 except Exception as e:
                     logger.warning(f"Telegram search timeout/error: {e}")
                     tg_results = []
-                finally:
-                    tg_pool.shutdown(wait=False, cancel_futures=True)
 
-                tg_count = 0
+                try:
+                    ok_result_tuple = ok_future.result(timeout=45)
+                    ok_results, ok_is_demo = ok_result_tuple
+                except Exception as e:
+                    logger.warning(f"OK.ru search timeout/error: {e}")
+                    ok_results = []
+                    ok_is_demo = False
+
+                try:
+                    phone_results = phone_future.result(timeout=45)
+                except Exception as e:
+                    logger.warning(f"TG phone lookup timeout/error: {e}")
+                    phone_results = None
+            finally:
+                social_pool.shutdown(wait=False, cancel_futures=True)
+
+            # --- Process Telegram results ---
+            tg_count = 0
+            try:
                 if tg_results:
                     for p in tg_results[:10]:
                         conf = p.get('confidence', '')
@@ -1218,35 +1284,13 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     task.add_message('Telegram: профили не найдены', 'info')
                 sources_checked += 1
             except Exception as e:
-                logger.warning(f"Telegram search failed: {e}")
+                logger.warning(f"Telegram result processing failed: {e}")
                 task.add_message('Telegram: поиск недоступен', 'warning')
                 sources_checked += 1
 
-            # 3.3 OK.ru search
-            task.update('social', 'OK.ru — поиск профилей...', 39)
+            # --- Process OK.ru results ---
+            ok_count = 0
             try:
-                from app.services.phase1.ok_search_integration import OKSearchIntegration
-                ok_svc = OKSearchIntegration()
-
-                ok_birth_year = check.date_of_birth.year if check.date_of_birth else None
-                ok_age_from = None
-                ok_age_to = None
-                if ok_birth_year:
-                    from datetime import date as _date_ok
-                    today_ok = _date_ok.today()
-                    ok_age = today_ok.year - ok_birth_year
-                    ok_age_from = max(ok_age - 3, 16)
-                    ok_age_to = ok_age + 3
-
-                ok_results = ok_svc.search(
-                    query=effective_name,
-                    city=check.region,
-                    age_from=ok_age_from,
-                    age_to=ok_age_to,
-                    count=10,
-                )
-
-                ok_count = 0
                 if ok_results:
                     existing_urls = {p.get('url', '') for p in social_profiles}
                     for p in ok_results:
@@ -1277,28 +1321,19 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     task.add_message(f'OK.ru: найдено {ok_count} профилей', 'success')
                     sources_with_results += 1
                 else:
-                    is_demo = ok_svc.is_demo_mode
                     task.add_message(
-                        'OK.ru: профили не найдены' + (' (демо)' if is_demo else ''),
+                        'OK.ru: профили не найдены' + (' (демо)' if ok_is_demo else ''),
                         'info',
                     )
                 sources_checked += 1
             except Exception as e:
-                logger.warning(f"OK.ru search failed: {e}")
+                logger.warning(f"OK.ru result processing failed: {e}")
                 task.add_message('OK.ru: поиск недоступен', 'warning')
                 sources_checked += 1
 
-            # 3.4 Phone → Telegram lookup (if phone provided)
-            if check.phone:
-                task.update('social', 'Telegram — поиск по телефону...', 40)
+            # --- Process Phone → Telegram results ---
+            if _phone:
                 try:
-                    from app.services.phase1.telegram_discovery import TelegramDiscoveryService
-                    tg_svc = TelegramDiscoveryService()
-                    try:
-                        phone_results = tg_svc.search_by_phone(check.phone)
-                    finally:
-                        tg_svc.close()
-
                     if phone_results:
                         existing_usernames = {
                             p.get('username', '').lower() for p in social_profiles if p.get('username')
@@ -1327,7 +1362,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         task.add_message('Telegram по телефону: не найден', 'info')
                     sources_checked += 1
                 except Exception as e:
-                    logger.warning(f"TG phone lookup in pipeline failed: {e}")
+                    logger.warning(f"TG phone lookup result processing failed: {e}")
                     task.add_message('Telegram по телефону: ошибка', 'warning')
                     sources_checked += 1
 
@@ -1372,10 +1407,14 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     task.update('social', 'Профиль подтверждён — продолжение', 42)
 
             # ══════════════════════════════════════════════
-            # STAGE 4: CONTACT DISCOVERY [42-57%]
+            # WAVE 3: STAGE 4 + STAGE 5 IN PARALLEL [42-72%]
+            # Stage 4 — Contact Discovery (breach APIs, oracle)
+            # Stage 5 — Deep Social Analysis (face, Snoop, graph)
+            # Both read from check (loaded in memory) — safe for
+            # concurrent reads. DB writes happen after both complete.
             # ══════════════════════════════════════════════
-            stage4_start = time.time()
-            task.update('contacts', 'Поиск контактных данных...', 44)
+            wave3_start = time.time()
+            task.update('contacts', 'Контакты + Соц. анализ — параллельно...', 44)
 
             # Build input contacts fallback (always preserved even on timeout/error)
             input_contacts = {'phones': [], 'emails': []}
@@ -1396,27 +1435,28 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     'confidence_score': 0.99, 'sources': ['input'],
                 })
 
+            # ── Launch Stage 4 + Stage 5 in parallel ──
+            from app.services.candidate.contact_discovery import ContactDiscoveryService
+            from app.services.candidate.social_analysis import run_social_analysis
+
+            def _run_contact_discovery():
+                discovery = ContactDiscoveryService()
+                return discovery.discover(check)
+
+            def _run_social_analysis():
+                return run_social_analysis(check)
+
+            wave3_pool = ThreadPoolExecutor(max_workers=2)
+            stage4_future = wave3_pool.submit(_run_contact_discovery)
+            stage5_future = wave3_pool.submit(_run_social_analysis)
+            logger.info("Wave 3: Stage 4 (contacts) + Stage 5 (social) launched in parallel")
+
+            # ── Collect Stage 4 results ──
+            contacts = input_contacts
             try:
-                from app.services.candidate.contact_discovery import ContactDiscoveryService
-
-                def _run_contact_discovery():
-                    discovery = ContactDiscoveryService()
-                    return discovery.discover(check)
-
-                # Run with 30s hard timeout
-                cd_pool = ThreadPoolExecutor(max_workers=1)
-                cd_future = cd_pool.submit(_run_contact_discovery)
-                try:
-                    contacts = cd_future.result(timeout=30)
-                except Exception as e:
-                    logger.warning(f"Contact discovery timeout/error: {e}")
-                    contacts = input_contacts  # preserve input contacts on timeout
-                finally:
-                    cd_pool.shutdown(wait=False, cancel_futures=True)
-
+                contacts = stage4_future.result(timeout=60)
                 phones = contacts.get('phones', [])
                 emails = contacts.get('emails', [])
-
                 if phones or emails:
                     task.add_message(
                         f'Контакты: найдено {len(phones)} тел., {len(emails)} email',
@@ -1426,16 +1466,12 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 else:
                     task.add_message('Контакты: дополнительных данных не найдено', 'info')
                 sources_checked += 1
-                task.update(
-                    'contacts',
-                    f'Найдено {len(phones)} тел., {len(emails)} email',
-                    57,
-                )
             except Exception as e:
-                logger.error(f"Contact discovery error: {e}", exc_info=True)
-                contacts = input_contacts
-                task.add_message('Контакты: ошибка поиска', 'warning')
-                task.update('contacts', 'Ошибка поиска контактов', 57)
+                logger.warning(f"Contact discovery timeout/error: {e}")
+                task.add_message('Контакты: таймаут/ошибка', 'warning')
+                sources_checked += 1
+
+            task.update('contacts', 'Контакты найдены', 55)
 
             # Demo fallback for Stage 4
             phones = contacts.get('phones', [])
@@ -1445,7 +1481,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 task.add_message('Контакты: демо-данные (нет API)', 'info')
                 sources_with_results += 1
 
-            # ── Phone intelligence (free sources) ──
+            # ── Phone intelligence + INN breach (quick, run while waiting for Stage 5) ──
             if check.phone:
                 try:
                     from app.services.phase2.phone_intelligence import run_phone_intelligence
@@ -1457,7 +1493,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             + (f", {summary['breach_count']} утечек" if summary.get('breach_count') else ''),
                             'success',
                         )
-                    # Add discovered emails to contacts
                     for email in summary.get('emails_found', []):
                         contacts.setdefault('emails', []).append({
                             'email': email.lower(), 'source': 'phone_intelligence',
@@ -1468,7 +1503,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 except Exception as e:
                     logger.debug(f"Phone intelligence: {e}")
 
-            # ── INN breach search ──
             if check.inn:
                 try:
                     from app.services.phase2.inn_breach_search import search_inn_in_breaches
@@ -1480,25 +1514,14 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             check.contact_discoveries = contacts
             db.session.commit()
-            logger.info(f"Stage 4 completed in {time.time() - stage4_start:.1f}s")
+            logger.info(f"Stage 4 completed in {time.time() - wave3_start:.1f}s")
 
-            # ══════════════════════════════════════════════
-            # STAGE 5: DEEP SOCIAL ANALYSIS [57-72%]
-            # ══════════════════════════════════════════════
-            stage5_start = time.time()
-            task.update('social_analysis', 'Глубокий анализ соцсетей...', 58)
-
+            # ── Collect Stage 5 results ──
+            task.update('social_analysis', 'Ожидание соц. анализа...', 60)
+            social_results = {}
             try:
-                from app.services.candidate.social_analysis import run_social_analysis
+                social_results = stage5_future.result(timeout=120)
 
-                def stage5_callback(stage, msg, pct):
-                    task.update('social_analysis', msg, pct or 58)
-
-                social_results = run_social_analysis(
-                    check, task_status_callback=stage5_callback,
-                )
-
-                # Save results to model
                 check.social_graph_data = social_results.get('social_graph', {})
                 check.face_matches = social_results.get('face_matches', [])
                 check.username_accounts = social_results.get('username_accounts', [])
@@ -1514,18 +1537,24 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     )
                     sources_with_results += 1
                 sources_checked += 1
+            except Exception as e:
+                logger.error(f"Stage 5 social analysis timeout/error: {e}")
+                task.add_message('Глубокий анализ соцсетей: ошибка (пропущен)', 'warning')
+                sources_checked += 1
 
-                # Stage 5e: Feedback loop — new accounts → supplementary contacts
-                new_accounts = social_results.get('new_accounts_for_enrichment', [])
-                if new_accounts:
-                    task.update('social_analysis', 'Дообогащение новых аккаунтов', 67)
-                    from app.services.candidate.contact_discovery import ContactDiscoveryService
+            wave3_pool.shutdown(wait=False, cancel_futures=True)
+
+            # Stage 5e: Feedback loop — new accounts → supplementary contacts
+            # (runs after BOTH Stage 4 and 5 complete)
+            new_accounts = social_results.get('new_accounts_for_enrichment', [])
+            if new_accounts:
+                task.update('social_analysis', 'Дообогащение новых аккаунтов', 67)
+                try:
                     contact_service = ContactDiscoveryService()
                     supplementary = contact_service.discover_supplementary(
                         new_accounts=new_accounts,
                         existing_contacts=check.contact_discoveries or {},
                     )
-                    # Merge supplementary contacts into existing
                     existing = check.contact_discoveries or {}
                     for key in ['phones', 'emails']:
                         existing_list = existing.get(key, [])
@@ -1551,15 +1580,13 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             f'Дообогащение: +{supp_phones} тел., +{supp_emails} email',
                             'success',
                         )
-
-            except Exception as e:
-                logger.error(f"Stage 5 social analysis error: {e}", exc_info=True)
-                task.add_message('Глубокий анализ соцсетей: ошибка (пропущен)', 'warning')
-                sources_checked += 1
+                except Exception as e:
+                    logger.warning(f"Stage 5e feedback loop error: {e}")
 
             task.update('social_analysis', 'Социальный анализ завершён', 72)
-            logger.info(f"Stage 5 completed in {time.time() - stage5_start:.1f}s")
-            _pause()
+            logger.info(
+                f"Wave 3 (Stage 4+5) completed in {time.time() - wave3_start:.1f}s"
+            )
 
             # ══════════════════════════════════════════════
             # STAGE 6: BEHAVIORAL INTELLIGENCE [72-83%]
@@ -1573,9 +1600,18 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 def stage6_callback(stage, msg, pct):
                     task.update('behavioral', msg, pct or 73)
 
-                behavioral_results = run_behavioral_analysis(
-                    check, task_status_callback=stage6_callback,
+                # Hard timeout: 60s max for behavioral analysis
+                _beh_pool = ThreadPoolExecutor(max_workers=1)
+                _beh_future = _beh_pool.submit(
+                    run_behavioral_analysis, check, stage6_callback,
                 )
+                try:
+                    behavioral_results = _beh_future.result(timeout=60)
+                except Exception as _beh_err:
+                    logger.warning(f"Behavioral analysis timeout/error: {_beh_err}")
+                    behavioral_results = {}
+                finally:
+                    _beh_pool.shutdown(wait=False, cancel_futures=True)
 
                 check.text_analysis = behavioral_results.get('text_analysis', {})
                 check.geo_analysis = behavioral_results.get('geo_analysis', {})
@@ -1805,5 +1841,5 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
 
 def _pause():
-    """Brief delay between source requests."""
-    time.sleep(0.3)
+    """Minimal delay between source requests to avoid rate limiting."""
+    time.sleep(0.05)
