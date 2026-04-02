@@ -530,6 +530,27 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             check.bankruptcy_records = bankruptcy_records
             db.session.commit()
 
+            # ── Address intelligence ──
+            if check.registered_address:
+                try:
+                    from app.services.phase3.address_intelligence import search_by_address
+                    addr_intel = search_by_address(
+                        check.registered_address, check.inn or '',
+                    )
+                    if addr_intel.get('mass_registration'):
+                        task.add_message(
+                            f"Адрес массовой регистрации: "
+                            f"{addr_intel.get('mass_registration_count', '?')} организаций",
+                            'warning',
+                        )
+                    elif addr_intel.get('found'):
+                        task.add_message(
+                            f"По адресу найдено {len(addr_intel['connections'])} связанных лиц",
+                            'info',
+                        )
+                except Exception as e:
+                    logger.debug(f"Address intelligence: {e}")
+
             task.update('identity', 'Личность подтверждена', 8)
             logger.info(
                 f"Stage 0 complete: INN={check.inn}, confirmed={check.identity_confirmed}, "
@@ -1423,6 +1444,39 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 contacts = _get_demo_contacts(check.full_name)
                 task.add_message('Контакты: демо-данные (нет API)', 'info')
                 sources_with_results += 1
+
+            # ── Phone intelligence (free sources) ──
+            if check.phone:
+                try:
+                    from app.services.phase2.phone_intelligence import run_phone_intelligence
+                    phone_intel = run_phone_intelligence(check.phone)
+                    summary = phone_intel.get('summary', {})
+                    if summary.get('total_sources_with_data', 0) > 0:
+                        task.add_message(
+                            f"Телефон: найдено в {summary['total_sources_with_data']} источниках"
+                            + (f", {summary['breach_count']} утечек" if summary.get('breach_count') else ''),
+                            'success',
+                        )
+                    # Add discovered emails to contacts
+                    for email in summary.get('emails_found', []):
+                        contacts.setdefault('emails', []).append({
+                            'email': email.lower(), 'source': 'phone_intelligence',
+                            'confidence': 'средняя', 'verified': False,
+                            'profile_name': 'Разведка по телефону',
+                            'confidence_score': 0.55, 'sources': ['phone_intelligence'],
+                        })
+                except Exception as e:
+                    logger.debug(f"Phone intelligence: {e}")
+
+            # ── INN breach search ──
+            if check.inn:
+                try:
+                    from app.services.phase2.inn_breach_search import search_inn_in_breaches
+                    inn_breaches = search_inn_in_breaches(check.inn)
+                    if inn_breaches.get('found'):
+                        task.add_message('ИНН найден в базах утечек данных', 'warning')
+                except Exception as e:
+                    logger.debug(f"INN breach search: {e}")
 
             check.contact_discoveries = contacts
             db.session.commit()

@@ -307,7 +307,7 @@
             {% endif %}
             <span class="text-xl font-bold text-white">{{ rc.label }}</span>
             {% if check.risk_score is not none %}
-            <span class="ml-auto text-2xl font-bold font-mono {% if check.risk_score < 15 %}text-green-400{% elif check.risk_score < 35 %}text-yellow-400{% elif check.risk_score < 60 %}text-orange-400{% else %}text-red-400{% endif %}">{{ check.risk_score }}/100</span>
+            <span class="ml-auto text-2xl font-bold font-mono {% if check.risk_score < 30 %}text-green-400{% elif check.risk_score < 60 %}text-yellow-400{% elif check.risk_score < 80 %}text-red-400{% else %}text-red-500{% endif %}">{{ check.risk_score }}/100</span>
             {% endif %}
         </div>
         <p class="text-sm text-gray-300 mb-3">{{ rc.desc }}</p>
@@ -315,7 +315,7 @@
         {% if check.risk_narrative %}
         <div class="rounded-lg p-3 mb-3" style="background: rgba(196, 149, 90, 0.06); border: 1px solid rgba(196, 149, 90, 0.15);">
             <div class="flex items-center gap-1.5 mb-1">
-                <span class="text-xs font-medium text-accent-bright">AI Risk Narrative</span>
+                <span class="text-xs font-medium text-accent-bright">AI-анализ рисков</span>
             </div>
             <p class="text-sm text-gray-300 leading-relaxed">{{ check.risk_narrative }}</p>
         </div>
@@ -547,7 +547,7 @@
         {% if business_records is none %}
             <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
         {% elif business_records|length == 0 %}
-            <div class="empty-state good">Записей не найдено</div>
+            <div class="empty-state good">Нет</div>
         {% else %}
             {% for biz in business_records %}
             <div class="dossier-card">
@@ -622,7 +622,7 @@
         {% if court_records is none %}
             <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
         {% elif court_records|length == 0 %}
-            <div class="empty-state good">Судебных дел не найдено</div>
+            <div class="empty-state good">Нет</div>
         {% else %}
             {# Confidence summary #}
             {% set verified_count = court_records | selectattr('confidence', 'defined') | selectattr('confidence', 'equalto', 'VERIFIED') | list | length %}
@@ -673,13 +673,13 @@
                     <div class="flex flex-wrap items-center gap-1.5 shrink-0">
                         {# Confidence badge #}
                         {% if case.get('confidence') == 'VERIFIED' %}
-                            <span class="conf-badge conf-verified">VERIFIED</span>
+                            <span class="conf-badge conf-verified">Подтверждено</span>
                         {% elif case.get('confidence') == 'LIKELY' %}
-                            <span class="conf-badge conf-likely">LIKELY</span>
+                            <span class="conf-badge conf-likely">Вероятно</span>
                         {% elif case.get('confidence') == 'POSSIBLE' %}
-                            <span class="conf-badge conf-possible">POSSIBLE</span>
+                            <span class="conf-badge conf-possible">Возможно</span>
                         {% elif case.get('confidence') == 'UNVERIFIED' %}
-                            <span class="conf-badge conf-unverified">UNVERIFIED</span>
+                            <span class="conf-badge conf-unverified">Не подтверждено</span>
                         {% endif %}
                         {% if 'уголов' in cat %}
                             <span class="status-badge badge-red shrink-0">&#x1F534; Уголовное</span>
@@ -743,7 +743,7 @@
         {% if fssp_records is none %}
             <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
         {% elif fssp_records|length == 0 %}
-            <div class="empty-state good">Исполнительных производств не найдено</div>
+            <div class="empty-state good">Нет</div>
         {% else %}
             {% for proc in fssp_records %}
                 {% if proc.get('source') == 'manual' %}
@@ -808,7 +808,7 @@
         {% if bankruptcy_records is none %}
             <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
         {% elif bankruptcy_records|length == 0 %}
-            <div class="empty-state good">Банкротных дел не найдено</div>
+            <div class="empty-state good">Нет</div>
         {% else %}
             {% for br in bankruptcy_records %}
                 {% if br.get('source') == 'manual' %}
@@ -911,7 +911,7 @@
                 </div>
             {% endfor %}
         {% else %}
-            <div class="empty-state good">Записей в залоговом реестре не найдено</div>
+            <div class="empty-state good">Нет</div>
             <div class="text-xs text-gray-500 mt-2">
                 <a href="https://www.reestr-zalogov.ru/search/index" target="_blank" rel="noopener"
                    class="text-accent hover:text-accent-bright transition">
@@ -1007,7 +1007,23 @@
         {% if social_profiles is none %}
             <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
         {% elif social_profiles|length == 0 %}
-            <div class="empty-state">Профилей не найдено</div>
+            <div class="empty-state">
+                <div class="text-center">
+                    <div class="text-gray-500 mb-3">Нет</div>
+                    <div class="text-xs text-gray-600 leading-relaxed">
+                        Поиск выполнен: ВКонтакте, Telegram, Одноклассники.<br>
+                        Возможные причины: закрытый аккаунт, другое имя в соцсетях.
+                    </div>
+                    <div class="mt-3 flex items-center justify-center gap-4 text-xs">
+                        <a href="https://vk.com/search?c[name]=1&c[q]={{ check.full_name | urlencode }}"
+                           target="_blank" rel="noopener"
+                           class="text-accent hover:text-accent-bright transition">ВКонтакте &#x2197;</a>
+                        <a href="https://t.me/{{ check.full_name.split()[0]|lower }}"
+                           target="_blank" rel="noopener"
+                           class="text-accent hover:text-accent-bright transition">Telegram &#x2197;</a>
+                    </div>
+                </div>
+            </div>
         {% else %}
             {% for profile in social_profiles %}
             <div class="social-card">
@@ -1072,7 +1088,7 @@
         </div>
 
         {% if not phones and not emails %}
-            <div class="empty-state">Дополнительных контактов не обнаружено</div>
+            <div class="empty-state">Нет</div>
         {% else %}
             {# Split phones by confidence threshold (0.6) #}
             {% set shown_phones = [] %}
@@ -1089,15 +1105,21 @@
                 <div class="mb-4">
                     <h3 class="text-sm font-medium text-gray-400 mb-2">Телефоны</h3>
                     {% for ph in shown_phones %}
+                        {% set phone_num = ph.get('number', '') %}
+                        {% set is_user_phone = check.phone and (phone_num.replace(' ', '') in check.phone.replace(' ', '') or check.phone.replace(' ', '') in phone_num.replace(' ', '')) %}
                         <div class="dossier-card flex items-center justify-between py-3 gap-3">
                             <div class="flex items-center gap-3 min-w-0">
-                                <span class="text-sm text-white font-mono">{{ ph.get('number', '') }}</span>
-                                {% set pcs = ph.get('confidence_score', 0) %}
-                                {% if pcs > 0 %}
-                                    <span class="confidence-badge {% if pcs >= 0.9 %}conf-high{% elif pcs >= 0.7 %}conf-medium{% else %}conf-low{% endif %}">{{ (pcs * 100)|round|int }}%</span>
-                                {% endif %}
-                                {% if ph.get('source_count', 0) > 1 %}
-                                    <span class="text-xs text-gray-600">({{ ph.source_count }} источников)</span>
+                                <span class="text-sm text-white font-mono">{{ phone_num }}</span>
+                                {% if is_user_phone %}
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full text-gray-500 border border-white/[0.08] italic">Введён пользователем</span>
+                                {% else %}
+                                    {% set pcs = ph.get('confidence_score', 0) %}
+                                    {% if pcs > 0 %}
+                                        <span class="confidence-badge {% if pcs >= 0.9 %}conf-high{% elif pcs >= 0.7 %}conf-medium{% else %}conf-low{% endif %}">{{ (pcs * 100)|round|int }}%</span>
+                                    {% endif %}
+                                    {% if ph.get('source_count', 0) > 1 %}
+                                        <span class="text-xs text-gray-600">({{ ph.source_count }} источников)</span>
+                                    {% endif %}
                                 {% endif %}
                                 {% if ph.get('profile_name') %}
                                     <span class="text-xs text-gray-600 truncate">{{ ph.profile_name }}</span>
@@ -1680,7 +1702,7 @@
             {% endfor %}
         </div>
         {% else %}
-        <div class="empty-state good">Подозрительных групп не обнаружено</div>
+        <div class="empty-state good">Нет</div>
         {% endif %}
 
         {% if group_analysis.get('category_counts') %}
@@ -1842,12 +1864,25 @@
                 <div class="flex-1">
                     {% set etype = event.get('type', '') %}
                     {% if etype %}
+                        {% set event_labels = {
+                            'last_seen': 'VK онлайн',
+                            'check_started': 'Проверка начата',
+                            'check_completed': 'Проверка завершена',
+                            'stage_complete': 'Этап завершён',
+                            'vk_found': 'Профиль VK',
+                            'telegram_found': 'Профиль Telegram',
+                            'court_found': 'Судебное дело',
+                            'fssp_found': 'Исполнительное производство',
+                            'contact_found': 'Контакт найден',
+                            'risk_high': 'Высокий риск',
+                            'risk_medium': 'Средний риск',
+                        } %}
                         <span class="inline-block px-2 py-0.5 rounded text-xs font-medium mb-1
                             {% if etype == 'last_seen' %}badge-green
                             {% elif 'суд' in etype|lower or 'court' in etype|lower %}badge-yellow
                             {% elif 'бизнес' in etype|lower or 'business' in etype|lower %}badge-blue
                             {% elif 'соц' in etype|lower or 'social' in etype|lower %}badge-green
-                            {% else %}badge-gray{% endif %}">{% if etype == 'last_seen' %}VK online{% else %}{{ etype }}{% endif %}</span>
+                            {% else %}badge-gray{% endif %}">{{ event_labels.get(etype, etype) }}</span>
                     {% endif %}
                     <div class="text-sm text-gray-300">{{ event.get('summary', event.get('description', event.get('text', ''))) }}</div>
                 </div>

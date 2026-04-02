@@ -233,15 +233,56 @@ function updateStages(currentStage, progress) {
     });
 }
 
+var seenMessages = {};
+var currentStageKey = null;
+
+function detectStage(text) {
+    var t = text.toLowerCase();
+    if (t.indexOf('инн') >= 0 || t.indexOf('личность') >= 0 || t.indexOf('егрюл по инн') >= 0 || t.indexOf('банкротство') >= 0 || t.indexOf('ефрсб') >= 0)
+        return {key: 'identity', label: 'Личность'};
+    if (t.indexOf('суды') >= 0 || t.indexOf('фссп') >= 0 || t.indexOf('залог') >= 0 || t.indexOf('реестр') >= 0 || t.indexOf('егрюл') >= 0 || t.indexOf('casebook') >= 0)
+        return {key: 'registries', label: 'Реестры'};
+    if (t.indexOf('санкц') >= 0 || t.indexOf('мвд') >= 0 || t.indexOf('интерпол') >= 0 || t.indexOf('безопасн') >= 0 || t.indexOf('розыск') >= 0)
+        return {key: 'security', label: 'Безопасность'};
+    if (t.indexOf('vk') >= 0 || t.indexOf('telegram') >= 0 || t.indexOf('соцсет') >= 0 || t.indexOf('ok.ru') >= 0)
+        return {key: 'social', label: 'Соцсети'};
+    if (t.indexOf('контакт') >= 0 || t.indexOf('телефон') >= 0 || t.indexOf('email') >= 0 || t.indexOf('holehe') >= 0 || t.indexOf('утечк') >= 0)
+        return {key: 'contacts', label: 'Контакты'};
+    if (t.indexOf('анализ') >= 0 || t.indexOf('поведен') >= 0 || t.indexOf('граф') >= 0 || t.indexOf('search4faces') >= 0 || t.indexOf('snoop') >= 0)
+        return {key: 'deep', label: 'Глубокий анализ'};
+    if (t.indexOf('риск') >= 0 || t.indexOf('скоринг') >= 0)
+        return {key: 'risk', label: 'Риск-скоринг'};
+    if (t.indexOf('отчёт') >= 0 || t.indexOf('досье') >= 0 || t.indexOf('завершен') >= 0 || t.indexOf('report') >= 0)
+        return {key: 'report', label: 'Отчёт'};
+    return {key: 'general', label: 'Общее'};
+}
+
 function appendLog(messages) {
     var container = document.getElementById('log-container');
     var newMessages = messages.slice(lastMessageCount);
     lastMessageCount = messages.length;
 
     newMessages.forEach(function(msg) {
+        var text = msg.text || '';
+        var key = text.trim().toLowerCase();
+
+        // Deduplicate
+        if (seenMessages[key]) return;
+        seenMessages[key] = true;
+
+        // Stage grouping
+        var stage = detectStage(text);
+        if (stage.key !== currentStageKey) {
+            currentStageKey = stage.key;
+            var header = document.createElement('div');
+            header.className = 'log-entry text-accent-bright font-medium mt-2';
+            header.style.cssText = 'border-left: 2px solid var(--accent); padding-left: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;';
+            header.textContent = stage.label;
+            container.appendChild(header);
+        }
+
         var div = document.createElement('div');
         div.className = 'log-entry';
-
         var colors = {
             'success': 'text-green-400',
             'warning': 'text-yellow-400',
@@ -249,7 +290,7 @@ function appendLog(messages) {
             'info': 'text-gray-400',
         };
         div.className += ' ' + (colors[msg.type] || 'text-gray-400');
-        div.textContent = msg.text;
+        div.textContent = text;
         container.appendChild(div);
     });
 

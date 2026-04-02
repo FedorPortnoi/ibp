@@ -138,11 +138,11 @@ def calculate_risk_score(flags: list) -> dict:
 
     score = min(raw_score, 100)
 
-    if score >= 60:
+    if score >= 80:
         level, level_name = 'critical', 'Критический риск'
-    elif score >= 35:
+    elif score >= 60:
         level, level_name = 'high', 'Высокий риск'
-    elif score >= 15:
+    elif score >= 30:
         level, level_name = 'medium', 'Средний риск'
     else:
         level, level_name = 'low', 'Низкий риск'
