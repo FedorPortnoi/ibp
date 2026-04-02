@@ -230,14 +230,23 @@ candidate_tasks = {}
 
 
 def cleanup_old_tasks(task_store, max_age_seconds=3600):
-    """Remove completed tasks older than max_age_seconds and stale running tasks."""
+    """Remove completed tasks older than max_age_seconds and force-complete stale ones."""
     now = datetime.now()
     expired = []
     for task_id, task in task_store.items():
         # Remove completed tasks after max_age_seconds
         if task.completed_at and (now - task.completed_at).total_seconds() > max_age_seconds:
             expired.append(task_id)
-        # Remove stuck/running tasks after 4x max_age (prevent memory leak)
+        # Force-complete tasks stuck running for >30 minutes
+        elif hasattr(task, 'started_at') and task.started_at and not task.completed_at:
+            elapsed = (now - task.started_at).total_seconds()
+            if elapsed > 1800:
+                task.error = f"Pipeline timed out after {int(elapsed)}s"
+                task.completed_at = now
+                task._sync_to_db()
+                logger.warning(f"Force-completed stale task {task_id} after {int(elapsed)}s")
+                expired.append(task_id)
+        # Remove very old stuck tasks (prevent memory leak)
         elif hasattr(task, 'started_at') and task.started_at:
             if (now - task.started_at).total_seconds() > max_age_seconds * 4:
                 expired.append(task_id)

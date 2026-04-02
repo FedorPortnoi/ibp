@@ -712,7 +712,15 @@ def search_telegram_public_messages(full_name: str, username: str = None) -> dic
         from telethon.tl.types import InputMessagesFilterEmpty
 
         client = TelegramClient(session_path, int(api_id), api_hash)
-        await client.connect()
+        try:
+            await asyncio.wait_for(client.connect(), timeout=10)
+        except asyncio.TimeoutError:
+            logger.warning("Telegram public search: connect() timed out after 10s")
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
+            return empty_result
 
         if not await client.is_user_authorized():
             logger.warning(
@@ -778,12 +786,14 @@ def search_telegram_public_messages(full_name: str, username: str = None) -> dic
     try:
         loop = asyncio.new_event_loop()
         try:
-            result = loop.run_until_complete(_search_global())
+            result = loop.run_until_complete(
+                asyncio.wait_for(_search_global(), timeout=45)
+            )
         finally:
             loop.close()
         return result
     except asyncio.TimeoutError:
-        logger.warning("Telegram public search: timed out after 30s")
+        logger.warning("Telegram public search: timed out after 45s")
         return {
             'messages': [],
             'total_found': 0,
