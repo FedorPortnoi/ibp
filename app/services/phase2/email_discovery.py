@@ -384,14 +384,10 @@ class EmailDiscoveryService:
 
                 out = []
                 async with httpx.AsyncClient(timeout=5.0) as client:
-                    # Run in batches for speed
-                    batch_size = 30
-                    for i in range(0, len(websites), batch_size):
-                        batch = websites[i:i + batch_size]
-                        tasks = []
-                        for func in batch:
-                            tasks.append(_safe_call(func, email_addr, client, out))
-                        await asyncio.gather(*tasks)
+                    # Run ALL modules simultaneously for maximum speed
+                    tasks = [_safe_call(func, email_addr, client, out)
+                             for func in websites]
+                    await asyncio.gather(*tasks)
                 return out
 
             async def _safe_call(func, email_addr, client, out):
@@ -892,14 +888,14 @@ def verify_emails_with_holehe(emails: List[str], max_emails: int = 5) -> List[Di
                 'verified_on': [],
             }
 
-    # Run concurrently (3 at a time) with per-email timeout
-    executor = ThreadPoolExecutor(max_workers=3)
+    # Run concurrently (8 at a time) with per-email timeout
+    executor = ThreadPoolExecutor(max_workers=8)
     try:
         future_to_email = {
             executor.submit(check_single, email): email
             for email in ordered_emails
         }
-        for future in as_completed(future_to_email, timeout=30):
+        for future in as_completed(future_to_email, timeout=45):
             try:
                 result = future.result(timeout=5)
                 results.append(result)

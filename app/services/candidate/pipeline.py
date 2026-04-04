@@ -4,12 +4,11 @@ Candidate Check Pipeline
 Orchestrates the 9-stage unified background check (Stage 0-8).
 
 Wave-based parallel execution for speed:
-  Wave 0: Stage 0 — Identity Confirmation (ЕГРЮЛ by INN)      [0-8%]
-  Wave 1: Stage 1 + Stage 2 in parallel                        [8-27%]
+  Wave 0: Stage 0 — Identity (ЕГРЮЛ + Bankruptcy in parallel)  [0-8%]
+  Wave 1: Stage 1 + Stage 2 in parallel (60s timeout)          [8-27%]
           Stage 1 — Gov Registries (courts, ФССП, checko.ru)
           Stage 2 — Security (sanctions + MVD passport)
-  Wave 2: Stage 3 — Social Media (VK first, then TG+OK+Phone   [27-42%]
-          in parallel)
+  Wave 2: Stage 3 — Social Media (VK+TG+OK+Phone ALL parallel) [27-42%]
   Wave 3: Stage 4 + Stage 5 in parallel                        [42-72%]
           Stage 4 — Contact Discovery (4 internal waves)
           Stage 5 — Deep Social Analysis (face, Snoop, graph)
@@ -407,26 +406,45 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             }
             bankruptcy_records = []
 
-            # Step 0.1 — ЕГРЮЛ Direct Lookup by INN
+            # Step 0.1 + 0.2 — ЕГРЮЛ + Банкротство IN PARALLEL
             egrul_inn_records = []
             logger.info(
                 f"Stage 0: Starting identity confirmation. "
                 f"INN='{check.inn}', name='{check.full_name}', "
                 f"demo_mode={_is_demo_mode()}"
             )
-            if check.inn:
-                task.update('identity', 'ЕГРЮЛ — поиск по ИНН...', 2)
+            task.update('identity', 'ЕГРЮЛ + ЕФРСБ — параллельная проверка...', 2)
+
+            def _stage0_egrul():
+                """EGRUL lookup by INN — pure computation."""
+                if not check.inn:
+                    return []
+                from app.services.phase3.business_registry import BusinessRegistrySearch
+                searcher = BusinessRegistrySearch(timeout=25)
+                logger.info(f"Stage 0: Calling search_by_inn('{check.inn}')")
+                results = searcher.search_by_inn(check.inn)
+                return [r.to_dict() for r in results] if results else []
+
+            def _stage0_bankruptcy():
+                """Bankruptcy lookup — pure computation."""
+                from app.services.candidate.bankruptcy_service import BankruptcyService
+                svc = BankruptcyService(timeout=25)
+                dob_str = check.date_of_birth.strftime('%Y-%m-%d') if check.date_of_birth else None
+                results = svc.search(check.full_name, inn=check.inn, dob=dob_str)
+                return [r.to_dict() for r in results]
+
+            stage0_pool = ThreadPoolExecutor(max_workers=2)
+            try:
+                egrul_future = stage0_pool.submit(_stage0_egrul)
+                bankr_future = stage0_pool.submit(_stage0_bankruptcy)
+
+                # Collect EGRUL results
                 try:
-                    from app.services.phase3.business_registry import BusinessRegistrySearch
-                    searcher = BusinessRegistrySearch(timeout=30)
-                    logger.info(f"Stage 0: Calling search_by_inn('{check.inn}')")
-                    inn_results = searcher.search_by_inn(check.inn)
-                    if inn_results:
-                        egrul_inn_records = [r.to_dict() for r in inn_results]
+                    egrul_inn_records = egrul_future.result(timeout=30)
+                    if egrul_inn_records:
                         identity_data['egrul_status'] = 'registered'
                         identity_data['linked_companies'] = egrul_inn_records
 
-                        # Extract confirmed name from first record
                         first_record = egrul_inn_records[0]
                         egrul_name = first_record.get('person_name') or first_record.get('name', '')
                         if egrul_name and egrul_name != check.full_name:
@@ -451,70 +469,87 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     task.add_message('ЕГРЮЛ по ИНН: источник недоступен', 'warning')
                     sources_checked += 1
 
-            # Step 0.2 — Bankruptcy Lookup by INN
-            task.update('identity', 'ЕФРСБ — проверка банкротства по ИНН...', 4)
-            try:
-                from app.services.candidate.bankruptcy_service import BankruptcyService
-                svc = BankruptcyService(timeout=30)
-                dob_str = check.date_of_birth.strftime('%Y-%m-%d') if check.date_of_birth else None
-                b_results = svc.search(check.full_name, inn=check.inn, dob=dob_str)
-                bankruptcy_records = [r.to_dict() for r in b_results]
-                is_manual = (
-                    bankruptcy_records
-                    and len(bankruptcy_records) == 1
-                    and bankruptcy_records[0].get('source') == 'manual'
-                )
-                if is_manual:
-                    task.add_message('ЕФРСБ: требуется ручная проверка', 'warning')
-                elif bankruptcy_records:
-                    task.add_message(
-                        f'Банкротство: найдено {len(bankruptcy_records)} записей',
-                        'success',
+                # Collect Bankruptcy results
+                try:
+                    bankruptcy_records = bankr_future.result(timeout=30)
+                    is_manual = (
+                        bankruptcy_records
+                        and len(bankruptcy_records) == 1
+                        and bankruptcy_records[0].get('source') == 'manual'
                     )
-                    identity_data['bankruptcy_status'] = 'found'
-                    sources_with_results += 1
-                else:
-                    task.add_message('Банкротство: записей не найдено', 'info')
-                    identity_data['bankruptcy_status'] = 'clean'
-                sources_checked += 1
-            except Exception as e:
-                logger.warning(f"Stage 0 bankruptcy lookup failed: {e}")
-                task.add_message('ЕФРСБ: источник недоступен', 'warning')
-                sources_checked += 1
+                    if is_manual:
+                        task.add_message('ЕФРСБ: требуется ручная проверка', 'warning')
+                    elif bankruptcy_records:
+                        task.add_message(
+                            f'Банкротство: найдено {len(bankruptcy_records)} записей',
+                            'success',
+                        )
+                        identity_data['bankruptcy_status'] = 'found'
+                        sources_with_results += 1
+                    else:
+                        task.add_message('Банкротство: записей не найдено', 'info')
+                        identity_data['bankruptcy_status'] = 'clean'
+                    sources_checked += 1
+                except Exception as e:
+                    logger.warning(f"Stage 0 bankruptcy lookup failed: {e}")
+                    task.add_message('ЕФРСБ: источник недоступен', 'warning')
+                    sources_checked += 1
+            finally:
+                stage0_pool.shutdown(wait=False, cancel_futures=True)
 
-            # Step 0.3 — Linked Companies Deep Dive
+            # Step 0.3 — Linked Companies Deep Dive (parallel lookups)
             business_network = []
             if egrul_inn_records:
                 task.update('identity', 'Анализ бизнес-связей...', 5)
                 try:
                     from app.services.phase3.business_registry import BusinessRegistrySearch
-                    net_searcher = BusinessRegistrySearch(timeout=20)
+
                     seen_inns = {check.inn}
-                    for company in egrul_inn_records[:5]:  # Limit to 5 companies
+                    company_inns = []
+                    company_map = {}
+                    for company in egrul_inn_records[:5]:
                         company_inn = company.get('inn', '')
                         if company_inn and company_inn not in seen_inns:
                             seen_inns.add(company_inn)
-                            try:
-                                co_results = net_searcher.search_by_inn(company_inn)
-                                if co_results:
-                                    co_founders = []
-                                    for cr in co_results:
-                                        d = cr.to_dict()
-                                        co_name = d.get('person_name') or d.get('name', '')
-                                        co_role = d.get('role', '')
-                                        if co_name and co_name != check.full_name:
-                                            co_founders.append({
-                                                'name': co_name,
-                                                'role': co_role,
-                                            })
-                                    if co_founders:
-                                        business_network.append({
-                                            'company_inn': company_inn,
-                                            'company_name': company.get('name', ''),
-                                            'co_founders': co_founders[:10],
-                                        })
-                            except Exception as e:
-                                logger.warning(f"Stage 0 co-founder lookup for {company_inn} failed: {e}")
+                            company_inns.append(company_inn)
+                            company_map[company_inn] = company.get('name', '')
+
+                    def _lookup_company(c_inn):
+                        """Lookup co-founders for a single company."""
+                        net_searcher = BusinessRegistrySearch(timeout=15)
+                        co_results = net_searcher.search_by_inn(c_inn)
+                        if not co_results:
+                            return None
+                        co_founders = []
+                        for cr in co_results:
+                            d = cr.to_dict()
+                            co_name = d.get('person_name') or d.get('name', '')
+                            co_role = d.get('role', '')
+                            if co_name and co_name != check.full_name:
+                                co_founders.append({'name': co_name, 'role': co_role})
+                        if co_founders:
+                            return {
+                                'company_inn': c_inn,
+                                'company_name': company_map.get(c_inn, ''),
+                                'co_founders': co_founders[:10],
+                            }
+                        return None
+
+                    if company_inns:
+                        biz_pool = ThreadPoolExecutor(max_workers=min(5, len(company_inns)))
+                        try:
+                            futures = {biz_pool.submit(_lookup_company, inn): inn for inn in company_inns}
+                            for future in as_completed(futures, timeout=20):
+                                try:
+                                    result = future.result(timeout=5)
+                                    if result:
+                                        business_network.append(result)
+                                except Exception as e:
+                                    logger.warning(f"Stage 0 co-founder lookup for {futures[future]} failed: {e}")
+                        except TimeoutError:
+                            logger.warning("Stage 0 business network: some lookups timed out")
+                        finally:
+                            biz_pool.shutdown(wait=False, cancel_futures=True)
                 except Exception as e:
                     logger.warning(f"Stage 0 business network analysis failed: {e}")
 
@@ -802,7 +837,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             sources_checked += 1
 
                         elif future is future_fssp:
-                            fssp_records = future.result(timeout=90)
+                            fssp_records = future.result(timeout=60)
                             is_manual = (
                                 fssp_records
                                 and len(fssp_records) == 1
@@ -850,11 +885,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         sources_checked += 1
 
                 try:
-                    for future in as_completed(all_futures, timeout=120):
+                    for future in as_completed(all_futures, timeout=60):
                         completed_futures.add(future)
                         _process_future(future)
                 except TimeoutError:
-                    # Some futures didn't finish in 120s — process completed
+                    # Some futures didn't finish in 60s — process completed
                     # ones and mark timed-out ones as unavailable
                     timed_out = [f for f in all_futures if f not in completed_futures]
                     logger.warning(
@@ -864,13 +899,13 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     for future in timed_out:
                         future.cancel()
                         if future is future_biz:
-                            task.add_message('ЕГРЮЛ: таймаут (120с)', 'warning')
+                            task.add_message('ЕГРЮЛ: таймаут (60с)', 'warning')
                         elif future is future_courts:
-                            task.add_message('Суды: таймаут (120с)', 'warning')
+                            task.add_message('Суды: таймаут (60с)', 'warning')
                         elif future is future_fssp:
-                            task.add_message('ФССП: таймаут (120с)', 'warning')
+                            task.add_message('ФССП: таймаут (60с)', 'warning')
                         elif future is future_pledges:
-                            task.add_message('Залоговый реестр: таймаут (120с)', 'warning')
+                            task.add_message('Залоговый реестр: таймаут (60с)', 'warning')
                         sources_checked += 1
             finally:
                 gov_pool.shutdown(wait=False, cancel_futures=True)
@@ -938,7 +973,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             stage2_start = time.time()
 
             try:
-                sanctions_results, passport_result = stage2_future.result(timeout=120)
+                sanctions_results, passport_result = stage2_future.result(timeout=60)
             except Exception as e:
                 logger.error(f"Stage 2 background computation failed: {e}")
                 sanctions_results = []
@@ -1018,60 +1053,143 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             # ══════════════════════════════════════════════
             # STAGE 3: SOCIAL MEDIA DISCOVERY [27-42%]
+            # ALL searches run in parallel (VK+TG+OK+Phone)
             # ══════════════════════════════════════════════
             stage3_start = time.time()
-            task.update('social', 'Поиск в социальных сетях...', 29)
+            task.update('social', 'VK + Telegram + OK.ru + Телефон — параллельный поиск...', 29)
 
             social_profiles = []
             vk_screen_names = []
 
-            # 3.1 VK search — run first so Telegram can use screen_names
-            task.update('social', 'VK — поиск профилей...', 31)
-            try:
+            # Capture values needed by workers (no DB/task access inside workers)
+            _tg_birth_year = check.date_of_birth.year if check.date_of_birth else None
+            _tg_first = name_parts['first']
+            _tg_last = name_parts['last']
+            _tg_city = check.region or ''
+            _ok_query = effective_name
+            _ok_city = check.region
+            _ok_birth_year = check.date_of_birth.year if check.date_of_birth else None
+            _phone = check.phone
+
+            # Parse DOB into components for VK API
+            vk_birth_day = vk_birth_month = vk_birth_year = None
+            vk_age_from = vk_age_to = None
+            if check.date_of_birth:
+                from datetime import date as _date
+                vk_birth_day = check.date_of_birth.day
+                vk_birth_month = check.date_of_birth.month
+                vk_birth_year = check.date_of_birth.year
+                today = _date.today()
+                age = today.year - check.date_of_birth.year - (
+                    (today.month, today.day) < (check.date_of_birth.month, check.date_of_birth.day)
+                )
+                vk_age_from = max(age - 3, 16)
+                vk_age_to = age + 3
+
+            def _vk_search_worker():
+                """VK People Search — returns list of VKProfileResult."""
                 from app.services.phase1.buratino_vk_search import buratino_vk_search
+                profiles, _ = buratino_vk_search.search(
+                    query=effective_name,
+                    city=check.region,
+                    age_from=vk_age_from,
+                    age_to=vk_age_to,
+                    birth_day=vk_birth_day,
+                    birth_month=vk_birth_month,
+                    birth_year=vk_birth_year,
+                )
+                return profiles
 
-                # Parse DOB into components for VK API birth_day/month/year params
-                vk_birth_day = vk_birth_month = vk_birth_year = None
-                vk_age_from = vk_age_to = None
-                if check.date_of_birth:
-                    from datetime import date as _date
-                    vk_birth_day = check.date_of_birth.day
-                    vk_birth_month = check.date_of_birth.month
-                    vk_birth_year = check.date_of_birth.year
-                    # Also keep age range (±3 years) as secondary filter
-                    today = _date.today()
-                    age = today.year - check.date_of_birth.year - (
-                        (today.month, today.day) < (check.date_of_birth.month, check.date_of_birth.day)
-                    )
-                    vk_age_from = max(age - 3, 16)
-                    vk_age_to = age + 3
-
-                def _vk_search():
-                    return buratino_vk_search.search(
-                        query=effective_name,
-                        city=check.region,
-                        age_from=vk_age_from,
-                        age_to=vk_age_to,
-                        birth_day=vk_birth_day,
-                        birth_month=vk_birth_month,
-                        birth_year=vk_birth_year,
-                    )
-
-                # Timeout: 60s max for VK search
-                vk_pool = ThreadPoolExecutor(max_workers=1)
-                vk_future = vk_pool.submit(_vk_search)
+            def _tg_search_worker():
+                """Telegram discovery — Methods B+C (no VK screen_names needed)."""
+                from app.services.phase1.telegram_discovery import TelegramDiscoveryService
+                svc = TelegramDiscoveryService()
                 try:
-                    vk_profiles, _ = vk_future.result(timeout=60)
+                    # Run without VK screen_names (Method A skipped for parallelism).
+                    # Methods B (guessing) and C (Telethon) work independently.
+                    return svc.discover(
+                        first_name=_tg_first,
+                        last_name=_tg_last,
+                        vk_screen_names=[],
+                        city=_tg_city,
+                        birth_year=_tg_birth_year,
+                    )
+                finally:
+                    svc.close()
+
+            def _ok_search_worker():
+                """OK.ru search — returns (results, is_demo_mode)."""
+                from app.services.phase1.ok_search_integration import OKSearchIntegration
+                ok_svc = OKSearchIntegration()
+                ok_age_from = ok_age_to = None
+                if _ok_birth_year:
+                    from datetime import date as _date_ok
+                    today_ok = _date_ok.today()
+                    ok_age = today_ok.year - _ok_birth_year
+                    ok_age_from = max(ok_age - 3, 16)
+                    ok_age_to = ok_age + 3
+                results = ok_svc.search(
+                    query=_ok_query, city=_ok_city,
+                    age_from=ok_age_from, age_to=ok_age_to, count=10,
+                )
+                return (results, ok_svc.is_demo_mode)
+
+            def _phone_tg_worker():
+                """Phone → Telegram lookup."""
+                if not _phone:
+                    return None
+                from app.services.phase1.telegram_discovery import TelegramDiscoveryService
+                tg_svc = TelegramDiscoveryService()
+                try:
+                    return tg_svc.search_by_phone(_phone)
+                finally:
+                    tg_svc.close()
+
+            # Run ALL 4 social searches in parallel with 45s shared timeout
+            social_pool = ThreadPoolExecutor(max_workers=4)
+            try:
+                vk_future = social_pool.submit(_vk_search_worker)
+                tg_future = social_pool.submit(_tg_search_worker)
+                ok_future = social_pool.submit(_ok_search_worker)
+                phone_future = social_pool.submit(_phone_tg_worker)
+
+                # Collect VK results
+                vk_profiles = []
+                try:
+                    vk_profiles = vk_future.result(timeout=45)
                 except Exception as e:
                     logger.warning(f"VK search timeout/error: {e}")
-                    vk_profiles = []
-                finally:
-                    vk_pool.shutdown(wait=False, cancel_futures=True)
 
+                # Collect TG results
+                tg_results = []
+                try:
+                    tg_results = tg_future.result(timeout=45)
+                except Exception as e:
+                    logger.warning(f"Telegram search timeout/error: {e}")
+
+                # Collect OK results
+                ok_results = []
+                ok_is_demo = False
+                try:
+                    ok_result_tuple = ok_future.result(timeout=45)
+                    ok_results, ok_is_demo = ok_result_tuple
+                except Exception as e:
+                    logger.warning(f"OK.ru search timeout/error: {e}")
+
+                # Collect Phone→TG results
+                phone_results = None
+                try:
+                    phone_results = phone_future.result(timeout=45)
+                except Exception as e:
+                    logger.warning(f"TG phone lookup timeout/error: {e}")
+            finally:
+                social_pool.shutdown(wait=False, cancel_futures=True)
+
+            # --- Process VK results ---
+            try:
                 logger.info(
                     f"Stage 3 VK: got {len(vk_profiles)} profiles from search "
-                    f"(city={check.region!r}, age={vk_age_from}-{vk_age_to}). "
-                    f"Pre-filter profiles:"
+                    f"(city={check.region!r}, age={vk_age_from}-{vk_age_to})"
                 )
                 for _dbg_p in vk_profiles[:5]:
                     _dbg_d = _dbg_p.to_dict() if hasattr(_dbg_p, 'to_dict') else _dbg_p
@@ -1086,7 +1204,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         d = p.to_dict() if hasattr(p, 'to_dict') else p
                         sim = d.get('name_similarity', 0)
 
-                        # Only high + medium confidence
                         if sim >= 75:
                             confidence = 'высокая'
                         elif sim >= 50:
@@ -1094,7 +1211,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         else:
                             continue
 
-                        # DOB match boost: compare VK bdate with check.date_of_birth
                         dob_match = False
                         conf_score = round(sim / 100, 2)
                         vk_bdate = d.get('birth_date', '')
@@ -1127,7 +1243,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             'city': d.get('city', ''),
                         })
 
-                        # Collect screen_names for Telegram cross-ref (Method A)
                         sn = d.get('screen_name', '')
                         if sn and not (sn.startswith('id') and sn[2:].isdigit()):
                             vk_screen_names.append(sn)
@@ -1139,104 +1254,25 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     task.add_message('VK: профили не найдены', 'info')
                 sources_checked += 1
             except Exception as e:
-                logger.warning(f"VK search failed: {e}")
+                logger.warning(f"VK result processing failed: {e}")
                 task.add_message('VK: поиск недоступен', 'warning')
                 sources_checked += 1
-            _pause()
 
-            # 3.2–3.4 Telegram + OK.ru + Phone→TG — parallel search
-            task.update('social', 'Telegram + OK.ru + Телефон — параллельный поиск...', 36)
-
-            # Capture values needed by workers (no DB/task access inside workers)
-            _tg_birth_year = check.date_of_birth.year if check.date_of_birth else None
-            _tg_first = name_parts['first']
-            _tg_last = name_parts['last']
-            _tg_city = check.region or ''
-            _tg_vk_sns = list(vk_screen_names)
-
-            _ok_query = effective_name
-            _ok_city = check.region
-            _ok_birth_year = check.date_of_birth.year if check.date_of_birth else None
-
-            _phone = check.phone
-
-            def _tg_search_worker():
-                """Telegram discovery — pure computation, returns list."""
-                from app.services.phase1.telegram_discovery import TelegramDiscoveryService
-                svc = TelegramDiscoveryService()
+            # --- VK→TG cross-reference (Method A) — quick post-hoc check ---
+            if vk_screen_names:
                 try:
-                    return svc.discover(
-                        first_name=_tg_first,
-                        last_name=_tg_last,
-                        vk_screen_names=_tg_vk_sns,
-                        city=_tg_city,
-                        birth_year=_tg_birth_year,
-                    )
-                finally:
-                    svc.close()
-
-            def _ok_search_worker():
-                """OK.ru search — returns (results, is_demo_mode)."""
-                from app.services.phase1.ok_search_integration import OKSearchIntegration
-                ok_svc = OKSearchIntegration()
-
-                ok_age_from = None
-                ok_age_to = None
-                if _ok_birth_year:
-                    from datetime import date as _date_ok
-                    today_ok = _date_ok.today()
-                    ok_age = today_ok.year - _ok_birth_year
-                    ok_age_from = max(ok_age - 3, 16)
-                    ok_age_to = ok_age + 3
-
-                results = ok_svc.search(
-                    query=_ok_query,
-                    city=_ok_city,
-                    age_from=ok_age_from,
-                    age_to=ok_age_to,
-                    count=10,
-                )
-                return (results, ok_svc.is_demo_mode)
-
-            def _phone_tg_worker():
-                """Phone → Telegram lookup — returns list or None if no phone."""
-                if not _phone:
-                    return None
-                from app.services.phase1.telegram_discovery import TelegramDiscoveryService
-                tg_svc = TelegramDiscoveryService()
-                try:
-                    return tg_svc.search_by_phone(_phone)
-                finally:
-                    tg_svc.close()
-
-            social_pool = ThreadPoolExecutor(max_workers=3)
-            try:
-                tg_future = social_pool.submit(_tg_search_worker)
-                ok_future = social_pool.submit(_ok_search_worker)
-                phone_future = social_pool.submit(_phone_tg_worker)
-
-                # Collect results with 45s timeout each
-                try:
-                    tg_results = tg_future.result(timeout=45)
+                    from app.services.phase1.telegram_discovery import TelegramDiscoveryService
+                    tg_xref_svc = TelegramDiscoveryService()
+                    try:
+                        xref_results = tg_xref_svc._method_a_vk_crossref(
+                            vk_screen_names, _tg_first, _tg_last,
+                        )
+                        if xref_results:
+                            tg_results = (tg_results or []) + xref_results
+                    finally:
+                        tg_xref_svc.close()
                 except Exception as e:
-                    logger.warning(f"Telegram search timeout/error: {e}")
-                    tg_results = []
-
-                try:
-                    ok_result_tuple = ok_future.result(timeout=45)
-                    ok_results, ok_is_demo = ok_result_tuple
-                except Exception as e:
-                    logger.warning(f"OK.ru search timeout/error: {e}")
-                    ok_results = []
-                    ok_is_demo = False
-
-                try:
-                    phone_results = phone_future.result(timeout=45)
-                except Exception as e:
-                    logger.warning(f"TG phone lookup timeout/error: {e}")
-                    phone_results = None
-            finally:
-                social_pool.shutdown(wait=False, cancel_futures=True)
+                    logger.debug(f"VK→TG cross-ref: {e}")
 
             # --- Process Telegram results ---
             tg_count = 0
@@ -1244,14 +1280,12 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 if tg_results:
                     for p in tg_results[:10]:
                         conf = p.get('confidence', '')
-                        # Only high + medium confidence
                         if conf not in ('высокая', 'средняя'):
                             continue
 
                         display_name = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip()
                         source_raw = p.get('source', '')
 
-                        # Derive source_method from source description
                         if 'VK' in source_raw:
                             source_method = 'VK → Telegram'
                         elif 'Шаблон' in source_raw:
@@ -1520,7 +1554,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             task.update('social_analysis', 'Ожидание соц. анализа...', 60)
             social_results = {}
             try:
-                social_results = stage5_future.result(timeout=120)
+                social_results = stage5_future.result(timeout=90)
 
                 check.social_graph_data = social_results.get('social_graph', {})
                 check.face_matches = social_results.get('face_matches', [])
