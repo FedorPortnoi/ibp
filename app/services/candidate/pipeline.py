@@ -361,6 +361,25 @@ def _run_stage2_computation(effective_name, inn, passport_series, passport_numbe
     return sanctions_results, passport_result
 
 
+def _make_ctx_wrapper(app_obj):
+    """Create a wrapper that ensures Flask app context in ThreadPoolExecutor threads.
+
+    Usage inside run_candidate_pipeline:
+        _ctx = _make_ctx_wrapper(app)
+        pool.submit(_ctx(some_func), arg1, arg2)
+    """
+    def _wrap(fn):
+        """Return a new callable that pushes app context before calling *fn*."""
+        from functools import wraps
+
+        @wraps(fn)
+        def _inner(*a, **kw):
+            with app_obj.app_context():
+                return fn(*a, **kw)
+        return _inner
+    return _wrap
+
+
 def run_candidate_pipeline(app, task_id: str, check_id: str):
     """
     Background pipeline — runs inside a thread with app context.
@@ -370,6 +389,9 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
     task = candidate_tasks.get(task_id)
     if not task:
         return
+
+    # Helper to propagate Flask app context into ThreadPoolExecutor threads.
+    _ctx = _make_ctx_wrapper(app)
 
     with app.app_context():
         from app import db
@@ -435,8 +457,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             stage0_pool = ThreadPoolExecutor(max_workers=2)
             try:
-                egrul_future = stage0_pool.submit(_stage0_egrul)
-                bankr_future = stage0_pool.submit(_stage0_bankruptcy)
+                egrul_future = stage0_pool.submit(_ctx(_stage0_egrul))
+                bankr_future = stage0_pool.submit(_ctx(_stage0_bankruptcy))
 
                 # Collect EGRUL results
                 try:
@@ -538,7 +560,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     if company_inns:
                         biz_pool = ThreadPoolExecutor(max_workers=min(5, len(company_inns)))
                         try:
-                            futures = {biz_pool.submit(_lookup_company, inn): inn for inn in company_inns}
+                            futures = {biz_pool.submit(_ctx(_lookup_company), inn): inn for inn in company_inns}
                             for future in as_completed(futures, timeout=20):
                                 try:
                                     result = future.result(timeout=5)
@@ -611,7 +633,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             # while Stage 1 (gov registries) runs on the main thread.
             stage2_executor = ThreadPoolExecutor(max_workers=1)
             stage2_future = stage2_executor.submit(
-                _run_stage2_computation,
+                _ctx(_run_stage2_computation),
                 effective_name,
                 check.inn,
                 check.passport_series,
@@ -794,12 +816,12 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             gov_pool = ThreadPoolExecutor(max_workers=4)
             try:
-                future_biz = gov_pool.submit(_search_business, effective_name, check.inn)
-                future_courts = gov_pool.submit(_search_courts, effective_name)
+                future_biz = gov_pool.submit(_ctx(_search_business), effective_name, check.inn)
+                future_courts = gov_pool.submit(_ctx(_search_courts), effective_name)
                 future_fssp = gov_pool.submit(
-                    _search_fssp, effective_name, check.date_of_birth, check.region,
+                    _ctx(_search_fssp), effective_name, check.date_of_birth, check.region,
                 )
-                future_pledges = gov_pool.submit(_search_pledges, effective_name)
+                future_pledges = gov_pool.submit(_ctx(_search_pledges), effective_name)
 
                 all_futures = [future_biz, future_courts, future_fssp, future_pledges]
                 completed_futures = set()
@@ -1148,10 +1170,10 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             # Run ALL 4 social searches in parallel with 45s shared timeout
             social_pool = ThreadPoolExecutor(max_workers=4)
             try:
-                vk_future = social_pool.submit(_vk_search_worker)
-                tg_future = social_pool.submit(_tg_search_worker)
-                ok_future = social_pool.submit(_ok_search_worker)
-                phone_future = social_pool.submit(_phone_tg_worker)
+                vk_future = social_pool.submit(_ctx(_vk_search_worker))
+                tg_future = social_pool.submit(_ctx(_tg_search_worker))
+                ok_future = social_pool.submit(_ctx(_ok_search_worker))
+                phone_future = social_pool.submit(_ctx(_phone_tg_worker))
 
                 # Collect VK results
                 vk_profiles = []
@@ -1481,8 +1503,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 return run_social_analysis(check)
 
             wave3_pool = ThreadPoolExecutor(max_workers=2)
-            stage4_future = wave3_pool.submit(_run_contact_discovery)
-            stage5_future = wave3_pool.submit(_run_social_analysis)
+            stage4_future = wave3_pool.submit(_ctx(_run_contact_discovery))
+            stage5_future = wave3_pool.submit(_ctx(_run_social_analysis))
             logger.info("Wave 3: Stage 4 (contacts) + Stage 5 (social) launched in parallel")
 
             # ── Collect Stage 4 results ──
@@ -1637,7 +1659,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 # Hard timeout: 60s max for behavioral analysis
                 _beh_pool = ThreadPoolExecutor(max_workers=1)
                 _beh_future = _beh_pool.submit(
-                    run_behavioral_analysis, check, stage6_callback,
+                    _ctx(run_behavioral_analysis), check, stage6_callback,
                 )
                 try:
                     behavioral_results = _beh_future.result(timeout=60)
