@@ -900,7 +900,7 @@ class TelegramDiscoveryService:
                         first_name='IBP',
                         last_name='Lookup',
                     )
-                    result = await client(ImportContactsRequest([contact]))
+                    result = await asyncio.wait_for(client(ImportContactsRequest([contact])), timeout=10)
 
                     for user in result.users:
                         username = getattr(user, 'username', '') or ''
@@ -930,9 +930,9 @@ class TelegramDiscoveryService:
                     # Clean up: delete imported contact
                     if result.users:
                         try:
-                            await client(DeleteContactsRequest(
+                            await asyncio.wait_for(client(DeleteContactsRequest(
                                 id=[user for user in result.users]
-                            ))
+                            )), timeout=10)
                         except Exception as e:
                             logger.debug(f"TG phone lookup: contact cleanup error: {e}")
 

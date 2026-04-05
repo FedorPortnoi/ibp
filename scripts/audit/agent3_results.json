@@ -1,0 +1,346 @@
+[
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\face_search_api.py",
+    "line": 206,
+    "issue": "HTTP timeout too long: 60s (line 206)",
+    "recommendation": "Reduce to 15s max for external services"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\face_search_api.py",
+    "line": 270,
+    "issue": "HTTP timeout too long: 60s (line 270)",
+    "recommendation": "Reduce to 15s max for external services"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\face_search_api.py",
+    "line": 732,
+    "issue": "HTTP timeout too long: 60s (line 732)",
+    "recommendation": "Reduce to 15s max for external services"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\search4faces_service.py",
+    "line": 204,
+    "issue": "HTTP timeout too long: 60s (line 204)",
+    "recommendation": "Reduce to 15s max for external services"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase3\\video_analyzer.py",
+    "line": 243,
+    "issue": "HTTP timeout too long: 60s (line 243)",
+    "recommendation": "Reduce to 15s max for external services"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\candidate_check.py",
+    "line": 797,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\candidate_check.py",
+    "line": 801,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\connections.py",
+    "line": 20,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase1.py",
+    "line": 135,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase1.py",
+    "line": 153,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase1.py",
+    "line": 174,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase2.py",
+    "line": 556,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase3.py",
+    "line": 514,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase3.py",
+    "line": 515,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase4.py",
+    "line": 113,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase4.py",
+    "line": 166,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\report.py",
+    "line": 65,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\report.py",
+    "line": 70,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\report.py",
+    "line": 73,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\report.py",
+    "line": 76,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\report.py",
+    "line": 79,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\connection_intelligence.py",
+    "line": 63,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\connection_intelligence.py",
+    "line": 65,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\connection_intelligence.py",
+    "line": 137,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\dossier_generator.py",
+    "line": 92,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\dossier_generator.py",
+    "line": 97,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\dossier_generator.py",
+    "line": 105,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\dossier_generator.py",
+    "line": 110,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\dossier_generator.py",
+    "line": 115,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\risk_scoring.py",
+    "line": 323,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\risk_scoring.py",
+    "line": 325,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\risk_scoring.py",
+    "line": 326,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\behavioral_analysis.py",
+    "line": 466,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\marketplace_scanner.py",
+    "line": 311,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\social_graph.py",
+    "line": 323,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 55,
+    "issue": "Holehe call without overall timeout protection",
+    "recommendation": "Wrap entire Holehe execution in 45s timeout"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 324,
+    "issue": "Holehe only using 1 parallel workers -- too slow",
+    "recommendation": "Increase to 10-20 workers for faster execution"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1179,
+    "issue": "Holehe call without overall timeout protection",
+    "recommendation": "Wrap entire Holehe execution in 45s timeout"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1201,
+    "issue": "Holehe call without overall timeout protection",
+    "recommendation": "Wrap entire Holehe execution in 45s timeout"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1213,
+    "issue": "Holehe call without overall timeout protection",
+    "recommendation": "Wrap entire Holehe execution in 45s timeout"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1219,
+    "issue": "Holehe call without overall timeout protection",
+    "recommendation": "Wrap entire Holehe execution in 45s timeout"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1982,
+    "issue": "Holehe call without overall timeout protection",
+    "recommendation": "Wrap entire Holehe execution in 45s timeout"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1984,
+    "issue": "Holehe call without overall timeout protection",
+    "recommendation": "Wrap entire Holehe execution in 45s timeout"
+  }
+]

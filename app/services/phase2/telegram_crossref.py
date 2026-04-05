@@ -177,14 +177,14 @@ class TelegramCrossRef:
                     '..', '..', '..', 'ibp_telegram_session'
                 )
                 client = TelegramClient(session_name, int(api_id), api_hash)
-                await client.connect()
+                await asyncio.wait_for(client.connect(), timeout=10)
 
-                if not await client.is_user_authorized():
-                    await client.disconnect()
+                if not await asyncio.wait_for(client.is_user_authorized(), timeout=10):
+                    await asyncio.wait_for(client.disconnect(), timeout=10)
                     return TelegramProfile(error='Telethon session not authorized')
 
                 try:
-                    result = await client(ResolveUsernameRequest(username))
+                    result = await asyncio.wait_for(client(ResolveUsernameRequest(username)), timeout=10)
                     if not result.users:
                         return TelegramProfile(exists=False, username=username)
 
@@ -198,7 +198,7 @@ class TelegramCrossRef:
 
                     # Get full profile for bio
                     try:
-                        full = await client(GetFullUserRequest(user))
+                        full = await asyncio.wait_for(client(GetFullUserRequest(user)), timeout=10)
                         full_user = full.full_user if hasattr(full, 'full_user') else full
                         if hasattr(full_user, 'about') and full_user.about:
                             profile.bio = full_user.about
@@ -219,11 +219,17 @@ class TelegramCrossRef:
                 except FloodWaitError as e:
                     return TelegramProfile(error=f'Rate limited: {e.seconds}s', username=username)
                 finally:
-                    await client.disconnect()
+                    await asyncio.wait_for(client.disconnect(), timeout=10)
 
             loop = asyncio.new_event_loop()
             try:
-                return loop.run_until_complete(_resolve())
+                return loop.run_until_complete(asyncio.wait_for(_resolve(), timeout=15))
+            except RuntimeError as e:
+                logger.warning(f"Telethon event loop error for @{username}: {e}")
+                return TelegramProfile(error=str(e), username=username)
+            except asyncio.TimeoutError:
+                logger.warning(f"Telethon operation timed out for @{username}")
+                return TelegramProfile(error='Telethon timeout', username=username)
             finally:
                 loop.close()
 

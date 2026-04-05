@@ -1395,10 +1395,10 @@ class TelegramChecker(ForgotPasswordChecker):
                 self.api_hash,
             )
             try:
-                await client.connect()
+                await asyncio.wait_for(client.connect(), timeout=10)
                 # send_code_request will raise if phone not registered
                 # or return sent_code object if it is
-                sent_code = await client.send_code_request(phone)
+                sent_code = await asyncio.wait_for(client.send_code_request(phone), timeout=10)
                 return True, None
             except PhoneNumberInvalidError:
                 return False, "invalid_phone"
@@ -1417,7 +1417,7 @@ class TelegramChecker(ForgotPasswordChecker):
                 return None, str(e)
             finally:
                 try:
-                    await client.disconnect()
+                    await asyncio.wait_for(client.disconnect(), timeout=10)
                 except Exception as e:
                     logger.debug(f"[ForgotPasswordOracle] Telegram disconnect error: {e}")
 
@@ -1425,7 +1425,15 @@ class TelegramChecker(ForgotPasswordChecker):
             # Run async code in a new event loop (safe from sync context)
             loop = asyncio.new_event_loop()
             try:
-                exists, error = loop.run_until_complete(_check())
+                exists, error = loop.run_until_complete(asyncio.wait_for(_check(), timeout=15))
+            except RuntimeError as e:
+                self.logger.warning(f"Telegram event loop error: {e}")
+                result.error = str(e)
+                return result
+            except asyncio.TimeoutError:
+                self.logger.warning("Telegram check timed out")
+                result.error = "timeout"
+                return result
             finally:
                 loop.close()
 

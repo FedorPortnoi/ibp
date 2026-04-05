@@ -288,17 +288,17 @@ class FSSPSearch:
                 page.wait_for_selector('input[name="is[last_name]"]', timeout=10_000)
 
                 # Fill form fields
-                page.fill('input[name="is[last_name]"]', lastname)
+                page.fill('input[name="is[last_name]"]', lastname, timeout=10000)
                 if firstname:
-                    page.fill('input[name="is[first_name]"]', firstname)
+                    page.fill('input[name="is[first_name]"]', firstname, timeout=10000)
                 if patronymic:
-                    page.fill('input[name="is[patronymic]"]', patronymic)
+                    page.fill('input[name="is[patronymic]"]', patronymic, timeout=10000)
 
                 # Date of birth (required for individual search)
                 date_input = page.locator('input[name="is[date]"]')
                 if date_input.count() > 0:
                     if birthdate:
-                        date_input.fill(birthdate)
+                        date_input.fill(birthdate, timeout=10000)
                     else:
                         # Without DOB, the server still accepts the request
                         # but may return more/fewer results
@@ -306,7 +306,7 @@ class FSSPSearch:
 
                 # Submit
                 logger.debug("FSSP Playwright: submitting form")
-                page.click('#btn-sbm')
+                page.click('#btn-sbm', timeout=10000)
 
                 # Wait for AJAX response (either results or CAPTCHA)
                 page.wait_for_timeout(6000)

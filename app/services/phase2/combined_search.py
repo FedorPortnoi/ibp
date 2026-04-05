@@ -1075,12 +1075,21 @@ class Phase2CombinedSearch:
                 asyncio.set_event_loop(loop)
                 try:
                     api_face_matches = loop.run_until_complete(
-                        self.api_face_search.search_and_merge(
-                            target_photo_path,
-                            services=['search4faces', 'yandex'],
-                            databases=['vk', 'ok']
+                        asyncio.wait_for(
+                            self.api_face_search.search_and_merge(
+                                target_photo_path,
+                                services=['search4faces', 'yandex'],
+                                databases=['vk', 'ok']
+                            ),
+                            timeout=15
                         )
                     )
+                except RuntimeError as e:
+                    self.logger.warning(f"Face search event loop error: {e}")
+                    api_face_matches = []
+                except asyncio.TimeoutError:
+                    self.logger.warning("Face search timed out")
+                    api_face_matches = []
                 finally:
                     loop.close()
 

@@ -347,7 +347,7 @@ class GeoExtractor:
                     'screen_name': user_id,
                     'access_token': self.vk_token,
                     'v': self.VK_API_VERSION
-                })
+                }, timeout=10)
                 data = response.json()
                 if 'response' in data and data['response']:
                     user_id = str(data['response'].get('object_id', user_id))
@@ -359,7 +359,7 @@ class GeoExtractor:
                 'count': count,
                 'access_token': self.vk_token,
                 'v': self.VK_API_VERSION
-            })
+            }, timeout=10)
 
             data = response.json()
             if 'response' in data:

@@ -1,0 +1,458 @@
+[
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\models\\business_record.py",
+    "line": 196,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\main.py",
+    "line": 62,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase3.py",
+    "line": 436,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\bankruptcy_service.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1254,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\fssp_service.py",
+    "line": 33,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 303,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 355,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 313,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\buratino_vk_search.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\buratino_vk_search.py",
+    "line": 323,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\ok_search_integration.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\ok_search_integration.py",
+    "line": 31,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\telegram_discovery.py",
+    "line": 661,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\telegram_discovery.py",
+    "line": 786,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\vk_web_search.py",
+    "line": 39,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\vk_web_search.py",
+    "line": 169,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\yandex_search.py",
+    "line": 195,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\forgot_password_oracle.py",
+    "line": 1023,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\telegram_crossref.py",
+    "line": 418,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\telegram_crossref.py",
+    "line": 435,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase3\\court_search.py",
+    "line": 113,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\telegram\\session_manager.py",
+    "line": 87,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\telegram\\session_manager.py",
+    "line": 88,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\models\\business_record.py",
+    "line": 196,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\routes\\main.py",
+    "line": 62,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\candidate\\bankruptcy_service.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1102,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\candidate\\fssp_service.py",
+    "line": 33,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\candidate\\pipeline.py",
+    "line": 250,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\candidate\\pipeline.py",
+    "line": 302,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\candidate\\pipeline.py",
+    "line": 260,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\buratino_vk_search.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\buratino_vk_search.py",
+    "line": 323,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\ok_search_integration.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\ok_search_integration.py",
+    "line": 31,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\telegram_discovery.py",
+    "line": 633,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\telegram_discovery.py",
+    "line": 758,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\vk_web_search.py",
+    "line": 39,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\vk_web_search.py",
+    "line": 149,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\yandex_search.py",
+    "line": 195,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase2\\forgot_password_oracle.py",
+    "line": 1023,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase2\\telegram_crossref.py",
+    "line": 412,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase2\\telegram_crossref.py",
+    "line": 429,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase3\\court_search.py",
+    "line": 32,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\telegram\\session_manager.py",
+    "line": 87,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\telegram\\session_manager.py",
+    "line": 88,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\ok_search.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\ok_search.py",
+    "line": 31,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\telegram_crossref.py",
+    "line": 412,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\telegram_crossref.py",
+    "line": 429,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\telegram_search.py",
+    "line": 633,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\telegram_search.py",
+    "line": 758,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\vk_search.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\vk_search.py",
+    "line": 323,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\vk_web_search.py",
+    "line": 39,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\vk_web_search.py",
+    "line": 149,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  }
+]

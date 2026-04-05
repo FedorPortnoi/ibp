@@ -1,0 +1,16 @@
+[
+  {
+    "agent": "EXTERNAL_SERVICES",
+    "severity": "HIGH",
+    "service": "EGRUL",
+    "issue": "EGRUL returned HTTP 404",
+    "recommendation": "EGRUL may be blocking requests -- check IP/headers"
+  },
+  {
+    "agent": "EXTERNAL_SERVICES",
+    "severity": "MEDIUM",
+    "service": "OpenSanctions",
+    "issue": "OpenSanctions returned HTTP 401",
+    "recommendation": "Sanctions check may not work"
+  }
+]

@@ -1,0 +1,1752 @@
+[
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\models\\business_record.py",
+    "line": 196,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\main.py",
+    "line": 62,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase3.py",
+    "line": 436,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\bankruptcy_service.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1254,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\fssp_service.py",
+    "line": 33,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 303,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 355,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 313,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\buratino_vk_search.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\buratino_vk_search.py",
+    "line": 323,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\ok_search_integration.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\ok_search_integration.py",
+    "line": 31,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\telegram_discovery.py",
+    "line": 661,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\telegram_discovery.py",
+    "line": 786,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\vk_web_search.py",
+    "line": 39,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\vk_web_search.py",
+    "line": 169,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\yandex_search.py",
+    "line": 195,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\forgot_password_oracle.py",
+    "line": 1023,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\telegram_crossref.py",
+    "line": 418,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\telegram_crossref.py",
+    "line": 435,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase3\\court_search.py",
+    "line": 113,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\telegram\\session_manager.py",
+    "line": 87,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\telegram\\session_manager.py",
+    "line": 88,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\models\\business_record.py",
+    "line": 196,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\routes\\main.py",
+    "line": 62,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\candidate\\bankruptcy_service.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1102,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\candidate\\fssp_service.py",
+    "line": 33,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\candidate\\pipeline.py",
+    "line": 250,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\candidate\\pipeline.py",
+    "line": 302,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\candidate\\pipeline.py",
+    "line": 260,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\buratino_vk_search.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\buratino_vk_search.py",
+    "line": 323,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\ok_search_integration.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\ok_search_integration.py",
+    "line": 31,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\telegram_discovery.py",
+    "line": 633,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\telegram_discovery.py",
+    "line": 758,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\vk_web_search.py",
+    "line": 39,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\vk_web_search.py",
+    "line": 149,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase1\\yandex_search.py",
+    "line": 195,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase2\\forgot_password_oracle.py",
+    "line": 1023,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase2\\telegram_crossref.py",
+    "line": 412,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase2\\telegram_crossref.py",
+    "line": 429,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\phase3\\court_search.py",
+    "line": 32,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\telegram\\session_manager.py",
+    "line": 87,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\candidate_check\\app\\services\\telegram\\session_manager.py",
+    "line": 88,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\ok_search.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\ok_search.py",
+    "line": 31,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\telegram_crossref.py",
+    "line": 412,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\telegram_crossref.py",
+    "line": 429,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\telegram_search.py",
+    "line": 633,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\telegram_search.py",
+    "line": 758,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\vk_search.py",
+    "line": 26,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\vk_search.py",
+    "line": 323,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\vk_web_search.py",
+    "line": 39,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "IMPORT_CHAIN",
+    "severity": "MEDIUM",
+    "file": "\\people_search\\app\\services\\vk_web_search.py",
+    "line": 149,
+    "issue": "Silent optional import -- failure hidden by try/except pass",
+    "recommendation": "Log a warning when optional import fails so it's visible"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 342,
+    "issue": "Function '_run_stage2_computation' has NO timeout protection",
+    "recommendation": "Add asyncio.wait_for() or threading.Timer() timeout"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 383,
+    "issue": "Function 'run_candidate_pipeline' has NO timeout protection",
+    "recommendation": "Add asyncio.wait_for() or threading.Timer() timeout"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1498,
+    "issue": "Function '_run_contact_discovery' has NO timeout protection",
+    "recommendation": "Add asyncio.wait_for() or threading.Timer() timeout"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 315,
+    "issue": "Silent exception handler at line 315 -- error swallowed",
+    "recommendation": "Add at least: logger.warning(f'Error: {{e}}') before pass"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 315,
+    "issue": "Exception caught but not logged at line 315",
+    "recommendation": "Add logger.warning() or logger.error() to exception handler"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1895,
+    "issue": "Exception caught but not logged at line 1895",
+    "recommendation": "Add logger.warning() or logger.error() to exception handler"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1250,
+    "issue": "Silent exception handler at line 1250 -- error swallowed",
+    "recommendation": "Add at least: logger.warning(f'Error: {{e}}') before pass"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1250,
+    "issue": "Exception caught but not logged at line 1250",
+    "recommendation": "Add logger.warning() or logger.error() to exception handler"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 407,
+    "issue": "db.session.commit() at line 407 not in try/except",
+    "recommendation": "Wrap in try/except with db.session.rollback() on error"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 991,
+    "issue": "db.session.commit() at line 991 not in try/except",
+    "recommendation": "Wrap in try/except with db.session.rollback() on error"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1073,
+    "issue": "db.session.commit() at line 1073 not in try/except",
+    "recommendation": "Wrap in try/except with db.session.rollback() on error"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1435,
+    "issue": "db.session.commit() at line 1435 not in try/except",
+    "recommendation": "Wrap in try/except with db.session.rollback() on error"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1444,
+    "issue": "db.session.commit() at line 1444 not in try/except",
+    "recommendation": "Wrap in try/except with db.session.rollback() on error"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1456,
+    "issue": "db.session.commit() at line 1456 not in try/except",
+    "recommendation": "Wrap in try/except with db.session.rollback() on error"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1462,
+    "issue": "db.session.commit() at line 1462 not in try/except",
+    "recommendation": "Wrap in try/except with db.session.rollback() on error"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1630,
+    "issue": "db.session.commit() at line 1630 not in try/except",
+    "recommendation": "Wrap in try/except with db.session.rollback() on error"
+  },
+  {
+    "agent": "PIPELINE_FLOW",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1677,
+    "issue": "db.session.commit() at line 1677 not in try/except",
+    "recommendation": "Wrap in try/except with db.session.rollback() on error"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\face_search_api.py",
+    "line": 206,
+    "issue": "HTTP timeout too long: 60s (line 206)",
+    "recommendation": "Reduce to 15s max for external services"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\face_search_api.py",
+    "line": 270,
+    "issue": "HTTP timeout too long: 60s (line 270)",
+    "recommendation": "Reduce to 15s max for external services"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\face_search_api.py",
+    "line": 732,
+    "issue": "HTTP timeout too long: 60s (line 732)",
+    "recommendation": "Reduce to 15s max for external services"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\search4faces_service.py",
+    "line": 204,
+    "issue": "HTTP timeout too long: 60s (line 204)",
+    "recommendation": "Reduce to 15s max for external services"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase3\\video_analyzer.py",
+    "line": 243,
+    "issue": "HTTP timeout too long: 60s (line 243)",
+    "recommendation": "Reduce to 15s max for external services"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\candidate_check.py",
+    "line": 797,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\candidate_check.py",
+    "line": 801,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\connections.py",
+    "line": 20,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase1.py",
+    "line": 135,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase1.py",
+    "line": 153,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase1.py",
+    "line": 174,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase2.py",
+    "line": 556,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase3.py",
+    "line": 514,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase3.py",
+    "line": 515,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase4.py",
+    "line": 113,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase4.py",
+    "line": 166,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\report.py",
+    "line": 65,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\report.py",
+    "line": 70,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\report.py",
+    "line": 73,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\report.py",
+    "line": 76,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\report.py",
+    "line": 79,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\connection_intelligence.py",
+    "line": 63,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\connection_intelligence.py",
+    "line": 65,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\connection_intelligence.py",
+    "line": 137,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\dossier_generator.py",
+    "line": 92,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\dossier_generator.py",
+    "line": 97,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\dossier_generator.py",
+    "line": 105,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\dossier_generator.py",
+    "line": 110,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\dossier_generator.py",
+    "line": 115,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\risk_scoring.py",
+    "line": 323,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\risk_scoring.py",
+    "line": 325,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\risk_scoring.py",
+    "line": 326,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\behavioral_analysis.py",
+    "line": 466,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\marketplace_scanner.py",
+    "line": 311,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\social_graph.py",
+    "line": 323,
+    "issue": "Database query with .all() and no .limit()",
+    "recommendation": "Add .limit(1000) to prevent large result sets"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 55,
+    "issue": "Holehe call without overall timeout protection",
+    "recommendation": "Wrap entire Holehe execution in 45s timeout"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 324,
+    "issue": "Holehe only using 1 parallel workers -- too slow",
+    "recommendation": "Increase to 10-20 workers for faster execution"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1179,
+    "issue": "Holehe call without overall timeout protection",
+    "recommendation": "Wrap entire Holehe execution in 45s timeout"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1201,
+    "issue": "Holehe call without overall timeout protection",
+    "recommendation": "Wrap entire Holehe execution in 45s timeout"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1213,
+    "issue": "Holehe call without overall timeout protection",
+    "recommendation": "Wrap entire Holehe execution in 45s timeout"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1219,
+    "issue": "Holehe call without overall timeout protection",
+    "recommendation": "Wrap entire Holehe execution in 45s timeout"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1982,
+    "issue": "Holehe call without overall timeout protection",
+    "recommendation": "Wrap entire Holehe execution in 45s timeout"
+  },
+  {
+    "agent": "TIMEOUT_SCANNER",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 1984,
+    "issue": "Holehe call without overall timeout protection",
+    "recommendation": "Wrap entire Holehe execution in 45s timeout"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\api_search.py",
+    "line": 15,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\routes\\api_search.py",
+    "line": 153,
+    "issue": "executor.submit(_run_tg_discover) may lack Flask app context",
+    "recommendation": "Wrap submitted function with app.app_context()"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\behavioral_analysis.py",
+    "line": 13,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\behavioral_analysis.py",
+    "line": 1098,
+    "issue": "executor.submit(fn) may lack Flask app context",
+    "recommendation": "Wrap submitted function with app.app_context()"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 29,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 161,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 181,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\contact_discovery.py",
+    "line": 209,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 24,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 365,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 393,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 458,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 561,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 634,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 817,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1171,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1505,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1660,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\sanctions_check.py",
+    "line": 22,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\candidate\\social_analysis.py",
+    "line": 14,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\social_analysis.py",
+    "line": 555,
+    "issue": "executor.submit(_run_face_search) may lack Flask app context",
+    "recommendation": "Wrap submitted function with app.app_context()"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\social_analysis.py",
+    "line": 555,
+    "issue": "executor.submit(_run_face_search) may lack Flask app context",
+    "recommendation": "Wrap submitted function with app.app_context()"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\social_analysis.py",
+    "line": 555,
+    "issue": "executor.submit(_run_snoop_search) may lack Flask app context",
+    "recommendation": "Wrap submitted function with app.app_context()"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\social_analysis.py",
+    "line": 555,
+    "issue": "executor.submit(_run_maigret_search) may lack Flask app context",
+    "recommendation": "Wrap submitted function with app.app_context()"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\social_analysis.py",
+    "line": 555,
+    "issue": "executor.submit(_run_sherlock_search) may lack Flask app context",
+    "recommendation": "Wrap submitted function with app.app_context()"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\social_analysis.py",
+    "line": 555,
+    "issue": "executor.submit(_run_yaseeker) may lack Flask app context",
+    "recommendation": "Wrap submitted function with app.app_context()"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\telegram_discovery.py",
+    "line": 9,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\telegram_discovery.py",
+    "line": 22,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase1\\telegram_discovery.py",
+    "line": 229,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\email_discovery.py",
+    "line": 23,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\email_discovery.py",
+    "line": 90,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\email_discovery.py",
+    "line": 399,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\email_discovery.py",
+    "line": 816,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\email_discovery.py",
+    "line": 844,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\email_discovery.py",
+    "line": 846,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\email_discovery.py",
+    "line": 892,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase2\\email_discovery.py",
+    "line": 892,
+    "issue": "executor.submit(check_single) may lack Flask app context",
+    "recommendation": "Wrap submitted function with app.app_context()"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\phone_discovery.py",
+    "line": 20,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\phone_discovery.py",
+    "line": 86,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\source_manager.py",
+    "line": 17,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\source_manager.py",
+    "line": 35,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase2\\source_manager.py",
+    "line": 145,
+    "issue": "executor.submit(source) may lack Flask app context",
+    "recommendation": "Wrap submitted function with app.app_context()"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "MEDIUM",
+    "file": "\\app\\services\\phase2\\sources\\holehe_check.py",
+    "line": 51,
+    "issue": "ThreadPoolExecutor not used as context manager",
+    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\behavioral_analysis.py",
+    "line": 795,
+    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
+    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\behavioral_analysis.py",
+    "line": 797,
+    "issue": "run_until_complete() without RuntimeError handler",
+    "recommendation": "Add except RuntimeError to handle 'no event loop' in threads"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase1\\telegram_discovery.py",
+    "line": 579,
+    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
+    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase1\\telegram_discovery.py",
+    "line": 581,
+    "issue": "run_until_complete() without RuntimeError handler",
+    "recommendation": "Add except RuntimeError to handle 'no event loop' in threads"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase1\\telegram_discovery.py",
+    "line": 947,
+    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
+    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase1\\telegram_discovery.py",
+    "line": 949,
+    "issue": "run_until_complete() without RuntimeError handler",
+    "recommendation": "Add except RuntimeError to handle 'no event loop' in threads"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase2\\combined_search.py",
+    "line": 1077,
+    "issue": "run_until_complete() without RuntimeError handler",
+    "recommendation": "Add except RuntimeError to handle 'no event loop' in threads"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase2\\email_discovery.py",
+    "line": 303,
+    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
+    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase2\\email_discovery.py",
+    "line": 400,
+    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
+    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase2\\email_discovery.py",
+    "line": 402,
+    "issue": "run_until_complete() without RuntimeError handler",
+    "recommendation": "Add except RuntimeError to handle 'no event loop' in threads"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase2\\email_discovery.py",
+    "line": 465,
+    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
+    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase2\\email_discovery.py",
+    "line": 635,
+    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
+    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase2\\email_discovery.py",
+    "line": 813,
+    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
+    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase2\\email_discovery.py",
+    "line": 823,
+    "issue": "run_until_complete() without RuntimeError handler",
+    "recommendation": "Add except RuntimeError to handle 'no event loop' in threads"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase2\\forgot_password_oracle.py",
+    "line": 1426,
+    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
+    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase2\\holehe_service.py",
+    "line": 214,
+    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
+    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase2\\holehe_service.py",
+    "line": 216,
+    "issue": "run_until_complete() without RuntimeError handler",
+    "recommendation": "Add except RuntimeError to handle 'no event loop' in threads"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\phase2\\telegram_crossref.py",
+    "line": 224,
+    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
+    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
+  },
+  {
+    "agent": "THREAD_SAFETY",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 229,
+    "issue": "candidate_tasks dict is not protected by threading.Lock()",
+    "recommendation": "Add threading.Lock() to protect concurrent task dict access"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\models\\business_record.py",
+    "line": 198,
+    "issue": "Bare 'except:' at line 198 -- catches EVERYTHING including SystemExit",
+    "recommendation": "Use 'except Exception as e:' and log the error"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\models\\court_record.py",
+    "line": 264,
+    "issue": "Bare 'except:' at line 264 -- catches EVERYTHING including SystemExit",
+    "recommendation": "Use 'except Exception as e:' and log the error"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\routes\\phase3.py",
+    "line": 438,
+    "issue": "Bare 'except:' at line 438 -- catches EVERYTHING including SystemExit",
+    "recommendation": "Use 'except Exception as e:' and log the error"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\routes\\candidate_check.py",
+    "line": 116,
+    "issue": "db.session.commit() in try block without rollback on except",
+    "recommendation": "Add 'db.session.rollback()' in except block"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 407,
+    "issue": "db.session.commit() in try block without rollback on except",
+    "recommendation": "Add 'db.session.rollback()' in except block"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 589,
+    "issue": "db.session.commit() in try block without rollback on except",
+    "recommendation": "Add 'db.session.rollback()' in except block"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 991,
+    "issue": "db.session.commit() in try block without rollback on except",
+    "recommendation": "Add 'db.session.rollback()' in except block"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1572,
+    "issue": "db.session.commit() in try block without rollback on except",
+    "recommendation": "Add 'db.session.rollback()' in except block"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1710,
+    "issue": "db.session.commit() in try block without rollback on except",
+    "recommendation": "Add 'db.session.rollback()' in except block"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1724,
+    "issue": "db.session.commit() in try block without rollback on except",
+    "recommendation": "Add 'db.session.rollback()' in except block"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1750,
+    "issue": "db.session.commit() in try block without rollback on except",
+    "recommendation": "Add 'db.session.rollback()' in except block"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1805,
+    "issue": "db.session.commit() in try block without rollback on except",
+    "recommendation": "Add 'db.session.rollback()' in except block"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1838,
+    "issue": "db.session.commit() in try block without rollback on except",
+    "recommendation": "Add 'db.session.rollback()' in except block"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 460,
+    "issue": "Stage call 'egrul_future = stage0_pool.submit(_ctx(_stage0_egr' not wrapped in try/except",
+    "recommendation": "Pipeline stage must be in try/except to prevent total pipeline crash"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 461,
+    "issue": "Stage call 'bankr_future = stage0_pool.submit(_ctx(_stage0_ban' not wrapped in try/except",
+    "recommendation": "Pipeline stage must be in try/except to prevent total pipeline crash"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 636,
+    "issue": "Stage call '_ctx(_run_stage2_computation),' not wrapped in try/except",
+    "recommendation": "Pipeline stage must be in try/except to prevent total pipeline crash"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1503,
+    "issue": "Stage call 'return run_social_analysis(check)' not wrapped in try/except",
+    "recommendation": "Pipeline stage must be in try/except to prevent total pipeline crash"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1506,
+    "issue": "Stage call 'stage4_future = wave3_pool.submit(_ctx(_run_contac' not wrapped in try/except",
+    "recommendation": "Pipeline stage must be in try/except to prevent total pipeline crash"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "HIGH",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1507,
+    "issue": "Stage call 'stage5_future = wave3_pool.submit(_ctx(_run_social' not wrapped in try/except",
+    "recommendation": "Pipeline stage must be in try/except to prevent total pipeline crash"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "LOW",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 350,
+    "issue": "'sanctions_svc' used without None check after assignment",
+    "recommendation": "Add 'if sanctions_svc:' check before using 'sanctions_svc.'"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "LOW",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 542,
+    "issue": "'net_searcher' used without None check after assignment",
+    "recommendation": "Add 'if net_searcher:' check before using 'net_searcher.'"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "LOW",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 635,
+    "issue": "'stage2_executor' used without None check after assignment",
+    "recommendation": "Add 'if stage2_executor:' check before using 'stage2_executor.'"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "LOW",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 728,
+    "issue": "'searcher' used without None check after assignment",
+    "recommendation": "Add 'if searcher:' check before using 'searcher.'"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "LOW",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 747,
+    "issue": "'casebook' used without None check after assignment",
+    "recommendation": "Add 'if casebook:' check before using 'casebook.'"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "LOW",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 811,
+    "issue": "'svc' used without None check after assignment",
+    "recommendation": "Add 'if svc:' check before using 'svc.'"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "LOW",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1500,
+    "issue": "'discovery' used without None check after assignment",
+    "recommendation": "Add 'if discovery:' check before using 'discovery.'"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "LOW",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1506,
+    "issue": "'wave3_pool' used without None check after assignment",
+    "recommendation": "Add 'if wave3_pool:' check before using 'wave3_pool.'"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "LOW",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1545,
+    "issue": "'phone_intel' used without None check after assignment",
+    "recommendation": "Add 'if phone_intel:' check before using 'phone_intel.'"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "LOW",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1610,
+    "issue": "'contact_service' used without None check after assignment",
+    "recommendation": "Add 'if contact_service:' check before using 'contact_service.'"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "LOW",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1661,
+    "issue": "'_beh_pool' used without None check after assignment",
+    "recommendation": "Add 'if _beh_pool:' check before using '_beh_pool.'"
+  },
+  {
+    "agent": "ERROR_COVERAGE",
+    "severity": "LOW",
+    "file": "\\app\\services\\candidate\\pipeline.py",
+    "line": 1762,
+    "issue": "'scorer' used without None check after assignment",
+    "recommendation": "Add 'if scorer:' check before using 'scorer.'"
+  },
+  {
+    "agent": "EXTERNAL_SERVICES",
+    "severity": "HIGH",
+    "service": "EGRUL",
+    "issue": "EGRUL returned HTTP 404",
+    "recommendation": "EGRUL may be blocking requests -- check IP/headers"
+  },
+  {
+    "agent": "EXTERNAL_SERVICES",
+    "severity": "MEDIUM",
+    "service": "OpenSanctions",
+    "issue": "OpenSanctions returned HTTP 401",
+    "recommendation": "Sanctions check may not work"
+  },
+  {
+    "agent": "PERFORMANCE",
+    "severity": "LOW",
+    "file": "\\app\\models\\investigation.py",
+    "line": 153,
+    "issue": "Potentially large JSON serialization at line 153",
+    "recommendation": "Consider limiting records count before serialization"
+  },
+  {
+    "agent": "PERFORMANCE",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\candidate_check.py",
+    "line": 620,
+    "issue": "Potentially blocking operation in route: resp = http_requests.post(",
+    "recommendation": "Move heavy operations to background thread"
+  },
+  {
+    "agent": "PERFORMANCE",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\candidate_check.py",
+    "line": 636,
+    "issue": "Potentially blocking operation in route: resp = http_requests.post(",
+    "recommendation": "Move heavy operations to background thread"
+  },
+  {
+    "agent": "PERFORMANCE",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\main.py",
+    "line": 42,
+    "issue": "Potentially blocking operation in route: result = subprocess.run(",
+    "recommendation": "Move heavy operations to background thread"
+  },
+  {
+    "agent": "PERFORMANCE",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase1.py",
+    "line": 372,
+    "issue": "Potentially blocking operation in route: profile_r = http_requests.get('https://api.vk.com/method/use",
+    "recommendation": "Move heavy operations to background thread"
+  },
+  {
+    "agent": "PERFORMANCE",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase1.py",
+    "line": 400,
+    "issue": "Potentially blocking operation in route: wall_r = http_requests.get('https://api.vk.com/method/wall.g",
+    "recommendation": "Move heavy operations to background thread"
+  },
+  {
+    "agent": "PERFORMANCE",
+    "severity": "MEDIUM",
+    "file": "\\app\\routes\\phase2.py",
+    "line": 1095,
+    "issue": "Potentially blocking operation in route: time.sleep(0.2)",
+    "recommendation": "Move heavy operations to background thread"
+  }
+]

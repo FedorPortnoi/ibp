@@ -100,12 +100,12 @@ class TelegramSessionManager:
                     request_retries=3,
                 )
 
-                await cls._client.connect()
+                await asyncio.wait_for(cls._client.connect(), timeout=10)
 
                 # Check if already authorized
-                if not await cls._client.is_user_authorized():
+                if not await asyncio.wait_for(cls._client.is_user_authorized(), timeout=10):
                     # Send code request
-                    await cls._client.send_code_request(cfg['phone'])
+                    await asyncio.wait_for(cls._client.send_code_request(cfg['phone']), timeout=10)
                     logger.warning(
                         "Telegram authorization required. "
                         "Use the /api/telegram/auth endpoint to complete."
@@ -114,7 +114,7 @@ class TelegramSessionManager:
                     return cls._client
 
                 cls._connected = True
-                me = await cls._client.get_me()
+                me = await asyncio.wait_for(cls._client.get_me(), timeout=10)
                 logger.info(
                     f"Telegram connected as: {me.first_name} "
                     f"(@{me.username or 'no username'})"
@@ -151,13 +151,13 @@ class TelegramSessionManager:
             from . import config
             cfg = config.get_config()
 
-            await cls._client.sign_in(cfg['phone'], code)
+            await asyncio.wait_for(cls._client.sign_in(cfg['phone'], code), timeout=10)
 
             if password:
-                await cls._client.sign_in(password=password)
+                await asyncio.wait_for(cls._client.sign_in(password=password), timeout=10)
 
             cls._connected = True
-            me = await cls._client.get_me()
+            me = await asyncio.wait_for(cls._client.get_me(), timeout=10)
             logger.info(f"Telegram authenticated as: {me.first_name}")
             return True
 
@@ -174,7 +174,10 @@ class TelegramSessionManager:
         try:
             if not cls._client.is_connected():
                 return False
-            return await cls._client.is_user_authorized()
+            return await asyncio.wait_for(cls._client.is_user_authorized(), timeout=10)
+        except asyncio.TimeoutError:
+            logger.warning("[TelegramSession] Auth check timed out")
+            return False
         except Exception as e:
             logger.debug(f"[TelegramSession] Auth check failed: {e}")
             return False
@@ -184,7 +187,7 @@ class TelegramSessionManager:
         """Clean disconnect. Call on app shutdown."""
         if cls._client is not None:
             try:
-                await cls._client.disconnect()
+                await asyncio.wait_for(cls._client.disconnect(), timeout=10)
                 logger.info("Telegram client disconnected")
             except Exception as e:
                 logger.warning(f"Telegram disconnect error: {e}")
