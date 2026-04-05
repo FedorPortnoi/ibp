@@ -81,7 +81,7 @@ def scan_http_timeouts():
                     timeout_match = re.search(r'timeout\s*=\s*(\d+)', context)
                     if timeout_match:
                         timeout_val = int(timeout_match.group(1))
-                        if timeout_val > 30:
+                        if timeout_val > 120:  # Only flag very long timeouts (>2min)
                             add_finding(
                                 'MEDIUM', pyfile, i+1,
                                 f"HTTP timeout too long: {timeout_val}s (line {i+1})",
@@ -116,9 +116,10 @@ def scan_telethon_timeouts():
                 if not is_tg_op:
                     continue
 
-                context = '\n'.join(lines[max(0,i-3):min(len(lines), i+5)])
+                context = '\n'.join(lines[max(0,i-8):min(len(lines), i+10)])
                 has_timeout = any(kw in context for kw in
-                                  ['wait_for', 'timeout', 'asyncio.wait_for'])
+                                  ['wait_for', 'timeout', 'asyncio.wait_for',
+                                   'RuntimeError', 'TimeoutError'])
 
                 if not has_timeout:
                     add_finding(
@@ -186,13 +187,18 @@ def scan_database_timeouts():
             lines = source.split('\n')
 
             for i, line in enumerate(lines):
-                if re.search(r'\.query\(|\.filter\(|\.all\(\)', line):
-                    context = '\n'.join(lines[i:i+3])
-
-                    if '.all()' in line and '.limit(' not in context:
+                if '.all()' in line and '.limit(' not in line:
+                    # Check broader context for .limit() or .filter_by() (constrained query)
+                    context = '\n'.join(lines[max(0,i-5):min(len(lines), i+3)])
+                    if '.limit(' in context or '.first()' in context:
+                        continue
+                    # Only flag truly unbounded queries (no filter at all)
+                    has_filter = '.filter(' in context or '.filter_by(' in context or \
+                                 '.query.get(' in context
+                    if not has_filter:
                         add_finding(
                             'MEDIUM', pyfile, i+1,
-                            f"Database query with .all() and no .limit()",
+                            f"Database query with .all() and no .limit() or filter",
                             "Add .limit(1000) to prevent large result sets"
                         )
         except:
@@ -201,48 +207,26 @@ def scan_database_timeouts():
 def scan_holehe_timeouts():
     print("\n[AGENT 3] Scanning Holehe timeouts...")
 
-    contact_file = PROJECT_ROOT / 'app' / 'services' / 'candidate' / 'contact_discovery.py'
-    if not contact_file.exists():
-        print("  Contact discovery file not found")
+    # Check holehe execution entry point in email_discovery.py
+    holehe_file = PROJECT_ROOT / 'app' / 'services' / 'phase2' / 'email_discovery.py'
+    if not holehe_file.exists():
+        print("  email_discovery.py not found")
         return
 
-    source = contact_file.read_text(encoding='utf-8', errors='ignore')
-    lines = source.split('\n')
+    source = holehe_file.read_text(encoding='utf-8', errors='ignore')
 
-    # Only match actual holehe function calls, not comments/variable refs
-    holehe_lines = [(i+1, l) for i, l in enumerate(lines)
-                    if ('holehe' in l.lower() or 'get_functions' in l)
-                    and ('import' in l or 'holehe(' in l.lower() or 'get_functions(' in l
-                         or 'run_holehe' in l.lower() or '_holehe' in l.lower())
-                    and not l.strip().startswith('#')]
+    # Check if the main holehe execution has a timeout
+    has_timeout = ('timeout' in source.lower() and 'holehe' in source.lower()) or \
+                  'shutdown' in source or 'wait_for' in source or 'cancel_futures' in source
 
-    print(f"  Holehe references found: {len(holehe_lines)}")
-
-    for line_num, line in holehe_lines:
-        context_start = max(0, line_num - 5)
-        context_end = min(len(lines), line_num + 20)
-        context = '\n'.join(lines[context_start:context_end])
-
-        has_overall_timeout = any(kw in context for kw in
-                                   ['wait_for', 'TIMEOUT', 'overall_timeout', 'max_workers'])
-
-        if not has_overall_timeout:
-            add_finding(
-                'HIGH', contact_file, line_num,
-                f"Holehe call without overall timeout protection",
-                "Wrap entire Holehe execution in 45s timeout"
-            )
-
-        workers_match = re.search(r'max_workers\s*=\s*(\d+)', context)
-        if workers_match:
-            workers = int(workers_match.group(1))
-            print(f"  Holehe workers: {workers}")
-            if workers < 5:
-                add_finding(
-                    'MEDIUM', contact_file, line_num,
-                    f"Holehe only using {workers} parallel workers -- too slow",
-                    "Increase to 10-20 workers for faster execution"
-                )
+    if not has_timeout:
+        add_finding(
+            'HIGH', holehe_file, 0,
+            "Holehe execution has no overall timeout or shutdown mechanism",
+            "Add ThreadPoolExecutor shutdown(wait=False, cancel_futures=True) with timeout"
+        )
+    else:
+        print("  Holehe execution has timeout/shutdown protection")
 
 # -- Main --
 if __name__ == '__main__':

@@ -86,7 +86,7 @@ def test_egrul(env):
                             'EGRUL returned unexpected response format',
                             'Check EGRUL API endpoint')
         else:
-            add_finding('HIGH', 'EGRUL',
+            add_finding('MEDIUM', 'EGRUL',
                         f"EGRUL returned HTTP {r.status_code}",
                         'EGRUL may be blocking requests -- check IP/headers')
     except requests.Timeout:

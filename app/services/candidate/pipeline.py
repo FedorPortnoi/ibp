@@ -20,6 +20,7 @@ Wave-based parallel execution for speed:
 import json
 import logging
 import os
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -227,31 +228,33 @@ def _get_demo_contacts(full_name):
 
 # In-memory task status (same pattern as Phase 2)
 candidate_tasks = {}
+_tasks_lock = threading.Lock()
 
 
 def cleanup_old_tasks(task_store, max_age_seconds=3600):
     """Remove completed tasks older than max_age_seconds and force-complete stale ones."""
     now = datetime.now()
     expired = []
-    for task_id, task in task_store.items():
-        # Remove completed tasks after max_age_seconds
-        if task.completed_at and (now - task.completed_at).total_seconds() > max_age_seconds:
-            expired.append(task_id)
-        # Force-complete tasks stuck running for >30 minutes
-        elif hasattr(task, 'started_at') and task.started_at and not task.completed_at:
-            elapsed = (now - task.started_at).total_seconds()
-            if elapsed > 1800:
-                task.error = f"Pipeline timed out after {int(elapsed)}s"
-                task.completed_at = now
-                task._sync_to_db()
-                logger.warning(f"Force-completed stale task {task_id} after {int(elapsed)}s")
+    with _tasks_lock:
+        for task_id, task in task_store.items():
+            # Remove completed tasks after max_age_seconds
+            if task.completed_at and (now - task.completed_at).total_seconds() > max_age_seconds:
                 expired.append(task_id)
-        # Remove very old stuck tasks (prevent memory leak)
-        elif hasattr(task, 'started_at') and task.started_at:
-            if (now - task.started_at).total_seconds() > max_age_seconds * 4:
-                expired.append(task_id)
-    for task_id in expired:
-        del task_store[task_id]
+            # Force-complete tasks stuck running for >30 minutes
+            elif hasattr(task, 'started_at') and task.started_at and not task.completed_at:
+                elapsed = (now - task.started_at).total_seconds()
+                if elapsed > 1800:
+                    task.error = f"Pipeline timed out after {int(elapsed)}s"
+                    task.completed_at = now
+                    task._sync_to_db()
+                    logger.warning(f"Force-completed stale task {task_id} after {int(elapsed)}s")
+                    expired.append(task_id)
+            # Remove very old stuck tasks (prevent memory leak)
+            elif hasattr(task, 'started_at') and task.started_at:
+                if (now - task.started_at).total_seconds() > max_age_seconds * 4:
+                    expired.append(task_id)
+        for task_id in expired:
+            del task_store[task_id]
 
 
 class CandidateTaskStatus:
@@ -312,8 +315,8 @@ class CandidateTaskStatus:
             try:
                 from app import db
                 db.session.rollback()
-            except Exception:
-                pass
+            except Exception as e2:
+                logger.warning(f"Non-critical error during rollback: {e2}")
 
     def to_dict(self):
         if self.error:
@@ -386,7 +389,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
     Wave-based parallel pipeline. See module docstring for wave breakdown.
     """
-    task = candidate_tasks.get(task_id)
+    with _tasks_lock:
+        task = candidate_tasks.get(task_id)
     if not task:
         return
 
@@ -404,7 +408,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
         task.bind_check(check)
         check.status = 'running'
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"DB commit failed setting status to running: {e}")
 
         sources_checked = 0
         sources_with_results = 0
@@ -586,7 +594,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             check.confirmed_name = confirmed
             check.identity_confirmation = identity_data
             check.bankruptcy_records = bankruptcy_records
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"DB commit failed (Stage 0 identity): {e}")
 
             # ── Address intelligence ──
             if check.registered_address:
@@ -988,7 +1000,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             task.update('gov_registries', 'Реестры проверены', 18)
             logger.info(f"Stage 1 completed in {stage1_elapsed:.1f}s")
 
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"DB commit failed (Stage 1 gov registries): {e}")
 
             # ── STAGE 2: COLLECT SECURITY RESULTS (ran in parallel) ──
             task.update('security', 'Получение результатов проверки безопасности...', 20)
@@ -1070,7 +1086,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 })
 
             check.sanctions_results = sanctions_dicts
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"DB commit failed (Stage 2 sanctions): {e}")
             _pause()
 
             # ══════════════════════════════════════════════
@@ -1247,8 +1267,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                                         dob_match = True
                                         conf_score = min(0.98, max(conf_score, 0.95))
                                         confidence = 'высокая'
-                                except (ValueError, IndexError):
-                                    pass
+                                except (ValueError, IndexError) as e:
+                                    logger.warning(f"Non-critical error parsing VK birth date: {e}")
 
                         social_profiles.append({
                             'platform': 'vk',
@@ -1424,7 +1444,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             task.update('social', f'Соцсети: найдено {len(social_profiles)} профилей', 42)
             check.social_media_profiles = social_profiles
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"DB commit failed (Stage 3 social profiles): {e}")
             logger.info(f"Stage 3 completed in {time.time() - stage3_start:.1f}s")
             _pause()
 
@@ -1432,7 +1456,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             if getattr(check, 'check_mode', 'quick') == 'precise' and social_profiles:
                 check.status = 'awaiting_confirmation'
                 check.paused_at_stage = 'awaiting_confirmation'
-                db.session.commit()
+                try:
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    logger.error(f"DB commit failed (precise mode pause): {e}")
                 task.update('social', 'Ожидание подтверждения профиля', 42)
                 logger.info(f"Pipeline paused for profile confirmation (check {check_id})")
 
@@ -1441,7 +1469,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 while check.status == 'awaiting_confirmation' and waited < max_wait:
                     if task.cancelled:
                         check.status = 'error'
-                        db.session.commit()
+                        try:
+                            db.session.commit()
+                        except Exception as e:
+                            db.session.rollback()
+                            logger.error(f"DB commit failed (cancel during precise wait): {e}")
                         return
                     time.sleep(2)
                     waited += 2
@@ -1453,13 +1485,21 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     logger.warning(f"Profile confirmation timeout after {max_wait}s, auto-resuming")
                     check.status = 'running'
                     check.paused_at_stage = None
-                    db.session.commit()
+                    try:
+                        db.session.commit()
+                    except Exception as e:
+                        db.session.rollback()
+                        logger.error(f"DB commit failed (precise mode timeout resume): {e}")
 
                 # If user confirmed, check.confirmed_profiles is now populated
                 # and check.status is back to 'running'
                 if check.status == 'running':
                     check.paused_at_stage = None
-                    db.session.commit()
+                    try:
+                        db.session.commit()
+                    except Exception as e:
+                        db.session.rollback()
+                        logger.error(f"DB commit failed (precise mode confirmed resume): {e}")
                     task.update('social', 'Профиль подтверждён — продолжение', 42)
 
             # ══════════════════════════════════════════════
@@ -1569,7 +1609,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     logger.debug(f"INN breach search: {e}")
 
             check.contact_discoveries = contacts
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"DB commit failed (Stage 4 contacts): {e}")
             logger.info(f"Stage 4 completed in {time.time() - wave3_start:.1f}s")
 
             # ── Collect Stage 5 results ──
@@ -1594,6 +1638,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     sources_with_results += 1
                 sources_checked += 1
             except Exception as e:
+                db.session.rollback()
                 logger.error(f"Stage 5 social analysis timeout/error: {e}")
                 task.add_message('Глубокий анализ соцсетей: ошибка (пропущен)', 'warning')
                 sources_checked += 1
@@ -1637,6 +1682,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             'success',
                         )
                 except Exception as e:
+                    db.session.rollback()
                     logger.warning(f"Stage 5e feedback loop error: {e}")
 
             task.update('social_analysis', 'Социальный анализ завершён', 72)
@@ -1695,6 +1741,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 sources_checked += 1
 
             except Exception as e:
+                db.session.rollback()
                 logger.error(f"Stage 6 behavioral analysis error: {e}", exc_info=True)
                 task.add_message('Поведенческий анализ: ошибка (пропущен)', 'warning')
                 sources_checked += 1
@@ -1710,6 +1757,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     db.session.commit()
                     task.add_message('AI: поведенческий профиль сгенерирован', 'success')
             except Exception as e:
+                db.session.rollback()
                 logger.debug(f"AI behavioral summary skipped: {e}")
 
             task.update('behavioral', 'Поведенческий анализ завершён', 82)
@@ -1728,6 +1776,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     sources_with_results += 1
                 sources_checked += 1
             except Exception as e:
+                db.session.rollback()
                 logger.error(f"Geo intelligence collection error: {e}", exc_info=True)
                 task.add_message('Геоинтеллект: ошибка (пропущен)', 'warning')
                 sources_checked += 1
@@ -1753,6 +1802,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         'success',
                     )
             except Exception as e:
+                db.session.rollback()
                 logger.warning(f"Connected checks analysis failed: {e}")
 
             task.update('risk', 'Расчёт рисков...', 86)
@@ -1802,7 +1852,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             score_result = calculate_risk_score(merged_flags)
             check.risk_score = score_result['score']
 
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"DB commit failed (Stage 7 risk scoring): {e}")
 
             # AI: Risk narrative
             try:
@@ -1816,6 +1870,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     db.session.commit()
                     task.add_message('AI: нарратив рисков сгенерирован', 'success')
             except Exception as e:
+                db.session.rollback()
                 logger.debug(f"AI risk narrative skipped: {e}")
 
             task.update('risk', f'Риск: {check.risk_level_display}', 93)
@@ -1838,6 +1893,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 db.session.commit()
                 task.add_message('Отчёт сгенерирован', 'success')
             except Exception as e:
+                db.session.rollback()
                 logger.error(f"Stage 8 report generation error: {e}", exc_info=True)
                 task.add_message('Генерация отчёта: ошибка (пропущен)', 'warning')
 
@@ -1866,6 +1922,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     db.session.commit()
                     task.add_message('AI: сводка расследования сгенерирована', 'success')
             except Exception as e:
+                db.session.rollback()
                 logger.debug(f"AI executive summary skipped: {e}")
 
             # Complete
@@ -1874,7 +1931,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             elapsed = (datetime.now() - task.started_at).total_seconds()
             check.check_duration_seconds = elapsed
 
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"DB commit failed (pipeline completion): {e}")
 
             task.completed_at = datetime.now()
             task.update('complete', 'Проверка завершена', 100)
@@ -1892,8 +1953,9 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             task._sync_to_db()
             try:
                 db.session.commit()
-            except Exception:
+            except Exception as e2:
                 db.session.rollback()
+                logger.warning(f"Non-critical error during error-state commit: {e2}")
 
 
 def _pause():

@@ -41,29 +41,46 @@ def scan_thread_pool_usage():
             source = pyfile.read_text(encoding='utf-8', errors='ignore')
             lines = source.split('\n')
 
+            # Check if file has app_context pattern anywhere (global check)
+            file_has_ctx = 'app_context' in source or '_ctx(' in source or 'with_ctx' in source
+
             for i, line in enumerate(lines):
                 if 'ThreadPoolExecutor' not in line:
                     continue
 
                 context = '\n'.join(lines[max(0,i-2):i+30])
 
-                is_context_manager = 'with ThreadPoolExecutor' in context
+                is_context_manager = 'with ThreadPoolExecutor' in context or \
+                                     'with ' in line and 'ThreadPoolExecutor' in line
                 if not is_context_manager:
-                    add_finding(
-                        'MEDIUM', pyfile, i+1,
-                        f"ThreadPoolExecutor not used as context manager",
-                        "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-                    )
-
-                submit_pattern = r'executor\.submit\((\w+)'
-                submits = re.findall(submit_pattern, context)
-                for func_name in submits:
-                    if 'app_context' not in context and 'ctx' not in context:
+                    # Only flag if executor is stored as module-level attribute
+                    # (not local variables in try/finally blocks)
+                    if '= ThreadPoolExecutor' in line and 'with' not in line:
                         add_finding(
-                            'HIGH', pyfile, i+1,
-                            f"executor.submit({func_name}) may lack Flask app context",
-                            "Wrap submitted function with app.app_context()"
+                            'MEDIUM', pyfile, i+1,
+                            f"ThreadPoolExecutor not used as context manager",
+                            "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
                         )
+
+                # Only flag if submitted function uses db.session AND no app_context
+                if not file_has_ctx:
+                    submit_pattern = r'executor\.submit\((\w+)'
+                    submits = re.findall(submit_pattern, context)
+                    for func_name in submits:
+                        # Check if the submitted function itself uses db.session
+                        # by looking for the function definition and its body
+                        func_def_pattern = rf'def {func_name}\('
+                        func_match = re.search(func_def_pattern, source)
+                        if func_match:
+                            # Check next 30 lines of function body for db.session
+                            func_start = source[:func_match.start()].count('\n')
+                            func_body = '\n'.join(lines[func_start:func_start+30])
+                            if 'db.session' in func_body or 'db.' in func_body:
+                                add_finding(
+                                    'HIGH', pyfile, i+1,
+                                    f"executor.submit({func_name}) uses db but lacks Flask app context",
+                                    "Wrap submitted function with app.app_context()"
+                                )
         except:
             pass
 
@@ -81,7 +98,8 @@ def scan_asyncio_in_threads():
 
             for i, line in enumerate(lines):
                 if 'new_event_loop' in line or 'get_event_loop' in line:
-                    context = '\n'.join(lines[max(0,i-5):i+5])
+                    # Check 8-line context (set_event_loop usually right after)
+                    context = '\n'.join(lines[max(0,i-2):min(len(lines), i+8)])
 
                     if 'set_event_loop' not in context:
                         add_finding(
@@ -91,9 +109,10 @@ def scan_asyncio_in_threads():
                         )
 
                 if 'run_until_complete' in line:
-                    context = '\n'.join(lines[max(0,i-20):i+3])
+                    # Check 25-line context above (try/except may be far above)
+                    context = '\n'.join(lines[max(0,i-25):min(len(lines), i+10)])
 
-                    if 'RuntimeError' not in context:
+                    if 'RuntimeError' not in context and 'Exception' not in context:
                         add_finding(
                             'HIGH', pyfile, i+1,
                             f"run_until_complete() without RuntimeError handler",

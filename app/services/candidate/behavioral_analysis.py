@@ -793,6 +793,7 @@ def search_telegram_public_messages(full_name: str, username: str = None) -> dic
 
     try:
         loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
             result = loop.run_until_complete(
                 asyncio.wait_for(_search_global(), timeout=15)
@@ -1095,8 +1096,21 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
         _worker_telegram_public,
     ]
 
+    # Propagate Flask app context to ThreadPoolExecutor workers
+    try:
+        from flask import current_app
+        _app = current_app._get_current_object()
+    except (ImportError, RuntimeError):
+        _app = None
+
+    def _run_with_ctx(fn):
+        if _app:
+            with _app.app_context():
+                return fn()
+        return fn()
+
     with ThreadPoolExecutor(max_workers=6) as executor:
-        futures = {executor.submit(fn): fn.__doc__ for fn in workers}
+        futures = {executor.submit(_run_with_ctx, fn): fn.__doc__ for fn in workers}
         for future in as_completed(futures):
             label = futures[future]
             try:

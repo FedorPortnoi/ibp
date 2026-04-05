@@ -11,7 +11,7 @@
     "agent": "PERFORMANCE",
     "severity": "MEDIUM",
     "file": "\\app\\routes\\candidate_check.py",
-    "line": 620,
+    "line": 636,
     "issue": "Potentially blocking operation in route: resp = http_requests.post(",
     "recommendation": "Move heavy operations to background thread"
   },
@@ -19,7 +19,7 @@
     "agent": "PERFORMANCE",
     "severity": "MEDIUM",
     "file": "\\app\\routes\\candidate_check.py",
-    "line": 636,
+    "line": 652,
     "issue": "Potentially blocking operation in route: resp = http_requests.post(",
     "recommendation": "Move heavy operations to background thread"
   },
@@ -35,7 +35,7 @@
     "agent": "PERFORMANCE",
     "severity": "MEDIUM",
     "file": "\\app\\routes\\phase1.py",
-    "line": 372,
+    "line": 376,
     "issue": "Potentially blocking operation in route: profile_r = http_requests.get('https://api.vk.com/method/use",
     "recommendation": "Move heavy operations to background thread"
   },
@@ -43,7 +43,7 @@
     "agent": "PERFORMANCE",
     "severity": "MEDIUM",
     "file": "\\app\\routes\\phase1.py",
-    "line": 400,
+    "line": 404,
     "issue": "Potentially blocking operation in route: wall_r = http_requests.get('https://api.vk.com/method/wall.g",
     "recommendation": "Move heavy operations to background thread"
   },

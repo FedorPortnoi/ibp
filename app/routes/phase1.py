@@ -177,7 +177,11 @@ def buratino_search_results(investigation_id):
     stats['vk_results_count'] = len(all_profiles)
     stats['search_completed_at'] = datetime.now().isoformat()
     investigation.phase1_stats = stats
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to save phase1 stats: {e}")
 
     return render_template(
         'phase1_buratino_results.html',

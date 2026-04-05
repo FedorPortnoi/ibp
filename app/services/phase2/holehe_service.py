@@ -212,11 +212,30 @@ def _check_email_via_library(email: str) -> HoleheResults:
     # Run in a new event loop (safe from background thread)
     try:
         loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
             result = loop.run_until_complete(
                 asyncio.wait_for(_run_checks(), timeout=5.0)
             )
             return result
+        except RuntimeError as e:
+            logger.debug(f"Holehe event loop error: {e}")
+            return HoleheResults(
+                email=email,
+                registered_services=[],
+                total_checked=0,
+                total_registered=0,
+                error=str(e)
+            )
+        except asyncio.TimeoutError:
+            logger.debug(f"Holehe library timed out for {email}")
+            return HoleheResults(
+                email=email,
+                registered_services=[],
+                total_checked=0,
+                total_registered=0,
+                error='timeout'
+            )
         finally:
             loop.close()
     except Exception as e:

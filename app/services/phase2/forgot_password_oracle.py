@@ -1424,6 +1424,7 @@ class TelegramChecker(ForgotPasswordChecker):
         try:
             # Run async code in a new event loop (safe from sync context)
             loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             try:
                 exists, error = loop.run_until_complete(asyncio.wait_for(_check(), timeout=15))
             except RuntimeError as e:

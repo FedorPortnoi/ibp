@@ -300,7 +300,7 @@ class EmailDiscoveryService:
         Runs checks concurrently (up to 3 at a time) with per-email timeout.
         """
         verified = []
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         # Tier the emails: Russian domains first, then international
         tier1_domains = {'mail.ru', 'yandex.ru', 'bk.ru', 'gmail.com'}
@@ -398,10 +398,17 @@ class EmailDiscoveryService:
 
             # Run in a fresh event loop (safe from ThreadPoolExecutor)
             loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             try:
                 results = loop.run_until_complete(
                     asyncio.wait_for(_check(email), timeout=25.0)
                 )
+            except RuntimeError as e:
+                logger.warning(f"Holehe event loop error: {e}")
+                results = []
+            except asyncio.TimeoutError:
+                logger.warning(f"Holehe verification timed out for {email}")
+                results = []
             finally:
                 loop.close()
 
@@ -462,7 +469,7 @@ class EmailDiscoveryService:
         Runs blocking SMTP checks in thread pool.
         """
         verified = []
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         checked_count = 0
 
         for email in emails:
@@ -632,7 +639,7 @@ class EmailDiscoveryService:
         validated = []
         checked_domains = set()
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         for email in emails:
             domain = email.split('@')[-1]
@@ -810,8 +817,12 @@ class EmailDiscoveryService:
         Creates new event loop if needed.
         """
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(
@@ -820,10 +831,16 @@ class EmailDiscoveryService:
                     )
                     return future.result(timeout=15)
             else:
-                return loop.run_until_complete(
-                    self.discover(first_name, last_name, usernames, profile_urls)
-                )
-        except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    return loop.run_until_complete(
+                        self.discover(first_name, last_name, usernames, profile_urls)
+                    )
+                finally:
+                    loop.close()
+        except RuntimeError as e:
+            logger.warning(f"Email discovery sync event loop error: {e}")
             return asyncio.run(
                 self.discover(first_name, last_name, usernames, profile_urls)
             )

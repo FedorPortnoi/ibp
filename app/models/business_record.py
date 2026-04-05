@@ -5,9 +5,12 @@ SQLAlchemy model for storing business/company affiliations.
 Data from ЕГРЮЛ, rusprofile.ru, list-org.com.
 """
 
+import logging
 from datetime import datetime
 from app import db
 import json
+
+logger = logging.getLogger(__name__)
 
 
 class BusinessRecord(db.Model):
@@ -195,8 +198,8 @@ class BusinessRecord(db.Model):
             try:
                 from dateutil.parser import parse
                 record.registration_date = parse(data['registration_date']).date()
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"Error parsing registration_date: {e}")
 
         # Financial data
         record.authorized_capital = data.get('authorized_capital')

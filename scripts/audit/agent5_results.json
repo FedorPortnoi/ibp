@@ -1,161 +1,9 @@
 [
   {
     "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\models\\business_record.py",
-    "line": 198,
-    "issue": "Bare 'except:' at line 198 -- catches EVERYTHING including SystemExit",
-    "recommendation": "Use 'except Exception as e:' and log the error"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\models\\court_record.py",
-    "line": 264,
-    "issue": "Bare 'except:' at line 264 -- catches EVERYTHING including SystemExit",
-    "recommendation": "Use 'except Exception as e:' and log the error"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\routes\\phase3.py",
-    "line": 438,
-    "issue": "Bare 'except:' at line 438 -- catches EVERYTHING including SystemExit",
-    "recommendation": "Use 'except Exception as e:' and log the error"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\routes\\candidate_check.py",
-    "line": 116,
-    "issue": "db.session.commit() in try block without rollback on except",
-    "recommendation": "Add 'db.session.rollback()' in except block"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 407,
-    "issue": "db.session.commit() in try block without rollback on except",
-    "recommendation": "Add 'db.session.rollback()' in except block"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 589,
-    "issue": "db.session.commit() in try block without rollback on except",
-    "recommendation": "Add 'db.session.rollback()' in except block"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 991,
-    "issue": "db.session.commit() in try block without rollback on except",
-    "recommendation": "Add 'db.session.rollback()' in except block"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1572,
-    "issue": "db.session.commit() in try block without rollback on except",
-    "recommendation": "Add 'db.session.rollback()' in except block"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1710,
-    "issue": "db.session.commit() in try block without rollback on except",
-    "recommendation": "Add 'db.session.rollback()' in except block"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1724,
-    "issue": "db.session.commit() in try block without rollback on except",
-    "recommendation": "Add 'db.session.rollback()' in except block"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1750,
-    "issue": "db.session.commit() in try block without rollback on except",
-    "recommendation": "Add 'db.session.rollback()' in except block"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1805,
-    "issue": "db.session.commit() in try block without rollback on except",
-    "recommendation": "Add 'db.session.rollback()' in except block"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1838,
-    "issue": "db.session.commit() in try block without rollback on except",
-    "recommendation": "Add 'db.session.rollback()' in except block"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 460,
-    "issue": "Stage call 'egrul_future = stage0_pool.submit(_ctx(_stage0_egr' not wrapped in try/except",
-    "recommendation": "Pipeline stage must be in try/except to prevent total pipeline crash"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 461,
-    "issue": "Stage call 'bankr_future = stage0_pool.submit(_ctx(_stage0_ban' not wrapped in try/except",
-    "recommendation": "Pipeline stage must be in try/except to prevent total pipeline crash"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 636,
-    "issue": "Stage call '_ctx(_run_stage2_computation),' not wrapped in try/except",
-    "recommendation": "Pipeline stage must be in try/except to prevent total pipeline crash"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1503,
-    "issue": "Stage call 'return run_social_analysis(check)' not wrapped in try/except",
-    "recommendation": "Pipeline stage must be in try/except to prevent total pipeline crash"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1506,
-    "issue": "Stage call 'stage4_future = wave3_pool.submit(_ctx(_run_contac' not wrapped in try/except",
-    "recommendation": "Pipeline stage must be in try/except to prevent total pipeline crash"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1507,
-    "issue": "Stage call 'stage5_future = wave3_pool.submit(_ctx(_run_social' not wrapped in try/except",
-    "recommendation": "Pipeline stage must be in try/except to prevent total pipeline crash"
-  },
-  {
-    "agent": "ERROR_COVERAGE",
     "severity": "LOW",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 350,
+    "line": 353,
     "issue": "'sanctions_svc' used without None check after assignment",
     "recommendation": "Add 'if sanctions_svc:' check before using 'sanctions_svc.'"
   },
@@ -163,7 +11,7 @@
     "agent": "ERROR_COVERAGE",
     "severity": "LOW",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 542,
+    "line": 550,
     "issue": "'net_searcher' used without None check after assignment",
     "recommendation": "Add 'if net_searcher:' check before using 'net_searcher.'"
   },
@@ -171,7 +19,7 @@
     "agent": "ERROR_COVERAGE",
     "severity": "LOW",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 635,
+    "line": 647,
     "issue": "'stage2_executor' used without None check after assignment",
     "recommendation": "Add 'if stage2_executor:' check before using 'stage2_executor.'"
   },
@@ -179,7 +27,7 @@
     "agent": "ERROR_COVERAGE",
     "severity": "LOW",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 728,
+    "line": 740,
     "issue": "'searcher' used without None check after assignment",
     "recommendation": "Add 'if searcher:' check before using 'searcher.'"
   },
@@ -187,7 +35,7 @@
     "agent": "ERROR_COVERAGE",
     "severity": "LOW",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 747,
+    "line": 759,
     "issue": "'casebook' used without None check after assignment",
     "recommendation": "Add 'if casebook:' check before using 'casebook.'"
   },
@@ -195,7 +43,7 @@
     "agent": "ERROR_COVERAGE",
     "severity": "LOW",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 811,
+    "line": 823,
     "issue": "'svc' used without None check after assignment",
     "recommendation": "Add 'if svc:' check before using 'svc.'"
   },
@@ -203,7 +51,7 @@
     "agent": "ERROR_COVERAGE",
     "severity": "LOW",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1500,
+    "line": 1540,
     "issue": "'discovery' used without None check after assignment",
     "recommendation": "Add 'if discovery:' check before using 'discovery.'"
   },
@@ -211,7 +59,7 @@
     "agent": "ERROR_COVERAGE",
     "severity": "LOW",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1506,
+    "line": 1546,
     "issue": "'wave3_pool' used without None check after assignment",
     "recommendation": "Add 'if wave3_pool:' check before using 'wave3_pool.'"
   },
@@ -219,7 +67,7 @@
     "agent": "ERROR_COVERAGE",
     "severity": "LOW",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1545,
+    "line": 1585,
     "issue": "'phone_intel' used without None check after assignment",
     "recommendation": "Add 'if phone_intel:' check before using 'phone_intel.'"
   },
@@ -227,7 +75,7 @@
     "agent": "ERROR_COVERAGE",
     "severity": "LOW",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1610,
+    "line": 1655,
     "issue": "'contact_service' used without None check after assignment",
     "recommendation": "Add 'if contact_service:' check before using 'contact_service.'"
   },
@@ -235,7 +83,7 @@
     "agent": "ERROR_COVERAGE",
     "severity": "LOW",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1661,
+    "line": 1707,
     "issue": "'_beh_pool' used without None check after assignment",
     "recommendation": "Add 'if _beh_pool:' check before using '_beh_pool.'"
   },
@@ -243,7 +91,7 @@
     "agent": "ERROR_COVERAGE",
     "severity": "LOW",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1762,
+    "line": 1812,
     "issue": "'scorer' used without None check after assignment",
     "recommendation": "Add 'if scorer:' check before using 'scorer.'"
   }

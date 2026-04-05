@@ -181,7 +181,10 @@ def create_app(config_name=None):
                 if not sub:
                     sub = Subscription(user_id=user.id, status='inactive')
                     db.session.add(sub)
-                    db.session.commit()
+                    try:
+                        db.session.commit()
+                    except Exception:
+                        db.session.rollback()
                 # Free tier users can browse the app freely.
                 # Limit is enforced at /candidate/start (see candidate_check.py).
 

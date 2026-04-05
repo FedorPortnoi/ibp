@@ -577,12 +577,16 @@ class TelegramDiscoveryService:
                 return profiles
 
             loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             try:
                 found = loop.run_until_complete(
                     asyncio.wait_for(_search(), timeout=15)
                 )
             except asyncio.TimeoutError:
                 logger.warning("TG Method C: overall timeout after 15s")
+                found = []
+            except RuntimeError as e:
+                logger.warning(f"TG Method C: event loop error: {e}")
                 found = []
             finally:
                 loop.close()
@@ -945,12 +949,16 @@ class TelegramDiscoveryService:
                 return results
 
             loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             try:
                 found = loop.run_until_complete(
                     asyncio.wait_for(_lookup(), timeout=15)
                 )
             except asyncio.TimeoutError:
                 logger.warning("TG phone lookup: timeout after 15s")
+                return []
+            except RuntimeError as e:
+                logger.warning(f"TG phone lookup: event loop error: {e}")
                 return []
             finally:
                 loop.close()

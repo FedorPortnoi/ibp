@@ -5,9 +5,12 @@ SQLAlchemy model for storing court case records.
 Data from sudrf.ru, sudact.ru, kad.arbitr.ru.
 """
 
+import logging
 from datetime import datetime
 from app import db
 import json
+
+logger = logging.getLogger(__name__)
 
 
 class CourtRecord(db.Model):
@@ -261,8 +264,8 @@ class CourtRecord(db.Model):
             if date_value:
                 try:
                     setattr(record, date_field, parse(date_value).date())
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Error parsing {date_field}: {e}")
 
         # Participants
         if data.get('participants'):

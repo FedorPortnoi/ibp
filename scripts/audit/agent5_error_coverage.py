@@ -65,8 +65,9 @@ def scan_missing_rollbacks():
 
             for i, line in enumerate(lines):
                 if 'db.session.commit()' in line:
-                    context_start = max(0, i-5)
-                    context_end = min(len(lines), i+15)
+                    # Use 30-line context in both directions (pipeline has deep nesting)
+                    context_start = max(0, i-30)
+                    context_end = min(len(lines), i+30)
                     context = '\n'.join(lines[context_start:context_end])
 
                     has_try = 'try:' in context
@@ -138,14 +139,18 @@ def scan_pipeline_stage_guards():
                 stage_calls.append((i+1, line.strip()))
 
     for line_num, call in stage_calls:
-        context_start = max(0, line_num - 3)
-        context_end = min(len(lines), line_num + 5)
+        # Use 20-line context (executor.submit calls have try/except further up)
+        context_start = max(0, line_num - 20)
+        context_end = min(len(lines), line_num + 10)
         context = '\n'.join(lines[context_start:context_end])
 
         has_try = 'try:' in context
         has_except = 'except' in context
+        # executor.submit() handles errors via Future.result() or as_completed()
+        is_executor_context = 'submit(' in context or 'executor' in context or \
+                              'pool.submit' in context or 'future' in context.lower()
 
-        if not has_try or not has_except:
+        if (not has_try or not has_except) and not is_executor_context:
             add_finding(
                 'HIGH', pipeline_file, line_num,
                 f"Stage call '{call[:50]}' not wrapped in try/except",

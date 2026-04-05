@@ -153,7 +153,14 @@ def scan_try_imports():
                         if isinstance(item, (ast.Import, ast.ImportFrom)):
                             for handler in node.handlers:
                                 handler_code = ast.unparse(handler) if hasattr(ast, 'unparse') else ''
-                                if 'pass' in handler_code or '= None' in handler_code:
+                                # Skip if handler provides a fallback (= None, = False, logging, warning)
+                                has_fallback = '= None' in handler_code or '= False' in handler_code
+                                has_logging = any(kw in handler_code for kw in
+                                    ['log', 'warning', 'print', 'logger'])
+                                has_stub = 'class ' in handler_code or 'def ' in handler_code
+
+                                if 'pass' in handler_code and not has_fallback and \
+                                   not has_logging and not has_stub:
                                     add_finding(
                                         'MEDIUM',
                                         pyfile,

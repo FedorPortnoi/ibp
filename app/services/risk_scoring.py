@@ -415,6 +415,7 @@ def calculate_risk_score(investigation_id):
         from app import db
         db.session.commit()
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Failed to save risk indicators: {e}")
 
     return result

@@ -435,8 +435,8 @@ def start_buratino_investigation(investigation_id):
                         try:
                             from dateutil.parser import parse
                             db_record.registration_date = parse(biz.registration_date).date()
-                        except:
-                            pass
+                        except Exception as e:
+                            logger.warning(f"Error parsing registration_date: {e}")
                     db.session.add(db_record)
 
                 # Save court records to database

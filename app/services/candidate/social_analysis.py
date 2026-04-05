@@ -552,31 +552,46 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
     # Run face search, snoop, maigret, sherlock, and yaseeker in parallel
     _update('Поиск по лицу + имени пользователя', 56)
 
+    # Propagate Flask app context to ThreadPoolExecutor workers
+    try:
+        from flask import current_app
+        _app = current_app._get_current_object()
+    except (ImportError, RuntimeError):
+        _app = None
+
+    def _submit_with_ctx(executor, fn, *args, **kwargs):
+        def _wrapper():
+            if _app:
+                with _app.app_context():
+                    return fn(*args, **kwargs)
+            return fn(*args, **kwargs)
+        return executor.submit(_wrapper)
+
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = {}
 
         # 5a. Face search (uploaded photo takes priority over profile photo)
         if uploaded_photo:
             logger.info(f"[SocialAnalysis] face search: using uploaded photo {uploaded_photo}")
-            futures['face'] = executor.submit(_run_face_search, photo_path=uploaded_photo)
+            futures['face'] = _submit_with_ctx(executor, _run_face_search, photo_path=uploaded_photo)
         elif photo_url:
-            futures['face'] = executor.submit(_run_face_search, photo_url=photo_url)
+            futures['face'] = _submit_with_ctx(executor, _run_face_search, photo_url=photo_url)
 
         # 5c. Snoop username search
         if usernames:
-            futures['snoop'] = executor.submit(_run_snoop_search, usernames)
+            futures['snoop'] = _submit_with_ctx(executor, _run_snoop_search, usernames)
 
         # 5c2. Maigret username search
         if usernames:
-            futures['maigret'] = executor.submit(_run_maigret_search, usernames)
+            futures['maigret'] = _submit_with_ctx(executor, _run_maigret_search, usernames)
 
         # 5c3. Sherlock username search
         if usernames:
-            futures['sherlock'] = executor.submit(_run_sherlock_search, usernames)
+            futures['sherlock'] = _submit_with_ctx(executor, _run_sherlock_search, usernames)
 
         # 5d. YaSeeker
         if usernames:
-            futures['yaseeker'] = executor.submit(_run_yaseeker, usernames)
+            futures['yaseeker'] = _submit_with_ctx(executor, _run_yaseeker, usernames)
 
         for key, future in futures.items():
             try:

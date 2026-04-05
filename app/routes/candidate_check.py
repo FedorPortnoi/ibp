@@ -17,7 +17,7 @@ from werkzeug.utils import secure_filename
 
 from app import db, limiter
 from app.models.candidate_check import CandidateCheck
-from app.services.candidate.pipeline import candidate_tasks, CandidateTaskStatus, run_candidate_pipeline, cleanup_old_tasks
+from app.services.candidate.pipeline import candidate_tasks, _tasks_lock, CandidateTaskStatus, run_candidate_pipeline, cleanup_old_tasks
 
 candidate_bp = Blueprint('candidate', __name__, url_prefix='/candidate')
 logger = logging.getLogger(__name__)
@@ -44,7 +44,8 @@ def _check_owner_or_admin_by_task(task_id):
         abort(403)
 
     # Try in-memory first
-    task = candidate_tasks.get(task_id)
+    with _tasks_lock:
+        task = candidate_tasks.get(task_id)
     check = None
     if task:
         check = CandidateCheck.query.get(task.check_id)
@@ -113,7 +114,11 @@ def start_check():
         if not _sub:
             _sub = Subscription(user_id=_user.id, status='inactive')
             db.session.add(_sub)
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Failed to create subscription: {e}")
         if not _sub.can_run_check():
             return _error(
                 'Лимит бесплатных проверок исчерпан (2 в неделю). '
@@ -252,13 +257,14 @@ def start_check():
     cleanup_old_tasks(candidate_tasks)
 
     # Limit concurrent running tasks to prevent resource exhaustion
-    active_count = sum(1 for t in candidate_tasks.values()
-                       if not hasattr(t, 'completed') or not t.completed)
-    if active_count >= 10:
-        return _error('Слишком много активных проверок. Дождитесь завершения текущих.', 429)
+    with _tasks_lock:
+        active_count = sum(1 for t in candidate_tasks.values()
+                           if not hasattr(t, 'completed') or not t.completed)
+        if active_count >= 10:
+            return _error('Слишком много активных проверок. Дождитесь завершения текущих.', 429)
 
-    task = CandidateTaskStatus(task_id, check_id, full_name)
-    candidate_tasks[task_id] = task
+        task = CandidateTaskStatus(task_id, check_id, full_name)
+        candidate_tasks[task_id] = task
 
     app = current_app._get_current_object()
     thread = threading.Thread(
@@ -289,7 +295,8 @@ def progress_page(task_id):
     check, _ = _check_owner_or_admin_by_task(task_id)
 
     # Try in-memory first (same worker)
-    task = candidate_tasks.get(task_id)
+    with _tasks_lock:
+        task = candidate_tasks.get(task_id)
     if task:
         return render_template(
             'candidate_progress.html',
@@ -317,7 +324,8 @@ def progress_status(task_id):
     _check_owner_or_admin_by_task(task_id)
 
     # Try in-memory first (most up-to-date on same worker)
-    task = candidate_tasks.get(task_id)
+    with _tasks_lock:
+        task = candidate_tasks.get(task_id)
     if task:
         data = task.to_dict()
         check = CandidateCheck.query.get(task.check_id)
@@ -341,9 +349,10 @@ def confirm_profiles(check_id):
     _check_owner_or_admin(check)
     if check.status != 'awaiting_confirmation':
         # Already confirmed or not in precise mode — redirect to progress
-        for tid, t in candidate_tasks.items():
-            if t.check_id == check_id:
-                return redirect(f'/candidate/progress/{tid}')
+        with _tasks_lock:
+            for tid, t in candidate_tasks.items():
+                if t.check_id == check_id:
+                    return redirect(f'/candidate/progress/{tid}')
         if check.task_id and check.status in ('pending', 'running'):
             return redirect(f'/candidate/progress/{check.task_id}')
         return redirect(url_for('candidate.dossier_page', check_id=check.id))
@@ -384,12 +393,17 @@ def submit_confirmation(check_id):
 
     check.status = 'running'
     check.paused_at_stage = None
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to save confirmation: {e}")
 
     # Find active task to redirect to progress
-    for tid, t in candidate_tasks.items():
-        if t.check_id == check_id:
-            return redirect(f'/candidate/progress/{tid}')
+    with _tasks_lock:
+        for tid, t in candidate_tasks.items():
+            if t.check_id == check_id:
+                return redirect(f'/candidate/progress/{tid}')
     if check.task_id:
         return redirect(f'/candidate/progress/{check.task_id}')
     return redirect(url_for('candidate.dossier_page', check_id=check.id))
@@ -480,6 +494,7 @@ def retry_expanded_search(check_id):
         })
 
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Expanded VK search failed for {check_id}: {e}")
         return jsonify({'error': 'Ошибка расширенного поиска'}), 500
 
@@ -576,6 +591,7 @@ def search_by_name(check_id):
         })
 
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Alt-name VK search failed for {check_id}: {e}")
         return jsonify({'error': 'Ошибка поиска'}), 500
 
@@ -688,6 +704,7 @@ def manual_vk_profile(check_id):
         })
 
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Manual VK profile failed for {check_id}: {e}")
         return jsonify({'error': 'Ошибка проверки профиля'}), 500
 
@@ -742,9 +759,10 @@ def dossier_page(check_id):
         if check.status == 'awaiting_confirmation':
             return redirect(f'/candidate/confirm/{check_id}')
         # Try in-memory first
-        for tid, t in candidate_tasks.items():
-            if t.check_id == check_id:
-                return redirect(f'/candidate/progress/{tid}')
+        with _tasks_lock:
+            for tid, t in candidate_tasks.items():
+                if t.check_id == check_id:
+                    return redirect(f'/candidate/progress/{tid}')
         # DB fallback: use stored task_id
         if check.task_id:
             return redirect(f'/candidate/progress/{check.task_id}')

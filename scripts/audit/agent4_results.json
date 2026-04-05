@@ -2,54 +2,6 @@
   {
     "agent": "THREAD_SAFETY",
     "severity": "MEDIUM",
-    "file": "\\app\\routes\\api_search.py",
-    "line": 15,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\routes\\api_search.py",
-    "line": 153,
-    "issue": "executor.submit(_run_tg_discover) may lack Flask app context",
-    "recommendation": "Wrap submitted function with app.app_context()"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\candidate\\behavioral_analysis.py",
-    "line": 13,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\behavioral_analysis.py",
-    "line": 1098,
-    "issue": "executor.submit(fn) may lack Flask app context",
-    "recommendation": "Wrap submitted function with app.app_context()"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\candidate\\contact_discovery.py",
-    "line": 29,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\candidate\\contact_discovery.py",
-    "line": 161,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
     "file": "\\app\\services\\candidate\\contact_discovery.py",
     "line": 181,
     "issue": "ThreadPoolExecutor not used as context manager",
@@ -67,7 +19,7 @@
     "agent": "THREAD_SAFETY",
     "severity": "MEDIUM",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 24,
+    "line": 466,
     "issue": "ThreadPoolExecutor not used as context manager",
     "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
   },
@@ -75,7 +27,7 @@
     "agent": "THREAD_SAFETY",
     "severity": "MEDIUM",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 365,
+    "line": 569,
     "issue": "ThreadPoolExecutor not used as context manager",
     "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
   },
@@ -83,7 +35,7 @@
     "agent": "THREAD_SAFETY",
     "severity": "MEDIUM",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 393,
+    "line": 646,
     "issue": "ThreadPoolExecutor not used as context manager",
     "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
   },
@@ -91,7 +43,7 @@
     "agent": "THREAD_SAFETY",
     "severity": "MEDIUM",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 458,
+    "line": 829,
     "issue": "ThreadPoolExecutor not used as context manager",
     "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
   },
@@ -99,7 +51,7 @@
     "agent": "THREAD_SAFETY",
     "severity": "MEDIUM",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 561,
+    "line": 1191,
     "issue": "ThreadPoolExecutor not used as context manager",
     "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
   },
@@ -107,7 +59,7 @@
     "agent": "THREAD_SAFETY",
     "severity": "MEDIUM",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 634,
+    "line": 1545,
     "issue": "ThreadPoolExecutor not used as context manager",
     "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
   },
@@ -115,127 +67,7 @@
     "agent": "THREAD_SAFETY",
     "severity": "MEDIUM",
     "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 817,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1171,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1505,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1660,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\candidate\\sanctions_check.py",
-    "line": 22,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\candidate\\social_analysis.py",
-    "line": 14,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\social_analysis.py",
-    "line": 555,
-    "issue": "executor.submit(_run_face_search) may lack Flask app context",
-    "recommendation": "Wrap submitted function with app.app_context()"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\social_analysis.py",
-    "line": 555,
-    "issue": "executor.submit(_run_face_search) may lack Flask app context",
-    "recommendation": "Wrap submitted function with app.app_context()"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\social_analysis.py",
-    "line": 555,
-    "issue": "executor.submit(_run_snoop_search) may lack Flask app context",
-    "recommendation": "Wrap submitted function with app.app_context()"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\social_analysis.py",
-    "line": 555,
-    "issue": "executor.submit(_run_maigret_search) may lack Flask app context",
-    "recommendation": "Wrap submitted function with app.app_context()"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\social_analysis.py",
-    "line": 555,
-    "issue": "executor.submit(_run_sherlock_search) may lack Flask app context",
-    "recommendation": "Wrap submitted function with app.app_context()"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\social_analysis.py",
-    "line": 555,
-    "issue": "executor.submit(_run_yaseeker) may lack Flask app context",
-    "recommendation": "Wrap submitted function with app.app_context()"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\phase1\\telegram_discovery.py",
-    "line": 9,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\phase1\\telegram_discovery.py",
-    "line": 22,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\phase1\\telegram_discovery.py",
-    "line": 229,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\phase2\\email_discovery.py",
-    "line": 23,
+    "line": 1706,
     "issue": "ThreadPoolExecutor not used as context manager",
     "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
   },
@@ -251,55 +83,7 @@
     "agent": "THREAD_SAFETY",
     "severity": "MEDIUM",
     "file": "\\app\\services\\phase2\\email_discovery.py",
-    "line": 399,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\phase2\\email_discovery.py",
-    "line": 816,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\phase2\\email_discovery.py",
-    "line": 844,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\phase2\\email_discovery.py",
-    "line": 846,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\phase2\\email_discovery.py",
-    "line": 892,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase2\\email_discovery.py",
-    "line": 892,
-    "issue": "executor.submit(check_single) may lack Flask app context",
-    "recommendation": "Wrap submitted function with app.app_context()"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\phase2\\phone_discovery.py",
-    "line": 20,
+    "line": 909,
     "issue": "ThreadPoolExecutor not used as context manager",
     "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
   },
@@ -310,189 +94,5 @@
     "line": 86,
     "issue": "ThreadPoolExecutor not used as context manager",
     "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\phase2\\source_manager.py",
-    "line": 17,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\phase2\\source_manager.py",
-    "line": 35,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase2\\source_manager.py",
-    "line": 145,
-    "issue": "executor.submit(source) may lack Flask app context",
-    "recommendation": "Wrap submitted function with app.app_context()"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\phase2\\sources\\holehe_check.py",
-    "line": 51,
-    "issue": "ThreadPoolExecutor not used as context manager",
-    "recommendation": "Use 'with ThreadPoolExecutor() as executor:' to ensure cleanup"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\behavioral_analysis.py",
-    "line": 795,
-    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
-    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\behavioral_analysis.py",
-    "line": 797,
-    "issue": "run_until_complete() without RuntimeError handler",
-    "recommendation": "Add except RuntimeError to handle 'no event loop' in threads"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase1\\telegram_discovery.py",
-    "line": 579,
-    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
-    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase1\\telegram_discovery.py",
-    "line": 581,
-    "issue": "run_until_complete() without RuntimeError handler",
-    "recommendation": "Add except RuntimeError to handle 'no event loop' in threads"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase1\\telegram_discovery.py",
-    "line": 947,
-    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
-    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase1\\telegram_discovery.py",
-    "line": 949,
-    "issue": "run_until_complete() without RuntimeError handler",
-    "recommendation": "Add except RuntimeError to handle 'no event loop' in threads"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase2\\combined_search.py",
-    "line": 1077,
-    "issue": "run_until_complete() without RuntimeError handler",
-    "recommendation": "Add except RuntimeError to handle 'no event loop' in threads"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase2\\email_discovery.py",
-    "line": 303,
-    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
-    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase2\\email_discovery.py",
-    "line": 400,
-    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
-    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase2\\email_discovery.py",
-    "line": 402,
-    "issue": "run_until_complete() without RuntimeError handler",
-    "recommendation": "Add except RuntimeError to handle 'no event loop' in threads"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase2\\email_discovery.py",
-    "line": 465,
-    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
-    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase2\\email_discovery.py",
-    "line": 635,
-    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
-    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase2\\email_discovery.py",
-    "line": 813,
-    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
-    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase2\\email_discovery.py",
-    "line": 823,
-    "issue": "run_until_complete() without RuntimeError handler",
-    "recommendation": "Add except RuntimeError to handle 'no event loop' in threads"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase2\\forgot_password_oracle.py",
-    "line": 1426,
-    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
-    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase2\\holehe_service.py",
-    "line": 214,
-    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
-    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase2\\holehe_service.py",
-    "line": 216,
-    "issue": "run_until_complete() without RuntimeError handler",
-    "recommendation": "Add except RuntimeError to handle 'no event loop' in threads"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\phase2\\telegram_crossref.py",
-    "line": 224,
-    "issue": "new_event_loop() without set_event_loop() -- loop not registered",
-    "recommendation": "Add asyncio.set_event_loop(loop) after creating loop"
-  },
-  {
-    "agent": "THREAD_SAFETY",
-    "severity": "HIGH",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 229,
-    "issue": "candidate_tasks dict is not protected by threading.Lock()",
-    "recommendation": "Add threading.Lock() to protect concurrent task dict access"
   }
 ]

@@ -222,6 +222,7 @@ class TelegramCrossRef:
                     await asyncio.wait_for(client.disconnect(), timeout=10)
 
             loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             try:
                 return loop.run_until_complete(asyncio.wait_for(_resolve(), timeout=15))
             except RuntimeError as e:

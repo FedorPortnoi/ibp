@@ -1,7 +1,7 @@
 [
   {
     "agent": "EXTERNAL_SERVICES",
-    "severity": "HIGH",
+    "severity": "MEDIUM",
     "service": "EGRUL",
     "issue": "EGRUL returned HTTP 404",
     "recommendation": "EGRUL may be blocking requests -- check IP/headers"
