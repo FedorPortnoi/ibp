@@ -116,6 +116,19 @@ except ImportError:
     pass
 
 
+# Criminal article category mapping
+ARTICLE_CATEGORIES = {
+    "105": "убийство", "106": "убийство", "107": "убийство",
+    "111": "тяжкий вред здоровью", "112": "вред здоровью", "115": "вред здоровью",
+    "158": "кража", "159": "мошенничество", "160": "присвоение",
+    "161": "грабёж", "162": "разбой", "163": "вымогательство",
+    "204": "коммерческий подкуп", "290": "взятка", "291": "взятка",
+    "222": "оружие", "223": "оружие",
+    "228": "наркотики", "229": "наркотики", "230": "наркотики",
+    "264": "ДТП", "318": "насилие над сотрудником", "319": "оскорбление сотрудника",
+}
+
+
 @dataclass
 class CourtCase:
     """A court case record."""
@@ -129,6 +142,13 @@ class CourtCase:
     url: str = ""
     source: str = ""
     confidence: str = "medium"
+    raw_text: str = ""
+    criminal_articles: list = None
+    verdict: str = ""
+
+    def __post_init__(self):
+        if self.criminal_articles is None:
+            self.criminal_articles = []
 
     def to_dict(self) -> Dict:
         return {
@@ -141,7 +161,10 @@ class CourtCase:
             'result': self.result,
             'url': self.url,
             'source': self.source,
-            'confidence': self.confidence
+            'confidence': self.confidence,
+            'raw_text': self.raw_text,
+            'criminal_articles': self.criminal_articles,
+            'verdict': self.verdict,
         }
 
 
@@ -532,7 +555,25 @@ class CourtRecordSearch:
                                 results.append(case)
 
                 if results:
-                    logger.info(f"Sudact Playwright: found {len(results)} cases on attempt {attempt}")
+                    logger.info(f"Sudact Playwright: found {len(results)} cases on attempt {attempt}, fetching details")
+                    # Second pass: fetch full text for each case with a URL
+                    # Reuse a single browser + page for all detail fetches
+                    try:
+                        with sync_playwright() as p2:
+                            browser2 = p2.chromium.launch(headless=True)
+                            try:
+                                detail_page = browser2.new_page()
+                                for case in results:
+                                    if case.url:
+                                        case.raw_text = self._fetch_case_details(detail_page, case.url)
+                                        if case.raw_text:
+                                            case.criminal_articles = self._extract_criminal_articles(case.raw_text)
+                                            case.verdict = self._extract_verdict(case.raw_text)
+                                        time.sleep(1)
+                            finally:
+                                browser2.close()
+                    except Exception as e:
+                        logger.warning(f"Sudact detail fetch pass failed: {e}")
                     return results
 
                 # Log page content size for debugging if no results
@@ -783,6 +824,140 @@ class CourtRecordSearch:
         except Exception as e:
             logger.debug(f"Parse error: {e}")
             return None
+
+    def _fetch_case_details(self, page, url: str) -> str:
+        """Fetch full text of a court case page using an existing Playwright page.
+
+        Args:
+            page: An already-open Playwright page object (reused across cases).
+            url: The URL of the case detail page.
+
+        Returns:
+            The full body text of the page, or empty string on error.
+        """
+        if not url:
+            return ""
+        try:
+            logger.info(f"Fetching case details: {url}")
+            page.goto(url, wait_until='domcontentloaded', timeout=15000)
+            page.wait_for_selector('.documenttext, .doc-content, #documenttext', timeout=10000)
+            return page.inner_text('body')
+        except Exception as e:
+            logger.warning(f"Failed to fetch case details from {url}: {e}")
+            return ""
+
+    def _extract_criminal_articles(self, text: str) -> List[Dict]:
+        """Extract criminal code articles (УК РФ) from court case text.
+
+        Applies multiple regex patterns and deduplicates results.
+
+        Returns:
+            List of dicts with keys: article, part, paragraph, full_text, category.
+        """
+        if not text:
+            return []
+
+        results = []
+        seen = set()
+
+        patterns = [
+            # п.в ч.2 ст.158 УК РФ (must be before the ч. pattern to capture paragraph)
+            (r'п\.\s*([а-яё])\s*ч(?:асть|\.)\s*(\d+)\s*ст(?:атьи|атья|\.)\s*(\d+(?:\.\d+)?)\s*УК\s*РФ',
+             'paragraph_part_article'),
+            # ч.2 ст.228 УК РФ / ч. 2 ст. 228 УК РФ / часть 2 статьи 228 УК РФ
+            (r'ч(?:асть|\.)\s*(\d+)\s*ст(?:атьи|атья|\.)\s*(\d+(?:\.\d+)?)\s*УК\s*РФ',
+             'part_article'),
+            # ст.228 УК РФ / ст. 228 УК РФ / статьи 228 УК РФ
+            (r'ст(?:атьи|атья|\.)\s*(\d+(?:\.\d+)?)\s*УК\s*РФ',
+             'article_only'),
+            # осуждён/осуждена по статье 228
+            (r'осуждён[а]?\s+по\s+ст(?:атье|\.)\s*(\d+(?:\.\d+)?)',
+             'convicted_article'),
+            # признан виновным по ч.1 ст.228
+            (r'признан[а]?\s+виновн(?:ым|ой)\s+по\s+ч\.\s*(\d+)\s*ст\.\s*(\d+(?:\.\d+)?)',
+             'guilty_part_article'),
+        ]
+
+        for pattern, kind in patterns:
+            for m in re.finditer(pattern, text, re.IGNORECASE):
+                article = ""
+                part = ""
+                paragraph = ""
+
+                if kind == 'paragraph_part_article':
+                    paragraph = m.group(1)
+                    part = m.group(2)
+                    article = m.group(3)
+                elif kind == 'part_article':
+                    part = m.group(1)
+                    article = m.group(2)
+                elif kind == 'article_only':
+                    article = m.group(1)
+                elif kind == 'convicted_article':
+                    article = m.group(1)
+                elif kind == 'guilty_part_article':
+                    part = m.group(1)
+                    article = m.group(2)
+
+                # Deduplicate by (article, part, paragraph)
+                key = (article, part, paragraph)
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                # Look up base article number for category
+                base_article = article.split('.')[0]
+                category = ARTICLE_CATEGORIES.get(base_article, "")
+
+                results.append({
+                    "article": article,
+                    "part": part,
+                    "paragraph": paragraph,
+                    "full_text": m.group(0).strip(),
+                    "category": category,
+                })
+
+        return results
+
+    def _extract_verdict(self, text: str) -> str:
+        """Extract verdict/sentence information from court case text.
+
+        Returns:
+            A string describing the verdict, or empty string if not found.
+        """
+        if not text:
+            return ""
+
+        verdict_parts = []
+
+        # Conditional sentence: "условно на срок X лет"
+        m = re.search(r'условно\s+(?:на\s+срок\s+)?([\d]+\s*(?:год|лет|года|месяц\w*))', text, re.IGNORECASE)
+        if m:
+            verdict_parts.append(f"условно {m.group(1)}")
+
+        # Prison sentence: "лишения свободы ... X лет"
+        if not verdict_parts:
+            m = re.search(r'лишени[яе]\s+свободы\s+(?:на\s+срок\s+)?([\d]+\s*(?:год|лет|года|месяц\w*))', text, re.IGNORECASE)
+            if m:
+                verdict_parts.append(f"лишение свободы {m.group(1)}")
+
+        # Fine
+        m = re.search(r'штраф\w*\s+(?:в\s+размере\s+)?(\d[\d\s]*?)\s*(?:руб|рублей)', text, re.IGNORECASE)
+        if m:
+            verdict_parts.append(f"штраф {m.group(1).strip()} рублей")
+
+        # Community service
+        m = re.search(r'обязательных\s+работ(?:\s+(?:на\s+срок|в\s+количестве)\s+(\d+)\s+часов)?', text, re.IGNORECASE)
+        if m:
+            hours = m.group(1) if m.group(1) else ""
+            verdict_parts.append(f"обязательные работы {hours} часов".strip())
+
+        # Correctional labor
+        m = re.search(r'исправительных\s+работ\s+(?:на\s+срок\s+)?([\d]+\s*(?:год|лет|года|месяц\w*))', text, re.IGNORECASE)
+        if m:
+            verdict_parts.append(f"исправительные работы {m.group(1)}")
+
+        return "; ".join(verdict_parts)
 
     def _detect_case_type(self, text: str) -> str:
         """Detect court case type from text."""
