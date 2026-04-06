@@ -13,6 +13,7 @@ Additional checks:
 - check_fns_tax_debt() — ФНС tax debt check via service.nalog.ru
 """
 
+import json
 import logging
 import re
 import time
@@ -43,6 +44,7 @@ class BusinessRecord:
     company_type: str = ""  # ООО, ИП, ЗАО, etc.
     okved: str = ""  # Primary activity code
     okved_name: str = ""  # Activity description
+    validation_warning: str = ""
 
     def to_dict(self) -> Dict:
         return {
@@ -60,6 +62,7 @@ class BusinessRecord:
             'company_type': self.company_type,
             'okved': self.okved,
             'okved_name': self.okved_name,
+            'validation_warning': self.validation_warning,
         }
 
 
@@ -627,57 +630,116 @@ class BusinessRegistrySearch:
 
     # ===== INN Search =====
 
-    def search_by_inn(self, inn: str) -> List[BusinessRecord]:
+    def _validate_business_record_owner(
+        self,
+        record: BusinessRecord,
+        candidate_full_name: str
+    ) -> tuple:
+        """Validate that a business record belongs to the candidate, not a namesake.
+
+        For ИП records, checks that the candidate's surname appears in the ИП name.
+        For legal entities (ООО, ЗАО, etc.), surname check is not applicable.
+
+        Returns:
+            (is_valid, reason) tuple.
+        """
+        if not candidate_full_name or not candidate_full_name.strip():
+            return (True, "Имя кандидата не указано — проверка невозможна")
+
+        candidate_last = candidate_full_name.strip().split()[0].lower()
+
+        if record.company_type == "ИП":
+            # Strip organizational prefix from name
+            normalized = re.sub(
+                r'^(ИП|ООО|ЗАО|ОАО|ПАО|АО)\s+', '', record.company_name, flags=re.IGNORECASE
+            ).strip().lower()
+
+            if candidate_last in normalized:
+                return (True, "Фамилия совпадает")
+            else:
+                return (
+                    False,
+                    f"Фамилия кандидата '{candidate_last}' не найдена в названии ИП '{record.company_name}'"
+                )
+
+        # Legal entities — can't validate by surname
+        return (True, "Юрлицо — проверка по фамилии неприменима")
+
+    def search_by_inn(self, inn: str, candidate_name: str = "") -> List[BusinessRecord]:
         """Search for all companies linked to an INN via nalog.ru.
 
         A personal INN (12 digits) can be linked to multiple ИП/companies.
         Returns all matches, not just the first.
         Falls back to Rusprofile if nalog.ru is unreachable.
+
+        Args:
+            inn: Tax identification number.
+            candidate_name: Full name of the candidate for owner validation.
         """
         if not inn or not inn.isdigit():
             return []
 
-        logger.info(f"INN search: querying nalog.ru for INN {inn[:4]}***")
+        logger.info(f"[EGRUL] Запрос: query='{inn}', тип={'ИНН' if inn.isdigit() else 'имя'}")
+
+        results = []
 
         # Primary: nalog.ru EGRUL
         try:
-            results = self._search_nalog_egrul(inn, limit=50)
-            if results:
-                for r in results:
-                    r.confidence = "high"
+            nalog_results = self._search_nalog_egrul(inn, limit=50)
+            if nalog_results:
+                results = nalog_results
                 logger.info(f"INN search: nalog.ru returned {len(results)} records")
-                return results
-            logger.info("INN search: nalog.ru returned 0 records")
         except Exception as e:
             logger.warning(f"INN search nalog.ru failed: {e}")
 
         # Fallback: Rusprofile by INN
-        logger.info(f"INN search: falling back to Rusprofile for INN {inn[:4]}***")
-        try:
-            rp_results = self._search_rusprofile_by_inn(inn)
-            if rp_results:
-                for r in rp_results:
-                    r.confidence = "high"
-                logger.info(f"INN search: Rusprofile returned {len(rp_results)} records")
-                return rp_results
-            logger.info("INN search: Rusprofile returned 0 records")
-        except Exception as e:
-            logger.warning(f"INN search Rusprofile fallback failed: {e}")
+        if not results:
+            logger.info(f"INN search: falling back to Rusprofile for INN {inn[:4]}***")
+            try:
+                rp_results = self._search_rusprofile_by_inn(inn)
+                if rp_results:
+                    results = rp_results
+                    logger.info(f"INN search: Rusprofile returned {len(results)} records")
+            except Exception as e:
+                logger.warning(f"INN search Rusprofile fallback failed: {e}")
 
         # Fallback: zachestnyibiznes.ru by INN
-        logger.info(f"INN search: falling back to zachestnyibiznes.ru for INN {inn[:4]}***")
-        try:
-            zb_results = self._search_zachestnyibiznes(inn)
-            if zb_results:
-                for r in zb_results:
-                    r.confidence = "high"
-                logger.info(f"INN search: zachestnyibiznes.ru returned {len(zb_results)} records")
-                return zb_results
-            logger.info("INN search: zachestnyibiznes.ru returned 0 records")
-        except Exception as e:
-            logger.warning(f"INN search zachestnyibiznes.ru fallback failed: {e}")
+        if not results:
+            logger.info(f"INN search: falling back to zachestnyibiznes.ru for INN {inn[:4]}***")
+            try:
+                zb_results = self._search_zachestnyibiznes(inn)
+                if zb_results:
+                    results = zb_results
+                    logger.info(f"INN search: zachestnyibiznes.ru returned {len(results)} records")
+            except Exception as e:
+                logger.warning(f"INN search zachestnyibiznes.ru fallback failed: {e}")
 
-        return []
+        # Validate ownership and set confidence
+        for r in results:
+            if candidate_name:
+                is_valid, reason = self._validate_business_record_owner(r, candidate_name)
+                if not is_valid:
+                    r.confidence = "low"
+                    r.validation_warning = reason
+                    r.status = "\u26a0\ufe0f Требует проверки (несоответствие имени)"
+                    logger.warning(f"[EGRUL] \u26a0\ufe0f Отклонена: {r.company_name} — {reason}")
+                else:
+                    r.confidence = "high"
+                    logger.info(f"[EGRUL] \u2705 Валидна: {r.company_name}")
+            else:
+                r.confidence = "high"
+
+            logger.info(
+                f"[EGRUL] Запись: company='{r.company_name}', "
+                f"inn='{r.inn}', type='{r.company_type}', "
+                f"status='{r.status}', confidence='{r.confidence}', "
+                f"validation_warning='{r.validation_warning}'"
+            )
+
+        valid_count = sum(1 for r in results if r.confidence == 'high')
+        logger.info(f"[EGRUL] Итого: {len(results)} записей (из них валидных: {valid_count})")
+
+        return results
 
     def search_by_inn_extended(self, inn: str, full_name: str = '') -> dict:
         """Extended INN search: EGRUL + ИП status + ФНС tax debt.

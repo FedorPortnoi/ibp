@@ -451,8 +451,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     return []
                 from app.services.phase3.business_registry import BusinessRegistrySearch
                 searcher = BusinessRegistrySearch(timeout=25)
-                logger.info(f"Stage 0: Calling search_by_inn('{check.inn}')")
-                results = searcher.search_by_inn(check.inn)
+                logger.info(f"Stage 0: Calling search_by_inn('{check.inn}', candidate_name='{check.full_name}')")
+                results = searcher.search_by_inn(check.inn, candidate_name=check.full_name)
                 return [r.to_dict() for r in results] if results else []
 
             def _stage0_bankruptcy():

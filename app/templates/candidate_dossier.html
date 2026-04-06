@@ -557,13 +557,21 @@
                         {% if biz.get('inn_verified') %}
                             <span class="inn-verified-badge">&#x2705; ИНН</span>
                         {% endif %}
-                        {% set biz_conf = biz.get('confidence', 0) %}
-                        {% if biz_conf is number and biz_conf > 0 %}
+                        {% set biz_conf = biz.get('confidence', '') %}
+                        {% if biz_conf == 'high' %}
+                            <span class="confidence-badge conf-high">100%</span>
+                        {% elif biz_conf == 'medium' %}
+                            <span class="confidence-badge conf-medium">60%</span>
+                        {% elif biz_conf == 'low' %}
+                            <span class="confidence-badge conf-low">&#x26A0;&#xFE0F; Низкая уверенность</span>
+                        {% elif biz_conf is number and biz_conf > 0 %}
                             <span class="confidence-badge {% if biz_conf >= 0.9 %}conf-high{% elif biz_conf >= 0.7 %}conf-medium{% else %}conf-low{% endif %}">{{ (biz_conf * 100)|round|int }}%</span>
                         {% endif %}
                     </div>
                     {% set biz_status = biz.get('status', '') %}
-                    {% if 'ликвид' in (biz_status|lower) or biz.get('end_date') %}
+                    {% if 'требует проверки' in (biz_status|lower) %}
+                        <span class="status-badge badge-gray shrink-0">&#x26A0;&#xFE0F; Требует проверки</span>
+                    {% elif 'ликвид' in (biz_status|lower) or biz.get('end_date') %}
                         <span class="status-badge badge-gray shrink-0">Ликвидировано &#x26A0;&#xFE0F;</span>
                     {% elif biz_status %}
                         <span class="status-badge badge-green shrink-0">{{ biz_status }}</span>
@@ -597,6 +605,11 @@
                         <div><span class="text-gray-600">Капитал:</span> {{ biz.capital }}</div>
                     {% endif %}
                 </div>
+                {% if biz.get('validation_warning') %}
+                    <div class="text-yellow-500 text-xs mt-1">
+                        &#x26A0;&#xFE0F; {{ biz.validation_warning }}
+                    </div>
+                {% endif %}
                 {% if biz.get('source_url') or biz.get('url') %}
                     <div class="mt-2">
                         <a href="{{ biz.get('source_url', biz.get('url', '')) }}" target="_blank" rel="noopener"
