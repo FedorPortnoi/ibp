@@ -722,6 +722,25 @@
                     {% if case.get('confidence') == 'VERIFIED' and case.get('verification_method') %}
                         <div><span class="text-gray-600">Верификация:</span> <span class="text-green-400">{{ case.verification_method }}</span></div>
                     {% endif %}
+                    {% if case.get('subject') %}
+                        <div class="sm:col-span-2">
+                            <span class="text-gray-600">Предмет:</span> {{ case.subject }}
+                        </div>
+                    {% endif %}
+                    {% if case.get('criminal_articles') %}
+                        <div class="sm:col-span-2">
+                            <span class="text-gray-600">Статьи УК:</span>
+                            {% for art in case.criminal_articles %}
+                                <span class="inline-block bg-red-900 text-red-200 text-xs px-2 py-0.5 rounded mr-1 mt-1">{{ art }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    {% if case.get('verdict') %}
+                        <div class="sm:col-span-2">
+                            <span class="text-gray-600">Решение:</span>
+                            <span class="text-yellow-300 text-xs">{{ case.verdict }}</span>
+                        </div>
+                    {% endif %}
                 </div>
                 {% if case.get('ai_summary') %}
                     <div class="mt-2 p-2 rounded text-xs text-gray-300 leading-relaxed" style="background: rgba(196, 149, 90, 0.05); border: 1px solid var(--accent-subtle);">
