@@ -1,6 +1,6 @@
 """Tests for CourtCase.raw_text field and _fetch_case_details method."""
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from app.services.phase3.court_search import CourtCase, CourtRecordSearch
 
 
@@ -11,9 +11,14 @@ class TestFetchCaseDetails:
         self.searcher = CourtRecordSearch()
 
     def test_fetch_case_details_returns_string(self):
-        """_fetch_case_details returns body text as a string."""
+        """_fetch_case_details returns body text as a string (Playwright path)."""
         page = MagicMock()
-        page.inner_text.return_value = "Решение суда по делу 1-1/2024"
+        # Content must be long enough to pass the >100 char sanity check
+        page.inner_text.return_value = (
+            "Решение суда по делу 1-1/2024. "
+            "Рассмотрено в открытом судебном заседании. "
+            "Стороны представили свои доводы и доказательства."
+        )
 
         result = self.searcher._fetch_case_details(page, "https://sudact.ru/regular/doc/123/")
 
@@ -23,11 +28,15 @@ class TestFetchCaseDetails:
         page.wait_for_selector.assert_called_once()
 
     def test_fetch_case_details_timeout_returns_empty(self):
-        """_fetch_case_details returns empty string on timeout/exception."""
+        """Playwright timeout + requests fallback also fails → empty string."""
         page = MagicMock()
         page.goto.side_effect = Exception("timeout")
 
-        result = self.searcher._fetch_case_details(page, "https://sudact.ru/regular/doc/123/")
+        # Mock requests fallback to also fail
+        with patch.object(self.searcher.session, 'get', side_effect=Exception("network down")):
+            result = self.searcher._fetch_case_details(
+                page, "https://sudact.ru/regular/doc/123/"
+            )
 
         assert result == ""
 

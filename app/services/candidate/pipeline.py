@@ -930,12 +930,44 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         "Gov registries: %d/%d futures timed out",
                         len(timed_out), len(all_futures),
                     )
+                    # Grace period for courts: reputation.su deep parse + sudact Playwright
+                    # can push total court search past 60s. future.cancel() doesn't stop
+                    # running threads, so the thread keeps going — wait up to 30s more and
+                    # capture the result so court_records isn't silently dropped.
+                    if future_courts in timed_out:
+                        try:
+                            logger.info(
+                                "[COURT SAVE] Stage 1 Courts: grace period wait up to 30s…"
+                            )
+                            court_records = future_courts.result(timeout=30) or []
+                            completed_futures.add(future_courts)
+                            timed_out.remove(future_courts)
+                            if court_records:
+                                task.add_message(
+                                    f'Суды: найдено {len(court_records)} дел '
+                                    f'(после ожидания)',
+                                    'success',
+                                )
+                                sources_with_results += 1
+                                logger.info(
+                                    f"[COURT SAVE] Recovered "
+                                    f"{len(court_records)} court records "
+                                    f"after grace period"
+                                )
+                            else:
+                                task.add_message('Суды: дела не найдены', 'info')
+                            sources_checked += 1
+                        except Exception as e:
+                            logger.warning(
+                                f"[COURT SAVE] Grace period failed for courts: {e}"
+                            )
+                            task.add_message('Суды: таймаут (60с + 30с)', 'warning')
+                            sources_checked += 1
+                            timed_out.remove(future_courts)
                     for future in timed_out:
                         future.cancel()
                         if future is future_biz:
                             task.add_message('ЕГРЮЛ: таймаут (60с)', 'warning')
-                        elif future is future_courts:
-                            task.add_message('Суды: таймаут (60с)', 'warning')
                         elif future is future_fssp:
                             task.add_message('ФССП: таймаут (60с)', 'warning')
                         elif future is future_pledges:

@@ -826,25 +826,60 @@ class CourtRecordSearch:
             return None
 
     def _fetch_case_details(self, page, url: str) -> str:
-        """Fetch full text of a court case page using an existing Playwright page.
+        """Fetch full text of a court case page.
+
+        Tries Playwright first (25s timeout each for goto + selector wait),
+        then falls back to plain requests if Playwright times out — this
+        recovers cases even when sudact.ru renders slowly behind anti-bot.
 
         Args:
             page: An already-open Playwright page object (reused across cases).
             url: The URL of the case detail page.
 
         Returns:
-            The full body text of the page, or empty string on error.
+            The full body text of the page (truncated to 8000 chars), or
+            empty string if both methods fail.
         """
         if not url:
             return ""
+
+        # Attempt 1: Playwright with 25s timeouts
         try:
             logger.info(f"Fetching case details: {url}")
-            page.goto(url, wait_until='domcontentloaded', timeout=15000)
-            page.wait_for_selector('.documenttext, .doc-content, #documenttext', timeout=10000)
-            return page.inner_text('body')
+            page.goto(url, wait_until='domcontentloaded', timeout=25000)
+            page.wait_for_selector(
+                '.documenttext, .doc-content, #documenttext', timeout=25000
+            )
+            content = page.inner_text('body')
+            if content and len(content) > 100:
+                logger.debug(f"[COURT DETAIL] Playwright OK: {url[:60]}")
+                return content[:8000]
         except Exception as e:
-            logger.warning(f"Failed to fetch case details from {url}: {e}")
-            return ""
+            logger.debug(
+                f"[COURT DETAIL] Playwright failed ({e}), trying requests: {url[:60]}"
+            )
+
+        # Attempt 2: plain requests fallback (no JS, no anti-bot workaround)
+        try:
+            resp = self.session.get(url, timeout=15)
+            if resp.status_code == 200:
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(resp.text, 'lxml')
+                for tag in soup(['script', 'style', 'nav', 'header', 'footer']):
+                    tag.decompose()
+                text = soup.get_text(separator=' ', strip=True)
+                if text and len(text) > 100:
+                    logger.debug(f"[COURT DETAIL] requests OK: {url[:60]}")
+                    return text[:8000]
+            else:
+                logger.debug(
+                    f"[COURT DETAIL] requests HTTP {resp.status_code}: {url[:60]}"
+                )
+        except Exception as e:
+            logger.debug(f"[COURT DETAIL] requests also failed: {e}")
+
+        logger.warning(f"[COURT DETAIL] Both methods failed for {url[:60]}")
+        return ""
 
     def _extract_criminal_articles(self, text: str) -> List[Dict]:
         """Extract criminal code articles (УК РФ) from court case text.
