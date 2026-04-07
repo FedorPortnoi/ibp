@@ -826,20 +826,23 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     logger.warning(f"Pledge registry search failed: {e}")
                     return []
 
-            gov_pool = ThreadPoolExecutor(max_workers=4)
+            # Run fast sources (biz + FSSP + pledges) in parallel. Court search
+            # (sudact.ru via Playwright) is slow and unpredictable, so it runs
+            # SEQUENTIALLY after the pool finishes with no timeout — otherwise
+            # the as_completed() timeout silently drops court_records.
+            gov_pool = ThreadPoolExecutor(max_workers=3)
             try:
                 future_biz = gov_pool.submit(_ctx(_search_business), effective_name, check.inn)
-                future_courts = gov_pool.submit(_ctx(_search_courts), effective_name)
                 future_fssp = gov_pool.submit(
                     _ctx(_search_fssp), effective_name, check.date_of_birth, check.region,
                 )
                 future_pledges = gov_pool.submit(_ctx(_search_pledges), effective_name)
 
-                all_futures = [future_biz, future_courts, future_fssp, future_pledges]
+                all_futures = [future_biz, future_fssp, future_pledges]
                 completed_futures = set()
 
                 def _process_future(future):
-                    nonlocal biz_records, court_records, fssp_records, pledge_records
+                    nonlocal biz_records, fssp_records, pledge_records
                     nonlocal sources_checked, sources_with_results
                     try:
                         if future is future_biz:
@@ -859,15 +862,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                                 sources_with_results += 1
                             else:
                                 task.add_message('ЕГРЮЛ: записи не найдены', 'info')
-                            sources_checked += 1
-
-                        elif future is future_courts:
-                            court_records = future.result(timeout=60)
-                            if court_records:
-                                task.add_message(f'Суды: найдено {len(court_records)} дел', 'success')
-                                sources_with_results += 1
-                            else:
-                                task.add_message('Суды: дела не найдены', 'info')
                             sources_checked += 1
 
                         elif future is future_fssp:
@@ -907,9 +901,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         if future is future_biz:
                             logger.warning("ЕГРЮЛ search failed: %s", e)
                             task.add_message('ЕГРЮЛ: источник недоступен', 'warning')
-                        elif future is future_courts:
-                            logger.warning("Court search failed: %s", e)
-                            task.add_message('Суды: источник недоступен', 'warning')
                         elif future is future_fssp:
                             logger.warning("ФССП search failed: %s", e)
                             task.add_message('ФССП: источник недоступен', 'warning')
@@ -923,47 +914,12 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         completed_futures.add(future)
                         _process_future(future)
                 except TimeoutError:
-                    # Some futures didn't finish in 60s — process completed
-                    # ones and mark timed-out ones as unavailable
+                    # Some futures didn't finish in 60s — mark timed-out ones
                     timed_out = [f for f in all_futures if f not in completed_futures]
                     logger.warning(
                         "Gov registries: %d/%d futures timed out",
                         len(timed_out), len(all_futures),
                     )
-                    # Grace period for courts: reputation.su deep parse + sudact Playwright
-                    # can push total court search past 60s. future.cancel() doesn't stop
-                    # running threads, so the thread keeps going — wait up to 30s more and
-                    # capture the result so court_records isn't silently dropped.
-                    if future_courts in timed_out:
-                        try:
-                            logger.info(
-                                "[COURT SAVE] Stage 1 Courts: grace period wait up to 30s…"
-                            )
-                            court_records = future_courts.result(timeout=30) or []
-                            completed_futures.add(future_courts)
-                            timed_out.remove(future_courts)
-                            if court_records:
-                                task.add_message(
-                                    f'Суды: найдено {len(court_records)} дел '
-                                    f'(после ожидания)',
-                                    'success',
-                                )
-                                sources_with_results += 1
-                                logger.info(
-                                    f"[COURT SAVE] Recovered "
-                                    f"{len(court_records)} court records "
-                                    f"after grace period"
-                                )
-                            else:
-                                task.add_message('Суды: дела не найдены', 'info')
-                            sources_checked += 1
-                        except Exception as e:
-                            logger.warning(
-                                f"[COURT SAVE] Grace period failed for courts: {e}"
-                            )
-                            task.add_message('Суды: таймаут (60с + 30с)', 'warning')
-                            sources_checked += 1
-                            timed_out.remove(future_courts)
                     for future in timed_out:
                         future.cancel()
                         if future is future_biz:
@@ -975,6 +931,22 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         sources_checked += 1
             finally:
                 gov_pool.shutdown(wait=False, cancel_futures=True)
+
+            # Court search runs SEQUENTIALLY after the pool — no timeout.
+            # sudact.ru Playwright + reputation.su deep parse can take 60-120s
+            # and we must not lose results to a timeout.
+            try:
+                court_records = _search_courts(effective_name) or []
+                if court_records:
+                    task.add_message(f'Суды: найдено {len(court_records)} дел', 'success')
+                    sources_with_results += 1
+                else:
+                    task.add_message('Суды: дела не найдены', 'info')
+            except Exception as e:
+                logger.warning("Court search failed: %s", e)
+                task.add_message('Суды: источник недоступен', 'warning')
+                court_records = []
+            sources_checked += 1
 
             # Demo fallback for Stage 1
             logger.info(

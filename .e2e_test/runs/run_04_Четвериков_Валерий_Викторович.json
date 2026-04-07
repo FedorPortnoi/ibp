@@ -1,0 +1,367 @@
+{
+  "candidate_id": 4,
+  "full_name": "Четвериков Валерий Викторович",
+  "started_at": "2026-04-02T14:21:29.687866",
+  "progress_log": [],
+  "errors": [
+    "Timed out after 360s"
+  ],
+  "warnings": [
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429"
+  ],
+  "final_status": "TIMEOUT",
+  "check_id": "d3f14665053241cf8b6a26ad429f0c0a",
+  "task_id": "9e07e5e48a944ffa8a7a9d9ec947f8d3",
+  "export_json": {
+    "meta": {
+      "generated_at": "2026-04-02T14:51:18.923887",
+      "ibp_version": "1.0",
+      "check_id": "d3f14665053241cf8b6a26ad429f0c0a",
+      "check_mode": "quick",
+      "duration_seconds": null,
+      "check_level": "Быстрая проверка",
+      "sources_checked": 0,
+      "sources_with_results": 0,
+      "status": "running",
+      "report_generated": false
+    },
+    "candidate": {
+      "full_name": "Четвериков Валерий Викторович",
+      "date_of_birth": "1966-01-18",
+      "inn": "231100615269",
+      "region": "Краснодарский край",
+      "phone": "+79884896009",
+      "email": null
+    },
+    "risk_assessment": {
+      "risk_level": null,
+      "risk_level_display": "",
+      "risk_score": null,
+      "risk_score_numeric": null,
+      "red_flag_count": 0,
+      "red_flags": [],
+      "risk_breakdown": {}
+    },
+    "business_records": [
+      {
+        "company_name": "ИП Четвериков Валерий Викторович",
+        "inn": "231100615269",
+        "ogrn": "304231118100348",
+        "role": "ИП",
+        "status": "Действующее",
+        "registration_date": "29.06.2004",
+        "address": "",
+        "capital": "",
+        "source": "egrul.nalog.ru",
+        "url": "https://egrul.nalog.ru/index.html",
+        "confidence": 1.0,
+        "company_type": "ИП",
+        "okved": "",
+        "okved_name": "",
+        "inn_verified": true
+      }
+    ],
+    "court_records": [
+      {
+        "case_number": "2-404/2021",
+        "court_name": "Кавалеровский районный суд Приморского края",
+        "case_type": "гражданское",
+        "date": "",
+        "role": "участник",
+        "category": "",
+        "result": "",
+        "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/61579564",
+        "source": "судебныерешения.рф",
+        "confidence": "POSSIBLE"
+      },
+      {
+        "case_number": "2-2765/2013",
+        "court_name": "Геленджикский городской суд Краснодарского края",
+        "case_type": "гражданское",
+        "date": "",
+        "role": "участник",
+        "category": "",
+        "result": "",
+        "url": "https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai/87903385",
+        "source": "судебныерешения.рф",
+        "confidence": "POSSIBLE"
+      },
+      {
+        "case_number": "2-472/2018",
+        "court_name": "",
+        "case_type": "гражданское",
+        "date": "21.08.2018",
+        "role": "ответчик",
+        "category": "",
+        "result": "",
+        "url": "https://reputation.su/sudrf/131549040",
+        "source": "reputation.su",
+        "confidence": "POSSIBLE"
+      },
+      {
+        "case_number": "2-282/2018",
+        "court_name": "",
+        "case_type": "гражданское",
+        "date": "17.05.2018",
+        "role": "ответчик",
+        "category": "",
+        "result": "",
+        "url": "https://reputation.su/sudrf/192484731",
+        "source": "reputation.su",
+        "confidence": "POSSIBLE"
+      },
+      {
+        "case_number": "2-38/2018",
+        "court_name": "",
+        "case_type": "гражданское",
+        "date": "07.12.2017",
+        "role": "ответчик",
+        "category": "",
+        "result": "",
+        "url": "https://reputation.su/sudrf/202265579",
+        "source": "reputation.su",
+        "confidence": "POSSIBLE"
+      },
+      {
+        "case_number": "7п-149/2011",
+        "court_name": "",
+        "case_type": "административное",
+        "date": "21.06.2011",
+        "role": "ответчик",
+        "category": "",
+        "result": "",
+        "url": "https://reputation.su/sudrf/179143487",
+        "source": "reputation.su",
+        "confidence": "POSSIBLE"
+      }
+    ],
+    "fssp_records": [],
+    "bankruptcy_records": [],
+    "pledge_records": [],
+    "sanctions_results": [
+      {
+        "source_name": "Перечень экстремистов",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://minjust.gov.ru/ru/extremist-materials/"
+      },
+      {
+        "source_name": "МВД — розыск",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://xn--b1aew.xn--p1ai/wanted"
+      },
+      {
+        "source_name": "Росфинмониторинг",
+        "checked": false,
+        "found": false,
+        "match_details": null,
+        "error": "Сайт недоступен (возможна геоблокировка)",
+        "url": "https://www.fedsfm.ru/documents/terrorists-catalog-portal-act"
+      },
+      {
+        "source_name": "OpenSanctions",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://opensanctions.org/"
+      },
+      {
+        "source_name": "Интерпол",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://www.interpol.int/en/How-we-work/Notices/View-Red-Notices"
+      },
+      {
+        "source_name": "МВД — проверка паспорта",
+        "checked": false,
+        "found": false,
+        "match_details": "Сервис ГУВМ МВД недоступен (прекращён с июля 2023). Проверка возможна через Госуслуги вручную: gosuslugi.ru/621102/1",
+        "error": "Сервис ГУВМ МВД недоступен (прекращён с июля 2023). Проверка возможна через Госуслуги вручную: gosuslugi.ru/621102/1",
+        "url": "https://www.gosuslugi.ru/621102/1"
+      }
+    ],
+    "social_media_profiles": [
+      {
+        "platform": "vk",
+        "platform_id": 441472295,
+        "display_name": "Валерий Четвериков",
+        "username": "id441472295",
+        "url": "https://vk.com/id441472295",
+        "avatar_url": "https://sun1-93.userapi.com/impg/DW4IDqvukChyc-WPXmzIot46En40R00idiUAXw/l5w5aIHioYc.jpg?quality=96&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360&sign=10ad7d7953daabb7b0e707fdfb7ebefd&u=I6EtahnrCRLlyd0MhT2raQt6ydhuyxX4s72EHGuUSoM&cs=240x240",
+        "photo_url": "https://sun1-93.userapi.com/impg/DW4IDqvukChyc-WPXmzIot46En40R00idiUAXw/l5w5aIHioYc.jpg?quality=96&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360&sign=10ad7d7953daabb7b0e707fdfb7ebefd&u=I6EtahnrCRLlyd0MhT2raQt6ydhuyxX4s72EHGuUSoM&cs=240x240",
+        "confidence": "высокая",
+        "confidence_score": 1.0,
+        "dob_match": false,
+        "source_method": "VK People Search",
+        "city": "Киров"
+      },
+      {
+        "platform": "vk",
+        "platform_id": 816934551,
+        "display_name": "Валерий Четвериков",
+        "username": "id816934551",
+        "url": "https://vk.com/id816934551",
+        "avatar_url": "https://sun1-93.userapi.com/impg/DW4IDqvukChyc-WPXmzIot46En40R00idiUAXw/l5w5aIHioYc.jpg?quality=96&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360&sign=10ad7d7953daabb7b0e707fdfb7ebefd&u=I6EtahnrCRLlyd0MhT2raQt6ydhuyxX4s72EHGuUSoM&cs=240x240",
+        "photo_url": "https://sun1-93.userapi.com/impg/DW4IDqvukChyc-WPXmzIot46En40R00idiUAXw/l5w5aIHioYc.jpg?quality=96&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360&sign=10ad7d7953daabb7b0e707fdfb7ebefd&u=I6EtahnrCRLlyd0MhT2raQt6ydhuyxX4s72EHGuUSoM&cs=240x240",
+        "confidence": "высокая",
+        "confidence_score": 1.0,
+        "dob_match": false,
+        "source_method": "VK People Search",
+        "city": "Киров"
+      }
+    ],
+    "confirmed_profiles": [],
+    "contact_discoveries": {
+      "phones": [
+        {
+          "number": "+79884896009",
+          "source": "input",
+          "confidence": "высокая",
+          "profile_name": "Форма ввода",
+          "raw_value": "+79884896009",
+          "confidence_score": 0.99,
+          "sources": [
+            "input"
+          ]
+        }
+      ],
+      "emails": []
+    },
+    "social_graph_data": {
+      "nodes": [
+        {
+          "id": "vk_441472295",
+          "label": "Валерий Четвериков",
+          "title": "Валерий Четвериков\nКиров\nConnections: 0",
+          "level": 0,
+          "shape": "dot",
+          "size": 50,
+          "font": {
+            "size": 14,
+            "color": "#fff"
+          },
+          "vkId": 441472295,
+          "color": {
+            "background": "#8b5cf6",
+            "border": "#7c3aed",
+            "highlight": {
+              "background": "#a78bfa",
+              "border": "#8b5cf6"
+            },
+            "hover": {
+              "background": "#a78bfa",
+              "border": "#8b5cf6"
+            }
+          },
+          "borderWidth": 3
+        }
+      ],
+      "edges": [],
+      "stats": {
+        "node_count": 1,
+        "edge_count": 0,
+        "density": 0.0,
+        "avg_degree": 0.0,
+        "max_degree": 0,
+        "level_counts": {
+          "0": 1
+        }
+      },
+      "clusters": [],
+      "friends_risk_deep": {
+        "total_friends": 0,
+        "checked_friends": 0,
+        "flagged_count": 0,
+        "flagged_friends": [],
+        "risk_level": "low"
+      }
+    },
+    "face_matches": [],
+    "username_accounts": [],
+    "geo_analysis": {},
+    "geo_intelligence": {},
+    "text_analysis": {},
+    "activity_timeline": [],
+    "group_analysis": {},
+    "activity_patterns": {},
+    "connected_checks": []
+  },
+  "duration_seconds": 364.9,
+  "completed_at": "2026-04-02T14:27:34.587570",
+  "final_status_server": "running"
+}

@@ -1,0 +1,90 @@
+{
+  "timestamp": "2026-04-02T14:58:00.027075",
+  "summary": {
+    "candidates": 10,
+    "pass": 5,
+    "fail": 5,
+    "warn": 0,
+    "pipeline_bugs": 0,
+    "silent_failures": 6
+  },
+  "all_failures": [
+    {
+      "candidate": "Зобов Андрей Борисович",
+      "candidate_id": 1,
+      "field": "risk_score",
+      "detail": "Score 0/100 too low for HIGH (expected >=40)",
+      "priority": "HIGH"
+    },
+    {
+      "candidate": "Зобов Андрей Борисович",
+      "candidate_id": 1,
+      "field": "risk_score_zero",
+      "detail": "Risk score is 0 for a HIGH candidate -- scoring did not run",
+      "priority": "HIGH"
+    },
+    {
+      "candidate": "Котов Валерий Дмитриевич",
+      "candidate_id": 2,
+      "field": "risk_score",
+      "detail": "Score 0/100 too low for HIGH (expected >=40)",
+      "priority": "HIGH"
+    },
+    {
+      "candidate": "Котов Валерий Дмитриевич",
+      "candidate_id": 2,
+      "field": "risk_score_zero",
+      "detail": "Risk score is 0 for a HIGH candidate -- scoring did not run",
+      "priority": "HIGH"
+    },
+    {
+      "candidate": "Шаламов Евгений Анатольевич",
+      "candidate_id": 3,
+      "field": "fssp",
+      "detail": "MISSING: Known FSSP debts not found",
+      "priority": "HIGH"
+    },
+    {
+      "candidate": "Шаламов Евгений Анатольевич",
+      "candidate_id": 3,
+      "field": "risk_score",
+      "detail": "Score 0/100 too low for CRITICAL (expected >=60)",
+      "priority": "HIGH"
+    },
+    {
+      "candidate": "Шаламов Евгений Анатольевич",
+      "candidate_id": 3,
+      "field": "risk_score_zero",
+      "detail": "Risk score is 0 for a CRITICAL candidate -- scoring did not run",
+      "priority": "HIGH"
+    },
+    {
+      "candidate": "Волков Сергей Алексеевич",
+      "candidate_id": 8,
+      "field": "fssp",
+      "detail": "MISSING: Known FSSP debts not found",
+      "priority": "HIGH"
+    },
+    {
+      "candidate": "Волков Сергей Алексеевич",
+      "candidate_id": 8,
+      "field": "risk_score",
+      "detail": "Score 0/100 too low for CRITICAL (expected >=60)",
+      "priority": "HIGH"
+    },
+    {
+      "candidate": "Волков Сергей Алексеевич",
+      "candidate_id": 8,
+      "field": "risk_score_zero",
+      "detail": "Risk score is 0 for a CRITICAL candidate -- scoring did not run",
+      "priority": "HIGH"
+    },
+    {
+      "candidate": "Волков Сергей Алексеевич",
+      "candidate_id": 8,
+      "field": "flag_1",
+      "detail": "NO EVIDENCE: 'Участник СВО — ЧВК Вагнер (2022-2023)' not in dossier",
+      "priority": "HIGH"
+    }
+  ]
+}

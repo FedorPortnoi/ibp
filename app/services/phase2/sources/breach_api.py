@@ -20,6 +20,7 @@ Tier: S (Breach Database) — highest reliability, real leaked data
 import hashlib
 import os
 import logging
+import re
 import time
 from typing import List, Optional
 
@@ -28,6 +29,46 @@ import requests
 from ..base_source import BaseSource, SourceResult, SourceTier, SourceType
 
 logger = logging.getLogger(__name__)
+
+
+# ── Junk email filter for breach/leak data ─────────────────────────────
+# ProxyNova COMB and similar leak dumps return polluted emails like
+# `gmail.com@gmail.com`, `_@gmail.com`, `____@gmail.com`, `__--__@gmail.com`,
+# `6s@gmail.com`. _is_valid_email() rejects these before they hit results.
+
+_EMAIL_LOCAL_JUNK_RE = re.compile(r'^[_\-\.@]+$')
+_EMAIL_JUNK_PATTERNS = [
+    re.compile(r'^_{2,}'),       # __, ___, ____
+    re.compile(r'^-{2,}'),       # --, ---
+    re.compile(r'^\d+$'),        # only digits
+    re.compile(r'^[a-z]{1,2}\d*$'),  # too short (a, ab, a1, ab12)
+]
+
+
+def _is_valid_email(email: str) -> bool:
+    """Filter junk emails from breach/leak data (ProxyNova COMB, etc.)."""
+    if not email or not isinstance(email, str):
+        return False
+    email = email.strip().lower()
+    if len(email) < 6:
+        return False
+    if '@' not in email:
+        return False
+    local, _, domain = email.partition('@')
+    if '.' not in domain:
+        return False
+    if len(local) < 2:
+        return False
+    # gmail.com@gmail.com case — local part equals or contained in domain
+    if local == domain or local in domain:
+        return False
+    if _EMAIL_LOCAL_JUNK_RE.match(local):
+        return False
+    for pattern in _EMAIL_JUNK_PATTERNS:
+        if pattern.match(local):
+            return False
+    return True
+
 
 # Shared session for connection pooling
 _session = None
@@ -159,19 +200,20 @@ class HudsonRockSource(BaseSource):
                 return results
 
             # Email confirmed in breach - add with high confidence
-            results.append(SourceResult(
-                data_type='email',
-                value=email,
-                source_name=self.name,
-                source_tier=self.source_tier,
-                confidence=0.95,
-                verified=True,
-                metadata={
-                    'breach_source': 'infostealer',
-                    'stealer_count': len(stealers),
-                    'verification': 'breach_confirmed',
-                },
-            ))
+            if _is_valid_email(email):
+                results.append(SourceResult(
+                    data_type='email',
+                    value=email,
+                    source_name=self.name,
+                    source_tier=self.source_tier,
+                    confidence=0.95,
+                    verified=True,
+                    metadata={
+                        'breach_source': 'infostealer',
+                        'stealer_count': len(stealers),
+                        'verification': 'breach_confirmed',
+                    },
+                ))
 
             # Extract credentials from each stealer
             seen_creds = set()
@@ -210,7 +252,12 @@ class HudsonRockSource(BaseSource):
                             ))
 
                     # Discover additional emails from credentials
-                    if cred_user and '@' in cred_user and cred_user.lower() != email.lower():
+                    if (
+                        cred_user
+                        and '@' in cred_user
+                        and cred_user.lower() != email.lower()
+                        and _is_valid_email(cred_user)
+                    ):
                         results.append(SourceResult(
                             data_type='email',
                             value=cred_user.lower(),
@@ -278,7 +325,12 @@ class HudsonRockSource(BaseSource):
                 date_compromised = stealer.get('date_compromised', '')
                 for cred in stealer.get('credentials', []):
                     cred_user = cred.get('username', '')
-                    if cred_user and '@' in cred_user and cred_user.lower() not in seen_emails:
+                    if (
+                        cred_user
+                        and '@' in cred_user
+                        and cred_user.lower() not in seen_emails
+                        and _is_valid_email(cred_user)
+                    ):
                         seen_emails.add(cred_user.lower())
                         results.append(SourceResult(
                             data_type='email',
@@ -844,19 +896,20 @@ class ProxyNovaCOMBSource(BaseSource):
                 return results
 
             # Email confirmed in COMB — high confidence
-            results.append(SourceResult(
-                data_type='email',
-                value=email,
-                source_name=self.name,
-                source_tier=self.source_tier,
-                confidence=0.92,
-                verified=True,
-                metadata={
-                    'breach_source': 'comb',
-                    'total_records': count,
-                    'verification': 'breach_confirmed',
-                },
-            ))
+            if _is_valid_email(email):
+                results.append(SourceResult(
+                    data_type='email',
+                    value=email,
+                    source_name=self.name,
+                    source_tier=self.source_tier,
+                    confidence=0.92,
+                    verified=True,
+                    metadata={
+                        'breach_source': 'comb',
+                        'total_records': count,
+                        'verification': 'breach_confirmed',
+                    },
+                ))
 
             # Parse email:password lines
             seen_passwords = set()
@@ -875,6 +928,11 @@ class ProxyNovaCOMBSource(BaseSource):
 
                 if not line_password or line_password in seen_passwords:
                     continue
+
+                # Skip credential rows whose email is junk (gmail.com@gmail.com etc.)
+                if not _is_valid_email(line_email):
+                    continue
+
                 seen_passwords.add(line_password)
 
                 results.append(SourceResult(
@@ -893,7 +951,7 @@ class ProxyNovaCOMBSource(BaseSource):
                 ))
 
                 # Discover additional emails
-                if '@' in line_email and line_email.lower() != email.lower():
+                if line_email.lower() != email.lower():
                     results.append(SourceResult(
                         data_type='email',
                         value=line_email.lower(),

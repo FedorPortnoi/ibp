@@ -1,0 +1,15 @@
+{
+  "candidate_id": 7,
+  "full_name": "Фомичев Вячеслав Владиславович",
+  "started_at": "2026-04-02T14:40:15.198920",
+  "progress_log": [],
+  "errors": [
+    "START FAILED: HTTP 429 — {\n  \"error\": \"Слишком много активных проверок. Дождитесь завершения текущих.\"\n}\n"
+  ],
+  "warnings": [],
+  "final_status": "START_FAILED",
+  "check_id": null,
+  "task_id": null,
+  "export_json": null,
+  "duration_seconds": 0.2
+}

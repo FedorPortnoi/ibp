@@ -1,0 +1,3866 @@
+{
+  "candidate_id": 1,
+  "full_name": "Зобов Андрей Борисович",
+  "started_at": "2026-04-02T14:02:44.773872",
+  "progress_log": [],
+  "errors": [
+    "Timed out after 360s"
+  ],
+  "warnings": [
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429"
+  ],
+  "final_status": "TIMEOUT",
+  "check_id": "191d3a86a41e4f159af4e5cb5f2a1c73",
+  "task_id": "c982b00e99174ceeb4e5a69785a84950",
+  "export_json": {
+    "meta": {
+      "generated_at": "2026-04-02T14:51:11.631027",
+      "ibp_version": "1.0",
+      "check_id": "191d3a86a41e4f159af4e5cb5f2a1c73",
+      "check_mode": "quick",
+      "duration_seconds": null,
+      "check_level": "Быстрая проверка",
+      "sources_checked": 0,
+      "sources_with_results": 0,
+      "status": "running",
+      "report_generated": false
+    },
+    "candidate": {
+      "full_name": "Зобов Андрей Борисович",
+      "date_of_birth": "1992-12-15",
+      "inn": "230804395297",
+      "region": "Краснодарский край",
+      "phone": "+79141396667",
+      "email": null
+    },
+    "risk_assessment": {
+      "risk_level": null,
+      "risk_level_display": "",
+      "risk_score": null,
+      "risk_score_numeric": null,
+      "red_flag_count": 0,
+      "red_flags": [],
+      "risk_breakdown": {}
+    },
+    "business_records": [
+      {
+        "company_name": "ИП ИВОЛГИНА ТАТЬЯНА ВЛАДИМИРОВНА",
+        "inn": "230804395297",
+        "ogrn": "305230815200212",
+        "role": "ИП",
+        "status": "Действующее",
+        "registration_date": "01.06.2005",
+        "address": "",
+        "capital": "",
+        "source": "egrul.nalog.ru",
+        "url": "https://egrul.nalog.ru/index.html",
+        "confidence": 1.0,
+        "company_type": "ИП",
+        "okved": "",
+        "okved_name": "",
+        "inn_verified": true
+      }
+    ],
+    "court_records": [
+      {
+        "case_number": "2-7701/2024",
+        "court_name": "Северодвинский городской суд",
+        "case_type": "гражданское",
+        "date": "7 апреля 2025",
+        "role": "участник",
+        "category": "",
+        "result": "",
+        "url": "https://sudact.ru/regular/doc/6OiJPzPSchQQ/",
+        "source": "sudact.ru",
+        "confidence": "UNVERIFIED"
+      },
+      {
+        "case_number": "2-7704/2024",
+        "court_name": "Северодвинский городской суд",
+        "case_type": "гражданское",
+        "date": "6 апреля 2025",
+        "role": "участник",
+        "category": "",
+        "result": "",
+        "url": "https://sudact.ru/regular/doc/PmS57t7zz5m/",
+        "source": "sudact.ru",
+        "confidence": "UNVERIFIED"
+      },
+      {
+        "case_number": "9а-13563/2023",
+        "court_name": "",
+        "case_type": "административное",
+        "date": "14.08.2023",
+        "role": "третье лицо",
+        "category": "",
+        "result": "",
+        "url": "https://reputation.su/sudrf/324800088",
+        "source": "reputation.su",
+        "confidence": "POSSIBLE"
+      },
+      {
+        "case_number": "2-2300/2023",
+        "court_name": "",
+        "case_type": "гражданское",
+        "date": "09.12.2022",
+        "role": "ответчик",
+        "category": "",
+        "result": "",
+        "url": "https://reputation.su/sudrf/308940259",
+        "source": "reputation.su",
+        "confidence": "POSSIBLE"
+      },
+      {
+        "case_number": "2-1892/2022",
+        "court_name": "",
+        "case_type": "гражданское",
+        "date": "25.07.2022",
+        "role": "ответчик",
+        "category": "",
+        "result": "",
+        "url": "https://reputation.su/sudrf/221519476",
+        "source": "reputation.su",
+        "confidence": "POSSIBLE"
+      },
+      {
+        "case_number": "2-1772/2022",
+        "court_name": "",
+        "case_type": "гражданское",
+        "date": "17.06.2022",
+        "role": "ответчик",
+        "category": "",
+        "result": "",
+        "url": "https://reputation.su/sudrf/317453220",
+        "source": "reputation.su",
+        "confidence": "POSSIBLE"
+      },
+      {
+        "case_number": "1-221/2022",
+        "court_name": "",
+        "case_type": "уголовное",
+        "date": "31.01.2022",
+        "role": "третье лицо",
+        "category": "",
+        "result": "",
+        "url": "https://reputation.su/sudrf/240236119",
+        "source": "reputation.su",
+        "confidence": "POSSIBLE"
+      },
+      {
+        "case_number": "5-8359/2020",
+        "court_name": "",
+        "case_type": "административное",
+        "date": "24.07.2020",
+        "role": "ответчик",
+        "category": "",
+        "result": "",
+        "url": "https://reputation.su/sudrf/349446019",
+        "source": "reputation.su",
+        "confidence": "POSSIBLE"
+      },
+      {
+        "case_number": "5-2158/2020",
+        "court_name": "",
+        "case_type": "административное",
+        "date": "08.05.2020",
+        "role": "ответчик",
+        "category": "",
+        "result": "",
+        "url": "https://reputation.su/sudrf/349035424",
+        "source": "reputation.su",
+        "confidence": "POSSIBLE"
+      }
+    ],
+    "fssp_records": [],
+    "bankruptcy_records": [],
+    "pledge_records": [],
+    "sanctions_results": [
+      {
+        "source_name": "Перечень экстремистов",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://minjust.gov.ru/ru/extremist-materials/"
+      },
+      {
+        "source_name": "МВД — розыск",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://xn--b1aew.xn--p1ai/wanted"
+      },
+      {
+        "source_name": "Росфинмониторинг",
+        "checked": false,
+        "found": false,
+        "match_details": null,
+        "error": "Сайт недоступен (возможна геоблокировка)",
+        "url": "https://www.fedsfm.ru/documents/terrorists-catalog-portal-act"
+      },
+      {
+        "source_name": "Интерпол",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://www.interpol.int/en/How-we-work/Notices/View-Red-Notices"
+      },
+      {
+        "source_name": "OpenSanctions",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://opensanctions.org/"
+      },
+      {
+        "source_name": "МВД — проверка паспорта",
+        "checked": false,
+        "found": false,
+        "match_details": "Сервис ГУВМ МВД недоступен (прекращён с июля 2023). Проверка возможна через Госуслуги вручную: gosuslugi.ru/621102/1",
+        "error": "Сервис ГУВМ МВД недоступен (прекращён с июля 2023). Проверка возможна через Госуслуги вручную: gosuslugi.ru/621102/1",
+        "url": "https://www.gosuslugi.ru/621102/1"
+      }
+    ],
+    "social_media_profiles": [
+      {
+        "platform": "vk",
+        "platform_id": 140045218,
+        "display_name": "Andrey Zobov",
+        "username": "zobov",
+        "url": "https://vk.com/zobov",
+        "avatar_url": "https://sun1-86.userapi.com/s/v1/ig2/djrTxZkmPmhEEQC2kCf_wU6bEPQatpmyAUmWfD8z7CLqHQwZN351dTg6z_PT9WwOacS3E9GYl_nVxksiXgjfwK4T.jpg?quality=95&crop=624,80,1064,1064&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&cs=200x200",
+        "photo_url": "https://sun1-86.userapi.com/s/v1/ig2/djrTxZkmPmhEEQC2kCf_wU6bEPQatpmyAUmWfD8z7CLqHQwZN351dTg6z_PT9WwOacS3E9GYl_nVxksiXgjfwK4T.jpg?quality=95&crop=624,80,1064,1064&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&cs=200x200",
+        "confidence": "высокая",
+        "confidence_score": 0.92,
+        "dob_match": false,
+        "source_method": "VK People Search",
+        "city": "Saint Petersburg"
+      }
+    ],
+    "confirmed_profiles": [],
+    "contact_discoveries": {
+      "phones": [
+        {
+          "number": "+79141396667",
+          "source": "input",
+          "confidence": "высокая",
+          "profile_name": "Форма ввода",
+          "raw_value": "+79141396667",
+          "confidence_score": 0.99,
+          "sources": [
+            "input"
+          ]
+        }
+      ],
+      "emails": []
+    },
+    "social_graph_data": {
+      "nodes": [
+        {
+          "id": "vk_140045218",
+          "label": "Андрей Зобов",
+          "title": "Андрей Зобов\nSaint Petersburg\nConnections: 99",
+          "level": 0,
+          "shape": "dot",
+          "size": 50,
+          "font": {
+            "size": 14,
+            "color": "#fff"
+          },
+          "vkId": 140045218,
+          "color": {
+            "background": "#8b5cf6",
+            "border": "#7c3aed",
+            "highlight": {
+              "background": "#a78bfa",
+              "border": "#8b5cf6"
+            },
+            "hover": {
+              "background": "#a78bfa",
+              "border": "#8b5cf6"
+            }
+          },
+          "borderWidth": 3
+        },
+        {
+          "id": "vk_363851",
+          "label": "Виктор Борховецкий",
+          "title": "Виктор Борховецкий\nКраснодар\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 363851,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_2844040",
+          "label": "Григорий Гришин",
+          "title": "Григорий Гришин\nМосква\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 2844040,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_10138108",
+          "label": "Евгений Казарцев",
+          "title": "Евгений Казарцев\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 10138108,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_10725485",
+          "label": "Самсон Филиппов",
+          "title": "Самсон Филиппов\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 10725485,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_12211074",
+          "label": "Олег Кожевников",
+          "title": "Олег Кожевников\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 12211074,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_14246685",
+          "label": "Денис Лучихин",
+          "title": "Денис Лучихин\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 14246685,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_16177967",
+          "label": "Сергей Синдеев",
+          "title": "Сергей Синдеев\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 16177967,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_22373434",
+          "label": "Ольга Петрова",
+          "title": "Ольга Петрова\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 22373434,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_22642917",
+          "label": "Надёна Нов",
+          "title": "Надёна Нов\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 22642917,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_23792890",
+          "label": "Александр Тюряев",
+          "title": "Александр Тюряев\nКраснодар\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 23792890,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_28340342",
+          "label": "Александр Помятун",
+          "title": "Александр Помятун\nОренбург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 28340342,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_29305013",
+          "label": "Андрей Кушниренко",
+          "title": "Андрей Кушниренко\nАлматы\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 29305013,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_29563626",
+          "label": "Эдуард Войняк",
+          "title": "Эдуард Войняк\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 29563626,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_35290530",
+          "label": "Сергей Белов",
+          "title": "Сергей Белов\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 35290530,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_35872774",
+          "label": "Николай Ильченко",
+          "title": "Николай Ильченко\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 35872774,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_36259466",
+          "label": "Анастасия Страхова",
+          "title": "Анастасия Страхова\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 36259466,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_37150355",
+          "label": "Аннушка Счастливая",
+          "title": "Аннушка Счастливая\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 37150355,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_38155097",
+          "label": "Никита Ошурков",
+          "title": "Никита Ошурков\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 38155097,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_46194288",
+          "label": "Данил Матросов",
+          "title": "Данил Матросов\nМосква\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 46194288,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_47541570",
+          "label": "Дмитрий Маву",
+          "title": "Дмитрий Маву\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 47541570,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_53112564",
+          "label": "Георгий Джиджиешвили",
+          "title": "Георгий Джиджиешвили\nКостанай\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 53112564,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_54850219",
+          "label": "Катя Сасим",
+          "title": "Катя Сасим\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 54850219,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_63294687",
+          "label": "Никита Халин",
+          "title": "Никита Халин\nРостов-на-Дону\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 63294687,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_73231887",
+          "label": "Андрей Макаров",
+          "title": "Андрей Макаров\nКраснодар\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 73231887,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_75829161",
+          "label": "Николай Михайлов",
+          "title": "Николай Михайлов\nНовочебоксарск\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 75829161,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_83681999",
+          "label": "Виктор Григорьев",
+          "title": "Виктор Григорьев\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 83681999,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_85636370",
+          "label": "Мага Магадеев",
+          "title": "Мага Магадеев\nСалават\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 85636370,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_90034204",
+          "label": "Максим Городсков",
+          "title": "Максим Городсков\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 90034204,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_91601181",
+          "label": "Сергей Озерчук",
+          "title": "Сергей Озерчук\nНовороссийск\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 91601181,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_94523511",
+          "label": "Сергей Волконский",
+          "title": "Сергей Волконский\nКраснодар\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 94523511,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_107364365",
+          "label": "Юлия Спивак",
+          "title": "Юлия Спивак\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 107364365,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_114510097",
+          "label": "Александр Звездин",
+          "title": "Александр Звездин\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 114510097,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_120164286",
+          "label": "Глеб Токарев",
+          "title": "Глеб Токарев\nАлматы\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 120164286,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_124928481",
+          "label": "Костя Фёдоров",
+          "title": "Костя Фёдоров\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 124928481,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_132047594",
+          "label": "Николай Михальчук",
+          "title": "Николай Михальчук\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 132047594,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_136414620",
+          "label": "Владислав Иванов",
+          "title": "Владислав Иванов\nКраснодар\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 136414620,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_139735813",
+          "label": "Айсултан Айтмагамбетов",
+          "title": "Айсултан Айтмагамбетов\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 139735813,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_146727334",
+          "label": "Максим Мелешко",
+          "title": "Максим Мелешко\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 146727334,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_147796554",
+          "label": "Ванёк Дмуховский",
+          "title": "Ванёк Дмуховский\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 147796554,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_150596032",
+          "label": "Лина Фролова",
+          "title": "Лина Фролова\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 150596032,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_157509088",
+          "label": "Николай Кравцов",
+          "title": "Николай Кравцов\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 157509088,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_160338529",
+          "label": "Родион Рафиков",
+          "title": "Родион Рафиков\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 160338529,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_165232141",
+          "label": "Александр Зуб",
+          "title": "Александр Зуб\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 165232141,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_166373062",
+          "label": "Анастасия Марченко",
+          "title": "Анастасия Марченко\nАктобе\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 166373062,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_166850680",
+          "label": "Денис Лазарев",
+          "title": "Денис Лазарев\nТбилиси\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 166850680,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_169072495",
+          "label": "Николай Языков",
+          "title": "Николай Языков\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 169072495,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_170880823",
+          "label": "Данил Синяков",
+          "title": "Данил Синяков\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 170880823,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_174055763",
+          "label": "Александр Шишкин",
+          "title": "Александр Шишкин\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 174055763,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_175567400",
+          "label": "Владимир Лучинкин",
+          "title": "Владимир Лучинкин\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 175567400,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_182526337",
+          "label": "Алексей Кругляк",
+          "title": "Алексей Кругляк\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 182526337,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_184847602",
+          "label": "Ирина Картаманова",
+          "title": "Ирина Картаманова\nСамара\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 184847602,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_185541745",
+          "label": "Вадим Кириченко",
+          "title": "Вадим Кириченко\nАлга\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 185541745,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_186328023",
+          "label": "Кирилл Ветров",
+          "title": "Кирилл Ветров\nСочи\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 186328023,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_189166708",
+          "label": "Анастасия Мазыло",
+          "title": "Анастасия Мазыло\nМосква\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 189166708,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_197763904",
+          "label": "Павел Зобов",
+          "title": "Павел Зобов\nОренбург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 197763904,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_206606726",
+          "label": "Данила Голицын",
+          "title": "Данила Голицын\nСочи\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 206606726,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_211843483",
+          "label": "Данил Титарев",
+          "title": "Данил Титарев\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 211843483,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_213851542",
+          "label": "Кристина Кочкина",
+          "title": "Кристина Кочкина\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 213851542,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_232676300",
+          "label": "Сергей Кривченко",
+          "title": "Сергей Кривченко\nАктобе\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 232676300,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_234983188",
+          "label": "Максим Мазыло",
+          "title": "Максим Мазыло\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 234983188,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_238942632",
+          "label": "Адам Ганиев",
+          "title": "Адам Ганиев\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 238942632,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_239413370",
+          "label": "Сергей Голобородько",
+          "title": "Сергей Голобородько\nКореновск\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 239413370,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_240092302",
+          "label": "Амир Ондасын",
+          "title": "Амир Ондасын\nАктобе\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 240092302,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_240111512",
+          "label": "Юлия Остапенко",
+          "title": "Юлия Остапенко\nАктобе\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 240111512,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_243942316",
+          "label": "Екатерина Безбородова",
+          "title": "Екатерина Безбородова\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 243942316,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_263556478",
+          "label": "Андрюха Палыч",
+          "title": "Андрюха Палыч\nКраснодар\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 263556478,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_273357013",
+          "label": "Аслан Львович",
+          "title": "Аслан Львович\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 273357013,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_281665468",
+          "label": "Мартин Лачинов",
+          "title": "Мартин Лачинов\nКраснодар\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 281665468,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_287958878",
+          "label": "Наталья Мотькина",
+          "title": "Наталья Мотькина\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 287958878,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_289254159",
+          "label": "Ирина Пономаренко",
+          "title": "Ирина Пономаренко\nКореновск\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 289254159,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_293510552",
+          "label": "Yannick Malembe",
+          "title": "Yannick Malembe\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 293510552,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_293756733",
+          "label": "Асылбек Кусаин",
+          "title": "Асылбек Кусаин\nАктобе\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 293756733,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_296679690",
+          "label": "Julia Esikova",
+          "title": "Julia Esikova\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 296679690,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_296970836",
+          "label": "Камила Мендибаева",
+          "title": "Камила Мендибаева\nАктобе\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 296970836,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_297829638",
+          "label": "Анастасия Кириченко",
+          "title": "Анастасия Кириченко\nКазань\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 297829638,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_325570802",
+          "label": "Oz Bono",
+          "title": "Oz Bono\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 325570802,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_347534244",
+          "label": "Игорь Кравченко",
+          "title": "Игорь Кравченко\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 347534244,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_381994364",
+          "label": "Георгий Жуков",
+          "title": "Георгий Жуков\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 381994364,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_384350670",
+          "label": "Zhenya Kravchenko",
+          "title": "Zhenya Kravchenko\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 384350670,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_385457387",
+          "label": "Anuar Seilkhanov",
+          "title": "Anuar Seilkhanov\nАктобе\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 385457387,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_388919397",
+          "label": "Данила Кривченко",
+          "title": "Данила Кривченко\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 388919397,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_457308649",
+          "label": "Коля Королев",
+          "title": "Коля Королев\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 457308649,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_469155804",
+          "label": "Александр Иванченко",
+          "title": "Александр Иванченко\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 469155804,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_505376916",
+          "label": "Артем Ермоленко",
+          "title": "Артем Ермоленко\nMünchen\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 505376916,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_525103065",
+          "label": "Алиса Шальная",
+          "title": "Алиса Шальная\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 525103065,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_538526261",
+          "label": "Игорь Кубарев",
+          "title": "Игорь Кубарев\nКраснодар\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 538526261,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_540326228",
+          "label": "Vladislav Rybnikov",
+          "title": "Vladislav Rybnikov\nСанкт-Петербург\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 540326228,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_560266065",
+          "label": "Alexander Rodin",
+          "title": "Alexander Rodin\nКлайпеда\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 560266065,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_617133580",
+          "label": "Анна Зобова",
+          "title": "Анна Зобова\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 617133580,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_643813360",
+          "label": "Алина Кириченко",
+          "title": "Алина Кириченко\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 643813360,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_702955412",
+          "label": "Ярослав Королев",
+          "title": "Ярослав Королев\nКраснодар\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 702955412,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_710070510",
+          "label": "Анна Зобова",
+          "title": "Анна Зобова\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 710070510,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_722673171",
+          "label": "Алёнка Романютина",
+          "title": "Алёнка Романютина\nРостов-на-Дону\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 722673171,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_730558344",
+          "label": "Валентина Зобова",
+          "title": "Валентина Зобова\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 730558344,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_738056704",
+          "label": "Эра Спорта-Кореновск",
+          "title": "Эра Спорта-Кореновск\nКореновск\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 738056704,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_764856401",
+          "label": "Александр Кольцов",
+          "title": "Александр Кольцов\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 764856401,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_765460470",
+          "label": "Любовь Романютина",
+          "title": "Любовь Романютина\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 765460470,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_795035188",
+          "label": "Екатерина Рыбникова",
+          "title": "Екатерина Рыбникова\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 795035188,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_1069157369",
+          "label": "Анна Кириченко",
+          "title": "Анна Кириченко\n\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 1069157369,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "vk_140045218",
+          "to": "vk_538526261",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_136414620",
+          "to": "vk_140045218",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_273357013",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_14246685",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_738056704",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_75829161",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_795035188",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_12211074",
+          "to": "vk_140045218",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_94523511",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_234983188",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_385457387",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_90034204",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_147796554",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_239413370",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_28340342",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_617133580",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_174055763",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_166850680",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_37150355",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_388919397",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_289254159",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_240111512",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_560266065",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_722673171",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_10138108",
+          "to": "vk_140045218",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_730558344",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_765460470",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_1069157369",
+          "to": "vk_140045218",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_73231887",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_107364365",
+          "to": "vk_140045218",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_29563626",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_764856401",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_185541745",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_114510097",
+          "to": "vk_140045218",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_296679690",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_29305013",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_38155097",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_23792890",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_525103065",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_54850219",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_384350670",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_197763904",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_186328023",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_189166708",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_169072495",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_2844040",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_47541570",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_182526337",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_281665468",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_297829638",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_132047594",
+          "to": "vk_140045218",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_457308649",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_63294687",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_184847602",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_238942632",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_46194288",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_540326228",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_139735813",
+          "to": "vk_140045218",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_124928481",
+          "to": "vk_140045218",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_166373062",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_120164286",
+          "to": "vk_140045218",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_165232141",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_146727334",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_213851542",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_347534244",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_296970836",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_36259466",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_53112564",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_16177967",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_363851",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_243942316",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_469155804",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_10725485",
+          "to": "vk_140045218",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_35290530",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_170880823",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_206606726",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_232676300",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_22373434",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_381994364",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_35872774",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_263556478",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_702955412",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_175567400",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_293510552",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_83681999",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_211843483",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_710070510",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_160338529",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_91601181",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_85636370",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_22642917",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_643813360",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_325570802",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_293756733",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_505376916",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_150596032",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_287958878",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_240092302",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_140045218",
+          "to": "vk_157509088",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        }
+      ],
+      "stats": {
+        "node_count": 100,
+        "edge_count": 99,
+        "density": 0.02,
+        "avg_degree": 1.98,
+        "max_degree": 99,
+        "level_counts": {
+          "0": 1,
+          "1": 99
+        }
+      },
+      "clusters": [
+        {
+          "id": 0,
+          "members": [
+            "vk_140045218",
+            "vk_363851",
+            "vk_2844040",
+            "vk_10138108",
+            "vk_10725485",
+            "vk_12211074",
+            "vk_14246685",
+            "vk_16177967",
+            "vk_22373434",
+            "vk_22642917",
+            "vk_23792890",
+            "vk_28340342",
+            "vk_29305013",
+            "vk_29563626",
+            "vk_35290530",
+            "vk_35872774",
+            "vk_36259466",
+            "vk_37150355",
+            "vk_38155097",
+            "vk_46194288",
+            "vk_47541570",
+            "vk_53112564",
+            "vk_54850219",
+            "vk_63294687",
+            "vk_73231887",
+            "vk_75829161",
+            "vk_83681999",
+            "vk_85636370",
+            "vk_90034204",
+            "vk_91601181",
+            "vk_94523511",
+            "vk_107364365",
+            "vk_114510097",
+            "vk_120164286",
+            "vk_124928481",
+            "vk_132047594",
+            "vk_136414620",
+            "vk_139735813",
+            "vk_146727334",
+            "vk_147796554",
+            "vk_150596032",
+            "vk_157509088",
+            "vk_160338529",
+            "vk_165232141",
+            "vk_166373062",
+            "vk_166850680",
+            "vk_169072495",
+            "vk_170880823",
+            "vk_174055763",
+            "vk_175567400",
+            "vk_182526337",
+            "vk_184847602",
+            "vk_185541745",
+            "vk_186328023",
+            "vk_189166708",
+            "vk_197763904",
+            "vk_206606726",
+            "vk_211843483",
+            "vk_213851542",
+            "vk_232676300",
+            "vk_234983188",
+            "vk_238942632",
+            "vk_239413370",
+            "vk_240092302",
+            "vk_240111512",
+            "vk_243942316",
+            "vk_263556478",
+            "vk_273357013",
+            "vk_281665468",
+            "vk_287958878",
+            "vk_289254159",
+            "vk_293510552",
+            "vk_293756733",
+            "vk_296679690",
+            "vk_296970836",
+            "vk_297829638",
+            "vk_325570802",
+            "vk_347534244",
+            "vk_381994364",
+            "vk_384350670",
+            "vk_385457387",
+            "vk_388919397",
+            "vk_457308649",
+            "vk_469155804",
+            "vk_505376916",
+            "vk_525103065",
+            "vk_538526261",
+            "vk_540326228",
+            "vk_560266065",
+            "vk_617133580",
+            "vk_643813360",
+            "vk_702955412",
+            "vk_710070510",
+            "vk_722673171",
+            "vk_730558344",
+            "vk_738056704",
+            "vk_764856401",
+            "vk_765460470",
+            "vk_795035188",
+            "vk_1069157369"
+          ],
+          "size": 100,
+          "label": "Community 1",
+          "color": "#ff6b6b"
+        }
+      ],
+      "friends_risk_deep": {
+        "total_friends": 99,
+        "checked_friends": 99,
+        "flagged_count": 0,
+        "flagged_friends": [],
+        "risk_level": "low"
+      }
+    },
+    "face_matches": [],
+    "username_accounts": [],
+    "geo_analysis": {},
+    "geo_intelligence": {},
+    "text_analysis": {},
+    "activity_timeline": [],
+    "group_analysis": {},
+    "activity_patterns": {},
+    "connected_checks": []
+  },
+  "duration_seconds": 364.9,
+  "completed_at": "2026-04-02T14:08:49.707976",
+  "final_status_server": "running"
+}

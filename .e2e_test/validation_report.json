@@ -1,0 +1,610 @@
+{
+  "timestamp": "2026-04-02T14:57:55.143802",
+  "validations": [
+    {
+      "candidate_id": 1,
+      "full_name": "Зобов Андрей Борисович",
+      "expected_risk": "HIGH",
+      "verdict": "FAIL",
+      "validations": {
+        "confirmed_name": [
+          "PASS",
+          "Зобов Андрей Борисович"
+        ],
+        "inn": [
+          "PASS",
+          "230804395297"
+        ],
+        "egrul": [
+          "PASS",
+          "Found: 1 records"
+        ],
+        "courts": [
+          "PASS",
+          "Found 9 court records"
+        ],
+        "fssp": [
+          "INFO",
+          "FSSP: not expected"
+        ],
+        "sanctions_check": [
+          "PASS",
+          "Security check was attempted"
+        ],
+        "vk": [
+          "PASS",
+          "1 real VK profiles found"
+        ],
+        "risk_score": [
+          "FAIL",
+          "Score 0/100 too low for HIGH (expected >=40)"
+        ],
+        "risk_score_zero": [
+          "FAIL",
+          "Risk score is 0 for a HIGH candidate -- scoring did not run"
+        ],
+        "required_fields": [
+          "PASS",
+          "All required fields present"
+        ],
+        "optional_fields": [
+          "WARN",
+          "Missing: geo_intelligence, geo_analysis, text_analysis, activity_timeline"
+        ],
+        "dossier_emptiness": [
+          "PASS",
+          "9 populated fields"
+        ],
+        "flag_0": [
+          "PASS",
+          "Evidence for: Судимость по ч.2 ст.228 УК РФ (наркотики, особо крупный разм"
+        ],
+        "flag_1": [
+          "PASS",
+          "Evidence for: Судимость по п.в ч.2 ст.158 УК РФ (кража телефона, 2022) — ш"
+        ],
+        "flag_2": [
+          "PASS",
+          "Evidence for: Зарегистрирован в Чите, проживает в Краснодаре — несоответст"
+        ]
+      },
+      "counts": {
+        "PASS": 11,
+        "FAIL": 2,
+        "WARN": 1,
+        "INFO": 1
+      },
+      "pass_rate": 84.6
+    },
+    {
+      "candidate_id": 2,
+      "full_name": "Котов Валерий Дмитриевич",
+      "expected_risk": "HIGH",
+      "verdict": "FAIL",
+      "validations": {
+        "confirmed_name": [
+          "PASS",
+          "Котов Валерий Дмитриевич"
+        ],
+        "inn": [
+          "PASS",
+          "231220713282"
+        ],
+        "egrul": [
+          "INFO",
+          "EGRUL: no business records (may be legitimate)"
+        ],
+        "courts": [
+          "PASS",
+          "Found 26 court records"
+        ],
+        "fssp": [
+          "INFO",
+          "FSSP: not expected"
+        ],
+        "sanctions_check": [
+          "PASS",
+          "Security check was attempted"
+        ],
+        "vk": [
+          "PASS",
+          "4 real VK profiles found"
+        ],
+        "risk_score": [
+          "FAIL",
+          "Score 0/100 too low for HIGH (expected >=40)"
+        ],
+        "risk_score_zero": [
+          "FAIL",
+          "Risk score is 0 for a HIGH candidate -- scoring did not run"
+        ],
+        "required_fields": [
+          "PASS",
+          "All required fields present"
+        ],
+        "optional_fields": [
+          "WARN",
+          "Missing: business_records, geo_intelligence, geo_analysis, text_analysis, activity_timeline"
+        ],
+        "dossier_emptiness": [
+          "PASS",
+          "8 populated fields"
+        ],
+        "flag_0": [
+          "PASS",
+          "Evidence for: Судимость по ч.1 ст.228 УК РФ (наркотики, 2018) — штраф 2500"
+        ],
+        "flag_1": [
+          "PASS",
+          "Evidence for: Судимость по п.в ч.2 ст.158 УК РФ (кража велосипеда, 2023) —"
+        ],
+        "flag_2": [
+          "PASS",
+          "Evidence for: Два уголовных дела — рецидив"
+        ]
+      },
+      "counts": {
+        "PASS": 10,
+        "FAIL": 2,
+        "WARN": 1,
+        "INFO": 2
+      },
+      "pass_rate": 83.3
+    },
+    {
+      "candidate_id": 3,
+      "full_name": "Шаламов Евгений Анатольевич",
+      "expected_risk": "CRITICAL",
+      "verdict": "FAIL",
+      "validations": {
+        "confirmed_name": [
+          "PASS",
+          "Шаламов Евгений Анатольевич"
+        ],
+        "inn": [
+          "PASS",
+          "233505094730"
+        ],
+        "egrul": [
+          "PASS",
+          "Found: 1 records"
+        ],
+        "courts": [
+          "PASS",
+          "Found 14 court records"
+        ],
+        "fssp": [
+          "FAIL",
+          "MISSING: Known FSSP debts not found"
+        ],
+        "sanctions_check": [
+          "PASS",
+          "Security check was attempted"
+        ],
+        "vk": [
+          "INFO",
+          "No VK profiles in dossier"
+        ],
+        "risk_score": [
+          "FAIL",
+          "Score 0/100 too low for CRITICAL (expected >=60)"
+        ],
+        "risk_score_zero": [
+          "FAIL",
+          "Risk score is 0 for a CRITICAL candidate -- scoring did not run"
+        ],
+        "required_fields": [
+          "PASS",
+          "All required fields present"
+        ],
+        "optional_fields": [
+          "WARN",
+          "Missing: geo_intelligence, geo_analysis, text_analysis, activity_timeline"
+        ],
+        "dossier_emptiness": [
+          "PASS",
+          "7 populated fields"
+        ],
+        "flag_0": [
+          "PASS",
+          "Evidence for: Судимость по ч.2 ст.228 УК РФ (наркотики крупный размер, 202"
+        ],
+        "flag_1": [
+          "PASS",
+          "Evidence for: Судимость по ч.2 ст.228 УК РФ (наркотики крупный размер, 202"
+        ],
+        "flag_2": [
+          "PASS",
+          "Evidence for: Административная ответственность ч.1 ст.6.9 КоАП (потреблени"
+        ],
+        "flag_3": [
+          "PASS",
+          "Evidence for: Административная ответственность ч.1 ст.19.3 КоАП (неповинов"
+        ],
+        "flag_4": [
+          "PASS",
+          "Evidence for: Задолженности перед ФССП"
+        ],
+        "flag_5": [
+          "INFO",
+          "HR conclusion: НЕ РЕКОМЕНДОВАН к трудоустройству"
+        ]
+      },
+      "counts": {
+        "PASS": 12,
+        "FAIL": 3,
+        "WARN": 1,
+        "INFO": 2
+      },
+      "pass_rate": 80.0
+    },
+    {
+      "candidate_id": 4,
+      "full_name": "Четвериков Валерий Викторович",
+      "expected_risk": "LOW",
+      "verdict": "PASS",
+      "validations": {
+        "confirmed_name": [
+          "PASS",
+          "Четвериков Валерий Викторович"
+        ],
+        "inn": [
+          "PASS",
+          "231100615269"
+        ],
+        "egrul": [
+          "PASS",
+          "Found: 1 records"
+        ],
+        "courts": [
+          "PASS",
+          "Found 6 records (unexpected but OK)"
+        ],
+        "fssp": [
+          "INFO",
+          "FSSP: not expected"
+        ],
+        "sanctions_check": [
+          "PASS",
+          "Security check was attempted"
+        ],
+        "vk": [
+          "PASS",
+          "2 real VK profiles found"
+        ],
+        "risk_score": [
+          "PASS",
+          "Score 0/100 matches expected LOW"
+        ],
+        "required_fields": [
+          "PASS",
+          "All required fields present"
+        ],
+        "optional_fields": [
+          "WARN",
+          "Missing: geo_intelligence, geo_analysis, text_analysis, activity_timeline"
+        ],
+        "dossier_emptiness": [
+          "PASS",
+          "9 populated fields"
+        ],
+        "known_flags": [
+          "PASS",
+          "No expected flags (clean candidate)"
+        ]
+      },
+      "counts": {
+        "PASS": 10,
+        "FAIL": 0,
+        "WARN": 1,
+        "INFO": 1
+      },
+      "pass_rate": 100.0
+    },
+    {
+      "candidate_id": 5,
+      "full_name": "Гнездилова Арина Сергеевна",
+      "expected_risk": "LOW",
+      "verdict": "PASS",
+      "validations": {
+        "confirmed_name": [
+          "PASS",
+          "Гнездилова Арина Сергеевна"
+        ],
+        "inn": [
+          "PASS",
+          "235103452010"
+        ],
+        "egrul": [
+          "INFO",
+          "EGRUL: no business records (may be legitimate)"
+        ],
+        "courts": [
+          "INFO",
+          "No court records (expected for clean candidate)"
+        ],
+        "fssp": [
+          "INFO",
+          "FSSP: not expected"
+        ],
+        "sanctions_check": [
+          "PASS",
+          "Security check was attempted"
+        ],
+        "vk": [
+          "PASS",
+          "2 real VK profiles found"
+        ],
+        "risk_score": [
+          "PASS",
+          "Score 0/100 matches expected LOW"
+        ],
+        "required_fields": [
+          "PASS",
+          "All required fields present"
+        ],
+        "optional_fields": [
+          "WARN",
+          "Missing: business_records, geo_intelligence, geo_analysis, text_analysis, activity_timeline"
+        ],
+        "dossier_emptiness": [
+          "PASS",
+          "7 populated fields"
+        ],
+        "known_flags": [
+          "PASS",
+          "No expected flags (clean candidate)"
+        ]
+      },
+      "counts": {
+        "PASS": 8,
+        "FAIL": 0,
+        "WARN": 1,
+        "INFO": 3
+      },
+      "pass_rate": 100.0
+    },
+    {
+      "candidate_id": 6,
+      "full_name": "Григоренко Вадим Павлович",
+      "expected_risk": "LOW",
+      "verdict": "PASS",
+      "validations": {
+        "confirmed_name": [
+          "PASS",
+          "Григоренко Вадим Павлович"
+        ],
+        "inn": [
+          "PASS",
+          "234607515404"
+        ],
+        "egrul": [
+          "INFO",
+          "EGRUL: no business records (may be legitimate)"
+        ],
+        "courts": [
+          "PASS",
+          "Found 1 records (unexpected but OK)"
+        ],
+        "fssp": [
+          "INFO",
+          "FSSP: not expected"
+        ],
+        "sanctions_check": [
+          "PASS",
+          "Security check was attempted"
+        ],
+        "vk": [
+          "PASS",
+          "2 real VK profiles found"
+        ],
+        "risk_score": [
+          "PASS",
+          "Score 0/100 matches expected LOW"
+        ],
+        "required_fields": [
+          "PASS",
+          "All required fields present"
+        ],
+        "optional_fields": [
+          "WARN",
+          "Missing: business_records, geo_intelligence, geo_analysis, text_analysis, activity_timeline"
+        ],
+        "dossier_emptiness": [
+          "PASS",
+          "8 populated fields"
+        ],
+        "known_flags": [
+          "PASS",
+          "No expected flags (clean candidate)"
+        ]
+      },
+      "counts": {
+        "PASS": 9,
+        "FAIL": 0,
+        "WARN": 1,
+        "INFO": 2
+      },
+      "pass_rate": 100.0
+    },
+    {
+      "candidate_id": 7,
+      "full_name": "Фомичев Вячеслав Владиславович",
+      "expected_risk": "LOW",
+      "verdict": "FAIL",
+      "reason": "No dossier data (status: START_FAILED)",
+      "validations": {},
+      "counts": {
+        "PASS": 0,
+        "FAIL": 1,
+        "WARN": 0,
+        "INFO": 0
+      },
+      "pass_rate": 0.0
+    },
+    {
+      "candidate_id": 8,
+      "full_name": "Волков Сергей Алексеевич",
+      "expected_risk": "CRITICAL",
+      "verdict": "FAIL",
+      "validations": {
+        "confirmed_name": [
+          "PASS",
+          "Волков Сергей Алексеевич"
+        ],
+        "inn": [
+          "PASS",
+          "233502577874"
+        ],
+        "egrul": [
+          "INFO",
+          "EGRUL: no business records (may be legitimate)"
+        ],
+        "courts": [
+          "PASS",
+          "Found 31 court records"
+        ],
+        "fssp": [
+          "FAIL",
+          "MISSING: Known FSSP debts not found"
+        ],
+        "sanctions_check": [
+          "PASS",
+          "Security check was attempted"
+        ],
+        "vk": [
+          "PASS",
+          "3 real VK profiles found"
+        ],
+        "risk_score": [
+          "FAIL",
+          "Score 0/100 too low for CRITICAL (expected >=60)"
+        ],
+        "risk_score_zero": [
+          "FAIL",
+          "Risk score is 0 for a CRITICAL candidate -- scoring did not run"
+        ],
+        "required_fields": [
+          "PASS",
+          "All required fields present"
+        ],
+        "optional_fields": [
+          "WARN",
+          "Missing: business_records, geo_intelligence, geo_analysis, text_analysis, activity_timeline"
+        ],
+        "dossier_emptiness": [
+          "PASS",
+          "8 populated fields"
+        ],
+        "flag_0": [
+          "PASS",
+          "Evidence for: Судимость за убийство на территории Темрюкского района"
+        ],
+        "flag_1": [
+          "FAIL",
+          "NO EVIDENCE: 'Участник СВО — ЧВК Вагнер (2022-2023)' not in dossier"
+        ],
+        "flag_2": [
+          "PASS",
+          "Evidence for: Задолженность ФССП ~2 млн руб (алименты, моральный вред, кре"
+        ]
+      },
+      "counts": {
+        "PASS": 9,
+        "FAIL": 4,
+        "WARN": 1,
+        "INFO": 1
+      },
+      "pass_rate": 69.2
+    },
+    {
+      "candidate_id": 9,
+      "full_name": "Калмыков Александр Николаевич",
+      "expected_risk": "LOW",
+      "verdict": "PASS",
+      "reason": "API correctly requires INN (validation working)",
+      "validations": {
+        "inn_validation": [
+          "PASS",
+          "API rejected empty INN as expected"
+        ]
+      },
+      "counts": {
+        "PASS": 1,
+        "FAIL": 0,
+        "WARN": 0,
+        "INFO": 0
+      },
+      "pass_rate": 100.0
+    },
+    {
+      "candidate_id": 10,
+      "full_name": "Плисенко Любовь Григорьевна",
+      "expected_risk": "LOW",
+      "verdict": "PASS",
+      "validations": {
+        "confirmed_name": [
+          "PASS",
+          "Плисенко Любовь Григорьевна"
+        ],
+        "inn": [
+          "PASS",
+          "234602030798"
+        ],
+        "egrul": [
+          "INFO",
+          "EGRUL: no business records (may be legitimate)"
+        ],
+        "courts": [
+          "INFO",
+          "No court records (expected for clean candidate)"
+        ],
+        "fssp": [
+          "INFO",
+          "FSSP: not expected"
+        ],
+        "sanctions_check": [
+          "PASS",
+          "Security check was attempted"
+        ],
+        "vk": [
+          "INFO",
+          "No VK profiles in dossier"
+        ],
+        "risk_score": [
+          "PASS",
+          "Score 0/100 matches expected LOW"
+        ],
+        "required_fields": [
+          "PASS",
+          "All required fields present"
+        ],
+        "optional_fields": [
+          "WARN",
+          "Missing: business_records, geo_intelligence, geo_analysis, text_analysis, activity_timeline"
+        ],
+        "dossier_emptiness": [
+          "PASS",
+          "5 populated fields"
+        ],
+        "known_flags": [
+          "PASS",
+          "No expected flags (clean candidate)"
+        ]
+      },
+      "counts": {
+        "PASS": 7,
+        "FAIL": 0,
+        "WARN": 1,
+        "INFO": 4
+      },
+      "pass_rate": 100.0
+    }
+  ],
+  "totals": {
+    "pass": 5,
+    "fail": 5,
+    "warn": 0,
+    "total": 10
+  }
+}

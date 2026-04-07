@@ -1,0 +1,391 @@
+{
+  "candidate_id": 10,
+  "full_name": "Плисенко Любовь Григорьевна",
+  "started_at": "2026-04-02T14:46:03.766810",
+  "progress_log": [
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Подтверждение личности по ИНН..."
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "ЕГРЮЛ — поиск по ИНН..."
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "ЕГРЮЛ по ИНН: записей не найдено"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "ЕФРСБ — проверка банкротства по ИНН..."
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Банкротство: записей не найдено"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Личность подтверждена"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Проверка государственных реестров..."
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "ЕГРЮЛ + Суды + ФССП + Залоги — параллельный поиск..."
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "ЕГРЮЛ: записи не найдены"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Залоговый реестр: записей не найдено"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "ФССП: производств не найдено"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Суды: таймаут (120с)"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Реестры проверены"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Получение результатов проверки безопасности..."
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Перечень экстремистов: не найден"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "МВД — розыск: не найден"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Росфинмониторинг: не удалось проверить (Сайт недоступен (возможна геоблокировка))"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "OpenSanctions: не найден"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Интерпол: не найден"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Санкции: проверено 5 источника"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "МВД паспорт: Сервис ГУВМ МВД недоступен (прекращён с июля 2023). Проверка возможна через Госуслуги вручную: gosuslugi.ru/621102/1"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Поиск в социальных сетях..."
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "VK — поиск профилей..."
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "VK: профили не найдены"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Telegram — поиск профилей..."
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Telegram: профили не найдены"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "OK.ru — поиск профилей..."
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "OK.ru: профили не найдены (демо)"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Telegram — поиск по телефону..."
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Telegram по телефону: не найден"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Соцсети: найдено 0 профилей"
+    },
+    {
+      "time": "2026-04-02T14:50:19.521015",
+      "pct": 44,
+      "msg": "Поиск контактных данных..."
+    },
+    {
+      "time": "2026-04-02T14:51:38.640482",
+      "pct": 82,
+      "msg": "Контакты: найдено 1 тел., 0 email"
+    },
+    {
+      "time": "2026-04-02T14:51:38.640482",
+      "pct": 82,
+      "msg": "Найдено 1 тел., 0 email"
+    },
+    {
+      "time": "2026-04-02T14:51:38.640482",
+      "pct": 82,
+      "msg": "Глубокий анализ соцсетей..."
+    },
+    {
+      "time": "2026-04-02T14:51:38.640482",
+      "pct": 82,
+      "msg": "Социальный анализ завершён"
+    },
+    {
+      "time": "2026-04-02T14:51:38.640482",
+      "pct": 82,
+      "msg": "Поведенческий анализ..."
+    },
+    {
+      "time": "2026-04-02T14:51:38.640482",
+      "pct": 82,
+      "msg": "Загрузка постов VK"
+    },
+    {
+      "time": "2026-04-02T14:51:38.640482",
+      "pct": 82,
+      "msg": "Анализ текстов"
+    },
+    {
+      "time": "2026-04-02T14:51:38.640482",
+      "pct": 82,
+      "msg": "Извлечение геоданных"
+    },
+    {
+      "time": "2026-04-02T14:51:38.640482",
+      "pct": 82,
+      "msg": "Построение таймлайна"
+    },
+    {
+      "time": "2026-04-02T14:51:38.640482",
+      "pct": 82,
+      "msg": "Поиск публичных сообщений Telegram"
+    }
+  ],
+  "errors": [
+    "Timed out after 360s"
+  ],
+  "warnings": [
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "SERVICE ISSUE @ 44%: Росфинмониторинг: не удалось проверить (Сайт недоступен (возможна геоблокировка))",
+    "SERVICE ISSUE @ 44%: МВД паспорт: Сервис ГУВМ МВД недоступен (прекращён с июля 2023). Проверка возможна через Госуслуги вручную: gosuslugi.ru/621102/1"
+  ],
+  "final_status": "TIMEOUT",
+  "check_id": "164c8b5ab2dc4b7a9ae5b6568d4b6e4a",
+  "task_id": "e05ea21334f447c798002b74daffd67c",
+  "export_json": {
+    "meta": {
+      "generated_at": "2026-04-02T14:52:04.298166",
+      "ibp_version": "1.0",
+      "check_id": "164c8b5ab2dc4b7a9ae5b6568d4b6e4a",
+      "check_mode": "quick",
+      "duration_seconds": null,
+      "check_level": "Быстрая проверка",
+      "sources_checked": 0,
+      "sources_with_results": 0,
+      "status": "running",
+      "report_generated": false
+    },
+    "candidate": {
+      "full_name": "Плисенко Любовь Григорьевна",
+      "date_of_birth": "1964-11-08",
+      "inn": "234602030798",
+      "region": "Краснодарский край",
+      "phone": "+79181134918",
+      "email": null
+    },
+    "risk_assessment": {
+      "risk_level": null,
+      "risk_level_display": "",
+      "risk_score": null,
+      "risk_score_numeric": null,
+      "red_flag_count": 0,
+      "red_flags": [],
+      "risk_breakdown": {}
+    },
+    "business_records": [],
+    "court_records": [],
+    "fssp_records": [],
+    "bankruptcy_records": [],
+    "pledge_records": [],
+    "sanctions_results": [
+      {
+        "source_name": "Перечень экстремистов",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://minjust.gov.ru/ru/extremist-materials/"
+      },
+      {
+        "source_name": "МВД — розыск",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://xn--b1aew.xn--p1ai/wanted"
+      },
+      {
+        "source_name": "Росфинмониторинг",
+        "checked": false,
+        "found": false,
+        "match_details": null,
+        "error": "Сайт недоступен (возможна геоблокировка)",
+        "url": "https://www.fedsfm.ru/documents/terrorists-catalog-portal-act"
+      },
+      {
+        "source_name": "OpenSanctions",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://opensanctions.org/"
+      },
+      {
+        "source_name": "Интерпол",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://www.interpol.int/en/How-we-work/Notices/View-Red-Notices"
+      },
+      {
+        "source_name": "МВД — проверка паспорта",
+        "checked": false,
+        "found": false,
+        "match_details": "Сервис ГУВМ МВД недоступен (прекращён с июля 2023). Проверка возможна через Госуслуги вручную: gosuslugi.ru/621102/1",
+        "error": "Сервис ГУВМ МВД недоступен (прекращён с июля 2023). Проверка возможна через Госуслуги вручную: gosuslugi.ru/621102/1",
+        "url": "https://www.gosuslugi.ru/621102/1"
+      }
+    ],
+    "social_media_profiles": [],
+    "confirmed_profiles": [],
+    "contact_discoveries": {
+      "phones": [
+        {
+          "number": "+79181134918",
+          "source": "input",
+          "confidence": "высокая",
+          "profile_name": "Форма ввода",
+          "raw_value": "+79181134918",
+          "confidence_score": 0.99,
+          "sources": [
+            "input"
+          ]
+        }
+      ],
+      "emails": []
+    },
+    "social_graph_data": {},
+    "face_matches": [],
+    "username_accounts": [],
+    "geo_analysis": {},
+    "geo_intelligence": {},
+    "text_analysis": {},
+    "activity_timeline": [],
+    "group_analysis": {},
+    "activity_patterns": {},
+    "connected_checks": []
+  },
+  "duration_seconds": 367.0,
+  "completed_at": "2026-04-02T14:52:10.809418"
+}

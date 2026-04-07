@@ -1,0 +1,485 @@
+{
+  "timestamp": "2026-04-02T14:57:49.076825",
+  "analyses": [
+    {
+      "candidate_id": 1,
+      "full_name": "Зобов Андрей Борисович",
+      "final_status": "TIMEOUT",
+      "duration": 364.9,
+      "classified_issues": [],
+      "silent_failures": [
+        {
+          "type": "SILENT_FAIL",
+          "severity": "HIGH",
+          "field": "risk_score",
+          "expected": ">=40 (candidate is HIGH)",
+          "got": 0,
+          "msg": "HIGH candidate scored only 0/100"
+        }
+      ],
+      "summary": {
+        "bugs": 0,
+        "errors": 1,
+        "expected_limitations": 0,
+        "no_data_events": 0,
+        "timeouts": 0,
+        "silent_failures": 1,
+        "critical_issues": 0
+      }
+    },
+    {
+      "candidate_id": 2,
+      "full_name": "Котов Валерий Дмитриевич",
+      "final_status": "TIMEOUT",
+      "duration": 364.9,
+      "classified_issues": [],
+      "silent_failures": [
+        {
+          "type": "SILENT_FAIL",
+          "severity": "HIGH",
+          "field": "risk_score",
+          "expected": ">=40 (candidate is HIGH)",
+          "got": 0,
+          "msg": "HIGH candidate scored only 0/100"
+        }
+      ],
+      "summary": {
+        "bugs": 0,
+        "errors": 1,
+        "expected_limitations": 0,
+        "no_data_events": 0,
+        "timeouts": 0,
+        "silent_failures": 1,
+        "critical_issues": 0
+      }
+    },
+    {
+      "candidate_id": 3,
+      "full_name": "Шаламов Евгений Анатольевич",
+      "final_status": "TIMEOUT",
+      "duration": 365.0,
+      "classified_issues": [],
+      "silent_failures": [
+        {
+          "type": "SILENT_FAIL",
+          "severity": "CRITICAL",
+          "field": "risk_score",
+          "expected": ">=60 (candidate is CRITICAL)",
+          "got": 0,
+          "msg": "CRITICAL candidate scored only 0/100"
+        },
+        {
+          "type": "SILENT_FAIL",
+          "severity": "HIGH",
+          "field": "fssp_records",
+          "expected": "FSSP records (known debts)",
+          "got": "EMPTY",
+          "msg": "Known FSSP debts but nothing found"
+        }
+      ],
+      "summary": {
+        "bugs": 0,
+        "errors": 1,
+        "expected_limitations": 0,
+        "no_data_events": 0,
+        "timeouts": 0,
+        "silent_failures": 2,
+        "critical_issues": 1
+      }
+    },
+    {
+      "candidate_id": 4,
+      "full_name": "Четвериков Валерий Викторович",
+      "final_status": "TIMEOUT",
+      "duration": 364.9,
+      "classified_issues": [],
+      "silent_failures": [],
+      "summary": {
+        "bugs": 0,
+        "errors": 1,
+        "expected_limitations": 0,
+        "no_data_events": 0,
+        "timeouts": 0,
+        "silent_failures": 0,
+        "critical_issues": 0
+      }
+    },
+    {
+      "candidate_id": 5,
+      "full_name": "Гнездилова Арина Сергеевна",
+      "final_status": "TIMEOUT",
+      "duration": 365.1,
+      "classified_issues": [],
+      "silent_failures": [],
+      "summary": {
+        "bugs": 0,
+        "errors": 1,
+        "expected_limitations": 0,
+        "no_data_events": 0,
+        "timeouts": 0,
+        "silent_failures": 0,
+        "critical_issues": 0
+      }
+    },
+    {
+      "candidate_id": 6,
+      "full_name": "Григоренко Вадим Павлович",
+      "final_status": "TIMEOUT",
+      "duration": 365.4,
+      "classified_issues": [],
+      "silent_failures": [],
+      "summary": {
+        "bugs": 0,
+        "errors": 1,
+        "expected_limitations": 0,
+        "no_data_events": 0,
+        "timeouts": 0,
+        "silent_failures": 0,
+        "critical_issues": 0
+      }
+    },
+    {
+      "candidate_id": 7,
+      "full_name": "Фомичев Вячеслав Владиславович",
+      "final_status": "START_FAILED",
+      "duration": 0.2,
+      "classified_issues": [],
+      "silent_failures": [],
+      "summary": {
+        "bugs": 0,
+        "errors": 1,
+        "expected_limitations": 0,
+        "no_data_events": 0,
+        "timeouts": 0,
+        "silent_failures": 0,
+        "critical_issues": 0
+      }
+    },
+    {
+      "candidate_id": 8,
+      "full_name": "Волков Сергей Алексеевич",
+      "final_status": "TIMEOUT",
+      "duration": 365.3,
+      "classified_issues": [],
+      "silent_failures": [
+        {
+          "type": "SILENT_FAIL",
+          "severity": "CRITICAL",
+          "field": "risk_score",
+          "expected": ">=60 (candidate is CRITICAL)",
+          "got": 0,
+          "msg": "CRITICAL candidate scored only 0/100"
+        },
+        {
+          "type": "SILENT_FAIL",
+          "severity": "HIGH",
+          "field": "fssp_records",
+          "expected": "FSSP records (known debts)",
+          "got": "EMPTY",
+          "msg": "Known FSSP debts but nothing found"
+        }
+      ],
+      "summary": {
+        "bugs": 0,
+        "errors": 1,
+        "expected_limitations": 0,
+        "no_data_events": 0,
+        "timeouts": 0,
+        "silent_failures": 2,
+        "critical_issues": 1
+      }
+    },
+    {
+      "candidate_id": 9,
+      "full_name": "Калмыков Александр Николаевич",
+      "final_status": "INN_REQUIRED_REJECTED",
+      "duration": 0.2,
+      "classified_issues": [],
+      "silent_failures": [],
+      "summary": {
+        "bugs": 0,
+        "errors": 1,
+        "expected_limitations": 0,
+        "no_data_events": 0,
+        "timeouts": 0,
+        "silent_failures": 0,
+        "critical_issues": 0
+      }
+    },
+    {
+      "candidate_id": 10,
+      "full_name": "Плисенко Любовь Григорьевна",
+      "final_status": "TIMEOUT",
+      "duration": 367.0,
+      "classified_issues": [
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Подтверждение личности по ИНН...",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "ЕГРЮЛ — поиск по ИНН...",
+          "pct": 44
+        },
+        {
+          "type": "NO_DATA",
+          "severity": "MEDIUM",
+          "msg": "ЕГРЮЛ по ИНН: записей не найдено",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "ЕФРСБ — проверка банкротства по ИНН...",
+          "pct": 44
+        },
+        {
+          "type": "NO_DATA",
+          "severity": "MEDIUM",
+          "msg": "Банкротство: записей не найдено",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Личность подтверждена",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Проверка государственных реестров...",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "ЕГРЮЛ + Суды + ФССП + Залоги — параллельный поиск...",
+          "pct": 44
+        },
+        {
+          "type": "NO_DATA",
+          "severity": "MEDIUM",
+          "msg": "ЕГРЮЛ: записи не найдены",
+          "pct": 44
+        },
+        {
+          "type": "NO_DATA",
+          "severity": "MEDIUM",
+          "msg": "Залоговый реестр: записей не найдено",
+          "pct": 44
+        },
+        {
+          "type": "NO_DATA",
+          "severity": "MEDIUM",
+          "msg": "ФССП: производств не найдено",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Суды: таймаут (120с)",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Реестры проверены",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Получение результатов проверки безопасности...",
+          "pct": 44
+        },
+        {
+          "type": "NO_DATA",
+          "severity": "MEDIUM",
+          "msg": "Перечень экстремистов: не найден",
+          "pct": 44
+        },
+        {
+          "type": "NO_DATA",
+          "severity": "MEDIUM",
+          "msg": "МВД — розыск: не найден",
+          "pct": 44
+        },
+        {
+          "type": "EXPECTED",
+          "severity": "INFO",
+          "msg": "Росфинмониторинг: не удалось проверить (Сайт недоступен (возможна геоблокировка))",
+          "pct": 44
+        },
+        {
+          "type": "NO_DATA",
+          "severity": "MEDIUM",
+          "msg": "OpenSanctions: не найден",
+          "pct": 44
+        },
+        {
+          "type": "NO_DATA",
+          "severity": "MEDIUM",
+          "msg": "Интерпол: не найден",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Санкции: проверено 5 источника",
+          "pct": 44
+        },
+        {
+          "type": "EXPECTED",
+          "severity": "INFO",
+          "msg": "МВД паспорт: Сервис ГУВМ МВД недоступен (прекращён с июля 2023). Проверка возможна через Госуслуги вручную: gosuslugi.ru/621102/1",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Поиск в социальных сетях...",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "VK — поиск профилей...",
+          "pct": 44
+        },
+        {
+          "type": "NO_DATA",
+          "severity": "MEDIUM",
+          "msg": "VK: профили не найдены",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Telegram — поиск профилей...",
+          "pct": 44
+        },
+        {
+          "type": "NO_DATA",
+          "severity": "MEDIUM",
+          "msg": "Telegram: профили не найдены",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "OK.ru — поиск профилей...",
+          "pct": 44
+        },
+        {
+          "type": "EXPECTED",
+          "severity": "INFO",
+          "msg": "OK.ru: профили не найдены (демо)",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Telegram — поиск по телефону...",
+          "pct": 44
+        },
+        {
+          "type": "NO_DATA",
+          "severity": "MEDIUM",
+          "msg": "Telegram по телефону: не найден",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Соцсети: найдено 0 профилей",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Поиск контактных данных...",
+          "pct": 44
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Контакты: найдено 1 тел., 0 email",
+          "pct": 82
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Найдено 1 тел., 0 email",
+          "pct": 82
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Глубокий анализ соцсетей...",
+          "pct": 82
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Социальный анализ завершён",
+          "pct": 82
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Поведенческий анализ...",
+          "pct": 82
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Загрузка постов VK",
+          "pct": 82
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Анализ текстов",
+          "pct": 82
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Извлечение геоданных",
+          "pct": 82
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Построение таймлайна",
+          "pct": 82
+        },
+        {
+          "type": "INFO",
+          "severity": "LOW",
+          "msg": "Поиск публичных сообщений Telegram",
+          "pct": 82
+        }
+      ],
+      "silent_failures": [],
+      "summary": {
+        "bugs": 0,
+        "errors": 1,
+        "expected_limitations": 3,
+        "no_data_events": 12,
+        "timeouts": 0,
+        "silent_failures": 0,
+        "critical_issues": 0
+      }
+    }
+  ],
+  "totals": {
+    "bugs": 0,
+    "silent_failures": 6,
+    "critical": 2
+  }
+}

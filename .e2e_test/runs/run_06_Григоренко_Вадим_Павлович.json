@@ -1,0 +1,441 @@
+{
+  "candidate_id": 6,
+  "full_name": "Григоренко Вадим Павлович",
+  "started_at": "2026-04-02T14:33:59.749099",
+  "progress_log": [],
+  "errors": [
+    "Timed out after 360s"
+  ],
+  "warnings": [
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429"
+  ],
+  "final_status": "TIMEOUT",
+  "check_id": "521dbddfde91413da212b1b4da98b1d6",
+  "task_id": "445c32ac6eaa4807986bf020715c38cd",
+  "export_json": {
+    "meta": {
+      "generated_at": "2026-04-02T14:51:23.261037",
+      "ibp_version": "1.0",
+      "check_id": "521dbddfde91413da212b1b4da98b1d6",
+      "check_mode": "quick",
+      "duration_seconds": null,
+      "check_level": "Быстрая проверка",
+      "sources_checked": 0,
+      "sources_with_results": 0,
+      "status": "running",
+      "report_generated": false
+    },
+    "candidate": {
+      "full_name": "Григоренко Вадим Павлович",
+      "date_of_birth": "2000-12-20",
+      "inn": "234607515404",
+      "region": "Краснодарский край",
+      "phone": "+79182502260",
+      "email": null
+    },
+    "risk_assessment": {
+      "risk_level": null,
+      "risk_level_display": "",
+      "risk_score": null,
+      "risk_score_numeric": null,
+      "red_flag_count": 0,
+      "red_flags": [],
+      "risk_breakdown": {}
+    },
+    "business_records": [],
+    "court_records": [
+      {
+        "case_number": "44Г-54/2018",
+        "court_name": "Приморский краевой суд",
+        "case_type": "административное",
+        "date": "7 мая 2018",
+        "role": "участник",
+        "category": "",
+        "result": "",
+        "url": "https://sudact.ru/regular/doc/joH1YrQ11PUr/",
+        "source": "sudact.ru",
+        "confidence": "UNVERIFIED"
+      }
+    ],
+    "fssp_records": [],
+    "bankruptcy_records": [],
+    "pledge_records": [],
+    "sanctions_results": [
+      {
+        "source_name": "МВД — розыск",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://xn--b1aew.xn--p1ai/wanted"
+      },
+      {
+        "source_name": "Перечень экстремистов",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://minjust.gov.ru/ru/extremist-materials/"
+      },
+      {
+        "source_name": "Росфинмониторинг",
+        "checked": false,
+        "found": false,
+        "match_details": null,
+        "error": "Сайт недоступен (возможна геоблокировка)",
+        "url": "https://www.fedsfm.ru/documents/terrorists-catalog-portal-act"
+      },
+      {
+        "source_name": "OpenSanctions",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://opensanctions.org/"
+      },
+      {
+        "source_name": "Интерпол",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://www.interpol.int/en/How-we-work/Notices/View-Red-Notices"
+      },
+      {
+        "source_name": "МВД — проверка паспорта",
+        "checked": false,
+        "found": false,
+        "match_details": "Сервис ГУВМ МВД недоступен (прекращён с июля 2023). Проверка возможна через Госуслуги вручную: gosuslugi.ru/621102/1",
+        "error": "Сервис ГУВМ МВД недоступен (прекращён с июля 2023). Проверка возможна через Госуслуги вручную: gosuslugi.ru/621102/1",
+        "url": "https://www.gosuslugi.ru/621102/1"
+      }
+    ],
+    "social_media_profiles": [
+      {
+        "platform": "vk",
+        "platform_id": 212864458,
+        "display_name": "Vadim Grigorenko",
+        "username": "vadim.grigorenko",
+        "url": "https://vk.com/vadim.grigorenko",
+        "avatar_url": "https://sun1-20.userapi.com/s/v1/ig2/E6Ii_jgPzELdFwNRhn1VkMThWiZyPPT3HjYFiN3COHZF7K5bV83xo3qbizi-zSL6_-ytyj_xR5ZhUxLPE1AhVpvc.jpg?quality=96&crop=2,2,200,200&as=32x32,48x48,72x72,108x108,160x160&ava=1&cs=200x200",
+        "photo_url": "https://sun1-20.userapi.com/s/v1/ig2/E6Ii_jgPzELdFwNRhn1VkMThWiZyPPT3HjYFiN3COHZF7K5bV83xo3qbizi-zSL6_-ytyj_xR5ZhUxLPE1AhVpvc.jpg?quality=96&crop=2,2,200,200&as=32x32,48x48,72x72,108x108,160x160&ava=1&cs=200x200",
+        "confidence": "высокая",
+        "confidence_score": 1.0,
+        "dob_match": false,
+        "source_method": "VK People Search",
+        "city": "Kyiv"
+      },
+      {
+        "platform": "vk",
+        "platform_id": 7613691,
+        "display_name": "Vlad Grigorenko",
+        "username": "v_grigorenko",
+        "url": "https://vk.com/v_grigorenko",
+        "avatar_url": "https://sun1-24.userapi.com/s/v1/ig1/bs9V5G1YPNosC7L5r-JOM0P6S7QflTYonnBOEz1JJx8s56UUAMy2taYhUxIULT_eqWptLowN.jpg?quality=96&crop=255,0,640,640&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640&ava=1&cs=200x200",
+        "photo_url": "https://sun1-24.userapi.com/s/v1/ig1/bs9V5G1YPNosC7L5r-JOM0P6S7QflTYonnBOEz1JJx8s56UUAMy2taYhUxIULT_eqWptLowN.jpg?quality=96&crop=255,0,640,640&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640&ava=1&cs=200x200",
+        "confidence": "высокая",
+        "confidence_score": 0.83,
+        "dob_match": false,
+        "source_method": "VK People Search",
+        "city": "Moscow"
+      }
+    ],
+    "confirmed_profiles": [],
+    "contact_discoveries": {
+      "phones": [
+        {
+          "number": "+79182502260",
+          "source": "input",
+          "confidence": "высокая",
+          "profile_name": "Форма ввода",
+          "raw_value": "+79182502260",
+          "confidence_score": 0.99,
+          "sources": [
+            "input"
+          ]
+        }
+      ],
+      "emails": []
+    },
+    "social_graph_data": {
+      "nodes": [
+        {
+          "id": "vk_212864458",
+          "label": "Вадим Григоренко",
+          "title": "Вадим Григоренко\nKyiv\nConnections: 4",
+          "level": 0,
+          "shape": "dot",
+          "size": 50,
+          "font": {
+            "size": 14,
+            "color": "#fff"
+          },
+          "vkId": 212864458,
+          "color": {
+            "background": "#8b5cf6",
+            "border": "#7c3aed",
+            "highlight": {
+              "background": "#a78bfa",
+              "border": "#8b5cf6"
+            },
+            "hover": {
+              "background": "#a78bfa",
+              "border": "#8b5cf6"
+            }
+          },
+          "borderWidth": 3
+        },
+        {
+          "id": "vk_142993928",
+          "label": "Олександр Селецький",
+          "title": "Олександр Селецький\nКиев\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 142993928,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_156448559",
+          "label": "Оксана Акусова",
+          "title": "Оксана Акусова\nМариуполь\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 156448559,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_200757280",
+          "label": "Олександр Стеценко",
+          "title": "Олександр Стеценко\nКиев\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 200757280,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        },
+        {
+          "id": "vk_223464074",
+          "label": "Τатьяна Εвсеева",
+          "title": "Τатьяна Εвсеева\nКиев\nConnections: 1",
+          "level": 1,
+          "shape": "dot",
+          "size": 26,
+          "font": {
+            "size": 11,
+            "color": "#fff"
+          },
+          "vkId": 223464074,
+          "color": {
+            "background": "#ff6b6b",
+            "border": "#ff6b6b",
+            "highlight": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            },
+            "hover": {
+              "background": "#ff6b6b",
+              "border": "#fff"
+            }
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "vk_156448559",
+          "to": "vk_212864458",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_142993928",
+          "to": "vk_212864458",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_212864458",
+          "to": "vk_223464074",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        },
+        {
+          "from": "vk_200757280",
+          "to": "vk_212864458",
+          "color": {
+            "color": "rgba(255,255,255,0.2)",
+            "highlight": "#8b5cf6"
+          },
+          "width": 1
+        }
+      ],
+      "stats": {
+        "node_count": 5,
+        "edge_count": 4,
+        "density": 0.4,
+        "avg_degree": 1.6,
+        "max_degree": 4,
+        "level_counts": {
+          "0": 1,
+          "1": 4
+        }
+      },
+      "clusters": [
+        {
+          "id": 0,
+          "members": [
+            "vk_212864458",
+            "vk_142993928",
+            "vk_156448559",
+            "vk_200757280",
+            "vk_223464074"
+          ],
+          "size": 5,
+          "label": "Community 1",
+          "color": "#ff6b6b"
+        }
+      ],
+      "friends_risk_deep": {
+        "total_friends": 4,
+        "checked_friends": 4,
+        "flagged_count": 0,
+        "flagged_friends": [],
+        "risk_level": "low"
+      }
+    },
+    "face_matches": [],
+    "username_accounts": [],
+    "geo_analysis": {},
+    "geo_intelligence": {},
+    "text_analysis": {},
+    "activity_timeline": [],
+    "group_analysis": {},
+    "activity_patterns": {},
+    "connected_checks": []
+  },
+  "duration_seconds": 365.4,
+  "completed_at": "2026-04-02T14:40:05.190217",
+  "final_status_server": "running"
+}

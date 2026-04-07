@@ -1,0 +1,61 @@
+{
+  "endpoints": {
+    "alive": [
+      [
+        "/candidate/new",
+        "New check form",
+        200
+      ],
+      [
+        "/candidate/history",
+        "Check history",
+        200
+      ],
+      [
+        "/health",
+        "Health check",
+        200
+      ]
+    ],
+    "dead": []
+  },
+  "probe_candidate": {
+    "name": "Судин Артем Алексеевич",
+    "check_id": "8a94bd7862e543b18bdab5d55d73b868",
+    "dossier_keys": [
+      "meta",
+      "candidate",
+      "risk_assessment",
+      "business_records",
+      "court_records",
+      "fssp_records",
+      "bankruptcy_records",
+      "pledge_records",
+      "sanctions_results",
+      "social_media_profiles",
+      "confirmed_profiles",
+      "contact_discoveries",
+      "social_graph_data",
+      "face_matches",
+      "username_accounts",
+      "geo_analysis",
+      "geo_intelligence",
+      "text_analysis",
+      "activity_timeline",
+      "group_analysis",
+      "activity_patterns",
+      "connected_checks"
+    ],
+    "sources_with_data": {
+      "EGRUL": "REAL",
+      "COURTS": "REAL",
+      "FSSP": "EMPTY",
+      "VK": "REAL",
+      "SANCTIONS": "REAL",
+      "CONTACTS": "REAL",
+      "RISK_SCORE": "EMPTY",
+      "GEO": "EMPTY"
+    }
+  },
+  "timestamp": "2026-04-02T13:55:15.573033"
+}

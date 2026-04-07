@@ -1,0 +1,18 @@
+{
+  "candidate_id": 9,
+  "full_name": "Калмыков Александр Николаевич",
+  "started_at": "2026-04-02T14:45:53.602726",
+  "progress_log": [],
+  "errors": [
+    "START FAILED: HTTP 400 — {\n  \"error\": \"ИНН обязателен\"\n}\n"
+  ],
+  "warnings": [
+    "No INN provided — API will reject",
+    "Expected: API rejects empty INN"
+  ],
+  "final_status": "INN_REQUIRED_REJECTED",
+  "check_id": null,
+  "task_id": null,
+  "export_json": null,
+  "duration_seconds": 0.2
+}

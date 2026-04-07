@@ -1,0 +1,92 @@
+[
+  {
+    "id": 1,
+    "name": "Зобов Андрей Борисович",
+    "status": "TIMEOUT",
+    "duration": 364.6,
+    "errors": 1,
+    "warnings": 48,
+    "check_id": "761639d276dd49519cd7c0057ef233d2"
+  },
+  {
+    "id": 2,
+    "name": "Котов Валерий Дмитриевич",
+    "status": "TIMEOUT",
+    "duration": 365.3,
+    "errors": 1,
+    "warnings": 68,
+    "check_id": "a5bee404293e4d4d83137835e2d819c8"
+  },
+  {
+    "id": 3,
+    "name": "Шаламов Евгений Анатольевич",
+    "status": "TIMEOUT",
+    "duration": 365.0,
+    "errors": 1,
+    "warnings": 68,
+    "check_id": "6a04781645b043fc80c472308d0bb1c7"
+  },
+  {
+    "id": 4,
+    "name": "Четвериков Валерий Викторович",
+    "status": "TIMEOUT",
+    "duration": 365.0,
+    "errors": 1,
+    "warnings": 68,
+    "check_id": "10fa0fade6b241bfa93a6d9c32a4185d"
+  },
+  {
+    "id": 5,
+    "name": "Гнездилова Арина Сергеевна",
+    "status": "TIMEOUT",
+    "duration": 365.2,
+    "errors": 1,
+    "warnings": 68,
+    "check_id": "bf1ce065e3e245d7abaf729cec4ae9cf"
+  },
+  {
+    "id": 6,
+    "name": "Григоренко Вадим Павлович",
+    "status": "TIMEOUT",
+    "duration": 365.2,
+    "errors": 1,
+    "warnings": 68,
+    "check_id": "b0949af12a434d0190a6d6218e36ca0c"
+  },
+  {
+    "id": 7,
+    "name": "Фомичев Вячеслав Владиславович",
+    "status": "TIMEOUT",
+    "duration": 365.2,
+    "errors": 1,
+    "warnings": 68,
+    "check_id": "9b64cc3a8b284875bca00ff4ac018e13"
+  },
+  {
+    "id": 8,
+    "name": "Волков Сергей Алексеевич",
+    "status": "TIMEOUT",
+    "duration": 365.3,
+    "errors": 1,
+    "warnings": 68,
+    "check_id": "609f1e796074422996afba5a048267a7"
+  },
+  {
+    "id": 9,
+    "name": "Калмыков Александр Николаевич",
+    "status": "INN_REQUIRED_REJECTED",
+    "duration": 0.2,
+    "errors": 1,
+    "warnings": 2,
+    "check_id": null
+  },
+  {
+    "id": 10,
+    "name": "Плисенко Любовь Григорьевна",
+    "status": "TIMEOUT",
+    "duration": 367.0,
+    "errors": 1,
+    "warnings": 50,
+    "check_id": "164c8b5ab2dc4b7a9ae5b6568d4b6e4a"
+  }
+]

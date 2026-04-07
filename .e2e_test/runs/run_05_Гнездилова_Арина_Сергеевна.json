@@ -1,0 +1,276 @@
+{
+  "candidate_id": 5,
+  "full_name": "Гнездилова Арина Сергеевна",
+  "started_at": "2026-04-02T14:27:44.597738",
+  "progress_log": [],
+  "errors": [
+    "Timed out after 360s"
+  ],
+  "warnings": [
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429",
+    "PROGRESS HTTP 429"
+  ],
+  "final_status": "TIMEOUT",
+  "check_id": "5d99f37b8e7b41dd80ed2c6fb2896fd2",
+  "task_id": "be2bb3dc8ac349be9e4b06dcc67c63b5",
+  "export_json": {
+    "meta": {
+      "generated_at": "2026-04-02T14:51:21.091972",
+      "ibp_version": "1.0",
+      "check_id": "5d99f37b8e7b41dd80ed2c6fb2896fd2",
+      "check_mode": "quick",
+      "duration_seconds": null,
+      "check_level": "Быстрая проверка",
+      "sources_checked": 0,
+      "sources_with_results": 0,
+      "status": "running",
+      "report_generated": false
+    },
+    "candidate": {
+      "full_name": "Гнездилова Арина Сергеевна",
+      "date_of_birth": "2002-09-24",
+      "inn": "235103452010",
+      "region": "Краснодарский край",
+      "phone": "+79183403301",
+      "email": null
+    },
+    "risk_assessment": {
+      "risk_level": null,
+      "risk_level_display": "",
+      "risk_score": null,
+      "risk_score_numeric": null,
+      "red_flag_count": 0,
+      "red_flags": [],
+      "risk_breakdown": {}
+    },
+    "business_records": [],
+    "court_records": [],
+    "fssp_records": [],
+    "bankruptcy_records": [],
+    "pledge_records": [],
+    "sanctions_results": [
+      {
+        "source_name": "Перечень экстремистов",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://minjust.gov.ru/ru/extremist-materials/"
+      },
+      {
+        "source_name": "МВД — розыск",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://xn--b1aew.xn--p1ai/wanted"
+      },
+      {
+        "source_name": "Росфинмониторинг",
+        "checked": false,
+        "found": false,
+        "match_details": null,
+        "error": "Сайт недоступен (возможна геоблокировка)",
+        "url": "https://www.fedsfm.ru/documents/terrorists-catalog-portal-act"
+      },
+      {
+        "source_name": "OpenSanctions",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://opensanctions.org/"
+      },
+      {
+        "source_name": "Интерпол",
+        "checked": true,
+        "found": false,
+        "match_details": null,
+        "error": null,
+        "url": "https://www.interpol.int/en/How-we-work/Notices/View-Red-Notices"
+      },
+      {
+        "source_name": "МВД — проверка паспорта",
+        "checked": false,
+        "found": false,
+        "match_details": "Сервис ГУВМ МВД недоступен (прекращён с июля 2023). Проверка возможна через Госуслуги вручную: gosuslugi.ru/621102/1",
+        "error": "Сервис ГУВМ МВД недоступен (прекращён с июля 2023). Проверка возможна через Госуслуги вручную: gosuslugi.ru/621102/1",
+        "url": "https://www.gosuslugi.ru/621102/1"
+      }
+    ],
+    "social_media_profiles": [
+      {
+        "platform": "vk",
+        "platform_id": 153521934,
+        "display_name": "Galina Gnezdilova",
+        "username": "gnezdilova",
+        "url": "https://vk.com/gnezdilova",
+        "avatar_url": "https://sun1-56.userapi.com/s/v1/ig2/Rvqz9_IUC4GLnVal5dcPCHZvs2IJW4rrb4a0-2phJZYOfUxJgngmOPEaa-sh54dPEpvki5cf6CPGgQXNILr67Ng2.jpg?quality=96&crop=171,51,511,511&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480&ava=1&cs=200x200",
+        "photo_url": "https://sun1-56.userapi.com/s/v1/ig2/Rvqz9_IUC4GLnVal5dcPCHZvs2IJW4rrb4a0-2phJZYOfUxJgngmOPEaa-sh54dPEpvki5cf6CPGgQXNILr67Ng2.jpg?quality=96&crop=171,51,511,511&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480&ava=1&cs=200x200",
+        "confidence": "высокая",
+        "confidence_score": 0.86,
+        "dob_match": false,
+        "source_method": "VK People Search",
+        "city": "Samara"
+      },
+      {
+        "platform": "vk",
+        "platform_id": 107040,
+        "display_name": "Anna Gnezdilova",
+        "username": "a.gnezdilova",
+        "url": "https://vk.com/a.gnezdilova",
+        "avatar_url": "https://sun1-18.userapi.com/s/v1/ig1/r3M4pS9RG_SPUTuqdgOGjEF9Qrh53-m15vJ3e-mGEx-ifQTGKGEj1IOlM2bFBKeYa9B6-w.jpg?quality=96&crop=154,117,1441,1441&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&cs=200x200",
+        "photo_url": "https://sun1-18.userapi.com/s/v1/ig1/r3M4pS9RG_SPUTuqdgOGjEF9Qrh53-m15vJ3e-mGEx-ifQTGKGEj1IOlM2bFBKeYa9B6-w.jpg?quality=96&crop=154,117,1441,1441&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&cs=200x200",
+        "confidence": "высокая",
+        "confidence_score": 0.83,
+        "dob_match": false,
+        "source_method": "VK People Search",
+        "city": "Moscow"
+      }
+    ],
+    "confirmed_profiles": [],
+    "contact_discoveries": {
+      "phones": [
+        {
+          "number": "+79183403301",
+          "source": "input",
+          "confidence": "высокая",
+          "profile_name": "Форма ввода",
+          "raw_value": "+79183403301",
+          "confidence_score": 0.99,
+          "sources": [
+            "input"
+          ]
+        }
+      ],
+      "emails": []
+    },
+    "social_graph_data": {
+      "nodes": [
+        {
+          "id": "vk_153521934",
+          "label": "Арина Гнездилова",
+          "title": "Арина Гнездилова\nSamara\nConnections: 0",
+          "level": 0,
+          "shape": "dot",
+          "size": 50,
+          "font": {
+            "size": 14,
+            "color": "#fff"
+          },
+          "vkId": 153521934,
+          "color": {
+            "background": "#8b5cf6",
+            "border": "#7c3aed",
+            "highlight": {
+              "background": "#a78bfa",
+              "border": "#8b5cf6"
+            },
+            "hover": {
+              "background": "#a78bfa",
+              "border": "#8b5cf6"
+            }
+          },
+          "borderWidth": 3
+        }
+      ],
+      "edges": [],
+      "stats": {
+        "node_count": 1,
+        "edge_count": 0,
+        "density": 0.0,
+        "avg_degree": 0.0,
+        "max_degree": 0,
+        "level_counts": {
+          "0": 1
+        }
+      },
+      "clusters": [],
+      "friends_risk_deep": {
+        "total_friends": 0,
+        "checked_friends": 0,
+        "flagged_count": 0,
+        "flagged_friends": [],
+        "risk_level": "low"
+      }
+    },
+    "face_matches": [],
+    "username_accounts": [],
+    "geo_analysis": {},
+    "geo_intelligence": {},
+    "text_analysis": {},
+    "activity_timeline": [],
+    "group_analysis": {},
+    "activity_patterns": {},
+    "connected_checks": []
+  },
+  "duration_seconds": 365.1,
+  "completed_at": "2026-04-02T14:33:49.732695",
+  "final_status_server": "running"
+}
