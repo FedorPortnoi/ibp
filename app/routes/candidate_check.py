@@ -298,6 +298,9 @@ def progress_page(task_id):
     with _tasks_lock:
         task = candidate_tasks.get(task_id)
     if task:
+        # Если уже завершено — сразу на досье, не показывать progress
+        if getattr(task, 'is_complete', False) and task.check_id and not task.error:
+            return redirect(f'/candidate/dossier/{task.check_id}')
         return render_template(
             'candidate_progress.html',
             task_id=task_id,
@@ -307,6 +310,9 @@ def progress_page(task_id):
 
     # DB fallback (cross-worker) — check already loaded by ownership check
     if check:
+        # Если проверка уже завершена в БД — сразу на досье
+        if check.status == 'complete':
+            return redirect(f'/candidate/dossier/{check.id}')
         return render_template(
             'candidate_progress.html',
             task_id=task_id,

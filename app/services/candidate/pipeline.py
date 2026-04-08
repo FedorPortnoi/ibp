@@ -246,6 +246,7 @@ def cleanup_old_tasks(task_store, max_age_seconds=3600):
                 if elapsed > 1800:
                     task.error = f"Pipeline timed out after {int(elapsed)}s"
                     task.completed_at = now
+                    task.is_complete = True
                     task._sync_to_db()
                     logger.warning(f"Force-completed stale task {task_id} after {int(elapsed)}s")
                     expired.append(task_id)
@@ -278,6 +279,7 @@ class CandidateTaskStatus:
         self.completed_at = None
         self.error = None
         self.cancelled = False
+        self.is_complete = False
         self._check = None  # Bound CandidateCheck for DB persistence
 
     def bind_check(self, check):
@@ -328,6 +330,9 @@ class CandidateTaskStatus:
         else:
             status = 'running'
 
+        if status in ('complete', 'error', 'cancelled'):
+            self.is_complete = True
+
         return {
             'task_id': self.task_id,
             'check_id': self.check_id,
@@ -338,7 +343,7 @@ class CandidateTaskStatus:
             'percent_complete': self.percent_complete,
             'messages': self.messages[-40:],
             'error': self.error,
-            'is_complete': status in ('complete', 'error', 'cancelled'),
+            'is_complete': self.is_complete,
         }
 
 
@@ -1942,6 +1947,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 logger.error(f"DB commit failed (pipeline completion): {e}")
 
             task.completed_at = datetime.now()
+            task.is_complete = True
             task.update('complete', 'Проверка завершена', 100)
             task.add_message(
                 f'Проверено {sources_checked} источников за {elapsed:.1f}с. '
@@ -1952,6 +1958,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
         except Exception as e:
             logger.error(f"Candidate pipeline error: {e}", exc_info=True)
             task.error = str(e)
+            task.is_complete = True
             task.add_message(f'Ошибка: {e}', 'error')
             check.status = 'error'
             task._sync_to_db()

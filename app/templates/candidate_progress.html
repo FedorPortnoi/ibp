@@ -370,6 +370,17 @@ function showError(message) {
 
 // Start polling
 pollInterval = setInterval(poll, 1500);
-poll();
+// Первый poll — если уже complete, редирект немедленно без анимации
+fetch('/candidate/progress/' + TASK_ID + '/status')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.is_complete && data.status !== 'error') {
+            clearInterval(pollInterval);
+            window.location.href = '/candidate/dossier/' + CHECK_ID;
+        } else {
+            poll();
+        }
+    })
+    .catch(function() { poll(); });
 </script>
 {% endblock %}
