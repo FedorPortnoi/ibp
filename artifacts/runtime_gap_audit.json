@@ -1,0 +1,993 @@
+{
+  "metadata": {
+    "generated_at": "2026-04-15T22:46:05.444998+00:00",
+    "repo_root": "C:\\Users\\fedor\\ibp",
+    "brain_root": "C:\\Users\\fedor\\Documents\\Fedor's Brain",
+    "env_file": "C:\\Users\\fedor\\ibp\\.env",
+    "report_prefix": "runtime_gap_audit",
+    "read_only_policy": "No external requests, no app-factory execution, no login/code-send flows, no DB writes, and no secret values emitted."
+  },
+  "summary": {
+    "total_findings": 105,
+    "category_counts": {
+      "database": 2,
+      "environment_variable": 32,
+      "file_prerequisite": 9,
+      "integration_readiness": 22,
+      "runtime_readiness": 9,
+      "runtime_route": 12,
+      "source_of_truth_file": 7,
+      "tool_prerequisite": 6,
+      "vault_reference": 6
+    },
+    "status_counts": {
+      "code-present; blocked-by-missing-secret-tooling; needs-safe-manual-verification": 1,
+      "code-present; blocked-by-missing-secret; needs-dashboard-access; needs-production-host-access; needs-safe-manual-verification": 1,
+      "code-present; blocked-by-missing-secret; needs-dashboard-access; needs-safe-manual-verification": 9,
+      "code-present; blocked-by-missing-secret; needs-production-host-access; needs-safe-manual-verification": 1,
+      "code-present; blocked-by-missing-session-or-file; needs-safe-manual-verification": 1,
+      "code-present; blocked-by-missing-tooling; needs-safe-manual-verification": 1,
+      "code-present; configured-locally; needs-dashboard-access; needs-safe-manual-verification": 1,
+      "code-present; configured-locally; needs-safe-manual-verification": 7,
+      "import-ok": 2,
+      "known": 5,
+      "local-present": 12,
+      "missing": 3,
+      "missing-in-code": 8,
+      "optional": 20,
+      "present": 25,
+      "present-in-code": 4,
+      "readable": 2,
+      "unknown": 1,
+      "unsafe-to-auto-run-read-only": 1
+    },
+    "missing_like_findings": 26
+  },
+  "findings": [
+    {
+      "missing_item": "SECRET_KEY",
+      "category": "environment_variable",
+      "current_status": "local-present",
+      "where_to_get_it": "local .env or host secret manager",
+      "how_to_verify_it": "Check effective local runtime environment and .env for SECRET_KEY.",
+      "confidence": "high",
+      "notes": "required for app startup. Presence only; value masked. Sources=process-env, dotenv-file."
+    },
+    {
+      "missing_item": "FLASK_ENV",
+      "category": "environment_variable",
+      "current_status": "local-present",
+      "where_to_get_it": "local .env or host environment",
+      "how_to_verify_it": "Check effective local runtime environment and .env for FLASK_ENV.",
+      "confidence": "high",
+      "notes": "selects config profile. Presence only; value masked. Sources=process-env, dotenv-file."
+    },
+    {
+      "missing_item": "ENABLE_PEOPLE_SEARCH",
+      "category": "environment_variable",
+      "current_status": "local-present",
+      "where_to_get_it": "local .env or host environment",
+      "how_to_verify_it": "Check effective local runtime environment and .env for ENABLE_PEOPLE_SEARCH.",
+      "confidence": "high",
+      "notes": "feature flag. Presence only; value masked. Sources=process-env, dotenv-file."
+    },
+    {
+      "missing_item": "DATABASE_URL",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "local .env or host environment",
+      "how_to_verify_it": "Check effective local runtime environment and .env for DATABASE_URL.",
+      "confidence": "high",
+      "notes": "optional; SQLite fallback exists. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "IBP_SESSION_TIMEOUT",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "local .env or host environment",
+      "how_to_verify_it": "Check effective local runtime environment and .env for IBP_SESSION_TIMEOUT.",
+      "confidence": "high",
+      "notes": "optional timeout override. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "IBP_SESSION_REMEMBER",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "local .env or host environment",
+      "how_to_verify_it": "Check effective local runtime environment and .env for IBP_SESSION_REMEMBER.",
+      "confidence": "high",
+      "notes": "optional remember-me override. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "VK_USER_TOKEN",
+      "category": "environment_variable",
+      "current_status": "local-present",
+      "where_to_get_it": "VK OAuth or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for VK_USER_TOKEN.",
+      "confidence": "high",
+      "notes": "VK user token. Presence only; value masked. Sources=process-env, dotenv-file."
+    },
+    {
+      "missing_item": "VK_TOKEN",
+      "category": "environment_variable",
+      "current_status": "local-present",
+      "where_to_get_it": "legacy .env or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for VK_TOKEN.",
+      "confidence": "high",
+      "notes": "legacy VK token alias. Presence only; value masked. Sources=process-env, dotenv-file."
+    },
+    {
+      "missing_item": "VK_SERVICE_TOKEN",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "VK dashboard or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for VK_SERVICE_TOKEN.",
+      "confidence": "high",
+      "notes": "VK service token. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "VK_LOGIN",
+      "category": "environment_variable",
+      "current_status": "local-present",
+      "where_to_get_it": "local .env only",
+      "how_to_verify_it": "Check effective local runtime environment and .env for VK_LOGIN.",
+      "confidence": "high",
+      "notes": "VK browser-login prerequisite. Presence only; value masked. Sources=process-env, dotenv-file."
+    },
+    {
+      "missing_item": "VK_LOGIN_EMAIL",
+      "category": "environment_variable",
+      "current_status": "local-present",
+      "where_to_get_it": "local .env only",
+      "how_to_verify_it": "Check effective local runtime environment and .env for VK_LOGIN_EMAIL.",
+      "confidence": "high",
+      "notes": "VK browser-login prerequisite. Presence only; value masked. Sources=process-env, dotenv-file."
+    },
+    {
+      "missing_item": "VK_PASSWORD",
+      "category": "environment_variable",
+      "current_status": "local-present",
+      "where_to_get_it": "local .env only",
+      "how_to_verify_it": "Check effective local runtime environment and .env for VK_PASSWORD.",
+      "confidence": "high",
+      "notes": "VK browser-login prerequisite. Presence only; value masked. Sources=process-env, dotenv-file."
+    },
+    {
+      "missing_item": "TELEGRAM_API_ID",
+      "category": "environment_variable",
+      "current_status": "local-present",
+      "where_to_get_it": "my.telegram.org or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for TELEGRAM_API_ID.",
+      "confidence": "high",
+      "notes": "Telethon credential. Presence only; value masked. Sources=process-env, dotenv-file."
+    },
+    {
+      "missing_item": "TELEGRAM_API_HASH",
+      "category": "environment_variable",
+      "current_status": "local-present",
+      "where_to_get_it": "my.telegram.org or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for TELEGRAM_API_HASH.",
+      "confidence": "high",
+      "notes": "Telethon credential. Presence only; value masked. Sources=process-env, dotenv-file."
+    },
+    {
+      "missing_item": "TELEGRAM_PHONE",
+      "category": "environment_variable",
+      "current_status": "local-present",
+      "where_to_get_it": "local .env only",
+      "how_to_verify_it": "Check effective local runtime environment and .env for TELEGRAM_PHONE.",
+      "confidence": "high",
+      "notes": "Telethon phone. Presence only; value masked. Sources=process-env, dotenv-file."
+    },
+    {
+      "missing_item": "ANTHROPIC_API_KEY",
+      "category": "environment_variable",
+      "current_status": "local-present",
+      "where_to_get_it": "Anthropic dashboard or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for ANTHROPIC_API_KEY.",
+      "confidence": "high",
+      "notes": "Claude integration key. Presence only; value masked. Sources=process-env, dotenv-file."
+    },
+    {
+      "missing_item": "SEARCH4FACES_API_KEY",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "provider dashboard or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for SEARCH4FACES_API_KEY.",
+      "confidence": "high",
+      "notes": "face-search API key. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "HUNTER_API_KEY",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "Hunter dashboard or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for HUNTER_API_KEY.",
+      "confidence": "high",
+      "notes": "Hunter API key. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "RESEND_API_KEY",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "Resend dashboard or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for RESEND_API_KEY.",
+      "confidence": "high",
+      "notes": "email delivery key. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "FSSP_API_TOKEN",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "FSSP provider account or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for FSSP_API_TOKEN.",
+      "confidence": "high",
+      "notes": "official FSSP token. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "ENABLE_GEO_RESTRICTED_CHECKERS",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "local .env or host environment",
+      "how_to_verify_it": "Check effective local runtime environment and .env for ENABLE_GEO_RESTRICTED_CHECKERS.",
+      "confidence": "high",
+      "notes": "geo-restricted sources flag. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "GETCONTACT_API_URL",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "GetContact partner docs or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for GETCONTACT_API_URL.",
+      "confidence": "high",
+      "notes": "GetContact API mode. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "GETCONTACT_API_KEY",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "GetContact dashboard or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for GETCONTACT_API_KEY.",
+      "confidence": "high",
+      "notes": "GetContact API mode. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "GETCONTACT_PARTNER_ID",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "GetContact dashboard or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for GETCONTACT_PARTNER_ID.",
+      "confidence": "high",
+      "notes": "GetContact API mode. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "GETCONTACT_HMAC_SECRET",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "GetContact dashboard or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for GETCONTACT_HMAC_SECRET.",
+      "confidence": "high",
+      "notes": "GetContact API mode. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "LEAKCHECK_API_KEY",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "LeakCheck dashboard or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for LEAKCHECK_API_KEY.",
+      "confidence": "high",
+      "notes": "paid LeakCheck. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "DEHASHED_USERNAME",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "DeHashed dashboard or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for DEHASHED_USERNAME.",
+      "confidence": "high",
+      "notes": "DeHashed credential. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "DEHASHED_API_KEY",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "DeHashed dashboard or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for DEHASHED_API_KEY.",
+      "confidence": "high",
+      "notes": "DeHashed credential. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "DEHASHED_API_SECRET",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "DeHashed dashboard or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for DEHASHED_API_SECRET.",
+      "confidence": "high",
+      "notes": "DeHashed credential. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "SNUSBASE_API_KEY",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "Snusbase dashboard or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for SNUSBASE_API_KEY.",
+      "confidence": "high",
+      "notes": "Snusbase credential. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "HIBP_API_KEY",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "HIBP dashboard or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for HIBP_API_KEY.",
+      "confidence": "high",
+      "notes": "HIBP paid mode. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "MAILCAT_API_KEY",
+      "category": "environment_variable",
+      "current_status": "optional",
+      "where_to_get_it": "provider docs or secret store",
+      "how_to_verify_it": "Check effective local runtime environment and .env for MAILCAT_API_KEY.",
+      "confidence": "high",
+      "notes": "Mailcat integration if adopted. Presence only; value masked. Sources=none."
+    },
+    {
+      "missing_item": "dotenv_file",
+      "category": "file_prerequisite",
+      "current_status": "present",
+      "where_to_get_it": "local repo root",
+      "how_to_verify_it": "check whether the repo-local .env file exists",
+      "confidence": "high",
+      "notes": "values stay masked; path=C:\\Users\\fedor\\ibp\\.env size=1881"
+    },
+    {
+      "missing_item": "primary_db",
+      "category": "file_prerequisite",
+      "current_status": "present",
+      "where_to_get_it": "local runtime data directory or deployment snapshot",
+      "how_to_verify_it": "check whether the primary SQLite DB exists",
+      "confidence": "high",
+      "notes": "read-only SQLite probe runs separately; path=C:\\Users\\fedor\\ibp\\ibp_investigations.db size=102400"
+    },
+    {
+      "missing_item": "telethon_session",
+      "category": "file_prerequisite",
+      "current_status": "missing",
+      "where_to_get_it": "run scripts/auth_telegram.py interactively on the owner machine",
+      "how_to_verify_it": "check whether the Telethon session exists",
+      "confidence": "high",
+      "notes": "required for Telegram Method C; path=C:\\Users\\fedor\\ibp\\tg_session\\ibp_session.session"
+    },
+    {
+      "missing_item": "vk_state_cache",
+      "category": "file_prerequisite",
+      "current_status": "present",
+      "where_to_get_it": "populate via the local VK login flow",
+      "how_to_verify_it": "check whether the VK state cache exists",
+      "confidence": "high",
+      "notes": "presence does not prove freshness; path=C:\\Users\\fedor\\ibp\\vk_session\\state.json size=180"
+    },
+    {
+      "missing_item": "vk_web_token_cache",
+      "category": "file_prerequisite",
+      "current_status": "present",
+      "where_to_get_it": "populate via the local VK login flow",
+      "how_to_verify_it": "check whether the VK web-token cache exists",
+      "confidence": "high",
+      "notes": "presence does not prove freshness; path=C:\\Users\\fedor\\ibp\\vk_session\\web_token.json size=285"
+    },
+    {
+      "missing_item": "local_leak_db",
+      "category": "file_prerequisite",
+      "current_status": "present",
+      "where_to_get_it": "local data snapshot / internal dataset location",
+      "how_to_verify_it": "check whether the local leak DB exists",
+      "confidence": "high",
+      "notes": "absence blocks leak-db-backed sources; path=C:\\Users\\fedor\\ibp\\data\\leaks\\all_leaks.db size=32768"
+    },
+    {
+      "missing_item": "demo_getcontact_data",
+      "category": "file_prerequisite",
+      "current_status": "present",
+      "where_to_get_it": "already in repo demo data",
+      "how_to_verify_it": "check whether the demo GetContact dataset exists",
+      "confidence": "high",
+      "notes": "demo fallback asset; path=C:\\Users\\fedor\\ibp\\data\\demo\\getcontact_demo.jsonl size=12724"
+    },
+    {
+      "missing_item": "demo_telco_data",
+      "category": "file_prerequisite",
+      "current_status": "present",
+      "where_to_get_it": "already in repo demo data",
+      "how_to_verify_it": "check whether the demo telco dataset exists",
+      "confidence": "high",
+      "notes": "demo fallback asset; path=C:\\Users\\fedor\\ibp\\data\\demo\\telco_demo.csv size=14143"
+    },
+    {
+      "missing_item": "demo_vk2012_data",
+      "category": "file_prerequisite",
+      "current_status": "present",
+      "where_to_get_it": "already in repo demo data",
+      "how_to_verify_it": "check whether the demo VK 2012 dataset exists",
+      "confidence": "high",
+      "notes": "demo fallback asset; path=C:\\Users\\fedor\\ibp\\data\\demo\\vk_2012_demo.csv size=10967"
+    },
+    {
+      "missing_item": "primary_db_readability",
+      "category": "database",
+      "current_status": "readable",
+      "where_to_get_it": "already local",
+      "how_to_verify_it": "Open the SQLite file read-only and run PRAGMA quick_check plus a table inventory.",
+      "confidence": "high",
+      "notes": "quick_check=ok; tables=9; sample=business_records, candidate_checks, connections, court_records, friends, investigations, social_profiles, subscriptions"
+    },
+    {
+      "missing_item": "local_leak_db_readability",
+      "category": "database",
+      "current_status": "readable",
+      "where_to_get_it": "already local",
+      "how_to_verify_it": "Open the SQLite file read-only and run PRAGMA quick_check plus a table inventory.",
+      "confidence": "high",
+      "notes": "quick_check=ok; tables=2; sample=leak_records, sqlite_sequence"
+    },
+    {
+      "missing_item": "repo_claude",
+      "category": "source_of_truth_file",
+      "current_status": "present",
+      "where_to_get_it": "repo source of truth",
+      "how_to_verify_it": "Check whether CLAUDE.md exists in the repo.",
+      "confidence": "high",
+      "notes": "C:\\Users\\fedor\\ibp\\CLAUDE.md"
+    },
+    {
+      "missing_item": "repo_current_state",
+      "category": "source_of_truth_file",
+      "current_status": "present",
+      "where_to_get_it": "repo source of truth",
+      "how_to_verify_it": "Check whether IBP_CURRENT_STATE.md exists in the repo.",
+      "confidence": "high",
+      "notes": "C:\\Users\\fedor\\ibp\\IBP_CURRENT_STATE.md"
+    },
+    {
+      "missing_item": "repo_knowledge_export",
+      "category": "source_of_truth_file",
+      "current_status": "present",
+      "where_to_get_it": "repo source of truth",
+      "how_to_verify_it": "Check whether IBP_KNOWLEDGE_EXPORT.md exists in the repo.",
+      "confidence": "high",
+      "notes": "C:\\Users\\fedor\\ibp\\IBP_KNOWLEDGE_EXPORT.md"
+    },
+    {
+      "missing_item": "repo_security_audit",
+      "category": "source_of_truth_file",
+      "current_status": "present",
+      "where_to_get_it": "repo source of truth",
+      "how_to_verify_it": "Check whether data/security_audit/AUDIT_REPORT.md exists in the repo.",
+      "confidence": "high",
+      "notes": "C:\\Users\\fedor\\ibp\\data\\security_audit\\AUDIT_REPORT.md"
+    },
+    {
+      "missing_item": "claude_brain_command",
+      "category": "source_of_truth_file",
+      "current_status": "present",
+      "where_to_get_it": "repo source of truth",
+      "how_to_verify_it": "Check whether .claude/commands/brain.md exists in the repo.",
+      "confidence": "high",
+      "notes": "C:\\Users\\fedor\\ibp\\.claude\\commands\\brain.md"
+    },
+    {
+      "missing_item": "claude_log_command",
+      "category": "source_of_truth_file",
+      "current_status": "present",
+      "where_to_get_it": "repo source of truth",
+      "how_to_verify_it": "Check whether .claude/commands/log.md exists in the repo.",
+      "confidence": "high",
+      "notes": "C:\\Users\\fedor\\ibp\\.claude\\commands\\log.md"
+    },
+    {
+      "missing_item": "claude_update_command",
+      "category": "source_of_truth_file",
+      "current_status": "present",
+      "where_to_get_it": "repo source of truth",
+      "how_to_verify_it": "Check whether .claude/commands/update.md exists in the repo.",
+      "confidence": "high",
+      "notes": "C:\\Users\\fedor\\ibp\\.claude\\commands\\update.md"
+    },
+    {
+      "missing_item": "brain_root",
+      "category": "vault_reference",
+      "current_status": "present",
+      "where_to_get_it": "local Obsidian vault path",
+      "how_to_verify_it": "Check whether the configured brain root exists at C:\\Users\\fedor\\Documents\\Fedor's Brain.",
+      "confidence": "high",
+      "notes": "Configured via --brain-root."
+    },
+    {
+      "missing_item": "latest_dev_log",
+      "category": "vault_reference",
+      "current_status": "present",
+      "where_to_get_it": "02 - Stirlitz/Dev Logs/",
+      "how_to_verify_it": "Check that the dev log directory exists and contains at least one Markdown file.",
+      "confidence": "high",
+      "notes": "directory=C:\\Users\\fedor\\Documents\\Fedor's Brain\\02 - Stirlitz\\Dev Logs; latest=2026-04-14.md"
+    },
+    {
+      "missing_item": "02 - Stirlitz/Dev Logs",
+      "category": "vault_reference",
+      "current_status": "present",
+      "where_to_get_it": "Obsidian Stirlitz vault",
+      "how_to_verify_it": "Check whether the path referenced by .claude commands exists: C:\\Users\\fedor\\Documents\\Fedor's Brain\\02 - Stirlitz\\Dev Logs",
+      "confidence": "high",
+      "notes": "Referenced by: C:\\Users\\fedor\\ibp\\.claude\\commands\\brain.md, C:\\Users\\fedor\\ibp\\.claude\\commands\\log.md"
+    },
+    {
+      "missing_item": "02 - Stirlitz/Dev Workflow/Debugging Guide.md",
+      "category": "vault_reference",
+      "current_status": "present",
+      "where_to_get_it": "Obsidian Stirlitz vault",
+      "how_to_verify_it": "Check whether the path referenced by .claude commands exists: C:\\Users\\fedor\\Documents\\Fedor's Brain\\02 - Stirlitz\\Dev Workflow\\Debugging Guide.md",
+      "confidence": "high",
+      "notes": "Referenced by: C:\\Users\\fedor\\ibp\\.claude\\commands\\log.md"
+    },
+    {
+      "missing_item": "02 - Stirlitz/Roadmap/Active TODOs.md",
+      "category": "vault_reference",
+      "current_status": "present",
+      "where_to_get_it": "Obsidian Stirlitz vault",
+      "how_to_verify_it": "Check whether the path referenced by .claude commands exists: C:\\Users\\fedor\\Documents\\Fedor's Brain\\02 - Stirlitz\\Roadmap\\Active TODOs.md",
+      "confidence": "high",
+      "notes": "Referenced by: C:\\Users\\fedor\\ibp\\.claude\\commands\\brain.md"
+    },
+    {
+      "missing_item": "02 - Stirlitz/Stirlitz HQ.md",
+      "category": "vault_reference",
+      "current_status": "present",
+      "where_to_get_it": "Obsidian Stirlitz vault",
+      "how_to_verify_it": "Check whether the path referenced by .claude commands exists: C:\\Users\\fedor\\Documents\\Fedor's Brain\\02 - Stirlitz\\Stirlitz HQ.md",
+      "confidence": "high",
+      "notes": "Referenced by: C:\\Users\\fedor\\ibp\\.claude\\commands\\brain.md"
+    },
+    {
+      "missing_item": "config_import",
+      "category": "runtime_readiness",
+      "current_status": "import-ok",
+      "where_to_get_it": "config.py / package in repo",
+      "how_to_verify_it": "Import config with bytecode writes disabled.",
+      "confidence": "high",
+      "notes": "import-ok"
+    },
+    {
+      "missing_item": "app_import",
+      "category": "runtime_readiness",
+      "current_status": "import-ok",
+      "where_to_get_it": "app.py / package in repo",
+      "how_to_verify_it": "Import app with bytecode writes disabled.",
+      "confidence": "high",
+      "notes": "import-ok"
+    },
+    {
+      "missing_item": "create_app_factory",
+      "category": "runtime_readiness",
+      "current_status": "unsafe-to-auto-run-read-only",
+      "where_to_get_it": "app/__init__.py",
+      "how_to_verify_it": "Review create_app statically; only execute it intentionally if write-side effects are acceptable.",
+      "confidence": "high",
+      "notes": "Detected side effects: _migrate_task_columns, _migrate_user_columns, db.create_all, db.session.commit, os.makedirs"
+    },
+    {
+      "missing_item": "SESSION_COOKIE_SECURE",
+      "category": "runtime_readiness",
+      "current_status": "known",
+      "where_to_get_it": "config.py and effective local env",
+      "how_to_verify_it": "Inspect config.py and local env handling for SESSION_COOKIE_SECURE.",
+      "confidence": "high",
+      "notes": "Derived value=True"
+    },
+    {
+      "missing_item": "SESSION_COOKIE_HTTPONLY",
+      "category": "runtime_readiness",
+      "current_status": "known",
+      "where_to_get_it": "config.py and effective local env",
+      "how_to_verify_it": "Inspect config.py and local env handling for SESSION_COOKIE_HTTPONLY.",
+      "confidence": "high",
+      "notes": "Derived value=True"
+    },
+    {
+      "missing_item": "SESSION_COOKIE_SAMESITE",
+      "category": "runtime_readiness",
+      "current_status": "known",
+      "where_to_get_it": "config.py and effective local env",
+      "how_to_verify_it": "Inspect config.py and local env handling for SESSION_COOKIE_SAMESITE.",
+      "confidence": "high",
+      "notes": "Derived value='Lax'"
+    },
+    {
+      "missing_item": "ENABLE_PEOPLE_SEARCH",
+      "category": "runtime_readiness",
+      "current_status": "known",
+      "where_to_get_it": "config.py and effective local env",
+      "how_to_verify_it": "Inspect config.py and local env handling for ENABLE_PEOPLE_SEARCH.",
+      "confidence": "high",
+      "notes": "Derived value=True"
+    },
+    {
+      "missing_item": "ENABLE_GEO_RESTRICTED_CHECKERS",
+      "category": "runtime_readiness",
+      "current_status": "unknown",
+      "where_to_get_it": "config.py and effective local env",
+      "how_to_verify_it": "Inspect config.py and local env handling for ENABLE_GEO_RESTRICTED_CHECKERS.",
+      "confidence": "medium",
+      "notes": "Derived value=None"
+    },
+    {
+      "missing_item": "DEMO_MODE_PREDICTED",
+      "category": "runtime_readiness",
+      "current_status": "known",
+      "where_to_get_it": "config.py and effective local env",
+      "how_to_verify_it": "Inspect config.py and local env handling for DEMO_MODE_PREDICTED.",
+      "confidence": "high",
+      "notes": "Derived value=True"
+    },
+    {
+      "missing_item": "/health",
+      "category": "runtime_route",
+      "current_status": "present-in-code",
+      "where_to_get_it": "app/routes/*.py",
+      "how_to_verify_it": "Parse route decorators statically to avoid calling the app factory in read-only mode.",
+      "confidence": "high",
+      "notes": "methods=['GET']"
+    },
+    {
+      "missing_item": "/login",
+      "category": "runtime_route",
+      "current_status": "present-in-code",
+      "where_to_get_it": "app/routes/*.py",
+      "how_to_verify_it": "Parse route decorators statically to avoid calling the app factory in read-only mode.",
+      "confidence": "high",
+      "notes": "methods=['GET,POST']"
+    },
+    {
+      "missing_item": "/register",
+      "category": "runtime_route",
+      "current_status": "present-in-code",
+      "where_to_get_it": "app/routes/*.py",
+      "how_to_verify_it": "Parse route decorators statically to avoid calling the app factory in read-only mode.",
+      "confidence": "high",
+      "notes": "methods=['GET,POST']"
+    },
+    {
+      "missing_item": "/candidate/new",
+      "category": "runtime_route",
+      "current_status": "missing-in-code",
+      "where_to_get_it": "app/routes/*.py",
+      "how_to_verify_it": "Parse route decorators statically to avoid calling the app factory in read-only mode.",
+      "confidence": "high",
+      "notes": "methods=['none']"
+    },
+    {
+      "missing_item": "/candidate/start",
+      "category": "runtime_route",
+      "current_status": "missing-in-code",
+      "where_to_get_it": "app/routes/*.py",
+      "how_to_verify_it": "Parse route decorators statically to avoid calling the app factory in read-only mode.",
+      "confidence": "high",
+      "notes": "methods=['none']"
+    },
+    {
+      "missing_item": "/candidate/history",
+      "category": "runtime_route",
+      "current_status": "missing-in-code",
+      "where_to_get_it": "app/routes/*.py",
+      "how_to_verify_it": "Parse route decorators statically to avoid calling the app factory in read-only mode.",
+      "confidence": "high",
+      "notes": "methods=['none']"
+    },
+    {
+      "missing_item": "/candidate/progress/<task_id>/status",
+      "category": "runtime_route",
+      "current_status": "missing-in-code",
+      "where_to_get_it": "app/routes/*.py",
+      "how_to_verify_it": "Parse route decorators statically to avoid calling the app factory in read-only mode.",
+      "confidence": "high",
+      "notes": "methods=['none']"
+    },
+    {
+      "missing_item": "/report/generate",
+      "category": "runtime_route",
+      "current_status": "missing-in-code",
+      "where_to_get_it": "app/routes/*.py",
+      "how_to_verify_it": "Parse route decorators statically to avoid calling the app factory in read-only mode.",
+      "confidence": "high",
+      "notes": "methods=['none']"
+    },
+    {
+      "missing_item": "/report/download/pdf",
+      "category": "runtime_route",
+      "current_status": "missing-in-code",
+      "where_to_get_it": "app/routes/*.py",
+      "how_to_verify_it": "Parse route decorators statically to avoid calling the app factory in read-only mode.",
+      "confidence": "high",
+      "notes": "methods=['none']"
+    },
+    {
+      "missing_item": "/phase2/api/sources/status",
+      "category": "runtime_route",
+      "current_status": "missing-in-code",
+      "where_to_get_it": "app/routes/*.py",
+      "how_to_verify_it": "Parse route decorators statically to avoid calling the app factory in read-only mode.",
+      "confidence": "high",
+      "notes": "methods=['none']"
+    },
+    {
+      "missing_item": "/phase2/api/telegram/status",
+      "category": "runtime_route",
+      "current_status": "missing-in-code",
+      "where_to_get_it": "app/routes/*.py",
+      "how_to_verify_it": "Parse route decorators statically to avoid calling the app factory in read-only mode.",
+      "confidence": "high",
+      "notes": "methods=['none']"
+    },
+    {
+      "missing_item": "/search/people",
+      "category": "runtime_route",
+      "current_status": "present-in-code",
+      "where_to_get_it": "app/routes/*.py",
+      "how_to_verify_it": "Parse route decorators statically to avoid calling the app factory in read-only mode.",
+      "confidence": "high",
+      "notes": "methods=['GET']"
+    },
+    {
+      "missing_item": "Holehe CLI",
+      "category": "tool_prerequisite",
+      "current_status": "present",
+      "where_to_get_it": "local PATH / Python scripts install",
+      "how_to_verify_it": "Run shutil.which('holehe') or the equivalent shell command.",
+      "confidence": "high",
+      "notes": "C:\\Users\\fedor\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\holehe.EXE"
+    },
+    {
+      "missing_item": "Mailcat CLI",
+      "category": "tool_prerequisite",
+      "current_status": "missing",
+      "where_to_get_it": "local PATH / Python scripts install",
+      "how_to_verify_it": "Run shutil.which('mailcat') or the equivalent shell command.",
+      "confidence": "high",
+      "notes": "mailcat not found on PATH"
+    },
+    {
+      "missing_item": "Maigret CLI",
+      "category": "tool_prerequisite",
+      "current_status": "present",
+      "where_to_get_it": "local PATH / Python scripts install",
+      "how_to_verify_it": "Run shutil.which('maigret') or the equivalent shell command.",
+      "confidence": "high",
+      "notes": "C:\\Users\\fedor\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\maigret.EXE"
+    },
+    {
+      "missing_item": "Sherlock CLI",
+      "category": "tool_prerequisite",
+      "current_status": "present",
+      "where_to_get_it": "local PATH / Python scripts install",
+      "how_to_verify_it": "Run shutil.which('sherlock') or the equivalent shell command.",
+      "confidence": "high",
+      "notes": "C:\\Users\\fedor\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\sherlock.EXE"
+    },
+    {
+      "missing_item": "Snoop CLI",
+      "category": "tool_prerequisite",
+      "current_status": "missing",
+      "where_to_get_it": "local PATH / Python scripts install",
+      "how_to_verify_it": "Run shutil.which('snoop') or the equivalent shell command.",
+      "confidence": "high",
+      "notes": "snoop not found on PATH"
+    },
+    {
+      "missing_item": "Playwright browser cache",
+      "category": "tool_prerequisite",
+      "current_status": "present",
+      "where_to_get_it": "local Playwright browser install",
+      "how_to_verify_it": "Check the Windows Playwright browser cache directory.",
+      "confidence": "medium",
+      "notes": "C:\\Users\\fedor\\AppData\\Local\\ms-playwright"
+    },
+    {
+      "missing_item": "VK user token",
+      "category": "integration_readiness",
+      "current_status": "code-present; configured-locally; needs-safe-manual-verification",
+      "where_to_get_it": "VK OAuth flow or secret store",
+      "how_to_verify_it": "Confirm local token presence, then run one safe manual VK API probe.",
+      "confidence": "high",
+      "notes": "Presence only; validity still needs a manual check. env_present=['VK_USER_TOKEN', 'VK_TOKEN'] env_missing=['none'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "VK service token",
+      "category": "integration_readiness",
+      "current_status": "code-present; blocked-by-missing-secret; needs-dashboard-access; needs-safe-manual-verification",
+      "where_to_get_it": "VK dashboard or secret store",
+      "how_to_verify_it": "Confirm env presence and caches, then run one safe manual VK probe.",
+      "confidence": "high",
+      "notes": "Missing service token usually leaves VK service flows in demo mode. env_present=['none'] env_missing=['VK_SERVICE_TOKEN'] files_present=['vk_session/state.json', 'vk_session/web_token.json'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "Telethon session",
+      "category": "integration_readiness",
+      "current_status": "code-present; blocked-by-missing-session-or-file; needs-safe-manual-verification",
+      "where_to_get_it": "Run scripts/auth_telegram.py interactively on the owner machine",
+      "how_to_verify_it": "Confirm creds plus session file, then use a local status endpoint or one-shot health check manually.",
+      "confidence": "high",
+      "notes": "env_present=['TELEGRAM_API_ID', 'TELEGRAM_API_HASH', 'TELEGRAM_PHONE'] env_missing=['none'] files_present=['none'] files_missing=['tg_session/ibp_session.session'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "OpenSanctions",
+      "category": "integration_readiness",
+      "current_status": "code-present; configured-locally; needs-safe-manual-verification",
+      "where_to_get_it": "no local secret expected",
+      "how_to_verify_it": "Run a one-shot dummy-name check manually because external auth/reachability can drift.",
+      "confidence": "high",
+      "notes": "Local config-free, but still depends on upstream behavior. env_present=['none'] env_missing=['none'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "Claude / Anthropic",
+      "category": "integration_readiness",
+      "current_status": "code-present; configured-locally; needs-dashboard-access; needs-safe-manual-verification",
+      "where_to_get_it": "Anthropic dashboard or secret store",
+      "how_to_verify_it": "Confirm local key presence, then verify only if the code path is re-enabled.",
+      "confidence": "high",
+      "notes": "Key presence does not override the current hard-disabled code path. env_present=['ANTHROPIC_API_KEY'] env_missing=['none'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "Resend email",
+      "category": "integration_readiness",
+      "current_status": "code-present; blocked-by-missing-secret; needs-dashboard-access; needs-safe-manual-verification",
+      "where_to_get_it": "Resend dashboard or secret store",
+      "how_to_verify_it": "Confirm key presence locally, then use a non-billable or explicitly approved manual email test.",
+      "confidence": "high",
+      "notes": "env_present=['none'] env_missing=['RESEND_API_KEY'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "Hunter.io",
+      "category": "integration_readiness",
+      "current_status": "code-present; blocked-by-missing-secret; needs-dashboard-access; needs-safe-manual-verification",
+      "where_to_get_it": "Hunter dashboard or secret store",
+      "how_to_verify_it": "Confirm key presence locally, then use an approved low-volume manual probe.",
+      "confidence": "high",
+      "notes": "env_present=['none'] env_missing=['HUNTER_API_KEY'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "Search4Faces API",
+      "category": "integration_readiness",
+      "current_status": "code-present; blocked-by-missing-secret; needs-dashboard-access; needs-safe-manual-verification",
+      "where_to_get_it": "provider dashboard or secret store",
+      "how_to_verify_it": "Confirm key presence locally, then run manual verification with approved test media.",
+      "confidence": "high",
+      "notes": "env_present=['none'] env_missing=['SEARCH4FACES_API_KEY'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "FSSP API / site path",
+      "category": "integration_readiness",
+      "current_status": "code-present; blocked-by-missing-secret; needs-dashboard-access; needs-production-host-access; needs-safe-manual-verification",
+      "where_to_get_it": "FSSP account, local env, and Russian-host runtime",
+      "how_to_verify_it": "Confirm local token/flag, then verify from the production or Russian host with a safe manual check.",
+      "confidence": "high",
+      "notes": "env_present=['none'] env_missing=['FSSP_API_TOKEN', 'ENABLE_GEO_RESTRICTED_CHECKERS'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "Geo-restricted checkers",
+      "category": "integration_readiness",
+      "current_status": "code-present; blocked-by-missing-secret; needs-production-host-access; needs-safe-manual-verification",
+      "where_to_get_it": "production/Russian host access plus local env toggle",
+      "how_to_verify_it": "Verify only from the production-compatible host with explicitly approved manual checks.",
+      "confidence": "high",
+      "notes": "env_present=['none'] env_missing=['ENABLE_GEO_RESTRICTED_CHECKERS'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "GetContact real API",
+      "category": "integration_readiness",
+      "current_status": "code-present; blocked-by-missing-secret; needs-dashboard-access; needs-safe-manual-verification",
+      "where_to_get_it": "GetContact partner dashboard or secret store",
+      "how_to_verify_it": "Confirm local keys, then run an approved low-volume manual probe.",
+      "confidence": "high",
+      "notes": "env_present=['none'] env_missing=['GETCONTACT_API_URL', 'GETCONTACT_API_KEY', 'GETCONTACT_PARTNER_ID', 'GETCONTACT_HMAC_SECRET'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "LeakCheck paid mode",
+      "category": "integration_readiness",
+      "current_status": "code-present; blocked-by-missing-secret; needs-dashboard-access; needs-safe-manual-verification",
+      "where_to_get_it": "LeakCheck dashboard or secret store",
+      "how_to_verify_it": "Confirm the key locally, then run a single approved manual lookup.",
+      "confidence": "high",
+      "notes": "env_present=['none'] env_missing=['LEAKCHECK_API_KEY'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "DeHashed",
+      "category": "integration_readiness",
+      "current_status": "code-present; blocked-by-missing-secret; needs-dashboard-access; needs-safe-manual-verification",
+      "where_to_get_it": "DeHashed dashboard or secret store",
+      "how_to_verify_it": "Confirm credentials locally, then verify with a single approved lookup after the stubbed code is implemented.",
+      "confidence": "high",
+      "notes": "Code path is currently stubbed/TODO. env_present=['none'] env_missing=['DEHASHED_USERNAME', 'DEHASHED_API_KEY', 'DEHASHED_API_SECRET'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "Snusbase",
+      "category": "integration_readiness",
+      "current_status": "code-present; blocked-by-missing-secret; needs-dashboard-access; needs-safe-manual-verification",
+      "where_to_get_it": "Snusbase dashboard or secret store",
+      "how_to_verify_it": "Confirm the key locally, then verify with an approved lookup after the stubbed code is implemented.",
+      "confidence": "high",
+      "notes": "Code path is currently stubbed/TODO. env_present=['none'] env_missing=['SNUSBASE_API_KEY'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "HIBP paid API",
+      "category": "integration_readiness",
+      "current_status": "code-present; blocked-by-missing-secret; needs-dashboard-access; needs-safe-manual-verification",
+      "where_to_get_it": "HIBP dashboard or secret store",
+      "how_to_verify_it": "Confirm the key locally, then verify with a single approved lookup after the paid path is implemented.",
+      "confidence": "high",
+      "notes": "env_present=['none'] env_missing=['HIBP_API_KEY'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "Local leak DB sources",
+      "category": "integration_readiness",
+      "current_status": "code-present; configured-locally; needs-safe-manual-verification",
+      "where_to_get_it": "internal/local data snapshot",
+      "how_to_verify_it": "Confirm the SQLite file exists and opens read-only, then verify schema and source coverage manually.",
+      "confidence": "high",
+      "notes": "env_present=['none'] env_missing=['none'] files_present=['data/leaks/all_leaks.db'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "Holehe CLI",
+      "category": "integration_readiness",
+      "current_status": "code-present; configured-locally; needs-safe-manual-verification",
+      "where_to_get_it": "local Python environment / PATH",
+      "how_to_verify_it": "Confirm the CLI is on PATH or use the library path manually.",
+      "confidence": "high",
+      "notes": "env_present=['none'] env_missing=['none'] files_present=['none'] files_missing=['none'] commands_present=['holehe'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "Mailcat",
+      "category": "integration_readiness",
+      "current_status": "code-present; blocked-by-missing-secret-tooling; needs-safe-manual-verification",
+      "where_to_get_it": "local tool install and any related provider config",
+      "how_to_verify_it": "Confirm the CLI is on PATH and any needed config exists locally before manual verification.",
+      "confidence": "high",
+      "notes": "env_present=['none'] env_missing=['MAILCAT_API_KEY'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['mailcat']"
+    },
+    {
+      "missing_item": "Maigret CLI",
+      "category": "integration_readiness",
+      "current_status": "code-present; configured-locally; needs-safe-manual-verification",
+      "where_to_get_it": "local Python environment / PATH",
+      "how_to_verify_it": "Confirm the CLI is on PATH and run a deliberately approved username check manually.",
+      "confidence": "high",
+      "notes": "env_present=['none'] env_missing=['none'] files_present=['none'] files_missing=['none'] commands_present=['maigret'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "Sherlock CLI",
+      "category": "integration_readiness",
+      "current_status": "code-present; configured-locally; needs-safe-manual-verification",
+      "where_to_get_it": "local Python environment / PATH",
+      "how_to_verify_it": "Confirm the CLI is on PATH and run a deliberately approved username check manually.",
+      "confidence": "high",
+      "notes": "env_present=['none'] env_missing=['none'] files_present=['none'] files_missing=['none'] commands_present=['sherlock'] commands_missing=['none']"
+    },
+    {
+      "missing_item": "Snoop CLI",
+      "category": "integration_readiness",
+      "current_status": "code-present; blocked-by-missing-tooling; needs-safe-manual-verification",
+      "where_to_get_it": "local tool install / PATH",
+      "how_to_verify_it": "Confirm the CLI is on PATH and any required dataset/setup exists before manual verification.",
+      "confidence": "high",
+      "notes": "env_present=['none'] env_missing=['none'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['snoop']"
+    },
+    {
+      "missing_item": "Playwright / Chromium",
+      "category": "integration_readiness",
+      "current_status": "code-present; configured-locally; needs-safe-manual-verification",
+      "where_to_get_it": "local Python package plus Playwright browser install",
+      "how_to_verify_it": "Confirm the playwright module imports and browsers are installed before manual export verification.",
+      "confidence": "high",
+      "notes": "This tool checks local package/browser-cache presence only; it does not launch a browser. env_present=['none'] env_missing=['none'] files_present=['none'] files_missing=['none'] commands_present=['none'] commands_missing=['none']"
+    }
+  ]
+}
