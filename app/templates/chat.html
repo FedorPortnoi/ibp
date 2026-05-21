@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Чат — СЛЕД{% endblock %}
+
+{% block head %}
+<style>
+  #chat-root { height: calc(100vh - 80px); display: flex; flex-direction: column; overflow: hidden; }
+  #messages-container { flex: 1; overflow-y: auto; padding: 16px 0; scroll-behavior: smooth; }
+  #messages-container::-webkit-scrollbar { width: 4px; }
+  #messages-container::-webkit-scrollbar-track { background: transparent; }
+  #messages-container::-webkit-scrollbar-thumb { background: rgba(196,149,90,0.3); }
+  .msg-bubble { position: relative; background: #1A1A1A; border: 1px solid rgba(232,224,212,0.08); border-radius: 0; padding: 12px 16px 10px 16px; margin-bottom: 8px; transition: background 0.15s; }
+  .msg-bubble.pinned { border-left: 2px solid #C4955A; background: #202020; }
+  .msg-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+  .msg-bubble:hover .msg-actions { opacity: 1; }
+  .msg-actions button { background: none; border: none; cursor: pointer; padding: 3px 5px; line-height: 1; color: rgba(232,224,212,0.4); transition: color 0.15s; }
+  .msg-actions button:hover { color: #C4955A; }
+  .msg-text { white-space: pre-wrap; word-break: break-word; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #E8E0D4; line-height: 1.6; padding-right: 80px; margin-top: 2px; }
+  .msg-time { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: rgba(232,224,212,0.3); position: absolute; top: 10px; right: 80px; }
+  .msg-bubble.fading { opacity: 0; transition: opacity 0.25s; }
+  #empty-state { flex: 1; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: rgba(232,224,212,0.25); letter-spacing: 0.08em; text-align: center; padding: 40px; }
+  #loading-state { flex: 1; display: flex; align-items: center; justify-content: center; }
+  .spinner { width: 24px; height: 24px; border: 2px solid rgba(196,149,90,0.2); border-top-color: #C4955A; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #chat-input { resize: none; background: #111; border: 1px solid rgba(232,224,212,0.12); border-radius: 0; color: #E8E0D4; font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 10px 14px; outline: none; width: 100%; line-height: 1.6; transition: border-color 0.15s; }
+  #chat-input:focus { border-color: rgba(196,149,90,0.5); }
+  #chat-input::placeholder { color: rgba(232,224,212,0.25); }
+  #send-btn { background: none; border: 1px solid #C4955A; color: #C4955A; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; padding: 0 20px; cursor: pointer; transition: background 0.15s, color 0.15s; flex-shrink: 0; height: 42px; align-self: flex-end; }
+  #send-btn:hover { background: rgba(196,149,90,0.12); }
+  #send-btn:active { background: rgba(196,149,90,0.22); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-top: -40px;">
+<div id="chat-root" class="max-w-3xl mx-auto" style="padding: 0 16px;">
+
+  <div style="padding: 14px 0 10px; border-bottom: 1px solid rgba(232,224,212,0.06); display:flex; align-items:baseline; gap:12px; flex-shrink:0;">
+    <span style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#C4955A;letter-spacing:3px;">ИЗБРАННОЕ</span>
+    <span id="msg-count" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(232,224,212,0.3);letter-spacing:0.1em;"></span>
+  </div>
+
+  <div id="loading-state"><div class="spinner"></div></div>
+  <div id="empty-state" style="display:none;">Здесь будут ваши заметки</div>
+
+  <div id="messages-container" style="display:none;">
+    <div id="messages"></div>
+  </div>
+
+  <div style="flex-shrink:0; padding: 12px 0 8px; border-top: 1px solid rgba(232,224,212,0.06);">
+    <div style="display:flex; gap:8px; align-items:flex-end;">
+      <textarea id="chat-input" rows="3" placeholder="Написать заметку… (Enter — отправить, Shift+Enter — перенос)"></textarea>
+      <button id="send-btn" type="button">Отправить</button>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  var messagesDiv = document.getElementById("messages");
+  var container = document.getElementById("messages-container");
+  var emptyState = document.getElementById("empty-state");
+  var loadingState = document.getElementById("loading-state");
+  var msgCount = document.getElementById("msg-count");
+  var chatInput = document.getElementById("chat-input");
+  var sendBtn = document.getElementById("send-btn");
+
+  function formatTime(s){var d=new Date(s);var h=String(d.getHours()).padStart(2,"0");var m=String(d.getMinutes()).padStart(2,"0");var day=String(d.getDate()).padStart(2,"0");var mon=String(d.getMonth()+1).padStart(2,"0");return day+"."+mon+" "+h+":"+m;}
+  function updateCount(){var n=messagesDiv.children.length;if(n===0){msgCount.textContent="";return;}var word=n===1?"заметка":n<5?"заметки":"заметок";msgCount.textContent=n+" "+word;}
+  function scrollToBottom(){container.scrollTop=container.scrollHeight;}
+  function showMessages(){loadingState.style.display="none";emptyState.style.display="none";container.style.display="block";}
+  function showEmpty(){loadingState.style.display="none";container.style.display="none";emptyState.style.display="flex";}
+
+  var PF='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#C4955A"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+  var PO='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C4955A" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+  var CI='<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  var DI='<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
+
+  function buildBubble(msg) {
+    var el=document.createElement("div");
+    el.className="msg-bubble"+(msg.is_pinned?" pinned":"");
+    el.dataset.id=msg.id; el.dataset.content=msg.content;
+    var te=document.createElement("span");te.className="msg-time";te.textContent=formatTime(msg.created_at);el.appendChild(te);
+    var tx=document.createElement("div");tx.className="msg-text";tx.textContent=msg.content;el.appendChild(tx);
+    var ac=document.createElement("div");ac.className="msg-actions";
+    var pb=document.createElement("button");pb.title=msg.is_pinned?"Открепить":"Закрепить";pb.innerHTML=msg.is_pinned?PF:PO;pb.addEventListener("click",function(){togglePin(el,msg.id);});ac.appendChild(pb);
+    var cb=document.createElement("button");cb.title="Копировать";cb.innerHTML=CI;cb.addEventListener("click",function(){navigator.clipboard.writeText(el.dataset.content).catch(function(){});});ac.appendChild(cb);
+    var db=document.createElement("button");db.title="Удалить";db.innerHTML=DI;db.addEventListener("click",function(){deleteMsg(el,msg.id);});ac.appendChild(db);
+    el.appendChild(ac);return el;
+  }
+
+  function reRender(msgs){while(messagesDiv.firstChild)messagesDiv.removeChild(messagesDiv.firstChild);var pnd=msgs.filter(function(m){return m.is_pinned;});var upnd=msgs.filter(function(m){return !m.is_pinned;});var sorted=pnd.concat(upnd);if(sorted.length===0){showEmpty();return;}showMessages();sorted.forEach(function(msg){messagesDiv.appendChild(buildBubble(msg));});updateCount();}
+
+  var _allMsgs=[];
+  function loadMessages(){fetch("/chat/api/messages").then(function(r){return r.json();}).then(function(data){_allMsgs=data;if(!data.length){showEmpty();return;}reRender(data);scrollToBottom();}).catch(function(e){console.error("load fail",e);showEmpty();});}
+  function sendMessage(){var content=chatInput.value;if(!content.trim())return;chatInput.disabled=true;sendBtn.disabled=true;fetch("/chat/api/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({content:content})}).then(function(r){if(!r.ok)return r.json().then(function(d){throw d;});return r.json();}).then(function(msg){chatInput.value="";_allMsgs.push(msg);if(emptyState.style.display!=="none")showMessages();messagesDiv.appendChild(buildBubble(msg));updateCount();scrollToBottom();}).catch(function(e){console.error("send fail",e);}).finally(function(){chatInput.disabled=false;sendBtn.disabled=false;chatInput.focus();});}
+  function deleteMsg(el,id){el.classList.add("fading");fetch("/chat/api/messages/"+id,{method:"DELETE"}).then(function(r){if(!r.ok)throw new Error("fail");return r.json();}).then(function(){setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el);_allMsgs=_allMsgs.filter(function(m){return m.id!==id;});updateCount();if(messagesDiv.children.length===0)showEmpty();},260);}).catch(function(e){el.classList.remove("fading");console.error("del fail",e);});}
+  function togglePin(el,id){fetch("/chat/api/messages/"+id+"/pin",{method:"POST"}).then(function(r){return r.json();}).then(function(data){_allMsgs.forEach(function(m){if(m.id===id)m.is_pinned=data.is_pinned;});reRender(_allMsgs);}).catch(function(e){console.error("pin fail",e);});}
+  chatInput.addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}});
+  sendBtn.addEventListener("click",function(){sendMessage();});
+  loadMessages();
+})();
+</script>
+{% endblock %}

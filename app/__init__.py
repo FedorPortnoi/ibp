@@ -98,6 +98,7 @@ def create_app(config_name=None):
     from app.routes.dossier import dossier_bp
     from app.routes.candidate_check import candidate_bp
     from app.routes.subscribe import subscribe_bp
+    from app.routes.chat import chat_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(report_bp)
@@ -107,6 +108,7 @@ def create_app(config_name=None):
     app.register_blueprint(dossier_bp)
     app.register_blueprint(candidate_bp)
     app.register_blueprint(subscribe_bp)
+    app.register_blueprint(chat_bp)
 
     # People Search blueprints — only registered when ENABLE_PEOPLE_SEARCH=true
     if app.config.get('ENABLE_PEOPLE_SEARCH'):
@@ -127,7 +129,7 @@ def create_app(config_name=None):
         allowed_endpoints = {
             'auth.login', 'auth.logout', 'auth.register',
             'auth.set_lang', 'static', 'main.health_check',
-            'main.privacy',
+            'main.readiness_check', 'main.privacy',
         }
         # Subscribe endpoints are public for logged-in users (no subscription needed)
         subscribe_endpoints = {
@@ -247,6 +249,7 @@ def create_app(config_name=None):
         db.create_all()
         _migrate_task_columns(db)
         _migrate_user_columns(db)
+        _migrate_chat_columns(db)
         logger.info("Database tables created successfully")
 
     return app
@@ -296,6 +299,23 @@ def _migrate_task_columns(db_instance):
     except Exception:
         db_instance.session.rollback()
 
+
+
+def _migrate_chat_columns(db_instance):
+    """Add is_pinned column and user_id index to chat_messages if missing."""
+    from sqlalchemy import text
+    try:
+        with db_instance.engine.connect() as conn:
+            conn.execute(text("ALTER TABLE chat_messages ADD COLUMN is_pinned BOOLEAN DEFAULT 0"))
+            conn.commit()
+    except Exception:
+        pass
+    try:
+        with db_instance.engine.connect() as conn:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id ON chat_messages(user_id)"))
+            conn.commit()
+    except Exception:
+        pass
 
 def _migrate_user_columns(db_instance):
     """Add email column to users table if missing (SQLite safe)."""

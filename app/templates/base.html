@@ -122,6 +122,9 @@
                     <a href="/connections" class="text-xs tracking-widest uppercase transition-colors {% if request.endpoint == 'connections.connections_page' %}text-[#C4955A]{% else %}text-[#E8E0D4]/40 hover:text-[#E8E0D4]{% endif %}" style="font-family:'JetBrains Mono',monospace;text-decoration:none;">
                         Связи
                     </a>
+                    <a href="/chat/" class="text-xs tracking-widest uppercase transition-colors" style="font-family:'JetBrains Mono',monospace;text-decoration:none;color:rgba(232,224,212,0.4);" onmouseover="this.style.color='#E8E0D4'" onmouseout="this.style.color='rgba(232,224,212,0.4)'">
+                        Чат
+                    </a>
                 </div>
                 {% endif %}
 
@@ -183,6 +186,7 @@
             {% endif %}
             <a href="{{ url_for('candidate.history') }}" class="text-2xl text-[#E8E0D4] hover:text-[#C4955A] transition-colors" style="font-family:'Bebas Neue',sans-serif;letter-spacing:3px;text-decoration:none;">Проверки</a>
             <a href="/connections" class="text-2xl text-[#E8E0D4] hover:text-[#C4955A] transition-colors" style="font-family:'Bebas Neue',sans-serif;letter-spacing:3px;text-decoration:none;">Связи</a>
+            <a href="/chat/" class="text-2xl text-[#E8E0D4] hover:text-[#C4955A] transition-colors" style="font-family:'Bebas Neue',sans-serif;letter-spacing:3px;text-decoration:none;">Чат</a>
             <a href="/logout" class="text-xl transition-colors mt-4" style="font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,0.4);text-decoration:none;border:1px solid rgba(232,224,212,0.15);padding:8px 24px;">Выход</a>
             {% else %}
             <a href="/login" class="btn btn-primary btn-lg">Войти</a>
