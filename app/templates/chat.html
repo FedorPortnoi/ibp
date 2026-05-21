@@ -3,7 +3,7 @@
 
 {% block head %}
 <style>
-  #chat-root { height: calc(100vh - 80px); display: flex; flex-direction: column; overflow: hidden; }
+  #chat-root { height: calc(100vh - 128px); display: flex; flex-direction: column; overflow: hidden; }
   #messages-container { flex: 1; overflow-y: auto; padding: 16px 0; scroll-behavior: smooth; }
   #messages-container::-webkit-scrollbar { width: 4px; }
   #messages-container::-webkit-scrollbar-track { background: transparent; }
@@ -24,14 +24,13 @@
   #chat-input { resize: none; background: #111; border: 1px solid rgba(232,224,212,0.12); border-radius: 0; color: #E8E0D4; font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 10px 14px; outline: none; width: 100%; line-height: 1.6; transition: border-color 0.15s; }
   #chat-input:focus { border-color: rgba(196,149,90,0.5); }
   #chat-input::placeholder { color: rgba(232,224,212,0.25); }
-  #send-btn { background: none; border: 1px solid #C4955A; color: #C4955A; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; padding: 0 20px; cursor: pointer; transition: background 0.15s, color 0.15s; flex-shrink: 0; height: 42px; align-self: flex-end; }
+  #send-btn { background: none; border: 1px solid #C4955A; color: #C4955A; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; padding: 0 24px; cursor: pointer; transition: background 0.15s, color 0.15s; flex-shrink: 0; align-self: stretch; min-width: 110px; }
   #send-btn:hover { background: rgba(196,149,90,0.12); }
   #send-btn:active { background: rgba(196,149,90,0.22); }
 </style>
 {% endblock %}
 
 {% block content %}
-<div style="margin-top: -40px;">
 <div id="chat-root" class="max-w-3xl mx-auto" style="padding: 0 16px;">
 
   <div style="padding: 14px 0 10px; border-bottom: 1px solid rgba(232,224,212,0.06); display:flex; align-items:baseline; gap:12px; flex-shrink:0;">
@@ -53,7 +52,6 @@
     </div>
   </div>
 
-</div>
 </div>
 {% endblock %}
 
