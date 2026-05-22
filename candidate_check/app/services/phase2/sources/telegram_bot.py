@@ -35,6 +35,8 @@ class TelegramBotSource(BaseSource):
     name = "Telegram OSINT Bots"
     source_type = SourceType.IDENTITY
     source_tier = SourceTier.S
+    enabled = False
+    implemented = False
     requires_api_key = True  # Needs Telegram session
     rate_limit_per_minute = 5  # Very conservative to avoid bans
 
@@ -56,26 +58,7 @@ class TelegramBotSource(BaseSource):
         photo_path: Optional[str] = None,
         **kwargs
     ) -> List[SourceResult]:
-        # TODO: Implement when Telegram session manager is functional
-        #
-        # Architecture:
-        # 1. Get Telethon client from session manager
-        # 2. For each configured bot (Himera, LeakOSINT, etc.):
-        #    a. Send query message (e.g., phone number)
-        #    b. Wait for bot response (with timeout)
-        #    c. Parse structured response (key: value lines, emoji prefixes)
-        #    d. Convert to SourceResult objects
-        # 3. Return merged results from all bots
-        #
-        # Example Himera query:
-        #   client = await TelegramSessionManager.get_client()
-        #   await client.send_message('@HimeraSearchBot', phone)
-        #   response = await wait_for_response(client, '@HimeraSearchBot', timeout=30)
-        #   parsed = parse_structured_response(response.text)
-        #   # parsed = {"ФИО": "Иванов Иван", "Телефон": "+7...", "Адрес": "..."}
-        #
-        self.logger.debug("Telegram bot source not yet implemented")
-        return []
+        raise NotImplementedError("Telegram bot source is not implemented and is not registered")
 
 
 class HimeraAPISource(BaseSource):
@@ -92,6 +75,8 @@ class HimeraAPISource(BaseSource):
     name = "Himera Search API"
     source_type = SourceType.IDENTITY
     source_tier = SourceTier.S
+    enabled = False
+    implemented = False
     requires_api_key = True
     rate_limit_per_minute = 30
 
@@ -108,10 +93,7 @@ class HimeraAPISource(BaseSource):
         photo_path: Optional[str] = None,
         **kwargs
     ) -> List[SourceResult]:
-        # TODO: Implement when Himera API docs are obtained
-        # Contact Himera support via Telegram for API access
-        self.logger.debug("Himera API source not yet implemented")
-        return []
+        raise NotImplementedError("Himera API source is not implemented and is not registered")
 
 
 class InfoTrackPeopleSource(BaseSource):
@@ -128,6 +110,8 @@ class InfoTrackPeopleSource(BaseSource):
     name = "InfoTrackPeople API"
     source_type = SourceType.IDENTITY
     source_tier = SourceTier.S
+    enabled = False
+    implemented = False
     requires_api_key = True
     rate_limit_per_minute = 30
 
@@ -144,6 +128,4 @@ class InfoTrackPeopleSource(BaseSource):
         photo_path: Optional[str] = None,
         **kwargs
     ) -> List[SourceResult]:
-        # TODO: Implement using docs.infotrackpeople.org API
-        self.logger.debug("InfoTrackPeople source not yet implemented")
-        return []
+        raise NotImplementedError("InfoTrackPeople source is not implemented and is not registered")

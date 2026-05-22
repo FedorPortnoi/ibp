@@ -259,8 +259,8 @@ class CandidateTaskStatus:
             try:
                 from app import db
                 db.session.rollback()
-            except Exception:
-                pass
+            except Exception as rollback_exc:
+                logger.debug("Task progress DB rollback failed: %s", rollback_exc)
 
     def to_dict(self):
         if self.error:
@@ -336,7 +336,18 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
         all_red_flags = []
 
         try:
-            name_parts = check.name_parts
+            demo_mode = _is_demo_mode()
+            logger.warning(
+                "Candidate pipeline demo_mode=%s (VK_SERVICE_TOKEN=%s)",
+                demo_mode,
+                "set" if os.environ.get('VK_SERVICE_TOKEN') else "missing",
+            )
+            if demo_mode:
+                task.add_message(
+                    "Demo mode is ON: VK_SERVICE_TOKEN is not configured; results may be degraded.",
+                    "warning",
+                )
+                task._sync_to_db()
 
             # ══════════════════════════════════════════════
             # STAGE 0: IDENTITY CONFIRMATION [0-8%]
@@ -944,6 +955,12 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 def _vk_search():
                     return buratino_vk_search.search(
                         query=effective_name,
+                        first_name=effective_parts['first'],
+                        last_name=effective_parts['last'],
+                        target_name=(
+                            f"{effective_parts['first']} {effective_parts['last']}".strip()
+                            or effective_name
+                        ),
                         city=check.region,
                         age_from=vk_age_from,
                         age_to=vk_age_to,
@@ -1050,8 +1067,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     svc = TelegramDiscoveryService()
                     try:
                         return svc.discover(
-                            first_name=name_parts['first'],
-                            last_name=name_parts['last'],
+                            first_name=effective_parts['first'],
+                            last_name=effective_parts['last'],
                             vk_screen_names=vk_screen_names,
                             city=check.region or '',
                             birth_year=tg_birth_year,
@@ -1118,73 +1135,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 task.add_message('Telegram: поиск недоступен', 'warning')
                 sources_checked += 1
 
-            # 3.3 OK.ru search
-            task.update('social', 'OK.ru — поиск профилей...', 39)
-            try:
-                from app.services.phase1.ok_search_integration import OKSearchIntegration
-                ok_svc = OKSearchIntegration()
-
-                ok_birth_year = check.date_of_birth.year if check.date_of_birth else None
-                ok_age_from = None
-                ok_age_to = None
-                if ok_birth_year:
-                    from datetime import date as _date_ok
-                    today_ok = _date_ok.today()
-                    ok_age = today_ok.year - ok_birth_year
-                    ok_age_from = max(ok_age - 3, 16)
-                    ok_age_to = ok_age + 3
-
-                ok_results = ok_svc.search(
-                    query=effective_name,
-                    city=check.region,
-                    age_from=ok_age_from,
-                    age_to=ok_age_to,
-                    count=10,
-                )
-
-                ok_count = 0
-                if ok_results:
-                    existing_urls = {p.get('url', '') for p in social_profiles}
-                    for p in ok_results:
-                        sim = p.get('name_similarity', 0)
-                        if sim < 50:
-                            continue
-                        if p.get('profile_url', '') in existing_urls:
-                            continue
-
-                        confidence = 'высокая' if sim >= 75 else 'средняя'
-                        social_profiles.append({
-                            'platform': 'ok',
-                            'platform_id': p.get('platform_id', ''),
-                            'display_name': p.get('display_name', ''),
-                            'username': p.get('username', ''),
-                            'url': p.get('profile_url', ''),
-                            'avatar_url': p.get('photo_url'),
-                            'photo_url': p.get('photo_url'),
-                            'confidence': confidence,
-                            'confidence_score': round(sim / 100, 2),
-                            'source_method': 'OK.ru People Search',
-                            'city': p.get('city', ''),
-                        })
-                        existing_urls.add(p.get('profile_url', ''))
-                        ok_count += 1
-
-                if ok_count:
-                    task.add_message(f'OK.ru: найдено {ok_count} профилей', 'success')
-                    sources_with_results += 1
-                else:
-                    is_demo = ok_svc.is_demo_mode
-                    task.add_message(
-                        'OK.ru: профили не найдены' + (' (демо)' if is_demo else ''),
-                        'info',
-                    )
-                sources_checked += 1
-            except Exception as e:
-                logger.warning(f"OK.ru search failed: {e}")
-                task.add_message('OK.ru: поиск недоступен', 'warning')
-                sources_checked += 1
-
-            # 3.4 Phone → Telegram lookup (if phone provided)
+            # 3.3 Phone → Telegram lookup (if phone provided)
             if check.phone:
                 task.update('social', 'Telegram — поиск по телефону...', 40)
                 try:
@@ -1511,7 +1462,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             from app.services.candidate.risk_scorer import RiskScorer, calculate_risk_score
             scorer = RiskScorer()
-            risk_level, scorer_flags = scorer.analyze(check)
+            _, scorer_flags = scorer.analyze(check)
 
             # Merge inline flags from stages 1-4 with scorer output, dedup by code
             seen_codes = {f['code'] for f in scorer_flags if f.get('code')}
@@ -1525,22 +1476,18 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             check.red_flags = merged_flags
             check.red_flag_count = len(merged_flags)
-            check.risk_level = risk_level
             check.sources_checked = sources_checked
             check.sources_with_results = sources_with_results
 
             # Build risk_breakdown by category
-            from collections import Counter
             severity_score = {'critical': 40, 'high': 20, 'medium': 10, 'low': 5}
             cat_flags = {}
             for f in merged_flags:
                 cat = f.get('category', 'other')
                 cat_flags.setdefault(cat, []).append(f)
             breakdown = {}
-            total_score = 0
             for cat, flags_list in cat_flags.items():
                 cat_score = sum(severity_score.get(f['severity'], 0) for f in flags_list)
-                total_score += cat_score
                 breakdown[cat] = {
                     'count': len(flags_list),
                     'score': cat_score,
@@ -1548,11 +1495,14 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     'flags': [f['code'] for f in flags_list if f.get('code')],
                 }
             check.risk_breakdown = breakdown
-            check.risk_score_numeric = min(100.0, total_score)
 
             # Numeric risk score 0-100 from weighted flags
             score_result = calculate_risk_score(merged_flags)
             check.risk_score = score_result['score']
+            check.risk_score_numeric = float(score_result['score'])
+            check.risk_level = score_result['level']
+            if any(f.get('severity') == 'critical' for f in merged_flags):
+                check.risk_level = 'critical'
 
             db.session.commit()
 

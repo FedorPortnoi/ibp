@@ -2,14 +2,32 @@
 import sys
 import os
 import re
+from importlib import import_module
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 
-def test_court_search_no_crash():
+def test_court_search_no_crash(monkeypatch):
     """Court search must not crash even if site is unreachable."""
+    import requests
+    court_search = import_module('app.services.phase3.court_search')
+    import app.services.phase3.reputation_su_service as reputation_su
     from app.services.phase3.court_search import CourtRecordSearch
-    svc = CourtRecordSearch(timeout=10)
+
+    monkeypatch.setattr(court_search, 'PLAYWRIGHT_AVAILABLE', False)
+    monkeypatch.setattr(reputation_su, 'search_reputation_su', lambda name: [])
+    monkeypatch.setattr(
+        CourtRecordSearch,
+        '_search_sudact_basic',
+        lambda self, name, limit: (_ for _ in ()).throw(requests.Timeout("test timeout")),
+    )
+    monkeypatch.setattr(
+        CourtRecordSearch,
+        '_search_sudebnye_resheniya',
+        lambda self, name, limit: (_ for _ in ()).throw(requests.Timeout("test timeout")),
+    )
+
+    svc = CourtRecordSearch(timeout=1)
     results = svc.search_by_name('Иванов Иван')
     assert isinstance(results, list), f"FAIL: not a list, got {type(results)}"
     print(f"PASS: search returned {len(results)} results without crash")
@@ -46,10 +64,28 @@ def test_cyrillic_case_numbers_parsed():
     print("PASS: Cyrillic case number regex handles all formats correctly")
 
 
-def test_court_search_returns_court_case_objects():
+def test_court_search_returns_court_case_objects(monkeypatch):
     """Verify returned objects have expected structure."""
+    court_search = import_module('app.services.phase3.court_search')
+    import app.services.phase3.reputation_su_service as reputation_su
     from app.services.phase3.court_search import CourtRecordSearch, CourtCase
-    svc = CourtRecordSearch(timeout=15)
+
+    monkeypatch.setattr(court_search, 'PLAYWRIGHT_AVAILABLE', False)
+    monkeypatch.setattr(reputation_su, 'search_reputation_su', lambda name: [])
+    monkeypatch.setattr(
+        CourtRecordSearch,
+        '_search_sudact_basic',
+        lambda self, name, limit: [
+            CourtCase(
+                case_number='2-336/2025',
+                court_name='Тестовый суд',
+                source='unit-test',
+            )
+        ],
+    )
+    monkeypatch.setattr(CourtRecordSearch, '_search_sudebnye_resheniya', lambda self, name, limit: [])
+
+    svc = CourtRecordSearch(timeout=1)
     results = svc.search_by_name('Петров Сергей')
     if results:
         for r in results:

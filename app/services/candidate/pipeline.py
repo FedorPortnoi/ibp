@@ -8,7 +8,7 @@ Wave-based parallel execution for speed:
   Wave 1: Stage 1 + Stage 2 in parallel (60s timeout)          [8-27%]
           Stage 1 — Gov Registries (courts, ФССП, checko.ru)
           Stage 2 — Security (sanctions + MVD passport)
-  Wave 2: Stage 3 — Social Media (VK+TG+OK+Phone ALL parallel) [27-42%]
+  Wave 2: Stage 3 — Social Media (VK+TG+Phone ALL parallel)    [27-42%]
   Wave 3: Stage 4 + Stage 5 in parallel                        [42-72%]
           Stage 4 — Contact Discovery (4 internal waves)
           Stage 5 — Deep Social Analysis (face, Snoop, graph)
@@ -424,7 +424,18 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
         all_red_flags = []
 
         try:
-            name_parts = check.name_parts
+            demo_mode = _is_demo_mode()
+            logger.warning(
+                "Candidate pipeline demo_mode=%s (VK_SERVICE_TOKEN=%s)",
+                demo_mode,
+                "set" if os.environ.get('VK_SERVICE_TOKEN') else "missing",
+            )
+            if demo_mode:
+                task.add_message(
+                    "Demo mode is ON: VK_SERVICE_TOKEN is not configured; results may be degraded.",
+                    "warning",
+                )
+                task._sync_to_db()
 
             # ══════════════════════════════════════════════
             # STAGE 0: IDENTITY CONFIRMATION [0-8%]
@@ -446,7 +457,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             logger.info(
                 f"Stage 0: Starting identity confirmation. "
                 f"INN='{check.inn}', name='{check.full_name}', "
-                f"demo_mode={_is_demo_mode()}"
+                f"demo_mode={demo_mode}"
             )
             task.update('identity', 'ЕГРЮЛ + ЕФРСБ — параллельная проверка...', 2)
 
@@ -662,7 +673,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             logger.info(
                 f"Stage 1: Starting government registries. "
                 f"effective_name='{effective_name}', INN='{check.inn}', "
-                f"demo_mode={_is_demo_mode()}, "
+                f"demo_mode={demo_mode}, "
                 f"VK_SERVICE_TOKEN={'set' if os.environ.get('VK_SERVICE_TOKEN') else 'NOT SET'}"
             )
             task.update('gov_registries', 'Проверка государственных реестров...', 10)
@@ -1104,22 +1115,21 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             # ══════════════════════════════════════════════
             # STAGE 3: SOCIAL MEDIA DISCOVERY [27-42%]
-            # ALL searches run in parallel (VK+TG+OK+Phone)
+            # Social searches run in parallel (VK+TG+Phone)
             # ══════════════════════════════════════════════
             stage3_start = time.time()
-            task.update('social', 'VK + Telegram + OK.ru + Телефон — параллельный поиск...', 29)
+            task.update('social', 'VK + Telegram + Телефон — параллельный поиск...', 29)
 
             social_profiles = []
             vk_screen_names = []
 
             # Capture values needed by workers (no DB/task access inside workers)
             _tg_birth_year = check.date_of_birth.year if check.date_of_birth else None
-            _tg_first = name_parts['first']
-            _tg_last = name_parts['last']
+            _tg_first = effective_parts['first']
+            _tg_last = effective_parts['last']
+            _vk_first = effective_parts['first']
+            _vk_last = effective_parts['last']
             _tg_city = check.region or ''
-            _ok_query = effective_name
-            _ok_city = check.region
-            _ok_birth_year = check.date_of_birth.year if check.date_of_birth else None
             _phone = check.phone
 
             # Parse DOB into components for VK API
@@ -1142,6 +1152,9 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 from app.services.phase1.buratino_vk_search import buratino_vk_search
                 profiles, _ = buratino_vk_search.search(
                     query=effective_name,
+                    first_name=_vk_first,
+                    last_name=_vk_last,
+                    target_name=f"{_vk_first} {_vk_last}".strip() or effective_name,
                     city=check.region,
                     age_from=vk_age_from,
                     age_to=vk_age_to,
@@ -1168,23 +1181,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 finally:
                     svc.close()
 
-            def _ok_search_worker():
-                """OK.ru search — returns (results, is_demo_mode)."""
-                from app.services.phase1.ok_search_integration import OKSearchIntegration
-                ok_svc = OKSearchIntegration()
-                ok_age_from = ok_age_to = None
-                if _ok_birth_year:
-                    from datetime import date as _date_ok
-                    today_ok = _date_ok.today()
-                    ok_age = today_ok.year - _ok_birth_year
-                    ok_age_from = max(ok_age - 3, 16)
-                    ok_age_to = ok_age + 3
-                results = ok_svc.search(
-                    query=_ok_query, city=_ok_city,
-                    age_from=ok_age_from, age_to=ok_age_to, count=10,
-                )
-                return (results, ok_svc.is_demo_mode)
-
             def _phone_tg_worker():
                 """Phone → Telegram lookup."""
                 if not _phone:
@@ -1196,41 +1192,35 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 finally:
                     tg_svc.close()
 
-            # Run ALL 4 social searches in parallel with 45s shared timeout
-            social_pool = ThreadPoolExecutor(max_workers=4)
+            # Run social searches in parallel with 45s shared timeout
+            social_pool = ThreadPoolExecutor(max_workers=3)
             try:
                 vk_future = social_pool.submit(_ctx(_vk_search_worker))
                 tg_future = social_pool.submit(_ctx(_tg_search_worker))
-                ok_future = social_pool.submit(_ctx(_ok_search_worker))
                 phone_future = social_pool.submit(_ctx(_phone_tg_worker))
+                social_deadline = time.monotonic() + 45
+
+                def _remaining_social_timeout() -> float:
+                    return max(0.1, social_deadline - time.monotonic())
 
                 # Collect VK results
                 vk_profiles = []
                 try:
-                    vk_profiles = vk_future.result(timeout=45)
+                    vk_profiles = vk_future.result(timeout=_remaining_social_timeout())
                 except Exception as e:
                     logger.warning(f"VK search timeout/error: {e}")
 
                 # Collect TG results
                 tg_results = []
                 try:
-                    tg_results = tg_future.result(timeout=45)
+                    tg_results = tg_future.result(timeout=_remaining_social_timeout())
                 except Exception as e:
                     logger.warning(f"Telegram search timeout/error: {e}")
-
-                # Collect OK results
-                ok_results = []
-                ok_is_demo = False
-                try:
-                    ok_result_tuple = ok_future.result(timeout=45)
-                    ok_results, ok_is_demo = ok_result_tuple
-                except Exception as e:
-                    logger.warning(f"OK.ru search timeout/error: {e}")
 
                 # Collect Phone→TG results
                 phone_results = None
                 try:
-                    phone_results = phone_future.result(timeout=45)
+                    phone_results = phone_future.result(timeout=_remaining_social_timeout())
                 except Exception as e:
                     logger.warning(f"TG phone lookup timeout/error: {e}")
             finally:
@@ -1373,49 +1363,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 task.add_message('Telegram: поиск недоступен', 'warning')
                 sources_checked += 1
 
-            # --- Process OK.ru results ---
-            ok_count = 0
-            try:
-                if ok_results:
-                    existing_urls = {p.get('url', '') for p in social_profiles}
-                    for p in ok_results:
-                        sim = p.get('name_similarity', 0)
-                        if sim < 50:
-                            continue
-                        if p.get('profile_url', '') in existing_urls:
-                            continue
-
-                        confidence = 'высокая' if sim >= 75 else 'средняя'
-                        social_profiles.append({
-                            'platform': 'ok',
-                            'platform_id': p.get('platform_id', ''),
-                            'display_name': p.get('display_name', ''),
-                            'username': p.get('username', ''),
-                            'url': p.get('profile_url', ''),
-                            'avatar_url': p.get('photo_url'),
-                            'photo_url': p.get('photo_url'),
-                            'confidence': confidence,
-                            'confidence_score': round(sim / 100, 2),
-                            'source_method': 'OK.ru People Search',
-                            'city': p.get('city', ''),
-                        })
-                        existing_urls.add(p.get('profile_url', ''))
-                        ok_count += 1
-
-                if ok_count:
-                    task.add_message(f'OK.ru: найдено {ok_count} профилей', 'success')
-                    sources_with_results += 1
-                else:
-                    task.add_message(
-                        'OK.ru: профили не найдены' + (' (демо)' if ok_is_demo else ''),
-                        'info',
-                    )
-                sources_checked += 1
-            except Exception as e:
-                logger.warning(f"OK.ru result processing failed: {e}")
-                task.add_message('OK.ru: поиск недоступен', 'warning')
-                sources_checked += 1
-
             # --- Process Phone → Telegram results ---
             if _phone:
                 try:
@@ -1545,6 +1492,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             from app.services.candidate.social_analysis import run_social_analysis
 
             def _run_contact_discovery():
+                """Worker; caller enforces timeout via stage4_future.result(timeout=60)."""
                 discovery = ContactDiscoveryService()
                 return discovery.discover(check)
 
@@ -1590,7 +1538,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             if check.phone:
                 try:
                     from app.services.phase2.phone_intelligence import run_phone_intelligence
-                    phone_intel = run_phone_intelligence(check.phone)
+                    phone_intel = run_phone_intelligence(check.phone) or {}
                     summary = phone_intel.get('summary', {})
                     if summary.get('total_sources_with_data', 0) > 0:
                         task.add_message(
@@ -1818,7 +1766,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             from app.services.candidate.risk_scorer import RiskScorer, calculate_risk_score
             scorer = RiskScorer()
-            risk_level, scorer_flags = scorer.analyze(check)
+            _, scorer_flags = scorer.analyze(check)
 
             # Merge inline flags from stages 1-4 with scorer output, dedup by code
             seen_codes = {f['code'] for f in scorer_flags if f.get('code')}
@@ -1832,22 +1780,18 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             check.red_flags = merged_flags
             check.red_flag_count = len(merged_flags)
-            check.risk_level = risk_level
             check.sources_checked = sources_checked
             check.sources_with_results = sources_with_results
 
             # Build risk_breakdown by category
-            from collections import Counter
             severity_score = {'critical': 40, 'high': 20, 'medium': 10, 'low': 5}
             cat_flags = {}
             for f in merged_flags:
                 cat = f.get('category', 'other')
                 cat_flags.setdefault(cat, []).append(f)
             breakdown = {}
-            total_score = 0
             for cat, flags_list in cat_flags.items():
                 cat_score = sum(severity_score.get(f['severity'], 0) for f in flags_list)
-                total_score += cat_score
                 breakdown[cat] = {
                     'count': len(flags_list),
                     'score': cat_score,
@@ -1855,11 +1799,14 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     'flags': [f['code'] for f in flags_list if f.get('code')],
                 }
             check.risk_breakdown = breakdown
-            check.risk_score_numeric = min(100.0, total_score)
 
             # Numeric risk score 0-100 from weighted flags
             score_result = calculate_risk_score(merged_flags)
             check.risk_score = score_result['score']
+            check.risk_score_numeric = float(score_result['score'])
+            check.risk_level = score_result['level']
+            if any(f.get('severity') == 'critical' for f in merged_flags):
+                check.risk_level = 'critical'
 
             try:
                 db.session.commit()

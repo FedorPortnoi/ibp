@@ -168,7 +168,15 @@ def scan_unhandled_none():
     lines = source.split('\n')
 
     for i, line in enumerate(lines):
-        if re.search(r'\w+\s*=\s*\w+\(', line) and i + 1 < len(lines):
+        call_match = re.search(r'\w+\s*=\s*([A-Za-z_]\w*)\(', line)
+        if call_match and i + 1 < len(lines):
+            callee = call_match.group(1)
+            # Constructors and executor factories do not return None in normal Python
+            # semantics; flagging them creates noise instead of actionable findings.
+            if callee[:1].isupper():
+                continue
+            if ' or {}' in line or ' or dict()' in line:
+                continue
             next_line = lines[i+1]
             var_match = re.match(r'\s*(\w+)\s*=', line)
             if var_match:

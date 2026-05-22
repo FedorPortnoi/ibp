@@ -22,17 +22,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          playwright install chromium
 
       - name: Set test environment variables
         run: |
           echo "SECRET_KEY=test-secret-key-for-ci" >> $GITHUB_ENV
           echo "FLASK_ENV=testing" >> $GITHUB_ENV
 
-      - name: Run unit tests
+      - name: Compile Python sources
         run: |
-          python -m pytest tests/unit/ -v --tb=short 2>&1 || true
+          python -m compileall -q app candidate_check people_search scripts tests
 
-      - name: Run smoke tests
+      - name: Run deterministic tests
         run: |
-          python -m pytest tests/test_e2e_smoke.py -v --tb=short 2>&1 || true
+          python -m pytest -p no:faulthandler tests/unit tests/test_external_service_integrations.py -q

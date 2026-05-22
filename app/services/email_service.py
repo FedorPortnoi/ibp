@@ -2,36 +2,53 @@
 Email Service
 =============
 Send transactional emails via Resend API.
-Graceful fallback: if RESEND_API_KEY is unset, logs warning and returns False.
+
+The API key is read at send time rather than import time so Flask config and
+late-loaded environment variables are honored consistently.
 """
 
 import logging
 import os
 
+from flask import current_app, has_app_context
 import requests
 
 logger = logging.getLogger('ibp.email')
 
-RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
-FROM_EMAIL = 'noreply@shtirletzsled.ru'
 RESEND_URL = 'https://api.resend.com/emails'
+DEFAULT_FROM_EMAIL = 'noreply@shtirletzsled.ru'
+
+
+def _get_resend_config() -> tuple[str, str]:
+    """Return the current Resend API key and sender address."""
+    api_key = ''
+    from_email = ''
+
+    if has_app_context():
+        api_key = current_app.config.get('RESEND_API_KEY') or ''
+        from_email = current_app.config.get('FROM_EMAIL') or ''
+
+    api_key = api_key or os.environ.get('RESEND_API_KEY', '')
+    from_email = from_email or os.environ.get('FROM_EMAIL', DEFAULT_FROM_EMAIL)
+    return api_key, from_email
 
 
 def send_email(to: str, subject: str, html: str) -> bool:
-    """Send email via Resend. Returns True if sent successfully."""
-    if not RESEND_API_KEY:
-        logger.warning(f"RESEND_API_KEY not set — email to {to} not sent")
+    """Send email via Resend. Returns True when Resend accepts the message."""
+    api_key, from_email = _get_resend_config()
+    if not api_key:
+        logger.warning("RESEND_API_KEY not set; email to %s not sent", to)
         return False
 
     try:
         resp = requests.post(
             RESEND_URL,
             headers={
-                'Authorization': f'Bearer {RESEND_API_KEY}',
+                'Authorization': f'Bearer {api_key}',
                 'Content-Type': 'application/json',
             },
             json={
-                'from': FROM_EMAIL,
+                'from': from_email,
                 'to': [to],
                 'subject': subject,
                 'html': html,
@@ -39,13 +56,13 @@ def send_email(to: str, subject: str, html: str) -> bool:
             timeout=10,
         )
         if resp.status_code == 200:
-            logger.info(f"Email sent to {to}: {subject}")
+            logger.info("Email sent to %s: %s", to, subject)
             return True
-        else:
-            logger.error(f"Resend error {resp.status_code}: {resp.text}")
-            return False
-    except Exception as e:
-        logger.error(f"Email send failed: {e}")
+
+        logger.error("Resend error %s: %s", resp.status_code, resp.text)
+        return False
+    except Exception as exc:
+        logger.error("Email send failed: %s", exc)
         return False
 
 
@@ -87,7 +104,7 @@ def send_subscription_confirmation(username: str, email: str,
                 <td style="color:#ECECEC;font-size:12px;padding:6px 0;text-align:right;">{expires_str}</td>
             </tr>
             <tr>
-                <td style="color:#9B9B9B;font-size:12px;padding:6px 0;">Авторенью</td>
+                <td style="color:#9B9B9B;font-size:12px;padding:6px 0;">Автопродление</td>
                 <td style="color:#ECECEC;font-size:12px;padding:6px 0;text-align:right;">{auto_renew_str}</td>
             </tr>
         </table>
@@ -102,10 +119,14 @@ def send_subscription_confirmation(username: str, email: str,
     </a>
 
     <p style="color:#6B6B6B;font-size:11px;line-height:1.6;">
-        Если у вас есть вопросы &mdash; ответьте на это письмо.<br>
+        Если у вас есть вопросы, ответьте на это письмо.<br>
         ШТИРЛИЦ &middot; OSINT Platform
     </p>
 </body>
 </html>"""
 
-    return send_email(to=email, subject='Подписка ШТИРЛИЦ активирована', html=html)
+    return send_email(
+        to=email,
+        subject='Подписка ШТИРЛИЦ активирована',
+        html=html,
+    )

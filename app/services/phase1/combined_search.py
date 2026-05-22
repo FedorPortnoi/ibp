@@ -1,8 +1,7 @@
 """
-Combined VK + OK Search for Phase 1
-====================================
-Wraps both VK People Search and OK People Search into a single call.
-Used by Phase 1 routes to run both searches and merge results.
+VK Search for Phase 1
+=====================
+Compatibility wrapper for the legacy combined-search call site.
 """
 
 import logging
@@ -17,10 +16,9 @@ def combined_search_and_save(
     city: Optional[str] = None,
     age_from: Optional[int] = None,
     age_to: Optional[int] = None,
-    ok_count: int = 20,
 ) -> Dict[str, List[Dict]]:
     """
-    Run both VK and OK search, save results, return combined.
+    Run VK search, save results, return a consistent result shape.
 
     Args:
         investigation_id: Investigation to save profiles to
@@ -28,12 +26,10 @@ def combined_search_and_save(
         city: Optional city filter
         age_from: Min age
         age_to: Max age
-        ok_count: Max OK results
-
     Returns:
-        Dict with 'vk' and 'ok' keys, each containing list of saved profile dicts
+        Dict with 'vk' key containing saved profile dicts.
     """
-    results = {'vk': [], 'ok': []}
+    results = {'vk': []}
 
     # VK search
     try:
@@ -49,21 +45,6 @@ def combined_search_and_save(
     except Exception as e:
         logger.error(f"VK search failed in combined search: {e}")
 
-    # OK search
-    try:
-        from app.services.phase1.ok_search_integration import ok_search_integration
-        results['ok'] = ok_search_integration.search_and_save(
-            investigation_id=investigation_id,
-            query=query,
-            city=city,
-            age_from=age_from,
-            age_to=age_to,
-            count=ok_count,
-        )
-        logger.info(f"Combined search: {len(results['ok'])} OK profiles for '{query}'")
-    except Exception as e:
-        logger.warning(f"OK search failed in combined search: {e}")
-
-    total = len(results['vk']) + len(results['ok'])
+    total = len(results['vk'])
     logger.info(f"Combined search: {total} total profiles for '{query}'")
     return results

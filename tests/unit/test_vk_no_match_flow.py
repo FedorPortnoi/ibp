@@ -13,6 +13,7 @@ import os
 import json
 import datetime
 import uuid
+from importlib import import_module
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
@@ -110,6 +111,36 @@ def _cleanup_check(app, check_id):
         db.session.commit()
 
 
+class _FakeVKResult:
+    def __init__(self, vk_id=999, similarity=82, full_name='Петрова Мария'):
+        self._data = {
+            'vk_id': vk_id,
+            'full_name': full_name,
+            'screen_name': f'user_{vk_id}',
+            'profile_url': f'https://vk.com/user_{vk_id}',
+            'photo_url': None,
+            'city': 'Москва',
+            'name_similarity': similarity,
+        }
+
+    def to_dict(self):
+        return dict(self._data)
+
+
+def _stub_buratino(monkeypatch, *, expanded=None, search=None):
+    """Replace BuratinoVKSearch with a deterministic no-network test double."""
+    vk_search_module = import_module('app.services.phase1.buratino_vk_search')
+
+    class FakeBuratinoVKSearch:
+        def search_expanded(self, **_kwargs):
+            return expanded if expanded is not None else []
+
+        def search(self, **_kwargs):
+            return (search if search is not None else [], 0)
+
+    monkeypatch.setattr(vk_search_module, 'BuratinoVKSearch', FakeBuratinoVKSearch)
+
+
 # ---------------------------------------------------------------------------
 # 1. Expanded search endpoint
 # ---------------------------------------------------------------------------
@@ -117,8 +148,9 @@ def _cleanup_check(app, check_id):
 class TestExpandedSearch:
     """Verify retry-expanded endpoint behavior."""
 
-    def test_expanded_search_returns_json(self, client, app):
+    def test_expanded_search_returns_json(self, client, app, monkeypatch):
         """POST to retry-expanded returns JSON with success/profiles."""
+        _stub_buratino(monkeypatch)
         with app.app_context():
             check_id = _create_awaiting_check(app)
         try:
@@ -165,8 +197,9 @@ class TestExpandedSearch:
             with app.app_context():
                 _cleanup_check(app, check_id)
 
-    def test_expanded_search_lower_threshold(self, client, app):
+    def test_expanded_search_lower_threshold(self, client, app, monkeypatch):
         """Expanded search profiles should have expanded_search=True flag."""
+        _stub_buratino(monkeypatch, expanded=[_FakeVKResult(vk_id=1001, similarity=35)])
         with app.app_context():
             check_id = _create_awaiting_check(app)
         try:
@@ -234,8 +267,19 @@ class TestManualVKProfile:
             with app.app_context():
                 _cleanup_check(app, check_id)
 
-    def test_manual_vk_url_parsing(self, client, app):
+    def test_manual_vk_url_parsing(self, client, app, monkeypatch):
         """Various VK URL formats should be accepted (not fail on input validation)."""
+        from app.routes import candidate_check as candidate_route
+
+        monkeypatch.setattr(candidate_route, '_lookup_manual_vk_profile', lambda screen_name: {
+            'platform': 'vk',
+            'platform_id': 42,
+            'display_name': 'Manual User',
+            'username': screen_name,
+            'url': f'https://vk.com/{screen_name}',
+            'manual_entry': True,
+        })
+
         with app.app_context():
             check_id = _create_awaiting_check(app)
         try:
@@ -251,8 +295,19 @@ class TestManualVKProfile:
             with app.app_context():
                 _cleanup_check(app, check_id)
 
-    def test_manual_vk_html_sanitization(self, client, app):
+    def test_manual_vk_html_sanitization(self, client, app, monkeypatch):
         """HTML tags in VK URL should be stripped."""
+        from app.routes import candidate_check as candidate_route
+
+        monkeypatch.setattr(candidate_route, '_lookup_manual_vk_profile', lambda screen_name: {
+            'platform': 'vk',
+            'platform_id': 43,
+            'display_name': 'Manual User',
+            'username': screen_name,
+            'url': f'https://vk.com/{screen_name}',
+            'manual_entry': True,
+        })
+
         with app.app_context():
             check_id = _create_awaiting_check(app)
         try:
@@ -272,6 +327,76 @@ class TestManualVKProfile:
                 content_type='application/json',
             )
             assert resp2.status_code != 400  # Input valid, hits VK API
+        finally:
+            with app.app_context():
+                _cleanup_check(app, check_id)
+
+    def test_manual_vk_adds_profile_via_lookup_helper(self, client, app, monkeypatch):
+        """Valid manual VK input is resolved through the bounded lookup helper."""
+        from app.routes import candidate_check as candidate_route
+
+        with app.app_context():
+            check_id = _create_awaiting_check(app, profiles=[])
+
+        called = {}
+
+        def fake_lookup(screen_name):
+            called['screen_name'] = screen_name
+            return {
+                'platform': 'vk',
+                'platform_id': 999001,
+                'display_name': 'Manual User',
+                'username': 'manual_user',
+                'url': 'https://vk.com/manual_user',
+                'avatar_url': None,
+                'photo_url': None,
+                'confidence': 'manual',
+                'confidence_score': 0.0,
+                'source_method': 'manual',
+                'city': '',
+                'manual_entry': True,
+            }
+
+        monkeypatch.setattr(candidate_route, '_lookup_manual_vk_profile', fake_lookup)
+
+        try:
+            resp = client.post(
+                f'/candidate/confirm/{check_id}/manual-vk',
+                data=json.dumps({'vk_url': 'https://m.vk.com/manual_user?from=test'}),
+                content_type='application/json',
+            )
+            data = resp.get_json()
+
+            assert resp.status_code == 200
+            assert data['success'] is True
+            assert data['profile']['platform_id'] == 999001
+            assert called['screen_name'] == 'manual_user'
+        finally:
+            with app.app_context():
+                _cleanup_check(app, check_id)
+
+    def test_manual_vk_lookup_timeout_returns_error(self, client, app, monkeypatch):
+        """A slow VK helper response is surfaced as a JSON timeout error."""
+        from app.routes import candidate_check as candidate_route
+
+        with app.app_context():
+            check_id = _create_awaiting_check(app, profiles=[])
+
+        def fake_lookup(_screen_name):
+            raise candidate_route.ManualVKLookupError('timeout', 504)
+
+        monkeypatch.setattr(candidate_route, '_lookup_manual_vk_profile', fake_lookup)
+
+        try:
+            resp = client.post(
+                f'/candidate/confirm/{check_id}/manual-vk',
+                data=json.dumps({'vk_url': 'manual_user'}),
+                content_type='application/json',
+            )
+            data = resp.get_json()
+
+            assert resp.status_code == 504
+            assert 'error' in data
         finally:
             with app.app_context():
                 _cleanup_check(app, check_id)
@@ -547,8 +672,9 @@ class TestSearchByName:
             with app.app_context():
                 _cleanup_check(app, check_id)
 
-    def test_search_name_valid_returns_json(self, client, app):
+    def test_search_name_valid_returns_json(self, client, app, monkeypatch):
         """Valid alt name search returns JSON response."""
+        _stub_buratino(monkeypatch, search=[_FakeVKResult(vk_id=2001)])
         with app.app_context():
             check_id = _create_awaiting_check(app)
         try:
@@ -564,8 +690,9 @@ class TestSearchByName:
             with app.app_context():
                 _cleanup_check(app, check_id)
 
-    def test_search_name_html_sanitized(self, client, app):
+    def test_search_name_html_sanitized(self, client, app, monkeypatch):
         """HTML tags in alt name should be stripped."""
+        _stub_buratino(monkeypatch, search=[_FakeVKResult(vk_id=2002)])
         with app.app_context():
             check_id = _create_awaiting_check(app)
         try:

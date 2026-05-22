@@ -246,8 +246,10 @@ class BusinessRegistrySearch:
         - r: registration date (DD.MM.YYYY)
         - c: company short name (UL only)
         - a: address (UL only)
-        - g: end/liquidation date (if liquidated)
-        - p: director name (UL only)
+        - g: executive/body text (UL only, e.g. "ГЕНЕРАЛЬНЫЙ ДИРЕКТОР: ...")
+        - p: КПП (UL only)
+        - e: end/liquidation date (if liquidated)
+        - rn: registration region
         - t: detail token
         - cnt/tot/pg: pagination
         """
@@ -257,7 +259,7 @@ class BusinessRegistrySearch:
             inn = row.get('i', '')
             ogrn = row.get('o', '')
             reg_date = row.get('r', '')
-            end_date = row.get('g', '')
+            end_date = row.get('e', '')
 
             if not name and not inn:
                 return None
@@ -273,8 +275,8 @@ class BusinessRegistrySearch:
                 # Company (UL)
                 company_name = row.get('c', '') or name
                 company_type = self._detect_company_type(company_name)
-                address = row.get('a', '')
-                director = row.get('p', '')
+                address = row.get('a', '') or row.get('rn', '')
+                director = row.get('g', '')
                 status = "Ликвидировано" if end_date else "Действующее"
 
                 # Determine role based on whether director matches search name

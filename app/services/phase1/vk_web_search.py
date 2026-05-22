@@ -78,6 +78,20 @@ def _parse_query_names(query: str) -> Tuple[str, str]:
     else:
         return parts[0] if parts else '', ''
 
+
+def _resolve_search_names(
+    query: str,
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
+) -> Tuple[str, str]:
+    """Return labelled (first_name, last_name), preferring explicit fields."""
+    first = (first_name or '').strip().lower()
+    last = (last_name or '').strip().lower()
+    if first or last:
+        return first, last
+    return _parse_query_names(query)
+
+
 def _loose_name_match(profile: dict, search_first: str, search_last: str, threshold: float = 0.3) -> bool:
     """
     Loose name matching for People Search mode.
@@ -176,8 +190,8 @@ def verify_profile_name_matches_query(profile: dict, search_first: str, search_l
 
         if search_variants & profile_variants:
             return True
-    except ImportError:
-        pass
+    except ImportError as exc:
+        logger.debug("Diminutive matching unavailable: %s", exc)
 
     return False
 
@@ -253,6 +267,8 @@ class VKWebSearch:
     def search(
         self,
         query: str,
+        first_name: Optional[str] = None,
+        last_name: Optional[str] = None,
         birth_day: Optional[int] = None,
         birth_month: Optional[int] = None,
         birth_year: Optional[int] = None,
@@ -277,8 +293,15 @@ class VKWebSearch:
         # Patronymic (3rd token in Russian LFP names) causes 0 results.
         # Strip it from the API query but keep full name for matching.
         original_query = query
+        search_first, search_last = _resolve_search_names(query, first_name, last_name)
         query_tokens = query.strip().split()
-        if len(query_tokens) >= 3:
+        if first_name or last_name:
+            vk_query = f"{search_last} {search_first}".strip() or query
+            logger.info(
+                "VKWebSearch: using explicit name fields first=%r last=%r for query %r",
+                search_first, search_last, query,
+            )
+        elif len(query_tokens) >= 3:
             # Russian convention: Last First Patronymic -> send "Last First" to VK
             vk_query = f"{query_tokens[0]} {query_tokens[1]}"
             logger.info(f"VKWebSearch: stripped patronymic: '{query}' -> '{vk_query}'")
@@ -304,6 +327,8 @@ class VKWebSearch:
             birth_month=birth_month,
             birth_year=birth_year,
             strict_mode=strict_mode,
+            first_name=search_first,
+            last_name=search_last,
         )
         _add_ids(web_search_ids, 'people_search')
 
@@ -314,12 +339,17 @@ class VKWebSearch:
         # Step 3: Enrich and verify results from people search + newsfeed
         verified_profiles = []
         if all_user_ids:
-            verified_profiles = self._enrich_profiles(all_user_ids, original_query, strict_mode=strict_mode)
+            verified_profiles = self._enrich_profiles(
+                all_user_ids,
+                original_query,
+                strict_mode=strict_mode,
+                first_name=search_first,
+                last_name=search_last,
+            )
             # People Search: people_search results pass (VK matched by name),
             # but newsfeed results need loose 0.3 threshold
             if not strict_mode and verified_profiles:
                 name_query = original_query or query
-                search_first, search_last = _parse_query_names(name_query)
                 if search_first and search_last:
                     filtered = []
                     for p in verified_profiles:
@@ -344,19 +374,33 @@ class VKWebSearch:
                 f"VKWebSearch: only {len(verified_profiles)} verified results from "
                 f"people/newsfeed ({len(seen_ids)} raw IDs), trying screen name guessing..."
             )
-            guessed_ids = self._guess_screen_names(original_query)
+            guessed_ids = self._guess_screen_names(
+                original_query,
+                first_name=search_first,
+                last_name=search_last,
+            )
             new_ids = [uid for uid in guessed_ids if uid not in seen_ids]
             if new_ids:
                 for uid in new_ids:
                     seen_ids.add(uid)
                     id_methods[uid] = 'screen_name'
                 if strict_mode:
-                    extra_profiles = self._enrich_profiles(new_ids, original_query)
+                    extra_profiles = self._enrich_profiles(
+                        new_ids,
+                        original_query,
+                        first_name=search_first,
+                        last_name=search_last,
+                    )
                 else:
                     # People Search: use loose 0.3 threshold for screen name guessing
-                    extra_profiles = self._enrich_profiles(new_ids, original_query, strict_mode=False)
+                    extra_profiles = self._enrich_profiles(
+                        new_ids,
+                        original_query,
+                        strict_mode=False,
+                        first_name=search_first,
+                        last_name=search_last,
+                    )
                     name_query = original_query or query
-                    search_first, search_last = _parse_query_names(name_query)
                     if search_first and search_last:
                         accepted = []
                         for p in extra_profiles:
@@ -390,7 +434,12 @@ class VKWebSearch:
 
         return verified_profiles, len(verified_profiles)
 
-    def _guess_screen_names(self, query: str) -> List[int]:
+    def _guess_screen_names(
+        self,
+        query: str,
+        first_name: Optional[str] = None,
+        last_name: Optional[str] = None,
+    ) -> List[int]:
         """
         Generate likely VK screen names from a Cyrillic name, then resolve them.
 
@@ -407,7 +456,7 @@ class VKWebSearch:
         if len(query_parts) < 2:
             return []
 
-        first_name, last_name = _parse_query_names(query)
+        first_name, last_name = _resolve_search_names(query, first_name, last_name)
 
         # Transliterate Cyrillic → Latin
         try:
@@ -518,6 +567,8 @@ class VKWebSearch:
         birth_month: Optional[int] = None,
         birth_year: Optional[int] = None,
         strict_mode: bool = True,
+        first_name: Optional[str] = None,
+        last_name: Optional[str] = None,
     ) -> List[int]:
         """
         Search VK using the web token obtained from the browser session.
@@ -558,6 +609,8 @@ class VKWebSearch:
             birth_month=birth_month,
             birth_year=birth_year,
             strict_mode=strict_mode,
+            first_name=first_name,
+            last_name=last_name,
         )
 
     def _refresh_web_token(self) -> Optional[str]:
@@ -646,6 +699,8 @@ class VKWebSearch:
         birth_month: Optional[int] = None,
         birth_year: Optional[int] = None,
         strict_mode: bool = True,
+        first_name: Optional[str] = None,
+        last_name: Optional[str] = None,
     ) -> List[int]:
         """
         Call VK API users.search with a web token.
@@ -673,6 +728,7 @@ class VKWebSearch:
         # Use original query (with patronymic) for name order detection,
         # but stripped query for VK API call
         name_query = original_query or query
+        search_first, search_last = _resolve_search_names(name_query, first_name, last_name)
 
         max_pages = 3 if not strict_mode else 1
         all_user_ids = []
@@ -730,7 +786,6 @@ class VKWebSearch:
 
                 if strict_mode:
                     # Step 2: Apply name verification — detect name order from query
-                    search_first, search_last = _parse_query_names(name_query)
                     if search_first and search_last:
                         verified_items = [
                             item for item in human_items
@@ -748,7 +803,6 @@ class VKWebSearch:
                         seen_ids.add(uid)
                         all_user_ids.append(uid)
 
-                search_first, search_last = _parse_query_names(name_query)
                 logger.info(
                     f"VKWebSearch users.search page {page+1}: {total} total, {len(items)} raw, "
                     f"{len(human_items)} human, {len(verified_items)} verified for '{query}' "
@@ -1121,7 +1175,9 @@ class VKWebSearch:
 
     def _enrich_profiles(self, user_ids: List[int], query: str,
                          original_query: Optional[str] = None,
-                         strict_mode: bool = True) -> List[Dict]:
+                         strict_mode: bool = True,
+                         first_name: Optional[str] = None,
+                         last_name: Optional[str] = None) -> List[Dict]:
         """
         Enrich a list of VK user IDs with full profile data using users.get.
         Works with service token (permanent, never expires).
@@ -1182,7 +1238,7 @@ class VKWebSearch:
             # Uses fuzzy matching with transliteration + diminutive support
             # Use original query (with patronymic) for correct LFP name order detection
             name_query = original_query or query
-            search_first, search_last = _parse_query_names(name_query)
+            search_first, search_last = _resolve_search_names(name_query, first_name, last_name)
             if search_first and search_last:
                 filtered = []
                 for p in profiles:

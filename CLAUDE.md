@@ -1,22 +1,31 @@
-## Team Brain
-Read before starting any session:
-1. C:\Users\fedor\Documents\Fedor's Brain\00 - Team Brain\AGENTS.md
-2. C:\Users\fedor\Documents\Fedor's Brain\00 - Team Brain\Off-Repo Truth Handoff.md
-Then follow the shared workflow defined in AGENTS.md.
-
 ## Brain
-Vault: C:\Users\fedor\Documents\Fedor's Brain\
-Before starting any task: run /brain
-After any significant change: run /log
-Never ask what we're working on — read the vault first
-Never load all notes — only load what is relevant to the current task
+Vault: C:\Users\fedor\Obsidian\Brain\
+If this path is missing, ask for the current vault path before relying on vault context.
 
-## Vault Structure
-02 - Stirlitz/Stirlitz HQ.md          ← start here always
-02 - Stirlitz/Dev Logs/                ← most recent = last session context
-02 - Stirlitz/Roadmap/Active TODOs.md  ← what needs doing
-02 - Stirlitz/Architecture/            ← pull only what's relevant
-02 - Stirlitz/Security/                ← pull when touching auth/routes
-02 - Stirlitz/Roadmap/                 ← pull when planning
-02 - Stirlitz/Business Logic/          ← pull when touching pipeline/billing
-02 - Stirlitz/Dev Workflow/            ← pull when debugging or deploying
+Before project work, read the relevant vault file first. Tiny commands and narrow file inspections do not require a vault read.
+After significant changes, update the dev log and any docs affected by the change. Significant means behavior changes, architecture changes, deploy/ops changes, new external integrations, security/rate-limit changes, or test/audit changes that alter project status.
+
+## Vault Structure for this project
+| File | Use when |
+|---|---|
+| Projects/Stirlitz (IBP)/stirlitz-ibp.md | Default project overview; start here when context is unclear. |
+| Projects/Stirlitz (IBP)/stirlitz-dev-log.md | Most recent session context; update after significant changes. |
+| Projects/Stirlitz (IBP)/stirlitz-decisions.md | Open decisions and blockers. |
+| Projects/Stirlitz (IBP)/stirlitz-architecture.md | Touching structure or module boundaries. |
+| Projects/Stirlitz (IBP)/stirlitz-routes-blueprints.md | Touching routes, auth, or blueprints. |
+| Projects/Stirlitz (IBP)/stirlitz-database-models.md | Touching models, migrations, or persistence behavior. |
+| Projects/Stirlitz (IBP)/stirlitz-external-integrations.md | Touching APIs or external services. |
+| Projects/Stirlitz (IBP)/stirlitz-known-issues.md | Debugging or triage. |
+| Projects/Stirlitz (IBP)/stirlitz-ops-runbook.md | Deploying, production health, or ops work. Also see `docs/production-health-timeout-runbook.md`. |
+| Projects/Stirlitz (IBP)/stirlitz-dev-setup.md | Setting up env or deployment prerequisites. |
+| Projects/Stirlitz (IBP)/stirlitz-credentials.md | Integration status only. |
+| Projects/Stirlitz (IBP)/stirlitz-pipeline-9-stages.md | Working on pipeline stages. |
+| Projects/Stirlitz (IBP)/stirlitz-service-files.md | Working on service-layer code. |
+| Projects/Stirlitz (IBP)/stirlitz-security-pentest.md | Touching auth, rate limits, DoS protection, or security posture. |
+| Projects/Stirlitz (IBP)/stirlitz-ai-prompts.md | Working on Claude AI integration. |
+
+## Conventions
+- Dev Log: append-only, newest first, format ## YYYY-MM-DD
+- Decisions: one entry per decision, with date, status, reasoning
+- Credentials: status only — never actual keys or secrets
+- Infer current work from repo, vault, and conversation context first. Ask only when the goal is still ambiguous or a wrong assumption would be risky.

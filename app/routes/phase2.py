@@ -1092,8 +1092,6 @@ def start_buratino_analysis(investigation_id):
                                             'source': f'Gravatar ({email})'
                                         })
 
-                            time.sleep(0.2)
-
                         except Exception as e:
                             logger.debug(f"Gravatar check error for {email}: {e}")
 

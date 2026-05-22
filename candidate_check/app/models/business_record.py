@@ -8,6 +8,9 @@ Data from ЕГРЮЛ, rusprofile.ru, list-org.com.
 from datetime import datetime
 from app import db
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class BusinessRecord(db.Model):
@@ -195,8 +198,8 @@ class BusinessRecord(db.Model):
             try:
                 from dateutil.parser import parse
                 record.registration_date = parse(data['registration_date']).date()
-            except:
-                pass
+            except Exception as exc:
+                logger.warning("Error parsing registration_date: %s", exc)
 
         # Financial data
         record.authorized_capital = data.get('authorized_capital')

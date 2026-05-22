@@ -10,6 +10,7 @@ from app import limiter
 
 connections_bp = Blueprint('connections', __name__)
 logger = logging.getLogger('ibp.routes.connections')
+MAX_CONNECTION_INVESTIGATIONS = 500
 
 
 @connections_bp.route('/connections')
@@ -17,14 +18,26 @@ def connections_page():
     """Page showing cross-investigation connections with vis.js graph."""
     from app.models import Investigation, SocialProfile
 
-    investigations = Investigation.query.order_by(Investigation.created_at.desc()).all()
+    investigations = (
+        Investigation.query
+        .order_by(Investigation.created_at.desc())
+        .limit(MAX_CONNECTION_INVESTIGATIONS)
+        .all()
+    )
 
-    # Enhance with confirmed profile data
+    confirmed_profiles = {}
+    investigation_ids = [inv.id for inv in investigations]
+    if investigation_ids:
+        confirmed_profiles = {
+            profile.investigation_id: profile
+            for profile in SocialProfile.query.filter(
+                SocialProfile.investigation_id.in_(investigation_ids),
+                SocialProfile.is_confirmed.is_(True),
+            ).all()
+        }
+
     for inv in investigations:
-        inv.confirmed_profile_obj = SocialProfile.query.filter_by(
-            investigation_id=inv.id,
-            is_confirmed=True
-        ).first()
+        inv.confirmed_profile_obj = confirmed_profiles.get(inv.id)
 
     return render_template('connections.html', investigations=investigations)
 

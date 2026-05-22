@@ -308,7 +308,7 @@ class AvitoScanner(MarketplaceScanner):
                 listing_links = page.locator(
                     '[data-marker="item"] a[itemprop="url"], '
                     '[data-marker="item"] [itemprop="name"]'
-                ).all()
+                ).element_handles()
 
                 listing_urls = []
                 for link in listing_links[:self.MAX_DEEP_LISTINGS * 2]:

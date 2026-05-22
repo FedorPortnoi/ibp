@@ -1,10 +1,1 @@
-[
-  {
-    "agent": "PIPELINE_FLOW",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\candidate\\pipeline.py",
-    "line": 1538,
-    "issue": "Function '_run_contact_discovery' has no explicit timeout protection",
-    "recommendation": "Consider adding timeout for long-running operations"
-  }
-]
+[]

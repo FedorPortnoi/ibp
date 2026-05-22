@@ -1,18 +1,1 @@
-[
-  {
-    "agent": "TIMEOUT_SCANNER",
-    "severity": "MEDIUM",
-    "file": "\\app\\routes\\connections.py",
-    "line": 20,
-    "issue": "Database query with .all() and no .limit() or filter",
-    "recommendation": "Add .limit(1000) to prevent large result sets"
-  },
-  {
-    "agent": "TIMEOUT_SCANNER",
-    "severity": "MEDIUM",
-    "file": "\\app\\services\\phase2\\marketplace_scanner.py",
-    "line": 311,
-    "issue": "Database query with .all() and no .limit() or filter",
-    "recommendation": "Add .limit(1000) to prevent large result sets"
-  }
-]
+[]

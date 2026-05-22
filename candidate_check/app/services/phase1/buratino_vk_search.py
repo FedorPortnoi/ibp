@@ -325,8 +325,8 @@ class BuratinoVKSearch:
             profile_variants = set(v.lower() for v in get_all_name_variants(found_first_cyr))
             if search_variants & profile_variants:
                 first_score = max(first_score, 0.90)
-        except ImportError:
-            pass
+        except ImportError as exc:
+            logger.debug("Diminutive matching unavailable: %s", exc)
 
         # CRITICAL: If first name doesn't match at all, cap the total score.
         # This prevents false positives like "Максим Козлов" matching "Марк Козлов"
@@ -479,6 +479,8 @@ class BuratinoVKSearch:
         count: int = 50,
         offset: int = 0,
         target_name: Optional[str] = None,
+        first_name: Optional[str] = None,
+        last_name: Optional[str] = None,
         birth_day: Optional[int] = None,
         birth_month: Optional[int] = None,
         birth_year: Optional[int] = None,
@@ -496,21 +498,31 @@ class BuratinoVKSearch:
         VKWebSearch handles web token lifecycle (auto-login, caching, refresh).
         """
         if not target_name:
-            target_name = query
+            if first_name and last_name:
+                target_name = f"{first_name} {last_name}"
+            else:
+                target_name = query
 
         # VK API users.search only handles first + last name.
         # Patronymic (3rd token in Russian LFP names) causes 0 results.
         # Strip it from the API query but keep full name for matching.
         vk_query = query
         query_tokens = query.strip().split()
-        if len(query_tokens) >= 3:
+        if first_name or last_name:
+            vk_query = f"{(last_name or '').strip()} {(first_name or '').strip()}".strip() or query
+            logger.info(
+                "VK search: using explicit name fields first=%r last=%r for query %r",
+                first_name, last_name, query,
+            )
+        elif len(query_tokens) >= 3:
             # Russian convention: Last First Patronymic → send "Last First" to VK
             vk_query = f"{query_tokens[0]} {query_tokens[1]}"
             logger.info(f"VK search: stripped patronymic: '{query}' -> '{vk_query}'")
 
         # ── Demo mode ──
         if self._demo_mode:
-            return self._demo_search(vk_query, city, age_from, age_to, count, target_name)
+            demo_query = f"{first_name} {last_name}".strip() if first_name and last_name else vk_query
+            return self._demo_search(demo_query, city, age_from, age_to, count, target_name)
 
         all_profiles_by_id: Dict[int, VKProfileResult] = {}
 
@@ -523,6 +535,8 @@ class BuratinoVKSearch:
             web_searcher = VKWebSearch(service_token=self.token)
             raw_profiles, _ = web_searcher.search(
                 query,
+                first_name=first_name,
+                last_name=last_name,
                 birth_day=birth_day,
                 birth_month=birth_month,
                 birth_year=birth_year,

@@ -103,6 +103,7 @@ class BaseSource(ABC):
     source_type: SourceType = SourceType.BOTH
     source_tier: SourceTier = SourceTier.C
     enabled: bool = True
+    implemented: bool = True
     requires_api_key: bool = False
     rate_limit_per_minute: int = 10
 

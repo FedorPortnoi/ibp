@@ -128,6 +128,20 @@ class SocialProfile(db.Model):
             return f"{self.first_name} {self.last_name}"
         return self.display_name or self.username or "Unknown"
 
+    @full_name.setter
+    def full_name(self, value):
+        """Set display and name parts from a First Last style display name."""
+        name = (value or '').strip()
+        self.display_name = name or None
+        if not name:
+            self.first_name = None
+            self.last_name = None
+            return
+
+        parts = name.split()
+        self.first_name = parts[0]
+        self.last_name = ' '.join(parts[1:]) if len(parts) > 1 else ''
+
     def confirm(self):
         """Mark this profile as confirmed by user."""
         self.is_confirmed = True

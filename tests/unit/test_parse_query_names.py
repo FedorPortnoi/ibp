@@ -5,7 +5,11 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from app.services.phase1.vk_web_search import _parse_query_names
+from app.services.phase1.vk_web_search import (
+    _parse_query_names,
+    _resolve_search_names,
+    verify_profile_name_matches_query,
+)
 
 
 class TestParseQueryNames:
@@ -53,3 +57,23 @@ class TestParseQueryNames:
         first, last = _parse_query_names("  Судин   Артем   Алексеевич  ")
         assert first == "артем"
         assert last == "судин"
+
+    def test_explicit_name_fields_override_ambiguous_two_token_query(self):
+        """Explicit name parts must win over positional parsing."""
+        query = "\u0418\u0432\u0430\u043d\u043e\u0432 \u0418\u0432\u0430\u043d"
+        first_name = "\u0418\u0432\u0430\u043d"
+        last_name = "\u0418\u0432\u0430\u043d\u043e\u0432"
+
+        first, last = _resolve_search_names(
+            query,
+            first_name=first_name,
+            last_name=last_name,
+        )
+
+        assert first == first_name.lower()
+        assert last == last_name.lower()
+        assert verify_profile_name_matches_query(
+            {'first_name': first_name, 'last_name': last_name},
+            first,
+            last,
+        )

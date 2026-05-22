@@ -97,7 +97,10 @@ def create_app(config_name=None):
         if not is_auth_enabled():
             return
 
-        allowed_endpoints = {'auth.login', 'auth.logout', 'static', 'main.health_check'}
+        allowed_endpoints = {
+            'auth.login', 'auth.logout', 'static',
+            'main.health_check', 'main.readiness_check',
+        }
         if request.endpoint and (
             request.endpoint in allowed_endpoints or
             request.endpoint.startswith('static')

@@ -674,8 +674,8 @@ class TelegramDiscoveryService:
                             f"{dim_latin}.{last}",
                             f"{dim_latin}{last}",
                         ])
-        except (ImportError, Exception):
-            pass
+        except (ImportError, Exception) as exc:
+            logger.debug("Diminutive username expansion unavailable: %s", exc)
 
         # Deduplicate, filter valid Telegram usernames (5+ chars, starts with letter)
         seen = set()
@@ -806,8 +806,8 @@ class TelegramDiscoveryService:
                         if score > best_score:
                             best_score = score
                             best_method = 'cross_script_diminutive'
-                except (ImportError, Exception):
-                    pass
+                except (ImportError, Exception) as exc:
+                    logger.debug("Cross-script diminutive matching unavailable: %s", exc)
 
         # First-name-only cap: single-word display names can never be высокая
         # Without a last name we can't distinguish this Наталья from thousands of others

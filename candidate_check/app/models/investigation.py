@@ -15,6 +15,11 @@ from app import db
 import json
 
 
+def _dump_json(value):
+    """Serialize model JSON columns compactly while preserving Cyrillic text."""
+    return json.dumps(value, ensure_ascii=False, separators=(',', ':'))
+
+
 class Investigation(db.Model):
     """
     Main investigation record.
@@ -102,7 +107,7 @@ class Investigation(db.Model):
     
     @discovered_usernames.setter
     def discovered_usernames(self, value):
-        self._discovered_usernames = json.dumps(value)
+        self._discovered_usernames = _dump_json(value)
     
     @property
     def discovered_profiles(self):
@@ -110,7 +115,7 @@ class Investigation(db.Model):
     
     @discovered_profiles.setter
     def discovered_profiles(self, value):
-        self._discovered_profiles = json.dumps(value)
+        self._discovered_profiles = _dump_json(value)
     
     @property
     def confirmed_profile(self):
@@ -118,7 +123,7 @@ class Investigation(db.Model):
     
     @confirmed_profile.setter
     def confirmed_profile(self, value):
-        self._confirmed_profile = json.dumps(value)
+        self._confirmed_profile = _dump_json(value)
     
     @property
     def discovered_emails(self):
@@ -126,7 +131,7 @@ class Investigation(db.Model):
     
     @discovered_emails.setter
     def discovered_emails(self, value):
-        self._discovered_emails = json.dumps(value)
+        self._discovered_emails = _dump_json(value)
     
     @property
     def discovered_phones(self):
@@ -134,7 +139,7 @@ class Investigation(db.Model):
     
     @discovered_phones.setter
     def discovered_phones(self, value):
-        self._discovered_phones = json.dumps(value)
+        self._discovered_phones = _dump_json(value)
     
     @property
     def business_records(self):
@@ -142,7 +147,7 @@ class Investigation(db.Model):
     
     @business_records.setter
     def business_records(self, value):
-        self._business_records = json.dumps(value)
+        self._business_records = _dump_json(value)
     
     @property
     def court_records(self):
@@ -150,7 +155,7 @@ class Investigation(db.Model):
     
     @court_records.setter
     def court_records(self, value):
-        self._court_records = json.dumps(value)
+        self._court_records = _dump_json(value)
     
     @property
     def property_records(self):
@@ -158,7 +163,7 @@ class Investigation(db.Model):
     
     @property_records.setter
     def property_records(self, value):
-        self._property_records = json.dumps(value)
+        self._property_records = _dump_json(value)
     
     @property
     def alternate_accounts(self):
@@ -166,7 +171,7 @@ class Investigation(db.Model):
     
     @alternate_accounts.setter
     def alternate_accounts(self, value):
-        self._alternate_accounts = json.dumps(value)
+        self._alternate_accounts = _dump_json(value)
     
     @property
     def group_memberships(self):
@@ -174,7 +179,7 @@ class Investigation(db.Model):
     
     @group_memberships.setter
     def group_memberships(self, value):
-        self._group_memberships = json.dumps(value)
+        self._group_memberships = _dump_json(value)
     
     @property
     def additional_findings(self):
@@ -182,7 +187,7 @@ class Investigation(db.Model):
 
     @additional_findings.setter
     def additional_findings(self, value):
-        self._additional_findings = json.dumps(value)
+        self._additional_findings = _dump_json(value)
 
     # ========== NEW PROPERTIES FOR БУРАТИНО-STYLE ==========
 
@@ -192,7 +197,7 @@ class Investigation(db.Model):
 
     @phase1_stats.setter
     def phase1_stats(self, value):
-        self._phase1_stats = json.dumps(value)
+        self._phase1_stats = _dump_json(value)
 
     @property
     def cross_validation_results(self):
@@ -200,7 +205,7 @@ class Investigation(db.Model):
 
     @cross_validation_results.setter
     def cross_validation_results(self, value):
-        self._cross_validation_results = json.dumps(value)
+        self._cross_validation_results = _dump_json(value)
 
     @property
     def social_graph(self):
@@ -208,7 +213,7 @@ class Investigation(db.Model):
 
     @social_graph.setter
     def social_graph(self, value):
-        self._social_graph = json.dumps(value)
+        self._social_graph = _dump_json(value)
 
     @property
     def connections(self):
@@ -216,7 +221,7 @@ class Investigation(db.Model):
 
     @connections.setter
     def connections(self, value):
-        self._connections = json.dumps(value)
+        self._connections = _dump_json(value)
 
     @property
     def risk_indicators(self):
@@ -224,7 +229,7 @@ class Investigation(db.Model):
 
     @risk_indicators.setter
     def risk_indicators(self, value):
-        self._risk_indicators = json.dumps(value)
+        self._risk_indicators = _dump_json(value)
 
     # ========== HELPER METHODS ==========
 

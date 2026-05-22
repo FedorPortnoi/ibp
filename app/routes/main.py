@@ -5,11 +5,52 @@ Root URL routing, investigations list, VK token management
 """
 
 import logging
+import os
 from flask import Blueprint, redirect, url_for, render_template, jsonify, request
 from app import limiter
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger('ibp.routes.main')
+
+
+def _project_root():
+    return os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), '..'))
+
+
+def _probe_database():
+    from app import db as _db
+
+    try:
+        _db.session.execute(_db.text('SELECT 1'))
+        return True
+    except Exception as exc:
+        logger.warning("Database readiness probe failed: %s", exc)
+        return False
+
+
+def _app_version():
+    version = os.environ.get('APP_VERSION', 'unknown')
+    if version != 'unknown':
+        return version
+
+    version_file = os.path.join(_project_root(), 'VERSION')
+    if not os.path.exists(version_file):
+        return version
+
+    try:
+        with open(version_file, encoding='utf-8') as f:
+            return f.read().strip() or 'unknown'
+    except OSError as exc:
+        logger.warning("Could not read VERSION file: %s", exc)
+        return version
+
+
+def _local_data_status():
+    data_dir = os.path.join(_project_root(), 'data')
+    return {
+        'mvd_wanted': os.path.exists(os.path.join(data_dir, 'mvd_wanted.json')),
+        'extremist_list': os.path.exists(os.path.join(data_dir, 'extremist_list.json')),
+    }
 
 
 @main_bp.route('/health')
@@ -19,56 +60,28 @@ def health_check():
     Returns minimal status for unauthenticated requests (load balancer / uptime monitor).
     Returns detailed service status only for authenticated users.
     """
-    import os
-    import subprocess
     from flask import session
-    from app import db as _db
 
-    # Database connectivity
-    db_ok = False
-    try:
-        _db.session.execute(_db.text('SELECT 1'))
-        db_ok = True
-    except Exception:
-        pass
+    authenticated = bool(session.get('authenticated') or session.get('user_id'))
 
-    # Unauthenticated: minimal response (for load balancers / uptime monitors)
-    if not session.get('authenticated'):
-        return jsonify({'status': 'ok' if db_ok else 'degraded'}), 200 if db_ok else 503
+    # Unauthenticated: dependency-free liveness response for load balancers / uptime monitors.
+    if not authenticated:
+        return jsonify({'status': 'ok'}), 200
 
-    # Authenticated: full details
-    version = 'unknown'
-    try:
-        result = subprocess.run(
-            ['git', 'rev-parse', '--short', 'HEAD'],
-            capture_output=True, text=True, timeout=5
-        )
-        if result.returncode == 0:
-            version = result.stdout.strip()
-    except Exception:
-        version_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'VERSION')
-        if os.path.exists(version_file):
-            with open(version_file) as f:
-                version = f.read().strip()
+    db_ok = _probe_database()
+    version = _app_version()
 
     services = {
         'vk_token': bool(os.environ.get('VK_SERVICE_TOKEN')),
         'telegram': bool(os.environ.get('TELEGRAM_API_ID') and os.environ.get('TELEGRAM_API_HASH')),
-        'ok_token': bool(os.environ.get('OK_SESSION_TOKEN')),
     }
 
     opensanctions_ok = False
     try:
         from app.services.candidate.opensanctions_service import OpenSanctionsService
         opensanctions_ok = OpenSanctionsService(timeout=5).is_reachable()
-    except Exception:
-        pass
-
-    data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'data')
-    local_data = {
-        'mvd_wanted': os.path.exists(os.path.join(data_dir, 'mvd_wanted.json')),
-        'extremist_list': os.path.exists(os.path.join(data_dir, 'extremist_list.json')),
-    }
+    except Exception as exc:
+        logger.warning("OpenSanctions health probe failed: %s", exc)
 
     return jsonify({
         'status': 'ok' if db_ok else 'degraded',
@@ -76,8 +89,23 @@ def health_check():
         'database': db_ok,
         'services': services,
         'opensanctions': opensanctions_ok,
-        'local_data': local_data,
+        'local_data': _local_data_status(),
     }), 200 if db_ok else 503
+
+
+@main_bp.route('/ready')
+def readiness_check():
+    """Readiness check for deploy monitors.
+
+    Unlike authenticated /health, this never calls external APIs.
+    """
+    db_ok = _probe_database()
+    payload = {
+        'status': 'ok' if db_ok else 'degraded',
+        'database': db_ok,
+        'local_data': _local_data_status(),
+    }
+    return jsonify(payload), 200 if db_ok else 503
 
 
 @main_bp.route('/privacy')

@@ -156,8 +156,8 @@ def verify_profile_name_matches_query(profile: dict, search_first: str, search_l
 
         if search_variants & profile_variants:
             return True
-    except ImportError:
-        pass
+    except ImportError as exc:
+        logger.debug("Diminutive matching unavailable: %s", exc)
 
     return False
 

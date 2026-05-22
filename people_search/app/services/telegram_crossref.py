@@ -420,8 +420,8 @@ class TelegramCrossRef:
                     if score > best_score:
                         best_score = score
                         match_method = 'diminutive'
-            except ImportError:
-                pass
+            except ImportError as exc:
+                logger.debug("Diminutive matching unavailable: %s", exc)
 
         # Method 4: Transliteration matching (Dmitry ↔ Дмитрий)
         if best_score < 0.5 and vk_first and tg_first:
@@ -432,8 +432,8 @@ class TelegramCrossRef:
                 if tg_first.lower() in vk_variants:
                     best_score = max(best_score, 0.7)
                     match_method = 'transliteration'
-            except ImportError:
-                pass
+            except ImportError as exc:
+                logger.debug("Transliteration matching unavailable: %s", exc)
 
         is_match = best_score >= 0.5
         return {'match': is_match, 'score': best_score, 'method': match_method}

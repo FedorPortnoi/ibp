@@ -45,7 +45,7 @@ STAGE 2 — Security Checks
 STAGE 3 — Social Media Discovery
   What it does: Finds the person's social media profiles.
   How: Searches VK (Russia's largest social network), Telegram, and
-  Odnoklassniki using multiple search strategies. Filters results by date
+  Telegram using multiple search strategies. Filters results by date
   of birth and other identifiers to find the right person. In Precise Mode,
   you review and confirm profiles before proceeding.
 
@@ -104,7 +104,7 @@ Legal & Compliance
   • Wanted persons and extremist list checks
 
 Social Intelligence
-  • Multi-platform social media discovery (VK, Telegram, OK.ru)
+  • Multi-platform social media discovery (VK, Telegram)
   • Smart filtering by date of birth, location, and other markers
   • Social graph analysis with community detection
   • Facial recognition search across public photo databases
@@ -156,7 +156,7 @@ IBP aggregates data from a wide range of publicly available sources:
   • Official government registries and APIs
   • Court and legal databases
   • International sanctions and watchlists
-  • Social media platforms (VK, Telegram, Odnoklassniki)
+  • Social media platforms (VK, Telegram)
   • Public breach and leak databases
   • Online marketplaces and classifieds
   • Username and facial recognition search engines

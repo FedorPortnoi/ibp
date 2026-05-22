@@ -22,20 +22,10 @@ _MAX_TOKENS = 512
 
 
 def _get_client():
-    """Get Anthropic client. Returns None if key not set.
-
-    NOTE: Claude API calls are disabled in the pipeline to avoid
-    unnecessary latency and cost.  Every public function in this module
-    already handles a None client gracefully (returns None / original data),
-    so disabling here is safe and keeps the pipeline fast.
-    To re-enable, remove the early return below.
-    """
-    # ── Disabled: skip all Claude API calls ──
-    return None
-
+    """Get Anthropic client. Returns None if key not set."""
     api_key = os.environ.get('ANTHROPIC_API_KEY')
     if not api_key:
-        logger.debug("ANTHROPIC_API_KEY not set, skipping AI summary")
+        logger.warning("ANTHROPIC_API_KEY not set, skipping AI summary")
         return None
     try:
         import anthropic

@@ -15,7 +15,9 @@ OpenSanctions covers:
 
 API docs: https://api.opensanctions.org/
 
-Free tier: unlimited searches, no API key required for basic matching.
+Hosted API access requires an API key. Set OPENSANCTIONS_API_KEY (or
+OPEN_SANCTIONS_API_KEY) to enable live checks; without it this service runs in
+degraded mode and skips remote screening.
 
 Usage:
     from app.services.candidate.opensanctions_service import OpenSanctionsService
@@ -24,6 +26,7 @@ Usage:
 """
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -99,8 +102,9 @@ class OpenSanctionsService:
     """
     Query OpenSanctions API for sanctions matches.
 
-    The API is free, globally accessible, and doesn't require an API key.
-    Rate limits are generous for normal usage.
+    The hosted API is globally accessible, but data endpoints require an API
+    key. Missing credentials are treated as a configured degraded mode so the
+    rest of the pipeline can continue.
 
     Usage:
         svc = OpenSanctionsService()
@@ -120,11 +124,48 @@ class OpenSanctionsService:
         'User-Agent': 'IBP-OSINT/1.0',
     }
 
-    def __init__(self, timeout: int = 20, min_score: float = 0.5):
+    API_KEY_ENV_NAMES = ('OPENSANCTIONS_API_KEY', 'OPEN_SANCTIONS_API_KEY')
+
+    def __init__(
+        self,
+        timeout: int = 20,
+        min_score: float = 0.5,
+        api_key: Optional[str] = None,
+    ):
         self.timeout = timeout
         self.min_score = min_score
+        self.api_key = (api_key or self._load_api_key()).strip()
+        self.last_status = 'not_checked'
+        self.last_error = ''
         self.session = requests.Session()
         self.session.headers.update(self.HEADERS)
+        if self.api_key:
+            self.session.headers['Authorization'] = self._format_auth_header(
+                self.api_key
+            )
+
+    @classmethod
+    def _load_api_key(cls) -> str:
+        for name in cls.API_KEY_ENV_NAMES:
+            value = os.getenv(name, '').strip()
+            if value:
+                return value
+        return ''
+
+    @staticmethod
+    def _format_auth_header(api_key: str) -> str:
+        lowered = api_key.lower()
+        if lowered.startswith('apikey ') or lowered.startswith('bearer '):
+            return api_key
+        return f'ApiKey {api_key}'
+
+    @property
+    def has_credentials(self) -> bool:
+        return bool(self.api_key)
+
+    def _mark_unavailable(self, status: str, message: str) -> None:
+        self.last_status = status
+        self.last_error = message
 
     def check_person(
         self,
@@ -143,6 +184,15 @@ class OpenSanctionsService:
         Returns:
             List of OpenSanctionsMatch objects for matches above min_score.
         """
+        if not self.has_credentials:
+            message = (
+                'OpenSanctions API key not configured; skipping remote '
+                'screening'
+            )
+            logger.info(message)
+            self._mark_unavailable('missing_credentials', message)
+            return []
+
         # Try the /match endpoint first (more precise)
         matches = self._match_person(full_name, birth_date)
         if matches is not None:
@@ -178,13 +228,27 @@ class OpenSanctionsService:
 
             if resp.status_code == 429:
                 logger.warning("OpenSanctions rate limited (429)")
+                self._mark_unavailable('rate_limited', 'HTTP 429')
                 return None
+            if resp.status_code in (401, 403):
+                logger.warning(
+                    "OpenSanctions authentication failed "
+                    f"({resp.status_code})"
+                )
+                self._mark_unavailable(
+                    'auth_failed', f'HTTP {resp.status_code}'
+                )
+                return []
             if resp.status_code >= 500:
                 logger.warning(f"OpenSanctions server error ({resp.status_code})")
+                self._mark_unavailable(
+                    'server_error', f'HTTP {resp.status_code}'
+                )
                 return None
 
             resp.raise_for_status()
             data = resp.json()
+            self._mark_unavailable('ok', '')
 
             matches = []
             results = data.get('responses', {}).get('q', {}).get('results', [])
@@ -228,12 +292,15 @@ class OpenSanctionsService:
 
         except requests.Timeout:
             logger.warning("OpenSanctions /match timeout")
+            self._mark_unavailable('timeout', 'match timeout')
             return None
         except requests.ConnectionError:
             logger.warning("OpenSanctions connection error")
+            self._mark_unavailable('connection_error', 'connection error')
             return None
         except Exception as e:
             logger.error(f"OpenSanctions /match error: {e}")
+            self._mark_unavailable('error', str(e))
             return None
 
     def _search_person(self, full_name: str) -> List[OpenSanctionsMatch]:
@@ -249,10 +316,24 @@ class OpenSanctionsService:
 
             if resp.status_code in (429, 500, 502, 503):
                 logger.warning(f"OpenSanctions /search status {resp.status_code}")
+                self._mark_unavailable(
+                    'rate_limited' if resp.status_code == 429 else 'server_error',
+                    f'HTTP {resp.status_code}',
+                )
+                return []
+            if resp.status_code in (401, 403):
+                logger.warning(
+                    "OpenSanctions /search authentication failed "
+                    f"({resp.status_code})"
+                )
+                self._mark_unavailable(
+                    'auth_failed', f'HTTP {resp.status_code}'
+                )
                 return []
 
             resp.raise_for_status()
             data = resp.json()
+            self._mark_unavailable('ok', '')
 
             matches = []
             for result in data.get('results', []):
@@ -290,10 +371,11 @@ class OpenSanctionsService:
 
         except Exception as e:
             logger.warning(f"OpenSanctions /search error: {e}")
+            self._mark_unavailable('error', str(e))
             return []
 
     def is_reachable(self) -> bool:
-        """Check if the OpenSanctions API is reachable."""
+        """Check if the OpenSanctions API front door is reachable."""
         try:
             resp = self.session.get(
                 f'{self.API_BASE}/',

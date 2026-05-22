@@ -325,8 +325,8 @@ class BuratinoVKSearch:
             profile_variants = set(v.lower() for v in get_all_name_variants(found_first_cyr))
             if search_variants & profile_variants:
                 first_score = max(first_score, 0.90)
-        except ImportError:
-            pass
+        except ImportError as exc:
+            logger.debug("Diminutive matching unavailable: %s", exc)
 
         # CRITICAL: If first name doesn't match at all, cap the total score.
         # This prevents false positives like "Максим Козлов" matching "Марк Козлов"

@@ -79,6 +79,9 @@ class SourceManager:
                     if (inspect.isclass(attr)
                             and issubclass(attr, BaseSource)
                             and attr is not BaseSource):
+                        if not getattr(attr, 'implemented', True):
+                            logger.info("Skipping unimplemented source: %s", attr.__name__)
+                            continue
                         try:
                             instance = attr()
                             self.sources.append(instance)
@@ -251,10 +254,9 @@ class SourceManager:
                 existing.metadata['sources'] = sources_list
                 existing.metadata['source_count'] = len(sources_list)
 
-                # Boost confidence (multi-source corroboration)
-                # Each additional source adds up to 0.15 confidence
-                boost = min(0.15, (1.0 - existing.confidence) * 0.5)
-                existing.confidence = min(1.0, existing.confidence + boost)
+                # Keep the strongest individual confidence as the dedupe baseline.
+                existing.confidence = max(existing.confidence, result.confidence)
+                existing.verified = existing.verified or result.verified
 
                 # Keep higher tier
                 tier_priority = {
@@ -274,7 +276,18 @@ class SourceManager:
                     if k not in ('sources', 'source_count') and k not in existing.metadata:
                         existing.metadata[k] = v
 
-        return list(merged.values())
+        return self._apply_source_count_confidence_boost(list(merged.values()))
+
+    @staticmethod
+    def _apply_source_count_confidence_boost(results: List[SourceResult]) -> List[SourceResult]:
+        """Apply multi-source confidence boosts after deduplication."""
+        boost_by_count = {2: 0.10, 3: 0.15}
+        for result in results:
+            source_count = result.metadata.get('source_count', 1)
+            boost = 0.20 if source_count >= 4 else boost_by_count.get(source_count, 0.0)
+            if boost:
+                result.confidence = min(0.98, result.confidence + boost)
+        return results
 
     def _cross_validate(self, results: List[SourceResult]) -> List[SourceResult]:
         """

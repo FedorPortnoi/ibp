@@ -70,7 +70,6 @@
 
 - **Maigret/Sherlock integration**: Code exists, runs if installed via pip or OSINT_TOOLS_DIR. Not bundled.
 - **Yandex People Search**: File exists (`yandex_search.py`), called from pipeline, but CAPTCHA-prone and may timeout.
-- **OK.ru search**: Works in demo mode. Real search needs `OK_SESSION_TOKEN` cookie.
 - **Claude AI summaries**: Wired into pipeline stages 1, 6, 7, 8. Returns None without `ANTHROPIC_API_KEY`.
 - **Paid breach APIs**: Snusbase, DeHashed, LeakCheck Pro, HIBP Paid — code wired, returns empty without keys.
 - **Phone lookup services**: GetContact, NumBuster — code wired, returns empty without keys.
@@ -147,7 +146,6 @@ These are all stub implementations that log the intended API call and return emp
 | TELEGRAM_API_ID/HASH/PHONE | SET |
 | IBP_PASSWORD | SET |
 | VK_USER_TOKEN | Not set (private VK data inaccessible) |
-| OK_SESSION_TOKEN | Not set (demo mode) |
 | ANTHROPIC_API_KEY | Not set (no AI summaries) |
 | SEARCH4FACES_API_KEY | Not set (Playwright fallback) |
 | All paid breach APIs | Not set (empty results) |

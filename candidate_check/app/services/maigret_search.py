@@ -23,6 +23,7 @@ import logging
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -37,7 +38,7 @@ def _resolve_maigret() -> Optional[str]:
     # 1. pip-installed (available as `maigret` or `python -m maigret`)
     try:
         result = subprocess.run(
-            ['python', '-m', 'maigret', '--version'],
+            [sys.executable, '-m', 'maigret', '--version'],
             capture_output=True, text=True, timeout=10,
         )
         if result.returncode == 0:
@@ -137,7 +138,7 @@ class MaigretSearchService:
 
                 # Build command
                 if self._maigret_path == 'module':
-                    cmd = ['python', '-m', 'maigret']
+                    cmd = [sys.executable, '-m', 'maigret']
                 elif self._maigret_path == 'standalone':
                     cmd = ['maigret']
                 else:

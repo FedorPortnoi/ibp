@@ -84,7 +84,6 @@ All 4 candidates returned **0 social profiles**. This is the most significant fa
 
 **Telegram:** No profiles found. The Telethon session may not be authenticated on the server.
 
-**OK.ru:** No profiles found (likely no `OK_SESSION_TOKEN` set on server → demo mode → empty).
 
 ### Stage 4: Contact Discovery — NOT WORKING
 
@@ -168,7 +167,6 @@ python scripts/update_extremist_list.py
 | 2 | Rosfinmonitoring | **GEO-BLOCKED** | EMPTY |
 | 3 | VK Search | **BROKEN** | EMPTY |
 | 3 | Telegram | **BROKEN** | EMPTY |
-| 3 | OK.ru | **NOT CONFIGURED** | EMPTY |
 | 4 | Contact chain | **NO INPUT** | EMPTY |
 | 5 | Face/Username/Graph | **NO INPUT** | EMPTY |
 | 6 | Text/Geo/Timeline | **NO INPUT** | EMPTY |
@@ -213,7 +211,6 @@ python scripts/update_extremist_list.py
 4. **P1 — Load security DBs**: Run update scripts for MVD and extremist lists
 5. **P2 — Fix FSSP/bankruptcy**: Debug checko.ru scraper, EFRSB access
 6. **P2 — Configure Telegram**: Verify Telethon session on server
-7. **P3 — Configure OK.ru**: Set OK_SESSION_TOKEN if available
 
 ---
 

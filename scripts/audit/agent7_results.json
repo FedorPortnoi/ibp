@@ -1,16 +1,56 @@
 [
   {
     "agent": "EXTERNAL_SERVICES",
-    "severity": "MEDIUM",
-    "service": "EGRUL",
-    "issue": "EGRUL returned HTTP 404",
-    "recommendation": "EGRUL may be blocking requests -- check IP/headers"
+    "severity": "LOW",
+    "service": "OpenSanctions",
+    "issue": "OpenSanctions API key not configured; remote sanctions screening is in degraded mode",
+    "recommendation": "Set OPENSANCTIONS_API_KEY to enable live OpenSanctions checks, or accept this degraded mode intentionally",
+    "diagnostics": {
+      "credentials_configured": false,
+      "root": {
+        "ok": true,
+        "method": "GET",
+        "url": "https://api.opensanctions.org/",
+        "status_code": 200,
+        "elapsed_ms": 689,
+        "location": null,
+        "server": "Google Frontend"
+      },
+      "search_status_code": 401
+    }
   },
   {
     "agent": "EXTERNAL_SERVICES",
-    "severity": "MEDIUM",
-    "service": "OpenSanctions",
-    "issue": "OpenSanctions returned HTTP 401",
-    "recommendation": "Sanctions check may not work"
+    "severity": "CRITICAL",
+    "service": "Production Server",
+    "issue": "Production /health probe failed: read_timeout after 10730ms",
+    "recommendation": "TCP/TLS and the front door respond, but /health does not finish. This points to a stale deploy with a blocking health route, a saturated app worker, or an upstream route-specific hang. No SSH required: run `curl.exe -v --connect-timeout 3 --max-time 15 https://shtirletzsled.ru/health`, `curl.exe -v --connect-timeout 3 --max-time 15 https://shtirletzsled.ru/ready`, and compare with `curl.exe -I --connect-timeout 3 --max-time 15 https://shtirletzsled.ru/`. If / redirects or returns headers while /health times out, redeploy code containing the dependency-free public health route and restart the web service from the provider panel. If /health passes but /ready returns 503, focus on DB credentials, migrations, connection limits, and local data files. If both time out, check provider status, DNS, firewall, and nginx/load balancer health. When SSH is available, verify `curl -sf http://localhost:5000/health` inside the host/container plus `curl -sf http://localhost:5000/ready`, then inspect `docker compose logs --tail=100` or `journalctl -u ibp -n 100`.",
+    "diagnostics": {
+      "health": {
+        "ok": false,
+        "method": "GET",
+        "url": "https://shtirletzsled.ru/health",
+        "error_type": "read_timeout",
+        "error": "HTTPSConnectionPool(host='shtirletzsled.ru', port=443): Read timed out. (read timeout=10)",
+        "elapsed_ms": 10730
+      },
+      "readiness": {
+        "ok": false,
+        "method": "GET",
+        "url": "https://shtirletzsled.ru/ready",
+        "error_type": "read_timeout",
+        "error": "HTTPSConnectionPool(host='shtirletzsled.ru', port=443): Read timed out. (read timeout=10)",
+        "elapsed_ms": 10765
+      },
+      "root": {
+        "ok": true,
+        "method": "HEAD",
+        "url": "https://shtirletzsled.ru/",
+        "status_code": 302,
+        "elapsed_ms": 2582,
+        "location": "/login",
+        "server": "nginx"
+      }
+    }
   }
 ]

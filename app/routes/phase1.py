@@ -10,6 +10,8 @@ import os
 import uuid
 import logging
 from datetime import datetime
+import requests as vk_http
+from requests import RequestException
 
 from app import db, limiter
 from app.models import Investigation, SocialProfile
@@ -36,6 +38,133 @@ def get_upload_folder():
         upload_folder = os.path.join(current_app.root_path, upload_folder)
     os.makedirs(upload_folder, exist_ok=True)
     return upload_folder
+
+
+VK_API_BASE_URL = 'https://api.vk.com/method'
+VK_API_VERSION = '5.131'
+VK_PREVIEW_TIMEOUT_SECONDS = 10
+
+
+class VKPreviewService:
+    """Small adapter for the VK preview endpoint's external API calls."""
+
+    def __init__(self, token_getter, request_func=None, timeout=VK_PREVIEW_TIMEOUT_SECONDS):
+        self._token_getter = token_getter
+        self._request_func = request_func or vk_http.request
+        self._timeout = timeout
+
+    def fetch(self, vk_id):
+        service_token = self._token_getter('search')
+        user_token = self._token_getter('private')
+
+        if not service_token:
+            return {'error': 'No VK token'}
+
+        result = self._empty_preview()
+
+        profile = self._fetch_profile(vk_id, service_token)
+        if profile:
+            result.update(self._profile_preview(profile))
+
+        result['posts'] = self._fetch_wall_posts(vk_id, user_token or service_token)
+        return result
+
+    @staticmethod
+    def _empty_preview():
+        return {
+            'photo': '',
+            'last_seen': None,
+            'friends': 0,
+            'groups': 0,
+            'status': '',
+            'posts': [],
+        }
+
+    def _fetch_profile(self, vk_id, service_token):
+        payload = self._vk_api_get('users.get', {
+            'user_ids': vk_id,
+            'fields': 'photo_400_orig,last_seen,counters,status,city',
+            'access_token': service_token,
+        }, vk_id)
+        users = payload.get('response') if payload else None
+        if not isinstance(users, list) or not users:
+            return {}
+        return users[0] if isinstance(users[0], dict) else {}
+
+    @staticmethod
+    def _profile_preview(profile):
+        last_seen = profile.get('last_seen', {})
+        counters = profile.get('counters', {})
+        return {
+            'photo': profile.get('photo_400_orig', ''),
+            'last_seen': last_seen.get('time') if isinstance(last_seen, dict) else None,
+            'friends': counters.get('friends', 0) if isinstance(counters, dict) else 0,
+            'groups': counters.get('groups', 0) if isinstance(counters, dict) else 0,
+            'status': profile.get('status', ''),
+        }
+
+    def _fetch_wall_posts(self, vk_id, token):
+        payload = self._vk_api_get('wall.get', {
+            'owner_id': vk_id,
+            'count': 3,
+            'filter': 'owner',
+            'access_token': token,
+        }, vk_id)
+        response = payload.get('response') if payload else None
+        posts = response.get('items', []) if isinstance(response, dict) else []
+        if not isinstance(posts, list):
+            return []
+
+        preview_posts = []
+        for post in posts:
+            if not isinstance(post, dict):
+                continue
+            text = post.get('text')
+            if not text:
+                continue
+            preview_posts.append({
+                'text': str(text)[:150],
+                'date': post.get('date'),
+            })
+        return preview_posts
+
+    def _vk_api_get(self, method, params, vk_id):
+        request_params = dict(params)
+        request_params['v'] = VK_API_VERSION
+
+        try:
+            response = self._request_func(
+                'GET',
+                f'{VK_API_BASE_URL}/{method}',
+                params=request_params,
+                timeout=self._timeout,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except RequestException as e:
+            logger.warning("VK preview %s request error for %s: %s", method, vk_id, e)
+            return None
+        except ValueError as e:
+            logger.warning("VK preview %s invalid JSON for %s: %s", method, vk_id, e)
+            return None
+        except Exception as e:
+            logger.warning("VK preview %s fetch error for %s: %s", method, vk_id, e)
+            return None
+
+        if not isinstance(payload, dict):
+            logger.warning("VK preview %s returned non-object JSON for %s", method, vk_id)
+            return None
+
+        if 'error' in payload:
+            error = payload.get('error')
+            if isinstance(error, dict):
+                error_detail = error.get('error_msg') or error.get('error_code')
+            else:
+                error_detail = error
+            logger.info("VK preview %s API error for %s: %s", method, vk_id, error_detail)
+            return None
+
+        return payload
 
 
 # ============================================
@@ -146,31 +275,11 @@ def buratino_search_results(investigation_id):
             age_to=age_to,
         )
 
-    # Run OK search if not already done
-    existing_ok = SocialProfile.query.filter_by(
-        investigation_id=investigation_id,
-        platform='ok'
-    ).all()
-
-    if not existing_ok:
-        try:
-            from app.services.phase1.ok_search_integration import ok_search_integration
-            ok_search_integration.search_and_save(
-                investigation_id=investigation_id,
-                query=investigation.input_name,
-                city=city,
-                age_from=age_from,
-                age_to=age_to,
-            )
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"OK search failed: {e}")
-
-    # Reload all profiles (VK + OK) sorted by similarity
+    # Reload VK profiles sorted by similarity
     all_profiles = SocialProfile.query.filter_by(
         investigation_id=investigation_id,
     ).filter(
-        SocialProfile.platform.in_(['vk', 'ok'])
+        SocialProfile.platform == 'vk'
     ).order_by(SocialProfile.name_similarity.desc()).all()
 
     # Update search stats
@@ -360,68 +469,9 @@ def photo_select():
 @phase1_bp.route('/vk-preview/<int:vk_id>')
 def vk_preview(vk_id):
     """Fetch quick preview data for a VK profile (hover popup)."""
-    import requests as http_requests
     from app.utils.vk_token_manager import get_vk_token
 
-    service_token = get_vk_token('search')
-    user_token = get_vk_token('private')
-
-    if not service_token:
-        return jsonify({'error': 'No VK token'})
-
-    result = {}
-
-    # Fetch profile details (service token is enough)
-    try:
-        profile_r = http_requests.get('https://api.vk.com/method/users.get', params={
-            'user_ids': vk_id,
-            'fields': 'photo_400_orig,last_seen,counters,status,city',
-            'access_token': service_token,
-            'v': '5.131'
-        }, timeout=10)
-        profile_data = profile_r.json().get('response', [{}])
-        profile = profile_data[0] if profile_data else {}
-
-        result['photo'] = profile.get('photo_400_orig', '')
-        last_seen = profile.get('last_seen', {})
-        result['last_seen'] = last_seen.get('time') if isinstance(last_seen, dict) else None
-        counters = profile.get('counters', {})
-        result['friends'] = counters.get('friends', 0) if isinstance(counters, dict) else 0
-        result['groups'] = counters.get('groups', 0) if isinstance(counters, dict) else 0
-        result['status'] = profile.get('status', '')
-    except Exception as e:
-        logger.warning(f"VK preview profile fetch error for {vk_id}: {e}")
-        result['photo'] = ''
-        result['last_seen'] = None
-        result['friends'] = 0
-        result['groups'] = 0
-        result['status'] = ''
-
-    # Fetch last 3 wall posts (needs user token)
-    result['posts'] = []
-    token_for_wall = user_token or service_token
-    try:
-        wall_r = http_requests.get('https://api.vk.com/method/wall.get', params={
-            'owner_id': vk_id,
-            'count': 3,
-            'filter': 'owner',
-            'access_token': token_for_wall,
-            'v': '5.131'
-        }, timeout=10)
-        wall_data = wall_r.json()
-        if 'error' not in wall_data:
-            posts = wall_data.get('response', {}).get('items', [])
-            result['posts'] = [
-                {
-                    'text': p.get('text', '')[:150],
-                    'date': p.get('date')
-                }
-                for p in posts if p.get('text')
-            ]
-    except Exception as e:
-        logger.warning(f"VK preview wall fetch error for {vk_id}: {e}")
-
-    return jsonify(result)
+    return jsonify(VKPreviewService(get_vk_token).fetch(vk_id))
 
 
 @phase1_bp.route('/investigations')

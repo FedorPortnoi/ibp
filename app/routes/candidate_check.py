@@ -8,8 +8,10 @@ import os
 import re
 import uuid
 import json
+import atexit
 import threading
 import logging
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime, date
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, current_app, make_response, abort
@@ -22,6 +24,23 @@ from app.services.candidate.pipeline import candidate_tasks, _tasks_lock, Candid
 candidate_bp = Blueprint('candidate', __name__, url_prefix='/candidate')
 logger = logging.getLogger(__name__)
 
+VK_API_VERSION = '5.199'
+VK_API_BASE_URL = 'https://api.vk.com/method'
+VK_MANUAL_LOOKUP_TIMEOUT_SECONDS = 8.0
+VK_MANUAL_HTTP_CONNECT_TIMEOUT_SECONDS = 2.0
+VK_MANUAL_HTTP_READ_TIMEOUT_SECONDS = 3.0
+_manual_vk_lookup_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix='manual_vk')
+atexit.register(_manual_vk_lookup_executor.shutdown, wait=False, cancel_futures=True)
+
+
+class ManualVKLookupError(Exception):
+    """Expected failure while resolving a manually entered VK profile."""
+
+    def __init__(self, reason: str, status_code: int = 502):
+        super().__init__(reason)
+        self.reason = reason
+        self.status_code = status_code
+
 
 def _check_owner_or_admin(check):
     """Verify current user owns this CandidateCheck or is admin. Returns (user, error_response)."""
@@ -31,7 +50,7 @@ def _check_owner_or_admin(check):
         return None, abort(403)
     if user.is_admin:
         return user, None
-    if check.user_id and check.user_id != user.id:
+    if check.user_id != user.id:
         return None, abort(403)
     return user, None
 
@@ -54,7 +73,7 @@ def _check_owner_or_admin_by_task(task_id):
     if not check:
         return None, None  # Let caller handle 404
 
-    if not user.is_admin and check.user_id and check.user_id != user.id:
+    if not user.is_admin and check.user_id != user.id:
         abort(403)
     return check, None
 
@@ -87,6 +106,129 @@ def _safe_filename(name_slug: str) -> str:
     # Collapse multiple underscores
     safe = re.sub(r'_+', '_', safe).strip('_')
     return safe[:100] or 'candidate'
+
+
+def _vk_post_json(client, method: str, data: dict) -> dict:
+    """Call VK API using explicit short timeouts."""
+    import httpx
+
+    try:
+        response = client.post(f'{VK_API_BASE_URL}/{method}', data=data)
+        response.raise_for_status()
+        payload = response.json()
+    except httpx.TimeoutException as exc:
+        raise ManualVKLookupError('timeout', 504) from exc
+    except (httpx.HTTPError, ValueError) as exc:
+        raise ManualVKLookupError('upstream_error', 502) from exc
+
+    if payload.get('error'):
+        logger.warning("VK API error for %s: %s", method, payload.get('error'))
+        raise ManualVKLookupError('upstream_error', 502)
+
+    return payload
+
+
+def _fetch_manual_vk_profile(screen_name: str) -> dict:
+    """Resolve a VK screen name and return the profile object to persist."""
+    import httpx
+    from app.utils.vk_token_manager import get_vk_token
+
+    token = get_vk_token('search')
+    if not token:
+        raise ManualVKLookupError('token_missing', 500)
+
+    timeout = httpx.Timeout(
+        VK_MANUAL_HTTP_READ_TIMEOUT_SECONDS,
+        connect=VK_MANUAL_HTTP_CONNECT_TIMEOUT_SECONDS,
+        read=VK_MANUAL_HTTP_READ_TIMEOUT_SECONDS,
+        write=VK_MANUAL_HTTP_CONNECT_TIMEOUT_SECONDS,
+        pool=VK_MANUAL_HTTP_CONNECT_TIMEOUT_SECONDS,
+    )
+
+    try:
+        with httpx.Client(timeout=timeout, headers={'User-Agent': 'IBP-OSINT/1.0'}) as client:
+            resolve_payload = _vk_post_json(
+                client,
+                'utils.resolveScreenName',
+                {
+                    'screen_name': screen_name,
+                    'access_token': token,
+                    'v': VK_API_VERSION,
+                },
+            )
+            resolve_data = resolve_payload.get('response', {})
+            if not resolve_data or resolve_data.get('type') != 'user':
+                raise ManualVKLookupError('not_found', 404)
+
+            user_id = resolve_data.get('object_id')
+            if not user_id:
+                raise ManualVKLookupError('not_found', 404)
+
+            users_payload = _vk_post_json(
+                client,
+                'users.get',
+                {
+                    'user_ids': str(user_id),
+                    'fields': 'photo_200,screen_name,city,bdate,verified',
+                    'access_token': token,
+                    'v': VK_API_VERSION,
+                },
+            )
+    except httpx.TimeoutException as exc:
+        raise ManualVKLookupError('timeout', 504) from exc
+    except ManualVKLookupError:
+        raise
+    except Exception as exc:
+        raise ManualVKLookupError('upstream_error', 502) from exc
+
+    users = users_payload.get('response', [])
+    if not users:
+        raise ManualVKLookupError('profile_unavailable', 404)
+
+    user = users[0]
+    display_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip()
+    profile_url = f"https://vk.com/{user.get('screen_name', f'id{user_id}')}"
+
+    return {
+        'platform': 'vk',
+        'platform_id': user_id,
+        'display_name': display_name,
+        'username': user.get('screen_name', ''),
+        'url': profile_url,
+        'avatar_url': user.get('photo_200'),
+        'photo_url': user.get('photo_200'),
+        'confidence': 'ручной ввод',
+        'confidence_score': 0.0,
+        'source_method': 'Введён вручную',
+        'city': (user.get('city') or {}).get('title', ''),
+        'manual_entry': True,
+    }
+
+
+def _lookup_manual_vk_profile(screen_name: str) -> dict:
+    """Run VK lookup away from the request thread and cap total wait time."""
+    future = _manual_vk_lookup_executor.submit(_fetch_manual_vk_profile, screen_name)
+    try:
+        return future.result(timeout=VK_MANUAL_LOOKUP_TIMEOUT_SECONDS)
+    except FutureTimeoutError as exc:
+        future.cancel()
+        raise ManualVKLookupError('timeout', 504) from exc
+    except ManualVKLookupError:
+        raise
+    except Exception as exc:
+        raise ManualVKLookupError('upstream_error', 502) from exc
+
+
+def _manual_vk_error_response(error: ManualVKLookupError):
+    if error.reason == 'token_missing':
+        return jsonify({'error': 'VK токен не настроен'}), 500
+    if error.reason == 'not_found':
+        return jsonify({'error': 'Профиль не найден или это не пользователь'}), 404
+    if error.reason == 'profile_unavailable':
+        return jsonify({'error': 'Не удалось загрузить профиль'}), 404
+    if error.reason == 'timeout':
+        return jsonify({'error': 'VK API не ответил вовремя'}), 504
+    return jsonify({'error': 'Ошибка VK API'}), error.status_code
 
 
 @candidate_bp.route('/new')
@@ -631,63 +773,13 @@ def manual_vk_profile(check_id):
         return jsonify({'error': 'Неверный формат VK ссылки или username'}), 400
 
     try:
-        import requests as http_requests
-        from app.utils.vk_token_manager import get_vk_token
+        new_profile = _lookup_manual_vk_profile(screen_name)
+    except ManualVKLookupError as e:
+        logger.warning("Manual VK lookup failed for %s: %s", check_id, e.reason)
+        return _manual_vk_error_response(e)
 
-        token = get_vk_token('search')
-        if not token:
-            return jsonify({'error': 'VK токен не настроен'}), 500
-
-        # Resolve screen name to user ID
-        resp = http_requests.post(
-            'https://api.vk.com/method/utils.resolveScreenName',
-            data={
-                'screen_name': screen_name,
-                'access_token': token,
-                'v': '5.199',
-            },
-            timeout=10,
-        )
-        resolve_data = resp.json().get('response', {})
-        if not resolve_data or resolve_data.get('type') != 'user':
-            return jsonify({'error': 'Профиль не найден или это не пользователь'}), 404
-
-        user_id = resolve_data['object_id']
-
-        # Get full profile
-        resp = http_requests.post(
-            'https://api.vk.com/method/users.get',
-            data={
-                'user_ids': str(user_id),
-                'fields': 'photo_200,screen_name,city,bdate,verified',
-                'access_token': token,
-                'v': '5.199',
-            },
-            timeout=10,
-        )
-        users = resp.json().get('response', [])
-        if not users:
-            return jsonify({'error': 'Не удалось загрузить профиль'}), 404
-
-        user = users[0]
-        display_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip()
-        profile_url = f"https://vk.com/{user.get('screen_name', f'id{user_id}')}"
-
-        new_profile = {
-            'platform': 'vk',
-            'platform_id': user_id,
-            'display_name': display_name,
-            'username': user.get('screen_name', ''),
-            'url': profile_url,
-            'avatar_url': user.get('photo_200'),
-            'photo_url': user.get('photo_200'),
-            'confidence': 'ручной ввод',
-            'confidence_score': 0.0,
-            'source_method': 'Введён вручную',
-            'city': (user.get('city') or {}).get('title', ''),
-            'manual_entry': True,
-        }
-
+    try:
+        user_id = new_profile.get('platform_id')
         all_profiles = check.social_media_profiles or []
 
         # Check duplicate
@@ -754,11 +846,7 @@ def dossier_page(check_id):
     if not check:
         return render_template('errors/404.html'), 404
 
-    # Access control: owner or admin
-    from app.routes.auth import get_current_user
-    user = get_current_user()
-    if user and not user.is_admin and check.user_id != user.id:
-        abort(403)
+    _check_owner_or_admin(check)
 
     # If still running, redirect to progress page
     if check.status in ('pending', 'running', 'awaiting_confirmation'):
@@ -836,11 +924,7 @@ def delete_check(check_id):
     if not check:
         return jsonify({'error': 'Проверка не найдена'}), 404
 
-    # Access control: owner or admin
-    from app.routes.auth import get_current_user
-    user = get_current_user()
-    if user and not user.is_admin and check.user_id != user.id:
-        abort(403)
+    _check_owner_or_admin(check)
 
     logger.info(f"Deleting candidate check {check_id} for '{check.full_name}'")
     db.session.delete(check)
@@ -856,11 +940,7 @@ def export_json(check_id):
     if not check:
         return jsonify({'error': 'Проверка не найдена'}), 404
 
-    # Access control: owner or admin
-    from app.routes.auth import get_current_user
-    user = get_current_user()
-    if user and not user.is_admin and check.user_id != user.id:
-        abort(403)
+    _check_owner_or_admin(check)
 
     # Build initials for filename (e.g. "Иванов_ИИ")
     parts = check.full_name.strip().split()
@@ -948,11 +1028,7 @@ def export_pdf(check_id):
     if not check:
         return jsonify({'error': 'Проверка не найдена'}), 404
 
-    # Access control: owner or admin
-    from app.routes.auth import get_current_user
-    user = get_current_user()
-    if user and not user.is_admin and check.user_id != user.id:
-        abort(403)
+    _check_owner_or_admin(check)
 
     # Build filename
     parts = check.full_name.strip().split()

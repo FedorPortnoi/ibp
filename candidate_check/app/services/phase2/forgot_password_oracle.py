@@ -1034,7 +1034,7 @@ class MailRuChecker(ForgotPasswordChecker):
                 result.exists = False
                 result.confidence = 0.75
         except (ValueError, TypeError):
-            pass
+            logger.debug("Mail.ru recovery response is not JSON; continuing HTML heuristics")
 
         # Generic recovery page detection
         if 'recovery' in html.lower() and 'sms' in html.lower():

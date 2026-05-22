@@ -466,7 +466,7 @@ class TelegramDiscoveryService:
 
             async def _search():
                 client = TelegramClient(session_path, int(api_id), api_hash)
-                await client.connect()
+                await asyncio.wait_for(client.connect(), timeout=10)
 
                 if not await client.is_user_authorized():
                     logger.warning(
@@ -485,10 +485,13 @@ class TelegramDiscoveryService:
 
                         logger.info(f'TG Method C (Telethon): searching directory for "{query}"...')
                         try:
-                            result = await client(SearchRequest(
-                                q=query,
-                                limit=self.MAX_TELETHON_RESULTS,
-                            ))
+                            result = await asyncio.wait_for(
+                                client(SearchRequest(
+                                    q=query,
+                                    limit=self.MAX_TELETHON_RESULTS,
+                                )),
+                                timeout=10,
+                            )
 
                             for user in result.users:
                                 if getattr(user, 'bot', False):
@@ -557,8 +560,14 @@ class TelegramDiscoveryService:
                 return profiles
 
             loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             try:
-                found = loop.run_until_complete(_search())
+                found = loop.run_until_complete(
+                    asyncio.wait_for(_search(), timeout=15)
+                )
+            except asyncio.TimeoutError:
+                logger.warning("TG Method C: Telethon timeout after 15s")
+                return []
             finally:
                 loop.close()
 
@@ -642,8 +651,8 @@ class TelegramDiscoveryService:
                             f"{dim_latin}.{last}",
                             f"{dim_latin}{last}",
                         ])
-        except (ImportError, Exception):
-            pass
+        except (ImportError, Exception) as exc:
+            logger.debug("Diminutive username expansion unavailable: %s", exc)
 
         # Deduplicate, filter valid Telegram usernames (5+ chars, starts with letter)
         seen = set()
@@ -774,8 +783,8 @@ class TelegramDiscoveryService:
                         if score > best_score:
                             best_score = score
                             best_method = 'cross_script_diminutive'
-                except (ImportError, Exception):
-                    pass
+                except (ImportError, Exception) as exc:
+                    logger.debug("Cross-script diminutive matching unavailable: %s", exc)
 
         # First-name-only cap: single-word display names can never be высокая
         # Without a last name we can't distinguish this Наталья from thousands of others
@@ -845,7 +854,7 @@ class TelegramDiscoveryService:
 
             async def _lookup():
                 client = TelegramClient(session_path, int(api_id), api_hash)
-                await client.connect()
+                await asyncio.wait_for(client.connect(), timeout=10)
 
                 if not await client.is_user_authorized():
                     logger.warning("TG phone lookup: session not authorized")
@@ -860,7 +869,10 @@ class TelegramDiscoveryService:
                         first_name='IBP',
                         last_name='Lookup',
                     )
-                    result = await client(ImportContactsRequest([contact]))
+                    result = await asyncio.wait_for(
+                        client(ImportContactsRequest([contact])),
+                        timeout=10,
+                    )
 
                     for user in result.users:
                         username = getattr(user, 'username', '') or ''
@@ -890,9 +902,12 @@ class TelegramDiscoveryService:
                     # Clean up: delete imported contact
                     if result.users:
                         try:
-                            await client(DeleteContactsRequest(
-                                id=[user for user in result.users]
-                            ))
+                            await asyncio.wait_for(
+                                client(DeleteContactsRequest(
+                                    id=[user for user in result.users]
+                                )),
+                                timeout=10,
+                            )
                         except Exception as e:
                             logger.debug(f"TG phone lookup: contact cleanup error: {e}")
 
@@ -902,6 +917,7 @@ class TelegramDiscoveryService:
                 return results
 
             loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             try:
                 found = loop.run_until_complete(
                     asyncio.wait_for(_lookup(), timeout=15)

@@ -32,8 +32,8 @@ PLAYWRIGHT_AVAILABLE = False
 try:
     from playwright.sync_api import sync_playwright
     PLAYWRIGHT_AVAILABLE = True
-except ImportError:
-    pass
+except ImportError as exc:
+    logger.info("Playwright unavailable; FSSP scraper disabled: %s", exc)
 
 
 # ── Region name → ФССП region code mapping ──────────────────────────

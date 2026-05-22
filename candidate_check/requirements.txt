@@ -39,6 +39,7 @@ pymorphy2-dicts-ru==2.4.417127.4579844
 
 # === Image Processing ===
 Pillow==11.3.0
+reportlab==4.4.5
 
 # === Network Analysis / Social Graph ===
 networkx==2.8.8

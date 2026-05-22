@@ -53,9 +53,24 @@ def scan_thread_pool_usage():
                 is_context_manager = 'with ThreadPoolExecutor' in context or \
                                      'with ' in line and 'ThreadPoolExecutor' in line
                 if not is_context_manager:
-                    # Only flag if executor is stored as module-level attribute
-                    # (not local variables in try/finally blocks)
-                    if '= ThreadPoolExecutor' in line and 'with' not in line:
+                    assign_match = re.search(r'([\w\.]+)\s*=\s*ThreadPoolExecutor', line)
+                    executor_name = assign_match.group(1) if assign_match else None
+                    has_explicit_shutdown = False
+                    if executor_name:
+                        shutdown_pattern = re.compile(rf'{re.escape(executor_name)}\.shutdown\s*\(')
+                        local_tail = '\n'.join(lines[i:min(len(lines), i+140)])
+                        has_explicit_shutdown = bool(shutdown_pattern.search(local_tail))
+                        if not has_explicit_shutdown:
+                            atexit_pattern = re.compile(
+                                rf'atexit\.register\(\s*{re.escape(executor_name)}\.shutdown\b'
+                            )
+                            has_explicit_shutdown = bool(atexit_pattern.search(source))
+                        # Some stage executors are intentionally shut down after another
+                        # stage completes, which can be far outside the local context.
+                        if not has_explicit_shutdown:
+                            has_explicit_shutdown = bool(shutdown_pattern.search(source))
+
+                    if '= ThreadPoolExecutor' in line and 'with' not in line and not has_explicit_shutdown:
                         add_finding(
                             'MEDIUM', pyfile, i+1,
                             f"ThreadPoolExecutor not used as context manager",

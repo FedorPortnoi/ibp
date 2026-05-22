@@ -2,7 +2,7 @@
 
 ## 1. What IBP Is
 
-IBP (Identity-Based Profiler) is a self-hosted OSINT investigation platform for Russian-speaking targets. It runs automated background checks by aggregating data from Russian government registries (EGRUL, courts, FSSP, bankruptcy), social networks (VK, Telegram, OK.ru), breach databases, and behavioral signals into a single 9-stage pipeline. INN (Russian Tax ID) is the primary required identifier.
+IBP (Identity-Based Profiler) is a self-hosted OSINT investigation platform for Russian-speaking targets. It runs automated background checks by aggregating data from Russian government registries (EGRUL, courts, FSSP, bankruptcy), social networks (VK, Telegram), breach databases, and behavioral signals into a single 9-stage pipeline. INN (Russian Tax ID) is the primary required identifier.
 
 The project is built for Windows (Python 3.12, Flask), uses SQLite for storage, Playwright for browser automation, and Telethon for Telegram integration. It is a single-developer project, not yet multi-user.
 
@@ -112,10 +112,9 @@ No Celery. Uses Python `threading.Thread` with in-memory status objects (`Candid
 - OpenSanctions API (primary, global), local MVD wanted list, local extremist list, Interpol REST API
 
 ### Stage 3: Social Media Discovery (27-42%)
-- `phase1/buratino_vk_search.py` + `phase1/telegram_discovery.py` + `phase1/ok_search_integration.py`
+- `phase1/buratino_vk_search.py` + `phase1/telegram_discovery.py`
 - VK: 4 search strategies (name, name+city, name+age, screen_name) with DOB filtering
 - Telegram: 3 methods (A: VK cross-reference, B: username guessing, C: Telethon directory search)
-- OK.ru: web scraping (demo mode if no OK_SESSION_TOKEN)
 - **Precise mode pauses here** for user to confirm profiles
 
 ### Stage 4: Contact Discovery (42-57%)
@@ -187,7 +186,6 @@ No Celery. Uses Python `threading.Thread` with in-memory status objects (`Candid
 | EFRSB | (none) | No | Free | Playwright fallback |
 | OpenSanctions | (none) | No | Free | None |
 | Interpol | (none) | No | Free | None |
-| OK.ru | `OK_SESSION_TOKEN` | No | Free | Demo (3 fake profiles) |
 | Claude AI | `ANTHROPIC_API_KEY` | No | Paid | Returns None (pipeline continues) |
 | Search4Faces API | `SEARCH4FACES_API_KEY` | No | $40+/mo | Playwright free fallback |
 | Hunter.io | `HUNTER_API_KEY` | No | 25/mo free | SMTP fallback |
@@ -235,7 +233,6 @@ Helper: `from app.utils.vk_token_manager import get_vk_token` — `get_vk_token(
 Triggered when `VK_SERVICE_TOKEN` is unset (sets `DEMO_MODE=True` in config).
 - VK search returns 3 fake profiles with demo data
 - Social graph returns 8 fake friends
-- OK.ru returns 3 demo profiles (when `OK_SESSION_TOKEN` also unset)
 - All paid services return empty lists (no fake data)
 - Local LeakDB auto-loads demo data from `data/demo/`
 
