@@ -62,7 +62,7 @@ class CandidateCheck(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
 
     # --- Investigation Link ---
-    investigation_id = db.Column(db.String(36), db.ForeignKey('investigations.id'), nullable=True)
+    investigation_id = db.Column(db.String(36), nullable=True)
 
     # --- Stage 3: Profile Confirmation ---
     _confirmed_profiles = db.Column('confirmed_profiles', db.Text, default='[]')

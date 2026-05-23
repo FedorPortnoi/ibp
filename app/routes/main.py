@@ -181,28 +181,3 @@ def vk_token_status():
     """Get VK token status for AJAX polling."""
     from app.utils.vk_token_manager import get_token_status
     return jsonify(get_token_status())
-
-
-# ============================================
-# INVESTIGATION CRUD API
-# ============================================
-
-@main_bp.route('/api/investigations/<investigation_id>', methods=['DELETE'])
-@limiter.limit("10 per minute")
-def delete_investigation(investigation_id):
-    """Delete an investigation and all related records."""
-    from app import db
-    from app.models import Investigation, SocialProfile, Friend
-
-    investigation = Investigation.query.get(investigation_id)
-    if not investigation:
-        return jsonify({'error': 'Расследование не найдено'}), 404
-
-    # Delete related records
-    SocialProfile.query.filter_by(investigation_id=investigation_id).delete()
-    Friend.query.filter_by(investigation_id=investigation_id).delete()
-    db.session.delete(investigation)
-    db.session.commit()
-
-    logger.info(f"Deleted investigation {investigation_id}")
-    return jsonify({'success': True})
