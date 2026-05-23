@@ -110,19 +110,6 @@ def create_app(config_name=None):
     app.register_blueprint(subscribe_bp)
     app.register_blueprint(chat_bp)
 
-    # People Search blueprints — only registered when ENABLE_PEOPLE_SEARCH=true
-    if app.config.get('ENABLE_PEOPLE_SEARCH'):
-        from app.routes.phase1 import phase1_bp
-        from app.routes.phase2 import phase2_bp
-        from app.routes.phase3 import phase3_bp
-        from app.routes.phase4 import phase4_bp
-        from app.routes.api_search import api_search_bp
-        app.register_blueprint(phase1_bp)
-        app.register_blueprint(phase2_bp)
-        app.register_blueprint(phase3_bp)
-        app.register_blueprint(phase4_bp)
-        app.register_blueprint(api_search_bp)
-
     # Global auth check — protect ALL routes except login, register, and static files
     @app.before_request
     def check_auth():
@@ -244,85 +231,9 @@ def create_app(config_name=None):
             }), 429
         return render_template('errors/500.html'), 429
 
-    # Create database tables
+    # Create database tables (new columns added via: flask db upgrade)
     with app.app_context():
         db.create_all()
-        _migrate_task_columns(db)
-        _migrate_user_columns(db)
-        _migrate_chat_columns(db)
         logger.info("Database tables created successfully")
 
     return app
-
-
-def _migrate_task_columns(db_instance):
-    """Add task tracking + photo + intelligence columns to candidate_checks if missing (SQLite safe)."""
-    columns = [
-        ('task_id', 'VARCHAR(36)'),
-        ('task_progress', 'INTEGER DEFAULT 0'),
-        ('task_stage', 'VARCHAR(50)'),
-        ('task_message', 'VARCHAR(500)'),
-        ('task_log', 'TEXT'),
-        ('task_error', 'TEXT'),
-        ('task_started_at', 'DATETIME'),
-        ('photo_path', 'VARCHAR(500)'),
-        # VK intelligence columns (March 2026)
-        ('group_analysis', 'TEXT'),
-        ('activity_patterns', 'TEXT'),
-        ('vk_snapshot', 'TEXT'),
-        ('connected_checks', 'TEXT'),
-        ('risk_score', 'INTEGER'),
-        # Pledge registry (March 2026)
-        ('pledge_records', 'TEXT'),
-        # Geo intelligence (March 2026)
-        ('geo_intelligence', 'TEXT'),
-        # Multi-user (March 2026)
-        ('user_id', 'INTEGER'),
-        # 152-FZ PD consent (March 2026)
-        ('pd_consent', 'BOOLEAN DEFAULT 0'),
-        ('pd_consent_at', 'DATETIME'),
-    ]
-    for col_name, col_type in columns:
-        try:
-            db_instance.session.execute(
-                db_instance.text(f'ALTER TABLE candidate_checks ADD COLUMN {col_name} {col_type}')
-            )
-            db_instance.session.commit()
-        except Exception:
-            db_instance.session.rollback()
-    # Add index on task_id for fast cross-worker lookups
-    try:
-        db_instance.session.execute(
-            db_instance.text('CREATE INDEX IF NOT EXISTS ix_candidate_checks_task_id ON candidate_checks (task_id)')
-        )
-        db_instance.session.commit()
-    except Exception:
-        db_instance.session.rollback()
-
-
-
-def _migrate_chat_columns(db_instance):
-    """Add is_pinned column and user_id index to chat_messages if missing."""
-    from sqlalchemy import text
-    try:
-        with db_instance.engine.connect() as conn:
-            conn.execute(text("ALTER TABLE chat_messages ADD COLUMN is_pinned BOOLEAN DEFAULT 0"))
-            conn.commit()
-    except Exception:
-        pass
-    try:
-        with db_instance.engine.connect() as conn:
-            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id ON chat_messages(user_id)"))
-            conn.commit()
-    except Exception:
-        pass
-
-def _migrate_user_columns(db_instance):
-    """Add email column to users table if missing (SQLite safe)."""
-    try:
-        db_instance.session.execute(
-            db_instance.text("ALTER TABLE users ADD COLUMN email VARCHAR(120)")
-        )
-        db_instance.session.commit()
-    except Exception:
-        db_instance.session.rollback()
