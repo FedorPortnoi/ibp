@@ -16,16 +16,12 @@ from sqlalchemy.exc import IntegrityError
 import requests as req
 
 from app import db, limiter
+from app.market.russia import CIS_COUNTRY_CODES
+from app.permissions import is_admin
 
 logger = logging.getLogger('ibp.auth')
 
 auth_bp = Blueprint('auth', __name__)
-
-
-# Russian-speaking country codes
-_RU_COUNTRIES = frozenset((
-    'RU', 'BY', 'KZ', 'UA', 'UZ', 'KG', 'TJ', 'TM', 'AZ', 'AM', 'GE', 'MD',
-))
 
 
 def detect_language():
@@ -41,7 +37,7 @@ def detect_language():
             resp = req.get(f'http://ip-api.com/json/{ip}?fields=countryCode', timeout=1.5)
             if resp.ok:
                 cc = resp.json().get('countryCode', '')
-                if cc in _RU_COUNTRIES:
+                if cc in CIS_COUNTRY_CODES:
                     return 'ru'
                 return 'en'
     except Exception:
@@ -80,8 +76,7 @@ def admin_required(f):
     """Decorator to require admin role."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        user = get_current_user()
-        if not user or not user.is_admin:
+        if not is_admin(get_current_user()):
             abort(403)
         return f(*args, **kwargs)
     return decorated_function

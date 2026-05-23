@@ -19,6 +19,7 @@ from werkzeug.utils import secure_filename
 
 from app import db, limiter
 from app.models.candidate_check import CandidateCheck
+from app.permissions import can_access_check
 from app.services.candidate.pipeline import candidate_tasks, _tasks_lock, CandidateTaskStatus, run_candidate_pipeline, cleanup_old_tasks
 
 candidate_bp = Blueprint('candidate', __name__, url_prefix='/candidate')
@@ -43,14 +44,10 @@ class ManualVKLookupError(Exception):
 
 
 def _check_owner_or_admin(check):
-    """Verify current user owns this CandidateCheck or is admin. Returns (user, error_response)."""
+    """Verify current user can access this CandidateCheck. Returns (user, error_response)."""
     from app.routes.auth import get_current_user
     user = get_current_user()
-    if not user:
-        return None, abort(403)
-    if user.is_admin:
-        return user, None
-    if check.user_id != user.id:
+    if not can_access_check(user, check):
         return None, abort(403)
     return user, None
 
@@ -73,7 +70,7 @@ def _check_owner_or_admin_by_task(task_id):
     if not check:
         return None, None  # Let caller handle 404
 
-    if not user.is_admin and check.user_id != user.id:
+    if not can_access_check(user, check):
         abort(403)
     return check, None
 
