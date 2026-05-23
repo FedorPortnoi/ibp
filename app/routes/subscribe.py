@@ -71,6 +71,10 @@ def pay():
     db.session.commit()
 
     logger.info(f"Subscription activated for user '{user.username}' (stub payment)")
+    from app import audit
+    audit.log('subscription.activate', user_id=user.id,
+              target_type='Subscription', target_id=str(sub.id),
+              metadata={'payment_id': sub.payment_id, 'expires_at': str(sub.expires_at)})
 
     # Send confirmation email if available
     target_email = email or user.email

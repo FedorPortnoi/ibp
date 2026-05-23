@@ -133,6 +133,8 @@ def login():
             current_app.permanent_session_lifetime = datetime.timedelta(seconds=timeout)
 
             logger.info(f"User '{user.username}' (role={user.role}) authenticated")
+            from app import audit
+            audit.log('auth.login', user_id=user.id, metadata={'username': user.username})
 
             next_url = saved_next_url
             # Validate next_url is a safe relative path (prevent open redirect)
@@ -146,6 +148,8 @@ def login():
         else:
             error = 'wrong_password'
             logger.warning(f"Failed login for '{username}' from {request.remote_addr}")
+            from app import audit
+            audit.log('auth.login_failed', outcome='failure', metadata={'username': username})
 
     return render_template('login.html', error=error, lang=lang, mode='login')
 

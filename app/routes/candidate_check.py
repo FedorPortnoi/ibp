@@ -414,6 +414,9 @@ def start_check():
     thread.start()
 
     logger.info(f"Candidate check started: {check_id} for '{full_name}', task={task_id}")
+    from app import audit
+    audit.log('check.start', user_id=check.user_id, target_type='CandidateCheck',
+              target_id=check_id, metadata={'full_name': full_name, 'inn': inn, 'mode': check_mode})
 
     # Respond based on request type
     if request.is_json:
@@ -924,6 +927,12 @@ def delete_check(check_id):
     _check_owner_or_admin(check)
 
     logger.info(f"Deleting candidate check {check_id} for '{check.full_name}'")
+    from app.routes.auth import get_current_user
+    _user = get_current_user()
+    from app import audit
+    audit.log('check.delete', user_id=_user.id if _user else None,
+              target_type='CandidateCheck', target_id=check_id,
+              metadata={'full_name': check.full_name})
     db.session.delete(check)
     db.session.commit()
     return redirect(url_for('candidate.history'))
