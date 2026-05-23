@@ -147,6 +147,10 @@ tikhon portnoi.jpg
 testsserver_log.txt
 forgot_pw_oracle_check.session
 scripts/e2e_court_investigation_debug.log
+.audit_*
+debug-*.png
+fix-*.png
+demo_report.html
 
 # === Misc ===
 tokens_api_ect/
