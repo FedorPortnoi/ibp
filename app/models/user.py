@@ -2,7 +2,7 @@
 User Model
 ==========
 Multi-user authentication with role-based access.
-Roles: 'admin' (sees all checks) | 'user' (sees only own checks).
+Roles: 'admin' (Fedor/admin access) | 'user' (own checks only).
 """
 
 from datetime import datetime

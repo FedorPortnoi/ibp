@@ -1,6 +1,6 @@
 """
 Authentication routes for IBP.
-Multi-user: username + password, open registration, single admin.
+Multi-user: username + password, open registration, admin/user roles.
 """
 
 import os
@@ -155,9 +155,72 @@ def login():
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
+@limiter.limit("5 per minute; 20 per hour", methods=["POST"])
 def register():
-    """Registration disabled — redirect to login."""
-    return redirect(url_for('auth.login'))
+    """Create a regular user account and sign in immediately."""
+    if session.get('user_id'):
+        return redirect(url_for('candidate.new_check'))
+
+    lang = detect_language()
+
+    if request.method == 'GET':
+        return render_template('login.html', error=None, lang=lang, mode='register')
+
+    username = request.form.get('username', '').strip()
+    password = request.form.get('password', '')
+    confirm = request.form.get('confirm', '')
+
+    def _render_error(error_code):
+        return render_template(
+            'login.html',
+            error=error_code,
+            lang=lang,
+            mode='register',
+            username=username,
+        ), 400
+
+    if len(username) < 3:
+        return _render_error('username_short')
+    if len(username) > 64:
+        return _render_error('username_long')
+    if len(password) < 6:
+        return _render_error('password_short')
+    if password != confirm:
+        return _render_error('password_mismatch')
+
+    from app.models.user import User
+    from app.models.subscription import Subscription
+
+    if User.query.filter_by(username=username).first():
+        return _render_error('username_taken')
+
+    user = User(username=username, role='user')
+    user.set_password(password)
+    db.session.add(user)
+
+    try:
+        db.session.flush()
+        db.session.add(Subscription(user_id=user.id, status='inactive'))
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return _render_error('username_taken')
+
+    session.clear()
+    session['user_id'] = user.id
+    session['username'] = user.username
+    session['role'] = user.role
+    session['last_active'] = datetime.datetime.utcnow().isoformat()
+    session.permanent = True
+    current_app.permanent_session_lifetime = datetime.timedelta(
+        seconds=int(os.environ.get('IBP_SESSION_TIMEOUT', 3600))
+    )
+
+    logger.info(f"User '{user.username}' registered")
+    from app import audit
+    audit.log('auth.register', user_id=user.id, metadata={'username': user.username})
+
+    return redirect(url_for('candidate.new_check'))
 
 
 @auth_bp.route('/logout')

@@ -90,11 +90,13 @@ def create_app(config_name=None):
 
     # Import and register blueprints directly from each file
     from app.routes.auth import auth_bp
+    from app.routes.admin_users import admin_users_bp
     from app.routes.main import main_bp
     from app.routes.candidate_check import candidate_bp
     from app.routes.subscribe import subscribe_bp
     from app.routes.chat import chat_bp
     app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_users_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(candidate_bp)
     app.register_blueprint(subscribe_bp)

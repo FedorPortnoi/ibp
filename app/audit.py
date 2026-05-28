@@ -12,6 +12,7 @@ Design rules:
 Canonical action names:
   auth.login          — successful login
   auth.login_failed   — wrong credentials
+  auth.register       — self-service user registration
   auth.logout         — user logged out
   check.start         — pipeline started
   check.delete        — check record deleted

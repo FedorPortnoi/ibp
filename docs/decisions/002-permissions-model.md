@@ -6,7 +6,8 @@
 ## What we chose
 
 All access decisions go through `app/permissions.py`. No scattered `if user.role == 'admin'`
-checks in route handlers or templates.
+checks in route handlers. Templates may hide/show navigation, but route access is enforced
+server-side.
 
 Current model (two roles):
 
@@ -21,7 +22,7 @@ Route decorators (`@login_required`, `@admin_required`) remain in `app/routes/au
 but delegate their logic to `permissions.py`.
 
 Current role rules:
-- `admin` — sees all checks, can delete any check
+- `admin` — Fedor/admin access; can see the Users list, open a selected user's investigations, and access/delete any check
 - `user`  — sees only their own checks, subject to free-tier limits
 
 ## Why
@@ -44,4 +45,4 @@ check-sharing between teammates, `permissions.py` is the one file to extend.
 
 - Any new route that gates on role or ownership calls a function from `permissions.py`.
 - New permission rules are added to `permissions.py` first, then called from routes.
-- Never add `if user.role == '...'` directly inside a route handler or template.
+- Never add `if user.role == '...'` directly inside a route handler.

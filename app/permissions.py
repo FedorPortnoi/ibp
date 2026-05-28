@@ -5,7 +5,7 @@ All yes/no access decisions go through this module.
 Routes import from here rather than scattering ad-hoc role checks in handlers.
 
 Current roles:
-  admin — sees all checks, unrestricted
+  admin — Fedor/admin role; can access any user's check via admin flows
   user  — sees only their own checks, subject to free-tier limits
 
 See docs/decisions/002-permissions-model.md.
@@ -24,5 +24,5 @@ def is_admin(user: User | None) -> bool:
 
 
 def can_access_check(user: User | None, check: CandidateCheck) -> bool:
-    """Admin sees all checks; regular users see only their own."""
+    """Admin may access any check; regular users may access only their own."""
     return user is not None and (user.is_admin or check.user_id == user.id)

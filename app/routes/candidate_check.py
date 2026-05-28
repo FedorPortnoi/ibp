@@ -19,7 +19,7 @@ from werkzeug.utils import secure_filename
 
 from app import db, limiter
 from app.models.candidate_check import CandidateCheck
-from app.permissions import can_access_check
+from app.permissions import can_access_check, is_admin
 from app.services.candidate.pipeline import candidate_tasks, _tasks_lock, CandidateTaskStatus, run_candidate_pipeline, cleanup_old_tasks
 
 candidate_bp = Blueprint('candidate', __name__, url_prefix='/candidate')
@@ -902,12 +902,12 @@ def dossier_page(check_id):
 
 @candidate_bp.route('/history')
 def history():
-    """List past candidate checks — admin sees all, users see own."""
+    """List past candidate checks for regular users; admins pick a user first."""
     from app.routes.auth import get_current_user
     user = get_current_user()
-    if user and user.is_admin:
-        checks = CandidateCheck.query.order_by(CandidateCheck.created_at.desc()).all()
-    elif user:
+    if is_admin(user):
+        return redirect(url_for('admin_users.list_users'))
+    if user:
         checks = CandidateCheck.query.filter_by(user_id=user.id).order_by(
             CandidateCheck.created_at.desc()
         ).all()

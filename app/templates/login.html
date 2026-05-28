@@ -104,6 +104,7 @@
     'auth_toggle_login': 'Уже есть аккаунт? Войти',
     'auth_error': 'Неверный логин или пароль',
     'auth_error_username_short': 'Имя пользователя минимум 3 символа',
+    'auth_error_username_long': 'Имя пользователя максимум 64 символа',
     'auth_error_username_taken': 'Пользователь с таким именем уже существует',
     'auth_error_password_short': 'Пароль минимум 6 символов',
     'auth_error_password_mismatch': 'Пароли не совпадают',
@@ -218,6 +219,7 @@
     'auth_toggle_login': 'Have an account? Sign in',
     'auth_error': 'Invalid username or password',
     'auth_error_username_short': 'Username must be at least 3 characters',
+    'auth_error_username_long': 'Username must be 64 characters or fewer',
     'auth_error_username_taken': 'Username already taken',
     'auth_error_password_short': 'Password must be at least 6 characters',
     'auth_error_password_mismatch': 'Passwords do not match',
@@ -311,6 +313,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:cen
 .auth-btn{width:100%;margin-top:8px;background:rgba(255,255,255,.9);color:#000;border:none;padding:13px;font-family:'Inter',sans-serif;font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;transition:background .2s}
 .auth-btn:hover{background:#fff}
 .auth-note{text-align:center;margin-top:24px;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.12)}
+.auth-toggle{color:rgba(255,255,255,.32);text-decoration:none;transition:color .2s}
+.auth-toggle:hover{color:rgba(255,255,255,.72)}
 footer{border-top:1px solid rgba(255,255,255,.06);padding:24px 48px;display:flex;justify-content:space-between;background:#050505}
 .ft{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.16)}
 .reveal{opacity:0;transform:translateY(12px);transition:opacity .65s ease,transform .65s ease}
@@ -676,19 +680,28 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:24px 48px;display:flex
       <span class="auth-logo-name">{{ t.auth_logo }}</span>
       <span class="auth-logo-hint" id="auth-hint">{{ t.auth_hint }}</span>
     </div>
-    <div id="flash-err" class="auth-err{% if error %} on{% endif %}">{% if error %}{% if error == 'wrong_password' %}{{ t.auth_error }}{% elif error == 'username_short' %}{{ t.auth_error_username_short }}{% elif error == 'username_taken' %}{{ t.auth_error_username_taken }}{% elif error == 'password_short' %}{{ t.auth_error_password_short }}{% elif error == 'password_mismatch' %}{{ t.auth_error_password_mismatch }}{% elif error == 'username_long' %}{{ t.auth_error_username_short }}{% else %}{{ t.auth_error }}{% endif %}{% endif %}</div>
-    <form method="POST" action="/login" id="auth-form">
+    <div id="flash-err" class="auth-err{% if error %} on{% endif %}">{% if error %}{% if error == 'wrong_password' %}{{ t.auth_error }}{% elif error == 'username_short' %}{{ t.auth_error_username_short }}{% elif error == 'username_long' %}{{ t.auth_error_username_long }}{% elif error == 'username_taken' %}{{ t.auth_error_username_taken }}{% elif error == 'password_short' %}{{ t.auth_error_password_short }}{% elif error == 'password_mismatch' %}{{ t.auth_error_password_mismatch }}{% else %}{{ t.auth_error }}{% endif %}{% endif %}</div>
+    <form method="POST" action="{% if mode == 'register' %}/register{% else %}/login{% endif %}" id="auth-form" data-mode="{{ mode or 'login' }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="field">
         <label class="field-lbl" for="username">{{ t.auth_username }}</label>
-        <input class="field-inp" type="text" id="username" name="username" placeholder="username" autocomplete="username" required>
+        <input class="field-inp" type="text" id="username" name="username" placeholder="username" autocomplete="username" value="{{ username|default('', true) }}" required>
       </div>
       <div class="field">
         <label class="field-lbl" for="password">{{ t.auth_password }}</label>
-        <input class="field-inp" type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+        <input class="field-inp" type="password" id="password" name="password" placeholder="••••••••" autocomplete="{% if mode == 'register' %}new-password{% else %}current-password{% endif %}" required>
       </div>
-      <button type="submit" class="auth-btn" id="auth-submit">{{ t.auth_submit }}</button>
+      <div class="field" id="confirm-field"{% if mode != 'register' %} style="display:none"{% endif %}>
+        <label class="field-lbl" for="confirm">{{ t.auth_confirm }}</label>
+        <input class="field-inp" type="password" id="confirm" name="confirm" placeholder="••••••••" autocomplete="new-password"{% if mode == 'register' %} required{% endif %}>
+      </div>
+      <button type="submit" class="auth-btn" id="auth-submit">{% if mode == 'register' %}{{ t.auth_submit_register }}{% else %}{{ t.auth_submit }}{% endif %}</button>
     </form>
+    <div class="auth-note">
+      <a href="{% if mode == 'register' %}/login#auth{% else %}/register#auth{% endif %}" class="auth-toggle" id="auth-toggle">
+        {% if mode == 'register' %}{{ t.auth_toggle_login }}{% else %}{{ t.auth_toggle_register }}{% endif %}
+      </a>
+    </div>
   </div>
 </section>
 
@@ -790,6 +803,52 @@ document.querySelectorAll('.reveal').forEach(function(el){obs.observe(el);});
 document.querySelectorAll('a[href^="#"]').forEach(function(a){
   a.addEventListener('click',function(e){var t=document.querySelector(a.getAttribute('href'));if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth'});}});
 });
+
+(function(){
+  var form = document.getElementById('auth-form');
+  var toggle = document.getElementById('auth-toggle');
+  var hint = document.getElementById('auth-hint');
+  var submit = document.getElementById('auth-submit');
+  var confirmField = document.getElementById('confirm-field');
+  var confirmInput = document.getElementById('confirm');
+  var passwordInput = document.getElementById('password');
+  if (!form || !toggle || !hint || !submit || !confirmField || !confirmInput || !passwordInput) return;
+
+  var isRegister = {{ 'true' if mode == 'register' else 'false' }};
+  var labels = {
+    loginHint: {{ t.auth_hint | tojson }},
+    registerHint: {{ t.auth_hint_register | tojson }},
+    loginSubmit: {{ t.auth_submit | tojson }},
+    registerSubmit: {{ t.auth_submit_register | tojson }},
+    toRegister: {{ t.auth_toggle_register | tojson }},
+    toLogin: {{ t.auth_toggle_login | tojson }}
+  };
+
+  function setMode(register, updateUrl) {
+    isRegister = register;
+    form.action = register ? '/register' : '/login';
+    form.dataset.mode = register ? 'register' : 'login';
+    hint.textContent = register ? labels.registerHint : labels.loginHint;
+    submit.textContent = register ? labels.registerSubmit : labels.loginSubmit;
+    toggle.textContent = register ? labels.toLogin : labels.toRegister;
+    toggle.href = register ? '/login#auth' : '/register#auth';
+    confirmField.style.display = register ? '' : 'none';
+    confirmInput.required = register;
+    passwordInput.autocomplete = register ? 'new-password' : 'current-password';
+    if (!register) confirmInput.value = '';
+    if (updateUrl && window.history && window.history.replaceState) {
+      window.history.replaceState(null, '', register ? '/register#auth' : '/login#auth');
+    }
+  }
+
+  toggle.addEventListener('click', function(e) {
+    e.preventDefault();
+    setMode(!isRegister, true);
+  });
+
+  setMode(isRegister, false);
+})();
+
 // --- Hero: scroll attempt → scramble title → zoom out (one-time) ---
 (function(){
   var el = document.getElementById('hero-scramble');
