@@ -1109,7 +1109,8 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
                 return fn()
         return fn()
 
-    with ThreadPoolExecutor(max_workers=6) as executor:
+    executor = ThreadPoolExecutor(max_workers=6)
+    try:
         futures = {executor.submit(_run_with_ctx, fn): fn.__doc__ for fn in workers}
         for future in as_completed(futures):
             label = futures[future]
@@ -1119,6 +1120,8 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
                     results[key] = value
             except Exception as e:
                 logger.error(f"Parallel worker '{label}' raised: {e}")
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
 
     # --- Post-parallel sequential steps (depend on last_seen_data) ---
     last_seen_data = results.get('last_seen_analysis', {})

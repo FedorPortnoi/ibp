@@ -128,6 +128,8 @@ class CandidateCheck(db.Model):
 
     @staticmethod
     def _dump_json(value):
+        if value is None:
+            return None
         return json.dumps(value, ensure_ascii=False, default=str)
 
     # business_records

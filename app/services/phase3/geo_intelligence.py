@@ -90,6 +90,7 @@ def _nominatim_geocode(query: str) -> Optional[Tuple[float, float]]:
             timeout=5,
         )
         _last_nominatim_ts = time.time()
+        r.raise_for_status()
         data = r.json()
         if data:
             return float(data[0]['lat']), float(data[0]['lon'])

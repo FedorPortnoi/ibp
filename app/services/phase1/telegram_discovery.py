@@ -309,10 +309,13 @@ class TelegramDiscoveryService:
             )
             return profile_dict
 
-        # Run checks concurrently with a hard budget cap
+        # Run checks concurrently with a hard budget cap.
+        # Use non-context-manager form so shutdown(wait=False) avoids hanging
+        # if a worker is stuck on a slow HTTP request.
         checked_count = 0
         remaining_budget = self.METHOD_B_BUDGET - (time.monotonic() - budget_start)
-        with ThreadPoolExecutor(max_workers=self.METHOD_B_WORKERS, thread_name_prefix='tg_b') as pool:
+        pool = ThreadPoolExecutor(max_workers=self.METHOD_B_WORKERS, thread_name_prefix='tg_b')
+        try:
             futures = {pool.submit(_check_one, c): c for c in candidates}
             try:
                 for future in as_completed(futures, timeout=max(remaining_budget, 0.1)):
@@ -329,6 +332,8 @@ class TelegramDiscoveryService:
                 for f in futures:
                     f.cancel()
                 logger.info(f"TG Method B: budget exhausted after {self.METHOD_B_BUDGET}s, checked {checked_count}/{len(candidates)}")
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
 
         # Sort: высокая first, then средняя, then низкая
         confidence_order = {'высокая': 0, 'средняя': 1, 'низкая': 2}

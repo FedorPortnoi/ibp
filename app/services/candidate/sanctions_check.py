@@ -168,7 +168,8 @@ class SanctionsService:
         """
         results = []
 
-        with ThreadPoolExecutor(max_workers=6) as executor:
+        executor = ThreadPoolExecutor(max_workers=6)
+        try:
             futures = {}
 
             # Primary: OpenSanctions (replaces Rosfinmonitoring for global access)
@@ -213,6 +214,8 @@ class SanctionsService:
                 logger.warning("Sanctions: some checks timed out (60s)")
                 for f in futures:
                     f.cancel()
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
 
         # Deduplicate: if both OpenSanctions and live scraper found something,
         # prefer the more detailed result but keep both source names

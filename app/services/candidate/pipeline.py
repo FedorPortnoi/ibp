@@ -406,7 +406,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
         from app import db
         from app.models.candidate_check import CandidateCheck
 
-        check = CandidateCheck.query.get(check_id)
+        check = db.session.get(CandidateCheck, check_id)
         if not check:
             task.error = 'Check record not found'
             return

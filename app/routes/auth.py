@@ -56,7 +56,7 @@ def get_current_user():
     if not user_id:
         return None
     from app.models.user import User
-    return User.query.get(user_id)
+    return db.session.get(User, user_id)
 
 
 def login_required(f):

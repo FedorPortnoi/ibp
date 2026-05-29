@@ -1,6 +1,6 @@
 """Admin-only user investigation views."""
 
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, abort
 from sqlalchemy import func
 
 from app import db
@@ -40,7 +40,9 @@ def list_users():
 @admin_required
 def user_investigations(user_id):
     """Show investigations for one selected user."""
-    selected_user = User.query.get_or_404(user_id)
+    selected_user = db.session.get(User, user_id)
+    if not selected_user:
+        abort(404)
     checks = (
         CandidateCheck.query
         .filter_by(user_id=selected_user.id)

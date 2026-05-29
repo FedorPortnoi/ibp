@@ -626,6 +626,7 @@ class VKMarketScanner(MarketplaceScanner):
                         'extended': 1, 'access_token': self.vk_token, 'v': '5.199'},
                 timeout=10,
             )
+            resp.raise_for_status()
             data = resp.json()
             if 'error' in data:
                 msg = data['error'].get('error_msg', 'Unknown')

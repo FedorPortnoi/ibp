@@ -63,7 +63,9 @@ def post_message():
 @chat_bp.route('/api/messages/<int:msg_id>', methods=['DELETE'])
 def delete_message(msg_id):
     uid = _uid()
-    msg = ChatMessage.query.get_or_404(msg_id)
+    msg = db.session.get(ChatMessage, msg_id)
+    if not msg:
+        abort(404)
     if msg.user_id != uid:
         abort(403)
     db.session.delete(msg)
@@ -74,7 +76,9 @@ def delete_message(msg_id):
 @chat_bp.route('/api/messages/<int:msg_id>/pin', methods=['POST'])
 def toggle_pin(msg_id):
     uid = _uid()
-    msg = ChatMessage.query.get_or_404(msg_id)
+    msg = db.session.get(ChatMessage, msg_id)
+    if not msg:
+        abort(404)
     if msg.user_id != uid:
         abort(403)
     msg.is_pinned = not msg.is_pinned

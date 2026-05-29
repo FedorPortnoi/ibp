@@ -155,7 +155,7 @@ def create_app(config_name=None):
         if request.endpoint and request.endpoint not in subscribe_endpoints:
             from app.models.user import User
             from app.models.subscription import Subscription
-            user = User.query.get(session['user_id'])
+            user = db.session.get(User, session['user_id'])
             if user and not user.is_admin:
                 sub = Subscription.query.filter_by(user_id=user.id).first()
                 # Auto-create subscription row for new users (free tier)

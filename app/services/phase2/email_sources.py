@@ -914,7 +914,7 @@ class GitHubEmailExtractor:
         try:
             # Method 1: Check user profile
             user_url = f"{self.BASE_URL}/users/{username}"
-            response = self.session.get(user_url, timeout=5)
+            response = self.session.get(user_url, timeout=15)
 
             if response.status_code == 200:
                 user_data = response.json()
@@ -927,7 +927,7 @@ class GitHubEmailExtractor:
 
             # Method 2: Check user events for commit emails
             events_url = f"{self.BASE_URL}/users/{username}/events/public"
-            response = self.session.get(events_url, timeout=5)
+            response = self.session.get(events_url, timeout=15)
 
             if response.status_code == 200:
                 events = response.json()
@@ -948,7 +948,7 @@ class GitHubEmailExtractor:
 
             # Method 3: Check recent repos for commit emails
             repos_url = f"{self.BASE_URL}/users/{username}/repos?sort=pushed&per_page=5"
-            response = self.session.get(repos_url, timeout=5)
+            response = self.session.get(repos_url, timeout=15)
 
             if response.status_code == 200:
                 repos = response.json()
@@ -958,7 +958,7 @@ class GitHubEmailExtractor:
                     if repo_name:
                         # Get recent commits
                         commits_url = f"{self.BASE_URL}/repos/{repo_name}/commits?per_page=10"
-                        commits_response = self.session.get(commits_url, timeout=5)
+                        commits_response = self.session.get(commits_url, timeout=15)
 
                         if commits_response.status_code == 200:
                             commits = commits_response.json()
@@ -998,7 +998,7 @@ class GitHubEmailExtractor:
         try:
             # GitHub search API
             search_url = f"{self.BASE_URL}/search/users?q={email}+in:email"
-            response = self.session.get(search_url, timeout=5)
+            response = self.session.get(search_url, timeout=15)
 
             if response.status_code == 200:
                 data = response.json()
@@ -1041,7 +1041,7 @@ class TelegramEmailExtractor:
         try:
             # Check t.me preview page
             url = f"https://t.me/{username}"
-            response = self.session.get(url, timeout=5)
+            response = self.session.get(url, timeout=15)
 
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')

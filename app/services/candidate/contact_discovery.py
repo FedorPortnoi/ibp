@@ -999,7 +999,8 @@ class ContactDiscoveryService:
 
         sources = [HudsonRockSource(), LeakCheckSource(), ProxyNovaCOMBSource()]
 
-        with ThreadPoolExecutor(max_workers=3) as executor:
+        executor = ThreadPoolExecutor(max_workers=3)
+        try:
             futures = []
             for src in sources:
                 futures.append(executor.submit(
@@ -1046,6 +1047,8 @@ class ContactDiscoveryService:
                 logger.warning("Breach API: some queries timed out (30s)")
                 for f in futures:
                     f.cancel()
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
 
     # ── Step 6.5: Breach Intelligence Analysis ──────────────────────────
 

@@ -64,7 +64,7 @@ def _check_owner_or_admin_by_task(task_id):
         task = candidate_tasks.get(task_id)
     check = None
     if task:
-        check = CandidateCheck.query.get(task.check_id)
+        check = db.session.get(CandidateCheck, task.check_id)
     if not check:
         check = CandidateCheck.query.filter_by(task_id=task_id).first()
     if not check:
@@ -475,7 +475,7 @@ def progress_status(task_id):
         task = candidate_tasks.get(task_id)
     if task:
         data = task.to_dict()
-        check = CandidateCheck.query.get(task.check_id)
+        check = db.session.get(CandidateCheck, task.check_id)
         if check and check.status == 'awaiting_confirmation':
             data['status'] = 'awaiting_confirmation'
             data['confirmation_url'] = f'/candidate/confirm/{check.id}'
@@ -841,7 +841,7 @@ def api_timeline(check_id):
 @candidate_bp.route('/dossier/<check_id>')
 def dossier_page(check_id):
     """View completed dossier."""
-    check = CandidateCheck.query.get(check_id)
+    check = db.session.get(CandidateCheck, check_id)
     if not check:
         return render_template('errors/404.html'), 404
 
@@ -919,7 +919,7 @@ def history():
 @limiter.limit("10 per minute")
 def delete_check(check_id):
     """Delete a candidate check record."""
-    check = CandidateCheck.query.get(check_id)
+    check = db.session.get(CandidateCheck, check_id)
     if not check:
         return jsonify({'error': 'Проверка не найдена'}), 404
 
@@ -941,7 +941,7 @@ def delete_check(check_id):
 @limiter.limit("5 per minute")
 def export_json(check_id):
     """Export dossier as downloadable JSON file."""
-    check = CandidateCheck.query.get(check_id)
+    check = db.session.get(CandidateCheck, check_id)
     if not check:
         return jsonify({'error': 'Проверка не найдена'}), 404
 
@@ -1029,7 +1029,7 @@ def export_pdf(check_id):
                      'Используйте кнопку "Печать" для сохранения в PDF через браузер.'
         }), 501
 
-    check = CandidateCheck.query.get(check_id)
+    check = db.session.get(CandidateCheck, check_id)
     if not check:
         return jsonify({'error': 'Проверка не найдена'}), 404
 
