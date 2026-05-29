@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Users - SLED{% endblock %}
+{% block title %}Пользователи — СЛЕД{% endblock %}
 
 {% block head %}
 <style>
@@ -69,14 +69,14 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
             <h1 class="text-2xl sm:text-3xl font-normal text-white tracking-tight">
-                <span class="text-accent">Users</span>
+                <span class="text-accent">Пользователи</span>
             </h1>
             <p class="text-gray-400 text-sm mt-1">
-                Select a user to view only that user's investigations.
+                Выберите пользователя, чтобы просмотреть только его проверки.
             </p>
         </div>
         <a href="/candidate/new" class="btn btn-primary btn-sm shrink-0 inline-flex items-center gap-2">
-            New investigation
+            Новая проверка
         </a>
     </div>
 
@@ -84,39 +84,39 @@
         <table class="admin-table">
             <thead>
                 <tr>
-                    <th>User</th>
-                    <th>Role</th>
-                    <th>Investigations</th>
-                    <th>Last Investigation</th>
-                    <th>Created</th>
+                    <th>Пользователь</th>
+                    <th>Роль</th>
+                    <th>Проверок</th>
+                    <th>Последняя проверка</th>
+                    <th>Зарегистрирован</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
                 {% for user, check_count, last_check_at in rows %}
                 <tr>
-                    <td data-label="User">
+                    <td data-label="Пользователь">
                         <a href="{{ url_for('admin_users.user_investigations', user_id=user.id) }}" class="font-medium text-white hover:text-accent-bright transition-colors">
                             {{ user.username }}
                         </a>
                     </td>
-                    <td data-label="Role">
+                    <td data-label="Роль">
                         <span class="role-badge {% if user.is_admin %}role-admin{% else %}role-user{% endif %}">
                             {{ user.role }}
                         </span>
                     </td>
-                    <td data-label="Investigations" class="text-gray-300">
+                    <td data-label="Проверок" class="text-gray-300">
                         {{ check_count or 0 }}
                     </td>
-                    <td data-label="Last Investigation" class="text-gray-400">
+                    <td data-label="Последняя проверка" class="text-gray-400">
                         {% if last_check_at %}{{ last_check_at.strftime('%d.%m.%Y, %H:%M') }}{% else %}&mdash;{% endif %}
                     </td>
-                    <td data-label="Created" class="text-gray-400">
+                    <td data-label="Зарегистрирован" class="text-gray-400">
                         {% if user.created_at %}{{ user.created_at.strftime('%d.%m.%Y') }}{% else %}&mdash;{% endif %}
                     </td>
-                    <td data-label="Open" class="text-right">
+                    <td data-label="Открыть" class="text-right">
                         <a href="{{ url_for('admin_users.user_investigations', user_id=user.id) }}" class="text-sm text-accent-bright hover:text-white transition-colors">
-                            Open
+                            Открыть
                         </a>
                     </td>
                 </tr>

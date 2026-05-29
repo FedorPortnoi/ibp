@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ selected_user.username }} Investigations - SLED{% endblock %}
+{% block title %}Проверки — {{ selected_user.username }} — СЛЕД{% endblock %}
 
 {% block head %}
 <style>
@@ -73,13 +73,13 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
             <a href="{{ url_for('admin_users.list_users') }}" class="text-sm text-gray-500 hover:text-accent-bright transition-colors">
-                &larr; Users
+                &larr; Пользователи
             </a>
             <h1 class="text-2xl sm:text-3xl font-normal text-white tracking-tight mt-2">
-                <span class="text-accent">{{ selected_user.username }}</span> investigations
+                Проверки — <span class="text-accent">{{ selected_user.username }}</span>
             </h1>
             <p class="text-gray-400 text-sm mt-1">
-                Total investigations: {{ checks|length }}
+                Всего проверок: {{ checks|length }}
             </p>
         </div>
     </div>
@@ -89,41 +89,41 @@
         <table class="checks-table">
             <thead>
                 <tr>
-                    <th>Candidate</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th>Risk</th>
-                    <th>Flags</th>
+                    <th>Кандидат</th>
+                    <th>Дата</th>
+                    <th>Статус</th>
+                    <th>Риск</th>
+                    <th>Флаги</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
                 {% for check in checks %}
                 <tr>
-                    <td data-label="Candidate">
+                    <td data-label="Кандидат">
                         <a href="/candidate/dossier/{{ check.id }}" class="font-medium text-white hover:text-accent-bright transition-colors">
                             {{ check.full_name }}
                         </a>
                     </td>
-                    <td data-label="Date" class="text-gray-400 whitespace-nowrap">
+                    <td data-label="Дата" class="text-gray-400 whitespace-nowrap">
                         {% if check.created_at %}{{ check.created_at.strftime('%d.%m.%Y, %H:%M') }}{% else %}&mdash;{% endif %}
                     </td>
-                    <td data-label="Status">
+                    <td data-label="Статус">
                         <span class="status-pill status-{{ check.status }}">{{ check.status }}</span>
                     </td>
-                    <td data-label="Risk">
+                    <td data-label="Риск">
                         {% if check.status == 'complete' and check.risk_level %}
                             <span class="risk-badge risk-{{ check.risk_level }}">{{ check.risk_level }}</span>
                         {% else %}
                             <span class="text-gray-500">&mdash;</span>
                         {% endif %}
                     </td>
-                    <td data-label="Flags" class="text-gray-300">
+                    <td data-label="Флаги" class="text-gray-300">
                         {{ check.red_flag_count or 0 }}
                     </td>
-                    <td data-label="Open" class="text-right">
+                    <td data-label="Открыть" class="text-right">
                         <a href="/candidate/dossier/{{ check.id }}" class="text-sm text-accent-bright hover:text-white transition-colors">
-                            Open
+                            Открыть
                         </a>
                     </td>
                 </tr>
@@ -133,7 +133,7 @@
     </div>
     {% else %}
     <div class="text-center py-20">
-        <p class="text-gray-400 text-lg mb-2">No investigations yet</p>
+        <p class="text-gray-400 text-lg mb-2">Проверок пока нет</p>
     </div>
     {% endif %}
 </div>
