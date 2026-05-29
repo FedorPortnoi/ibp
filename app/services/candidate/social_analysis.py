@@ -567,7 +567,8 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
             return fn(*args, **kwargs)
         return executor.submit(_wrapper)
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    executor = ThreadPoolExecutor(max_workers=5)
+    try:
         futures = {}
 
         # 5a. Face search (uploaded photo takes priority over profile photo)
@@ -620,6 +621,12 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
                 seen_urls.add(url)
                 deduped.append(acct)
         results['username_accounts'] = deduped
+    finally:
+        # Use wait=False so a hung Playwright task in _run_face_search cannot
+        # prevent run_social_analysis from returning (the pipeline outer timeout
+        # on stage5_future.result(timeout=90) would otherwise fire first anyway,
+        # but this ensures the Stage 5 thread itself exits cleanly).
+        executor.shutdown(wait=False, cancel_futures=True)
 
     # 5b. Social graph (needs VK data, runs after parallel tasks)
     if vk_id:

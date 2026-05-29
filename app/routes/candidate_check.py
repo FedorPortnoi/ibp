@@ -397,8 +397,7 @@ def start_check():
 
     # Limit concurrent running tasks to prevent resource exhaustion
     with _tasks_lock:
-        active_count = sum(1 for t in candidate_tasks.values()
-                           if not hasattr(t, 'completed') or not t.completed)
+        active_count = sum(1 for t in candidate_tasks.values() if not t.is_complete)
         if active_count >= 10:
             return _error('Слишком много активных проверок. Дождитесь завершения текущих.', 429)
 

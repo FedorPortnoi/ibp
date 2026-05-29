@@ -948,20 +948,29 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             finally:
                 gov_pool.shutdown(wait=False, cancel_futures=True)
 
-            # Court search runs SEQUENTIALLY after the pool — no timeout.
-            # sudact.ru Playwright + reputation.su deep parse can take 60-120s
-            # and we must not lose results to a timeout.
+            # Court search runs in a single-worker pool with 120s outer timeout.
+            # Individual Playwright ops have 30s each; 120s covers retries + reputation.su.
+            # Outer timeout prevents an OS-level browser hang from stalling the pipeline.
+            _court_pool = ThreadPoolExecutor(max_workers=1)
             try:
-                court_records = _search_courts(effective_name) or []
-                if court_records:
-                    task.add_message(f'Суды: найдено {len(court_records)} дел', 'success')
-                    sources_with_results += 1
-                else:
-                    task.add_message('Суды: дела не найдены', 'info')
-            except Exception as e:
-                logger.warning("Court search failed: %s", e)
-                task.add_message('Суды: источник недоступен', 'warning')
-                court_records = []
+                _court_future = _court_pool.submit(_ctx(_search_courts), effective_name)
+                try:
+                    court_records = _court_future.result(timeout=120) or []
+                    if court_records:
+                        task.add_message(f'Суды: найдено {len(court_records)} дел', 'success')
+                        sources_with_results += 1
+                    else:
+                        task.add_message('Суды: дела не найдены', 'info')
+                except TimeoutError:
+                    logger.warning("Court search: outer 120s timeout — Playwright may be hung")
+                    task.add_message('Суды: таймаут (120с) — пропущен', 'warning')
+                    court_records = []
+                except Exception as e:
+                    logger.warning("Court search failed: %s", e)
+                    task.add_message('Суды: источник недоступен', 'warning')
+                    court_records = []
+            finally:
+                _court_pool.shutdown(wait=False, cancel_futures=True)
             sources_checked += 1
 
             # Demo fallback for Stage 1
