@@ -4,8 +4,11 @@ Multi-user: username + password, open registration, admin/user roles.
 """
 
 import os
+import time
 import logging
 import datetime
+import threading
+from collections import defaultdict, deque
 from functools import wraps
 from urllib.parse import urlparse
 from flask import (
@@ -22,6 +25,48 @@ from app.permissions import is_admin
 logger = logging.getLogger('ibp.auth')
 
 auth_bp = Blueprint('auth', __name__)
+
+# ---------------------------------------------------------------------------
+# Per-username login lockout (defends against brute-force via IP rotation).
+# IP-based rate limits (Flask-Limiter) can be bypassed by spoofing
+# X-Forwarded-For.  Username-based lockout is immune to that vector.
+# ---------------------------------------------------------------------------
+_LOCKOUT_MAX_FAILURES = 5      # attempts within the window before lockout
+_LOCKOUT_WINDOW_SECS  = 300    # rolling 5-minute window
+_LOCKOUT_DURATION_SECS = 900   # 15-minute lockout
+
+_login_failures: dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
+_lockouts:       dict[str, float] = {}   # username -> unlock_timestamp
+_lockout_lock = threading.Lock()
+
+
+def _record_login_failure(username: str) -> None:
+    now = time.time()
+    with _lockout_lock:
+        q = _login_failures[username.lower()]
+        q.append(now)
+        recent = sum(1 for t in q if now - t < _LOCKOUT_WINDOW_SECS)
+        if recent >= _LOCKOUT_MAX_FAILURES:
+            _lockouts[username.lower()] = now + _LOCKOUT_DURATION_SECS
+            logger.warning(f"Login lockout applied to '{username}' after {recent} failures")
+
+
+def _clear_login_failures(username: str) -> None:
+    with _lockout_lock:
+        _login_failures[username.lower()].clear()
+        _lockouts.pop(username.lower(), None)
+
+
+def _is_locked_out(username: str) -> bool:
+    with _lockout_lock:
+        unlock_at = _lockouts.get(username.lower())
+        if unlock_at is None:
+            return False
+        if time.time() < unlock_at:
+            return True
+        # Lockout expired
+        del _lockouts[username.lower()]
+        return False
 
 
 def detect_language():
@@ -109,10 +154,18 @@ def login():
         password = request.form.get('password', '')
         remember = request.form.get('remember', False)
 
+        # Per-username lockout — immune to IP-rotation bypass of Flask-Limiter.
+        if _is_locked_out(username):
+            logger.warning(f"Login blocked (lockout) for '{username}' from {request.remote_addr}")
+            error = 'account_locked'
+            return render_template('login.html', error=error, lang=lang, mode='login')
+
         from app.models.user import User
         user = User.query.filter_by(username=username, is_active=True).first()
 
         if user and user.check_password(password):
+            _clear_login_failures(username)
+
             # Preserve next_url and lang before clearing session (prevents session fixation)
             saved_next_url = session.get('next_url')
             saved_lang = session.get('lang')
@@ -146,6 +199,7 @@ def login():
                     next_url = None
             return redirect(next_url or url_for('candidate.new_check'))
         else:
+            _record_login_failure(username)
             error = 'wrong_password'
             logger.warning(f"Failed login for '{username}' from {request.remote_addr}")
             from app import audit

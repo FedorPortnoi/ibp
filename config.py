@@ -158,6 +158,7 @@ class DevelopmentConfig(Config):
     """Development configuration."""
     DEBUG = True
     TESTING = False
+    SESSION_COOKIE_SECURE = False  # HTTP is fine in local dev; Secure is enforced in production
 
 
 class ProductionConfig(Config):

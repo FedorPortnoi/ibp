@@ -23,6 +23,7 @@ After significant changes, update the dev log and any docs affected by the chang
 | Projects/Stirlitz (IBP)/stirlitz-service-files.md | Working on service-layer code. |
 | Projects/Stirlitz (IBP)/stirlitz-security-pentest.md | Touching auth, rate limits, DoS protection, or security posture. |
 | Projects/Stirlitz (IBP)/stirlitz-ai-prompts.md | Working on Claude AI integration. |
+| Projects/Stirlitz (IBP)/stirlitz-ideal-system-map.md | North-star vision of the full system: pipeline waves, dossier sections, cross-cutting systems, data flow. Use when designing new features or evaluating scope. |
 
 ## Conventions
 - Dev Log: append-only, newest first, format ## YYYY-MM-DD

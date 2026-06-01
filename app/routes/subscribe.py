@@ -1,13 +1,14 @@
 """
 Subscription routes for IBP.
-Stub payment (YooKassa-ready): button activates subscription immediately.
-Email collected on subscribe page (login.html untouched).
+Payment is handled by YooKassa.  The stub activation path (IBP_STUB_PAYMENTS=true)
+is available in development only and is blocked in production.
 """
 
+import os
 import logging
 from flask import (
     Blueprint, render_template, request,
-    redirect, url_for, flash
+    redirect, url_for, flash, current_app
 )
 
 from app import db
@@ -46,9 +47,26 @@ def subscribe_page():
 @login_required
 def pay():
     """
-    Stub payment handler.
-    When YooKassa is ready — replace with real payment initiation.
+    Payment handler.
+
+    Production: initiate a real YooKassa payment and redirect the user to the
+    payment page.  The subscription is activated only after YooKassa calls back
+    the /subscribe/webhook endpoint with a verified success status.
+
+    Development (IBP_STUB_PAYMENTS=true only): activate immediately so the
+    subscription flow can be tested without a live payment processor.
+    This path is hard-blocked unless the env var is explicitly set.
     """
+    # Block stub activation in production — requires explicit opt-in.
+    stub_allowed = os.environ.get('IBP_STUB_PAYMENTS', '').lower() in ('1', 'true', 'yes')
+    if not stub_allowed:
+        logger.warning("Stub payment attempt blocked (IBP_STUB_PAYMENTS not set)")
+        return render_template('subscribe.html',
+                               user=get_current_user(),
+                               price=PRICE_RUB,
+                               days=PERIOD_DAYS,
+                               error='Онлайн-оплата временно недоступна. Свяжитесь с поддержкой.'), 503
+
     user = get_current_user()
     auto_renew = request.form.get('auto_renew') == 'on'
     email = request.form.get('email', '').strip() or None
@@ -66,17 +84,15 @@ def pay():
         sub = Subscription(user_id=user.id)
         db.session.add(sub)
 
-    # STUB: activate immediately without real payment
     sub.activate(payment_id=f'stub_{user.id}', auto_renew=auto_renew)
     db.session.commit()
 
-    logger.info(f"Subscription activated for user '{user.username}' (stub payment)")
+    logger.info(f"Subscription activated for user '{user.username}' (stub payment, dev only)")
     from app import audit
     audit.log('subscription.activate', user_id=user.id,
               target_type='Subscription', target_id=str(sub.id),
               metadata={'payment_id': sub.payment_id, 'expires_at': str(sub.expires_at)})
 
-    # Send confirmation email if available
     target_email = email or user.email
     if target_email:
         send_subscription_confirmation(

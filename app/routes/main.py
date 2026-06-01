@@ -97,15 +97,11 @@ def health_check():
 def readiness_check():
     """Readiness check for deploy monitors.
 
-    Unlike authenticated /health, this never calls external APIs.
+    Returns only ok/degraded — no internal state details exposed to
+    unauthenticated callers.
     """
     db_ok = _probe_database()
-    payload = {
-        'status': 'ok' if db_ok else 'degraded',
-        'database': db_ok,
-        'local_data': _local_data_status(),
-    }
-    return jsonify(payload), 200 if db_ok else 503
+    return jsonify({'status': 'ok' if db_ok else 'degraded'}), 200 if db_ok else 503
 
 
 @main_bp.route('/privacy')

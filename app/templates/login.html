@@ -103,6 +103,7 @@
     'auth_toggle_register': 'Нет аккаунта? Зарегистрироваться',
     'auth_toggle_login': 'Уже есть аккаунт? Войти',
     'auth_error': 'Неверный логин или пароль',
+    'auth_error_account_locked': 'Слишком много попыток. Аккаунт временно заблокирован на 15 минут.',
     'auth_error_username_short': 'Имя пользователя минимум 3 символа',
     'auth_error_username_long': 'Имя пользователя максимум 64 символа',
     'auth_error_username_taken': 'Пользователь с таким именем уже существует',
@@ -218,6 +219,7 @@
     'auth_toggle_register': 'No account? Register',
     'auth_toggle_login': 'Have an account? Sign in',
     'auth_error': 'Invalid username or password',
+    'auth_error_account_locked': 'Too many failed attempts. Account temporarily locked for 15 minutes.',
     'auth_error_username_short': 'Username must be at least 3 characters',
     'auth_error_username_long': 'Username must be 64 characters or fewer',
     'auth_error_username_taken': 'Username already taken',
@@ -680,7 +682,7 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:24px 48px;display:flex
       <span class="auth-logo-name">{{ t.auth_logo }}</span>
       <span class="auth-logo-hint" id="auth-hint">{{ t.auth_hint }}</span>
     </div>
-    <div id="flash-err" class="auth-err{% if error %} on{% endif %}">{% if error %}{% if error == 'wrong_password' %}{{ t.auth_error }}{% elif error == 'username_short' %}{{ t.auth_error_username_short }}{% elif error == 'username_long' %}{{ t.auth_error_username_long }}{% elif error == 'username_taken' %}{{ t.auth_error_username_taken }}{% elif error == 'password_short' %}{{ t.auth_error_password_short }}{% elif error == 'password_mismatch' %}{{ t.auth_error_password_mismatch }}{% else %}{{ t.auth_error }}{% endif %}{% endif %}</div>
+    <div id="flash-err" class="auth-err{% if error %} on{% endif %}">{% if error %}{% if error == 'wrong_password' %}{{ t.auth_error }}{% elif error == 'account_locked' %}{{ t.auth_error_account_locked }}{% elif error == 'username_short' %}{{ t.auth_error_username_short }}{% elif error == 'username_long' %}{{ t.auth_error_username_long }}{% elif error == 'username_taken' %}{{ t.auth_error_username_taken }}{% elif error == 'password_short' %}{{ t.auth_error_password_short }}{% elif error == 'password_mismatch' %}{{ t.auth_error_password_mismatch }}{% else %}{{ t.auth_error }}{% endif %}{% endif %}</div>
     <form method="POST" action="{% if mode == 'register' %}/register{% else %}/login{% endif %}" id="auth-form" data-mode="{{ mode or 'login' }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="field">

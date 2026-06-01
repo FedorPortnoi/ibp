@@ -244,21 +244,29 @@ def start_check():
     Creates a CandidateCheck record, launches pipeline in background,
     redirects to progress page.
     """
-    # --- Free tier enforcement ---
+    # --- Free tier enforcement (atomic) ---
+    # Use BEGIN IMMEDIATE so SQLite serializes this block across threads.
+    # Without the exclusive lock, two concurrent requests both read count=0,
+    # both pass the guard, and both insert — exceeding the weekly limit (TOCTOU).
     from app.routes.auth import get_current_user as _get_user
     from app.models.subscription import Subscription
     _user = _get_user()
     if _user and not _user.is_admin:
+        try:
+            db.session.execute(db.text("BEGIN IMMEDIATE"))
+        except Exception:
+            db.session.rollback()
         _sub = Subscription.query.filter_by(user_id=_user.id).first()
         if not _sub:
             _sub = Subscription(user_id=_user.id, status='inactive')
             db.session.add(_sub)
             try:
-                db.session.commit()
+                db.session.flush()
             except Exception as e:
                 db.session.rollback()
                 logger.error(f"Failed to create subscription: {e}")
         if not _sub.can_run_check():
+            db.session.rollback()
             return _error(
                 'Лимит бесплатных проверок исчерпан (2 в неделю). '
                 'Оформите подписку для безлимитного доступа.', 403

@@ -49,6 +49,19 @@ def create_app(config_name=None):
     # returns the real client IP instead of 127.0.0.1 from nginx.
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
+    # Strip the Server header at the WSGI level. Flask's after_request hook
+    # runs before Werkzeug re-adds "Werkzeug/x.x Python/x.x", so we need
+    # to intercept at the lower layer to reliably suppress fingerprinting.
+    class _StripServerHeader:
+        def __init__(self, wsgi_app):
+            self._app = wsgi_app
+        def __call__(self, environ, start_response):
+            def _start_response(status, headers, exc_info=None):
+                headers = [(k, v) for k, v in headers if k.lower() != 'server']
+                return start_response(status, headers, exc_info)
+            return self._app(environ, _start_response)
+    app.wsgi_app = _StripServerHeader(app.wsgi_app)
+
     # Ensure JSON responses contain proper UTF-8 Cyrillic (not Unicode escapes)
     app.json.ensure_ascii = False
 
@@ -129,6 +142,17 @@ def create_app(config_name=None):
                 return jsonify({'error': 'Требуется авторизация', 'redirect': '/login'}), 401
             if 'favicon' not in request.path and not request.path.startswith('/static'):
                 session['next_url'] = request.path
+            return redirect(url_for('auth.login'))
+
+        # Validate user_id actually exists and is active in the DB.
+        # A forged session cookie (using a leaked SECRET_KEY) would pass the
+        # truthy check above but fail here, preventing impersonation.
+        from app.models.user import User as _User
+        _session_user = db.session.get(_User, session['user_id'])
+        if not _session_user or not _session_user.is_active:
+            session.clear()
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'error': 'Требуется авторизация', 'redirect': '/login'}), 401
             return redirect(url_for('auth.login'))
 
         # Activity-based session timeout (default 1h inactivity)
