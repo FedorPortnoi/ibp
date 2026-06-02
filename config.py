@@ -170,6 +170,10 @@ class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
     SESSION_COOKIE_SECURE = True
+    # Disable strict Referer check — Flask-WTF requires Referer to match Host exactly,
+    # which breaks behind nginx SSL termination where the two can differ.
+    # The CSRF token itself still validates; only the Referer comparison is skipped.
+    WTF_CSRF_SSL_STRICT = False
 
 
 class TestingConfig(Config):
