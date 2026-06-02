@@ -39,7 +39,7 @@
             <span id="progress-pct" class="text-accent font-mono">0%</span>
         </div>
         <div class="progress">
-            <div id="progress-bar" class="progress-bar animated" style="width: 0%"></div>
+            <div id="progress-bar" class="progress-bar" style="width: 0%; transition: width 1.2s ease-out;"></div>
         </div>
     </div>
 
@@ -166,6 +166,42 @@ const CHECK_ID = '{{ check_id }}';
 let lastMessageCount = 0;
 let pollInterval = null;
 let isAwaitingConfirmation = false;
+
+// Smooth progress animation
+let _displayedPct = 0;
+let _targetPct = 0;
+let _nudgeInterval = null;
+
+function setProgress(real) {
+    if (real > _targetPct) _targetPct = real;
+    document.getElementById('progress-bar').style.width = _displayedPct + '%';
+    document.getElementById('progress-pct').textContent = Math.floor(_displayedPct) + '%';
+}
+
+function _startNudge() {
+    if (_nudgeInterval) return;
+    _nudgeInterval = setInterval(function() {
+        // Creep toward 95% of the gap to the next stage ceiling, never reaching it
+        var ceiling = Math.min(_targetPct + (100 - _targetPct) * 0.15, 99);
+        if (_displayedPct < ceiling) {
+            _displayedPct = Math.min(_displayedPct + 0.08, ceiling);
+            document.getElementById('progress-bar').style.width = _displayedPct + '%';
+            document.getElementById('progress-pct').textContent = Math.floor(_displayedPct) + '%';
+        }
+    }, 300);
+}
+
+function _stopNudge() {
+    if (_nudgeInterval) { clearInterval(_nudgeInterval); _nudgeInterval = null; }
+}
+
+function applyProgress(pct, isComplete) {
+    if (pct > _displayedPct) _displayedPct = pct;
+    _targetPct = pct;
+    document.getElementById('progress-bar').style.width = _displayedPct + '%';
+    document.getElementById('progress-pct').textContent = Math.floor(_displayedPct) + '%';
+    if (isComplete) { _stopNudge(); } else { _startNudge(); }
+}
 
 const STAGE_MAP = {
     'identity': 'identity',
@@ -333,8 +369,7 @@ function poll() {
             }
 
             // Update progress bar
-            document.getElementById('progress-bar').style.width = data.percent_complete + '%';
-            document.getElementById('progress-pct').textContent = data.percent_complete + '%';
+            applyProgress(data.percent_complete, data.is_complete);
             if (!isAwaitingConfirmation) {
                 document.getElementById('progress-label').textContent = data.current_step || data.current_stage;
             }
