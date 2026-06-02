@@ -165,9 +165,12 @@
                         <span class="text-[9px] ml-1" style="color:#C4955A;">ADMIN</span>
                         {% endif %}
                     </span>
-                    <a href="/logout" title="Выход" class="text-xs uppercase tracking-widest transition-colors" style="font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,0.4);text-decoration:none;border:1px solid rgba(232,224,212,0.15);padding:4px 12px;">
-                        Выход
-                    </a>
+                    <form method="POST" action="/logout" style="display:inline;margin:0">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="text-xs uppercase tracking-widest transition-colors" style="font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,0.4);text-decoration:none;border:1px solid rgba(232,224,212,0.15);padding:4px 12px;background:none;cursor:pointer;" title="Выход">
+                            Выход
+                        </button>
+                    </form>
                     {% endif %}
                     <!-- Mobile menu toggle -->
                     <button id="menu-toggle" class="md:hidden px-3 py-2" style="color:rgba(232,224,212,0.4);background:none;border:1px solid rgba(232,224,212,0.15);">
@@ -195,7 +198,10 @@
             {% endif %}
             <a href="/connections" class="text-2xl text-[#E8E0D4] hover:text-[#C4955A] transition-colors" style="font-family:'Bebas Neue',sans-serif;letter-spacing:3px;text-decoration:none;">Связи</a>
             <a href="/chat/" class="text-2xl text-[#E8E0D4] hover:text-[#C4955A] transition-colors" style="font-family:'Bebas Neue',sans-serif;letter-spacing:3px;text-decoration:none;">Чат</a>
-            <a href="/logout" class="text-xl transition-colors mt-4" style="font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,0.4);text-decoration:none;border:1px solid rgba(232,224,212,0.15);padding:8px 24px;">Выход</a>
+            <form method="POST" action="/logout" style="display:inline;margin:0">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="text-xl transition-colors mt-4" style="font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,0.4);text-decoration:none;border:1px solid rgba(232,224,212,0.15);padding:8px 24px;background:none;cursor:pointer;">Выход</button>
+            </form>
             {% else %}
             <a href="/login" class="btn btn-primary btn-lg">Войти</a>
             {% endif %}

@@ -25,6 +25,19 @@ from app.services.candidate.pipeline import candidate_tasks, _tasks_lock, Candid
 candidate_bp = Blueprint('candidate', __name__, url_prefix='/candidate')
 logger = logging.getLogger(__name__)
 
+
+def _is_valid_image_header(header: bytes, ext: str) -> bool:
+    """Verify file magic bytes match the declared image extension. No external deps needed."""
+    if ext in ('jpg', 'jpeg'):
+        return header[:3] == b'\xff\xd8\xff'
+    if ext == 'png':
+        return header[:8] == b'\x89PNG\r\n\x1a\n'
+    if ext == 'gif':
+        return header[:6] in (b'GIF87a', b'GIF89a')
+    if ext == 'webp':
+        return len(header) >= 12 and header[:4] == b'RIFF' and header[8:12] == b'WEBP'
+    return False
+
 VK_API_VERSION = '5.199'
 VK_API_BASE_URL = 'https://api.vk.com/method'
 VK_MANUAL_LOOKUP_TIMEOUT_SECONDS = 8.0
@@ -367,9 +380,18 @@ def start_check():
     if photo and photo.filename:
         filename = secure_filename(photo.filename)
         if filename:
+            ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+            allowed = current_app.config.get('ALLOWED_EXTENSIONS', {'png', 'jpg', 'jpeg', 'gif', 'webp'})
+            if ext not in allowed:
+                return _error('Недопустимый тип файла. Разрешены: PNG, JPG, GIF, WebP', 400)
+            header = photo.stream.read(12)
+            photo.stream.seek(0)
+            if not _is_valid_image_header(header, ext):
+                return _error('Файл повреждён или не является допустимым изображением', 400)
             photo_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'photos')
             os.makedirs(photo_dir, exist_ok=True)
-            photo_path = os.path.join(photo_dir, f"{check_id}_{filename}")
+            safe_name = f"{check_id}.{ext}"
+            photo_path = os.path.join(photo_dir, safe_name)
             photo.save(photo_path)
 
     # Get current user for ownership
@@ -1097,7 +1119,15 @@ def export_pdf(check_id):
             browser = p.chromium.launch(headless=True)
             try:
                 page = browser.new_page()
-                page.set_content(html_str, wait_until='networkidle')
+                # Block all external network requests to prevent SSRF.
+                # data: URIs (inline images/fonts) are allowed; http/https are blocked.
+                def _block_external(route):
+                    if route.request.url.startswith('data:'):
+                        route.continue_()
+                    else:
+                        route.abort()
+                page.route('**/*', _block_external)
+                page.set_content(html_str, wait_until='domcontentloaded')
                 pdf_bytes = page.pdf(
                     format='A4',
                     margin={'top': '1.5cm', 'bottom': '2cm', 'left': '1.5cm', 'right': '1.5cm'},

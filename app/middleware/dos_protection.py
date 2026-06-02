@@ -2,6 +2,7 @@
 DoS/DDoS protection middleware.
 Tracks suspicious patterns and auto-bans repeat offenders.
 """
+import os
 import time
 import threading
 from collections import defaultdict, deque
@@ -51,6 +52,7 @@ class DosProtection:
         self._404s = defaultdict(lambda: deque(maxlen=100))
         # IP -> suspicious score
         self._scores = defaultdict(int)
+        self._redis = None
 
     def _cleanup(self):
         """Remove expired bans and old request data."""
@@ -72,15 +74,27 @@ class DosProtection:
                 self._404s.pop(ip, None)
 
     def is_banned(self, ip: str) -> bool:
+        if self._redis:
+            try:
+                return bool(self._redis.exists(f'ibp:ban:{ip}'))
+            except Exception:
+                pass
         now = time.time()
         with self._lock:
             return ip in self._banned and self._banned[ip] > now
 
     def ban(self, ip: str, duration: int = 3600):
         """Ban IP for duration seconds."""
+        if self._redis:
+            try:
+                self._redis.setex(f'ibp:ban:{ip}', duration, '1')
+                logger.warning(f"Banned {ip} for {duration}s (Redis shared)")
+                return
+            except Exception:
+                pass
         with self._lock:
             self._banned[ip] = time.time() + duration
-        logger.warning(f"Banned {ip} for {duration}s")
+        logger.warning(f"Banned {ip} for {duration}s (in-memory, not shared across workers)")
 
     def record_request(self, ip: str) -> bool:
         """Record request from IP. Returns True if should be blocked."""
@@ -163,6 +177,23 @@ def init_dos_protection(app):
     if app.config.get('TESTING'):
         logger.info("DoS protection skipped (testing mode)")
         return
+
+    import os as _os
+    redis_url = app.config.get('REDIS_URL') or _os.environ.get('REDIS_URL')
+    if redis_url:
+        try:
+            import redis as _redis_lib
+            _rc = _redis_lib.from_url(redis_url, socket_connect_timeout=2)
+            _rc.ping()
+            _dos._redis = _rc
+            logger.info("DoS protection: using Redis for shared ban state across workers")
+        except Exception as _e:
+            logger.warning(f"DoS protection: Redis unavailable ({_e}), using per-worker in-memory state")
+    else:
+        logger.warning(
+            "DoS protection: REDIS_URL not set — ban state is NOT shared across Gunicorn workers. "
+            "Set REDIS_URL=redis://localhost:6379/0 in production for proper multi-worker protection."
+        )
 
     @app.before_request
     def check_dos():

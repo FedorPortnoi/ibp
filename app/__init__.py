@@ -25,7 +25,7 @@ csrf = CSRFProtect()
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://",
+    storage_uri=os.environ.get('REDIS_URL', 'memory://'),
     strategy="fixed-window",
 )
 
@@ -74,6 +74,11 @@ def create_app(config_name=None):
     #    class attributes are evaluated once at import time and cached by Python,
     #    so they can miss env vars set later or differ between environments.
     load_env_config(app)
+
+    # Ensure url_for() generates https:// when behind nginx SSL termination.
+    # ProxyFix rewrites request environ but url_for() needs this config key.
+    if not app.config.get('PREFERRED_URL_SCHEME'):
+        app.config['PREFERRED_URL_SCHEME'] = os.environ.get('PREFERRED_URL_SCHEME', 'https')
 
     # Validate SECRET_KEY is set
     if not app.config.get('SECRET_KEY'):
@@ -215,12 +220,20 @@ def create_app(config_name=None):
         response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=(), payment=(), usb=()'
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com https://cdnjs.cloudflare.com; "
-            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' "
+            "https://cdn.jsdelivr.net https://cdn.tailwindcss.com "
+            "https://unpkg.com https://cdnjs.cloudflare.com; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net "
+            "https://cdn.tailwindcss.com https://unpkg.com "
+            "https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; "
             "img-src 'self' data: https: blob:; "
-            "connect-src 'self' https://cdnjs.cloudflare.com; "
-            "frame-ancestors 'none'"
+            "connect-src 'self'; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'; "
+            "object-src 'none'; "
+            "upgrade-insecure-requests"
         )
         # Remove server fingerprint headers
         response.headers.pop('Server', None)

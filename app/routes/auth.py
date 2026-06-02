@@ -4,11 +4,9 @@ Multi-user: username + password, open registration, admin/user roles.
 """
 
 import os
-import time
+import time as _time
 import logging
 import datetime
-import threading
-from collections import defaultdict, deque
 from functools import wraps
 from urllib.parse import urlparse
 from flask import (
@@ -26,47 +24,76 @@ logger = logging.getLogger('ibp.auth')
 
 auth_bp = Blueprint('auth', __name__)
 
+_REGISTRATION_OPEN = os.environ.get('IBP_REGISTRATION_OPEN', '').lower() in ('1', 'true', 'yes')
+
+_geo_cache: dict = {}
+_GEO_CACHE_TTL = 3600
+
 # ---------------------------------------------------------------------------
 # Per-username login lockout (defends against brute-force via IP rotation).
 # IP-based rate limits (Flask-Limiter) can be bypassed by spoofing
 # X-Forwarded-For.  Username-based lockout is immune to that vector.
+# DB-backed so lockout is enforced across all workers.
 # ---------------------------------------------------------------------------
 _LOCKOUT_MAX_FAILURES = 5      # attempts within the window before lockout
 _LOCKOUT_WINDOW_SECS  = 300    # rolling 5-minute window
 _LOCKOUT_DURATION_SECS = 900   # 15-minute lockout
 
-_login_failures: dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
-_lockouts:       dict[str, float] = {}   # username -> unlock_timestamp
-_lockout_lock = threading.Lock()
-
 
 def _record_login_failure(username: str) -> None:
-    now = time.time()
-    with _lockout_lock:
-        q = _login_failures[username.lower()]
-        q.append(now)
-        recent = sum(1 for t in q if now - t < _LOCKOUT_WINDOW_SECS)
-        if recent >= _LOCKOUT_MAX_FAILURES:
-            _lockouts[username.lower()] = now + _LOCKOUT_DURATION_SECS
-            logger.warning(f"Login lockout applied to '{username}' after {recent} failures")
+    from app import db
+    from app.models.login_attempt import LoginAttempt
+    try:
+        db.session.add(LoginAttempt(username_lower=username.lower()))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.warning(f"Could not record login failure for '{username}'")
 
 
 def _clear_login_failures(username: str) -> None:
-    with _lockout_lock:
-        _login_failures[username.lower()].clear()
-        _lockouts.pop(username.lower(), None)
+    from app import db
+    from app.models.login_attempt import LoginAttempt
+    import datetime as _dt
+    try:
+        cutoff = _dt.datetime.utcnow() - _dt.timedelta(seconds=_LOCKOUT_DURATION_SECS)
+        LoginAttempt.query.filter(
+            LoginAttempt.username_lower == username.lower(),
+            LoginAttempt.attempted_at >= cutoff,
+        ).delete()
+        # Prune old records opportunistically
+        old_cutoff = _dt.datetime.utcnow() - _dt.timedelta(seconds=_LOCKOUT_DURATION_SECS * 4)
+        LoginAttempt.query.filter(LoginAttempt.attempted_at < old_cutoff).delete()
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 
 def _is_locked_out(username: str) -> bool:
-    with _lockout_lock:
-        unlock_at = _lockouts.get(username.lower())
-        if unlock_at is None:
-            return False
-        if time.time() < unlock_at:
-            return True
-        # Lockout expired
-        del _lockouts[username.lower()]
+    from app import db
+    from app.models.login_attempt import LoginAttempt
+    import datetime as _dt
+    try:
+        now = _dt.datetime.utcnow()
+        window_start = now - _dt.timedelta(seconds=_LOCKOUT_WINDOW_SECS)
+        recent = LoginAttempt.query.filter(
+            LoginAttempt.username_lower == username.lower(),
+            LoginAttempt.attempted_at >= window_start,
+        ).count()
+        if recent >= _LOCKOUT_MAX_FAILURES:
+            latest = (
+                LoginAttempt.query
+                .filter(LoginAttempt.username_lower == username.lower())
+                .order_by(LoginAttempt.attempted_at.desc())
+                .first()
+            )
+            if latest:
+                lockout_end = latest.attempted_at + _dt.timedelta(seconds=_LOCKOUT_DURATION_SECS)
+                return now < lockout_end
+    except Exception:
+        logger.warning("Lockout DB check failed, defaulting to not locked out")
         return False
+    return False
 
 
 def detect_language():
@@ -75,16 +102,25 @@ def detect_language():
     if saved in ('ru', 'en'):
         return saved
 
-    # Geo-IP: try ip-api.com (free, no key)
+    # Geo-IP: try ip-api.com (free, no key) — results cached per IP for _GEO_CACHE_TTL seconds
     try:
         ip = request.remote_addr
         if ip and ip not in ('127.0.0.1', '::1'):
-            resp = req.get(f'http://ip-api.com/json/{ip}?fields=countryCode', timeout=1.5)
-            if resp.ok:
-                cc = resp.json().get('countryCode', '')
-                if cc in CIS_COUNTRY_CODES:
-                    return 'ru'
-                return 'en'
+            cached = _geo_cache.get(ip)
+            if cached and (_time.time() - cached[1]) < _GEO_CACHE_TTL:
+                cc = cached[0]
+            else:
+                resp = req.get(f'http://ip-api.com/json/{ip}?fields=countryCode', timeout=1.5)
+                cc = resp.json().get('countryCode', '') if resp.ok else ''
+                _geo_cache[ip] = (cc, _time.time())
+                if len(_geo_cache) > 5000:
+                    # Prune oldest half
+                    sorted_keys = sorted(_geo_cache, key=lambda k: _geo_cache[k][1])
+                    for k in sorted_keys[:2500]:
+                        _geo_cache.pop(k, None)
+            if cc in CIS_COUNTRY_CODES:
+                return 'ru'
+            return 'en'
     except Exception:
         pass
 
@@ -212,6 +248,10 @@ def login():
 @limiter.limit("5 per minute; 20 per hour", methods=["POST"])
 def register():
     """Create a regular user account and sign in immediately."""
+    if not _REGISTRATION_OPEN:
+        lang = detect_language()
+        return render_template('login.html', error='registration_closed', lang=lang, mode='register'), 403
+
     if session.get('user_id'):
         return redirect(url_for('candidate.new_check'))
 
@@ -246,7 +286,7 @@ def register():
     from app.models.subscription import Subscription
 
     if User.query.filter_by(username=username).first():
-        return _render_error('username_taken')
+        return _render_error('registration_error')
 
     user = User(username=username, role='user')
     user.set_password(password)
@@ -258,7 +298,7 @@ def register():
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return _render_error('username_taken')
+        return _render_error('registration_error')
 
     session.clear()
     session['user_id'] = user.id
@@ -277,7 +317,7 @@ def register():
     return redirect(url_for('candidate.new_check'))
 
 
-@auth_bp.route('/logout')
+@auth_bp.route('/logout', methods=['POST'])
 def logout():
     """Logout and clear session."""
     session.clear()
