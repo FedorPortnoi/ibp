@@ -231,8 +231,41 @@ candidate_tasks = {}
 _tasks_lock = threading.Lock()
 
 
+def _kill_playwright_zombies():
+    """Kill orphaned headless Chromium processes older than 5 minutes.
+
+    Playwright browser subprocesses survive Python-level timeouts because
+    ThreadPoolExecutor cannot kill OS threads or subprocesses. Without this,
+    every timed-out court/social search leaves a zombie Chromium process on
+    the VPS that consumes ~200MB RAM. After 10+ runs the server swap-thrashes
+    and all new Playwright launches stall for 10–20 minutes.
+    """
+    try:
+        import psutil
+    except ImportError:
+        return  # add psutil to requirements.txt
+
+    cutoff = time.time() - 300  # 5 minutes
+    killed = 0
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'create_time']):
+        try:
+            name = (proc.info.get('name') or '').lower()
+            cmdline_str = ' '.join(proc.info.get('cmdline') or []).lower()
+            if (('chromium' in name or 'chrome' in name)
+                    and '--headless' in cmdline_str
+                    and proc.info.get('create_time', time.time()) < cutoff):
+                proc.kill()
+                killed += 1
+                logger.info("Killed zombie Playwright/Chromium PID %d", proc.pid)
+        except Exception:
+            pass
+    if killed:
+        logger.warning("Playwright zombie cleanup: killed %d orphaned Chromium process(es)", killed)
+
+
 def cleanup_old_tasks(task_store, max_age_seconds=3600):
     """Remove completed tasks older than max_age_seconds and force-complete stale ones."""
+    _kill_playwright_zombies()
     now = datetime.now()
     expired = []
     with _tasks_lock:
@@ -398,6 +431,10 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
         task = candidate_tasks.get(task_id)
     if not task:
         return
+
+    # Clean up zombie Playwright processes from prior timed-out runs before
+    # launching new ones — prevents progressive VPS memory exhaustion.
+    _kill_playwright_zombies()
 
     # Helper to propagate Flask app context into ThreadPoolExecutor threads.
     _ctx = _make_ctx_wrapper(app)
@@ -746,7 +783,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 return records
 
             def _search_courts(full_name):
-                """Search court records — sudact.ru + casebook.ru + reputation.su."""
+                """Search court records — sudact.ru + casebook.ru.
+
+                reputation.su is already called inside CourtRecordSearch.search_by_name();
+                calling it again here was a duplicate network request.
+                """
                 records = []
                 # Primary: sudact.ru (general + arbitration, works globally)
                 logger.info(f"Stage 1 Courts: searching sudact.ru for '{full_name}'")
@@ -782,27 +823,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                                 existing_numbers.add(d['case_number'])
                 except Exception as e:
                     logger.warning(f"Casebook court search failed: {e}")
-
-                # Supplementary: reputation.su (58M+ court cases aggregator)
-                try:
-                    from app.services.phase3.reputation_su_service import search_reputation_su
-                    rep_results = search_reputation_su(full_name, timeout=20)
-                    if rep_results:
-                        existing_numbers = {r.get('case_number', '') for r in records}
-                        new_count = 0
-                        for r in rep_results:
-                            if r.get('case_number') and r['case_number'] not in existing_numbers:
-                                records.append(r)
-                                existing_numbers.add(r['case_number'])
-                                new_count += 1
-                        logger.info(
-                            f"Stage 1 Courts reputation.su: {len(rep_results)} total, "
-                            f"{new_count} new (not in sudact/casebook)"
-                        )
-                    else:
-                        logger.info("Stage 1 Courts reputation.su: 0 cases")
-                except Exception as e:
-                    logger.warning(f"reputation.su court search failed: {e}")
 
                 return records
 
@@ -1309,20 +1329,29 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 sources_checked += 1
 
             # --- VK→TG cross-reference (Method A) — quick post-hoc check ---
+            # Runs in a thread with a 30s hard timeout so it cannot stall the
+            # main pipeline thread (N screen_names × ~10s HTTP each was blocking
+            # indefinitely with no progress update).
             if vk_screen_names:
-                try:
+                def _do_vk_tg_xref():
                     from app.services.phase1.telegram_discovery import TelegramDiscoveryService
-                    tg_xref_svc = TelegramDiscoveryService()
+                    svc = TelegramDiscoveryService()
                     try:
-                        xref_results = tg_xref_svc._method_a_vk_crossref(
-                            vk_screen_names, _tg_first, _tg_last,
-                        )
+                        return svc._method_a_vk_crossref(vk_screen_names, _tg_first, _tg_last)
+                    finally:
+                        svc.close()
+
+                _xref_pool = ThreadPoolExecutor(max_workers=1)
+                try:
+                    _xref_future = _xref_pool.submit(_ctx(_do_vk_tg_xref))
+                    try:
+                        xref_results = _xref_future.result(timeout=30)
                         if xref_results:
                             tg_results = (tg_results or []) + xref_results
-                    finally:
-                        tg_xref_svc.close()
-                except Exception as e:
-                    logger.debug(f"VK→TG cross-ref: {e}")
+                    except Exception as e:
+                        logger.debug(f"VK→TG cross-ref timeout/error: {e}")
+                finally:
+                    _xref_pool.shutdown(wait=False, cancel_futures=True)
 
             # --- Process Telegram results ---
             tg_count = 0

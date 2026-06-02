@@ -463,7 +463,7 @@ class CourtRecordSearch:
         for attempt in range(1, max_retries + 1):
             try:
                 with sync_playwright() as p:
-                    browser = p.chromium.launch(headless=True)
+                    browser = p.chromium.launch(headless=True, timeout=15000)
                     try:
                         page = browser.new_page()
                         page.set_default_timeout(self.timeout * 1000)
@@ -560,7 +560,7 @@ class CourtRecordSearch:
                     # Reuse a single browser + page for all detail fetches
                     try:
                         with sync_playwright() as p2:
-                            browser2 = p2.chromium.launch(headless=True)
+                            browser2 = p2.chromium.launch(headless=True, timeout=15000)
                             try:
                                 detail_page = browser2.new_page()
                                 for case in results:

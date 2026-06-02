@@ -103,7 +103,7 @@ class PledgeRegistrySearch:
 
         try:
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
+                browser = p.chromium.launch(headless=True, timeout=15000)
                 page = browser.new_page()
                 page.set_default_timeout(self.timeout * 1000)
 

@@ -699,7 +699,7 @@ class FSSPService:
 
         try:
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
+                browser = p.chromium.launch(headless=True, timeout=15000)
                 try:
                     context = browser.new_context(
                         user_agent=(

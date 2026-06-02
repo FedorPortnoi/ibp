@@ -697,6 +697,7 @@ class VKUsernameForgotChecker:
             browser = p.chromium.launch(
                 headless=True,
                 args=['--disable-blink-features=AutomationControlled'],
+                timeout=15000,
             )
             try:
                 context = browser.new_context(

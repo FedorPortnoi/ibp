@@ -256,6 +256,7 @@ class FSSPSearch:
             browser = p.chromium.launch(
                 headless=True,
                 args=['--no-sandbox', '--disable-dev-shm-usage'],
+                timeout=15000,
             )
             context = browser.new_context(
                 user_agent=self.HEADERS['User-Agent'],

@@ -662,7 +662,7 @@ class VKWebSearch:
 
         try:
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
+                browser = p.chromium.launch(headless=True, timeout=15000)
                 try:
                     context = browser.new_context(
                         storage_state=STATE_FILE,
@@ -876,7 +876,7 @@ class VKWebSearch:
         from playwright.sync_api import sync_playwright
 
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(headless=True, timeout=15000)
             context = browser.new_context(
                 locale='ru-RU',
                 user_agent=USER_AGENTS[0],
@@ -1286,7 +1286,7 @@ def save_vk_session():
     print("=" * 60)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=True, timeout=15000)
         try:
             context = browser.new_context(locale='ru-RU')
             page = context.new_page()

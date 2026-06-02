@@ -293,7 +293,7 @@ def _search_via_playwright(image_data: bytes, filename: str, database: str, max_
         logger.info(f"Search4Faces Playwright: opening {page_url}...")
 
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(headless=True, timeout=15000)
             try:
                 page = browser.new_page(
                     user_agent=HEADERS['User-Agent'],

@@ -1116,7 +1116,7 @@ def export_pdf(check_id):
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(headless=True, timeout=15000)
             try:
                 page = browser.new_page()
                 # Block all external network requests to prevent SSRF.

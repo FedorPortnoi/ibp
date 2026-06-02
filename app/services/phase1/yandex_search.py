@@ -209,6 +209,7 @@ class YandexNameSearch:
                     '--no-sandbox',
                     '--disable-dev-shm-usage',
                 ],
+                timeout=15000,
             )
             logger.info("Yandex Playwright: browser launched")
             return cls._browser
