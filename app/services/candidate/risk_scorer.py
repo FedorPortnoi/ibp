@@ -573,7 +573,7 @@ class RiskScorer:
         if not records:
             return flags
 
-        active_pledges = [r for r in records if r.get('status', '').lower() not in ('прекращён', 'удовлетворён')]
+        active_pledges = [r for r in records if str(r.get('status') or '').lower() not in ('прекращён', 'удовлетворён')]
         if len(active_pledges) >= 3:
             flags.append(self._flag(
                 SEVERITY_MEDIUM, 'financial', 'many_pledges',
@@ -758,7 +758,7 @@ class RiskScorer:
         claimed_city = ''
         for p in profiles:
             if isinstance(p, dict) and p.get('city'):
-                claimed_city = p['city'].lower().strip()
+                claimed_city = str(p['city']).lower().strip()
                 break
 
         home_location = geo_analysis.get('home_location')
