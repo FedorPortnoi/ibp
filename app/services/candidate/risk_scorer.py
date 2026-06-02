@@ -756,8 +756,14 @@ class RiskScorer:
 
         profiles = self._safe_json_attr(check, 'social_media_profiles', [])
         claimed_city = ''
-        for p in profiles:
-            if isinstance(p, dict) and p.get('city'):
+        # Use highest-similarity profile's city — first profile may be a false match
+        sorted_profiles = sorted(
+            [p for p in profiles if isinstance(p, dict)],
+            key=lambda p: p.get('name_similarity', 0),
+            reverse=True,
+        )
+        for p in sorted_profiles:
+            if p.get('city'):
                 city_val = p['city']
                 if isinstance(city_val, dict):
                     city_val = city_val.get('title', '')
