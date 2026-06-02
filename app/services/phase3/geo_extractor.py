@@ -293,11 +293,17 @@ class GeoExtractor:
                         geo = post['geo']
                         coords = geo.get('coordinates', '').split()
                         if len(coords) >= 2:
+                            _place = geo.get('place', {})
+                            _city_val = _place.get('city', '')
+                            if isinstance(_city_val, dict):
+                                _city_val = _city_val.get('title', '')
+                            elif isinstance(_city_val, int):
+                                _city_val = ''
                             locations.append(LocationPoint(
                                 latitude=float(coords[0]),
                                 longitude=float(coords[1]),
-                                name=geo.get('place', {}).get('title', ''),
-                                city=geo.get('place', {}).get('city', ''),
+                                name=_place.get('title', ''),
+                                city=str(_city_val),
                                 timestamp=datetime.fromtimestamp(post.get('date', 0)).isoformat() if post.get('date') else '',
                                 source='VK',
                                 post_url=f"https://vk.com/wall{user_id}_{post.get('id', '')}",
@@ -537,12 +543,16 @@ class GeoExtractor:
 
         return locations
 
-    def _city_to_location(self, city_text: str, source: str) -> Optional[LocationPoint]:
+    def _city_to_location(self, city_text, source: str) -> Optional[LocationPoint]:
         """Convert city name to location point."""
+        if isinstance(city_text, dict):
+            city_text = city_text.get('title', '')
+        elif isinstance(city_text, int):
+            return None
         if not city_text:
             return None
 
-        city_lower = city_text.lower().strip()
+        city_lower = str(city_text).lower().strip()
 
         # Check known cities
         for city_name, coords in RUSSIAN_CITIES.items():
