@@ -556,20 +556,22 @@ class CourtRecordSearch:
 
                 if results:
                     logger.info(f"Sudact Playwright: found {len(results)} cases on attempt {attempt}, fetching details")
-                    # Second pass: fetch full text for each case with a URL
-                    # Reuse a single browser + page for all detail fetches
+                    # Second pass: fetch full text — cap at 4 to stay within the 120s outer
+                    # timeout (each detail page takes ~25s via Playwright fallback).
+                    # Cases beyond the cap are still returned with basic metadata.
+                    MAX_DETAIL_FETCHES = 4
+                    cases_with_url = [c for c in results if c.url][:MAX_DETAIL_FETCHES]
                     try:
                         with sync_playwright() as p2:
                             browser2 = p2.chromium.launch(headless=True, timeout=15000)
                             try:
                                 detail_page = browser2.new_page()
-                                for case in results:
-                                    if case.url:
-                                        case.raw_text = self._fetch_case_details(detail_page, case.url)
-                                        if case.raw_text:
-                                            case.criminal_articles = self._extract_criminal_articles(case.raw_text)
-                                            case.verdict = self._extract_verdict(case.raw_text)
-                                        time.sleep(1)
+                                for case in cases_with_url:
+                                    case.raw_text = self._fetch_case_details(detail_page, case.url)
+                                    if case.raw_text:
+                                        case.criminal_articles = self._extract_criminal_articles(case.raw_text)
+                                        case.verdict = self._extract_verdict(case.raw_text)
+                                    time.sleep(1)
                             finally:
                                 browser2.close()
                     except Exception as e:

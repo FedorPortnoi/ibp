@@ -975,15 +975,15 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             try:
                 _court_future = _court_pool.submit(_ctx(_search_courts), effective_name)
                 try:
-                    court_records = _court_future.result(timeout=120) or []
+                    court_records = _court_future.result(timeout=150) or []
                     if court_records:
                         task.add_message(f'Суды: найдено {len(court_records)} дел', 'success')
                         sources_with_results += 1
                     else:
                         task.add_message('Суды: дела не найдены', 'info')
                 except TimeoutError:
-                    logger.warning("Court search: outer 120s timeout — Playwright may be hung")
-                    task.add_message('Суды: таймаут (120с) — пропущен', 'warning')
+                    logger.warning("Court search: outer 150s timeout — Playwright may be hung")
+                    task.add_message('Суды: таймаут (150с) — пропущен', 'warning')
                     court_records = []
                 except Exception as e:
                     logger.warning("Court search failed: %s", e)
