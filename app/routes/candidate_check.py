@@ -495,6 +495,7 @@ def progress_page(task_id):
 
 
 @candidate_bp.route('/progress/<task_id>/status')
+@limiter.exempt
 def progress_status(task_id):
     """JSON polling endpoint for progress updates — 8 stages."""
     # Ownership check
