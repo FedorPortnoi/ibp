@@ -763,7 +763,7 @@ class RiskScorer:
 
         home_location = geo_analysis.get('home_location')
         if isinstance(home_location, dict):
-            geo_city = (home_location.get('city') or '').lower().strip()
+            geo_city = str(home_location.get('city') or '').lower().strip()
             if claimed_city and geo_city and claimed_city != geo_city:
                 if claimed_city not in geo_city and geo_city not in claimed_city:
                     if not self._cities_are_related(claimed_city, geo_city):
