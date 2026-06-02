@@ -299,7 +299,13 @@ function appendLog(messages) {
 
 function poll() {
     fetch('/candidate/progress/' + TASK_ID + '/status')
-        .then(function(r) { return r.json(); })
+        .then(function(r) {
+            if (!r.ok) {
+                document.getElementById('progress-label').textContent = 'Ошибка сервера ' + r.status + ' — обновите страницу';
+                return Promise.reject('HTTP ' + r.status);
+            }
+            return r.json();
+        })
         .then(function(data) {
             if (data.error && !data.status) {
                 showError(data.error);
