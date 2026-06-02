@@ -64,13 +64,19 @@ def health_check():
 
     authenticated = bool(session.get('authenticated') or session.get('user_id'))
 
-    # Unauthenticated: dependency-free liveness response for load balancers / uptime monitors.
+    # Unauthenticated: minimal liveness response for load balancers / uptime monitors.
     if not authenticated:
         return jsonify({'status': 'ok'}), 200
 
     db_ok = _probe_database()
-    version = _app_version()
 
+    # Detailed service status only for admins — prevents infrastructure enumeration.
+    from app.permissions import is_admin
+    from app.routes.auth import get_current_user
+    if not is_admin(get_current_user()):
+        return jsonify({'status': 'ok' if db_ok else 'degraded'}), 200 if db_ok else 503
+
+    version = _app_version()
     services = {
         'vk_token': bool(os.environ.get('VK_SERVICE_TOKEN')),
         'telegram': bool(os.environ.get('TELEGRAM_API_ID') and os.environ.get('TELEGRAM_API_HASH')),
@@ -137,7 +143,14 @@ def investigations_list():
 @main_bp.route('/vk/auth')
 def vk_auth():
     """Redirect to VK OAuth URL for token acquisition."""
+    from app.routes.auth import admin_required
     from app.utils.vk_token_manager import get_oauth_url
+    from flask import session as _session
+    from app.permissions import is_admin
+    from app.routes.auth import get_current_user
+    if not is_admin(get_current_user()):
+        from flask import abort
+        abort(403)
     url, error = get_oauth_url()
     if error:
         return render_template('vk_callback.html', error=error)
@@ -147,12 +160,23 @@ def vk_auth():
 @main_bp.route('/vk/callback')
 def vk_callback():
     """Landing page that captures VK token from URL fragment via JS."""
+    from app.permissions import is_admin
+    from app.routes.auth import get_current_user
+    if not is_admin(get_current_user()):
+        from flask import abort
+        abort(403)
     return render_template('vk_callback.html', error=None)
 
 
 @main_bp.route('/vk/save-token', methods=['POST'])
 def vk_save_token():
-    """Save VK token received from OAuth callback."""
+    """Save VK token received from OAuth callback. Admin only."""
+    from app.permissions import is_admin
+    from app.routes.auth import get_current_user
+    if not is_admin(get_current_user()):
+        from flask import abort
+        abort(403)
+
     import re as _re
     data = request.get_json()
     if not data or not data.get('token'):
@@ -174,6 +198,11 @@ def vk_save_token():
 
 @main_bp.route('/api/vk/token-status')
 def vk_token_status():
-    """Get VK token status for AJAX polling."""
+    """Get VK token status. Admin only."""
+    from app.permissions import is_admin
+    from app.routes.auth import get_current_user
+    if not is_admin(get_current_user()):
+        from flask import abort
+        abort(403)
     from app.utils.vk_token_manager import get_token_status
     return jsonify(get_token_status())
