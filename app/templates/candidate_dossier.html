@@ -731,7 +731,9 @@
                         <div class="sm:col-span-2">
                             <span class="text-gray-600">Статьи УК:</span>
                             {% for art in case.criminal_articles %}
-                                <span class="inline-block bg-red-900 text-red-200 text-xs px-2 py-0.5 rounded mr-1 mt-1">{{ art }}</span>
+                                <span class="inline-block bg-red-900 text-red-200 text-xs px-2 py-0.5 rounded mr-1 mt-1">
+                                    {{ art.get('full_text', art) if art is mapping else art }}{% if art is mapping and art.get('category') %} ({{ art.category }}){% endif %}
+                                </span>
                             {% endfor %}
                         </div>
                     {% endif %}

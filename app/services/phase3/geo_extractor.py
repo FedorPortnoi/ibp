@@ -251,7 +251,14 @@ class GeoExtractor:
                     all_locations.extend(locs)
 
                 # Extract city from profile info
-                city = profile.get('city', '')
+                # VK returns city as {'id': N, 'title': 'Name'}, int ID, or string
+                city_raw = profile.get('city', '')
+                if isinstance(city_raw, dict):
+                    city = city_raw.get('title', '')
+                elif isinstance(city_raw, int):
+                    city = ''  # bare integer ID — no name available, skip
+                else:
+                    city = city_raw
                 if city:
                     loc = self._city_to_location(city, f"Profile: {platform}")
                     if loc:

@@ -758,8 +758,14 @@ class RiskScorer:
         claimed_city = ''
         for p in profiles:
             if isinstance(p, dict) and p.get('city'):
-                claimed_city = str(p['city']).lower().strip()
-                break
+                city_val = p['city']
+                if isinstance(city_val, dict):
+                    city_val = city_val.get('title', '')
+                elif isinstance(city_val, int):
+                    city_val = ''
+                claimed_city = str(city_val).lower().strip()
+                if claimed_city:
+                    break
 
         home_location = geo_analysis.get('home_location')
         if isinstance(home_location, dict):
