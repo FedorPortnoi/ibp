@@ -17,7 +17,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
-_MODEL = 'claude-sonnet-4-20250514'
+_MODEL = 'claude-haiku-4-5-20251001'
 _MAX_TOKENS = 512
 
 
@@ -29,6 +29,12 @@ def _get_client():
         return None
     try:
         import anthropic
+        import httpx
+
+        proxy_url = os.environ.get('HTTPS_PROXY') or os.environ.get('https_proxy')
+        if proxy_url:
+            http_client = httpx.Client(proxies={'https://': proxy_url})
+            return anthropic.Anthropic(api_key=api_key, http_client=http_client)
         return anthropic.Anthropic(api_key=api_key)
     except ImportError:
         logger.warning("anthropic package not installed, skipping AI summary")
