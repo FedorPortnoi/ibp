@@ -98,6 +98,21 @@ def create_app(config_name=None):
     csrf.init_app(app)
     limiter.init_app(app)
 
+    # SQLite: WAL mode allows concurrent reads + pipeline writes without locking.
+    # busy_timeout gives writers 30s to wait instead of immediately failing.
+    # Only applies when using SQLite (dev/local); Postgres ignores these pragmas.
+    import sqlite3
+    from sqlalchemy import event
+    from sqlalchemy.engine import Engine
+
+    @event.listens_for(Engine, 'connect')
+    def _set_sqlite_pragmas(dbapi_conn, _record):
+        if isinstance(dbapi_conn, sqlite3.Connection):
+            cur = dbapi_conn.cursor()
+            cur.execute('PRAGMA journal_mode=WAL')
+            cur.execute('PRAGMA busy_timeout=30000')
+            cur.close()
+
     # DoS/DDoS protection middleware (Layer 3 — behavioral analysis)
     from app.middleware.dos_protection import init_dos_protection
     init_dos_protection(app)

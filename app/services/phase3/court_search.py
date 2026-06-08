@@ -202,46 +202,24 @@ class CourtRecordSearch:
         Search for court cases involving a person.
 
         Sources (in order):
-        1. sudact.ru — Playwright, then basic requests fallback
-        2. судебныерешения.рф — session-based PHP search (plain requests)
-        3. reputation.su — Nuxt 3 SSR search (plain requests)
+        1. судебныерешения.рф — session-based PHP search (plain requests)
+        2. reputation.su — Nuxt 3 SSR, 58M+ cases (plain requests)
         """
         results = []
         name = full_name.strip()
         if not name:
             return results
 
-        logger.info(f"Court search: starting for '{name}' (Playwright={'available' if PLAYWRIGHT_AVAILABLE else 'unavailable'})")
+        logger.info(f"Court search: starting for '{name}'")
 
-        # --- Source 1: sudact.ru (Playwright + basic fallback) ---
-        if PLAYWRIGHT_AVAILABLE:
-            try:
-                sudact_results = self._search_sudact_playwright(name, limit)
-                results.extend(sudact_results)
-                logger.info(f"Court search: Sudact Playwright returned {len(sudact_results)} cases")
-            except Exception as e:
-                logger.warning(f"Court search: Sudact Playwright failed with error: {e}")
-        else:
-            logger.info("Court search: Playwright not available — sudact.ru requires JS rendering, skipping")
-
-        # Try basic requests as secondary/fallback approach
-        if not results:
-            logger.info("Court search: trying basic requests fallback for sudact.ru")
-            try:
-                sudact_basic = self._search_sudact_basic(name, limit)
-                results.extend(sudact_basic)
-                logger.info(f"Court search: Sudact basic returned {len(sudact_basic)} cases")
-            except Exception as e:
-                logger.warning(f"Court search: Sudact basic failed with error: {e}")
-
-        # --- Source 2: судебныерешения.рф ---
+        # --- Source 1: судебныерешения.рф ---
         try:
             sr_results = self._search_sudebnye_resheniya(name, limit)
             results.extend(sr_results)
         except Exception as e:
             logger.warning(f"Court search: судебныерешения.рф failed: {e}")
 
-        # --- Source 3: reputation.su ---
+        # --- Source 2: reputation.su ---
         try:
             from app.services.phase3.reputation_su_service import search_reputation_su
             rep_cases = search_reputation_su(name)

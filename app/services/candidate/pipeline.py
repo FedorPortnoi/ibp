@@ -231,36 +231,46 @@ candidate_tasks = {}
 _tasks_lock = threading.Lock()
 
 
-def _kill_playwright_zombies():
-    """Kill orphaned headless Chromium processes older than 5 minutes.
+def _kill_playwright_zombies(max_age_seconds=90):
+    """Kill orphaned headless Chrome/Chromium processes spawned by Playwright.
 
-    Playwright browser subprocesses survive Python-level timeouts because
-    ThreadPoolExecutor cannot kill OS threads or subprocesses. Without this,
-    every timed-out court/social search leaves a zombie Chromium process on
-    the VPS that consumes ~200MB RAM. After 10+ runs the server swap-thrashes
-    and all new Playwright launches stall for 10–20 minutes.
+    Called at both investigation START and END so zombies never accumulate
+    across runs. Default threshold is 90s — shorter than any stage timeout,
+    so a process from the previous investigation is always old enough to kill
+    by the time the next one begins.
+
+    Windows note: Playwright on Windows launches chrome.exe (not chromium).
+    The name check covers both; cmdline access may be restricted for Chrome
+    subprocesses, so we also match on 'playwright' in the data-dir path.
     """
     try:
         import psutil
     except ImportError:
-        return  # add psutil to requirements.txt
+        return
 
-    cutoff = time.time() - 300  # 5 minutes
+    cutoff = time.time() - max_age_seconds
     killed = 0
     for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'create_time']):
         try:
             name = (proc.info.get('name') or '').lower()
-            cmdline_str = ' '.join(proc.info.get('cmdline') or []).lower()
-            if (('chromium' in name or 'chrome' in name)
-                    and '--headless' in cmdline_str
-                    and proc.info.get('create_time', time.time()) < cutoff):
+            cmdline_list = proc.info.get('cmdline') or []
+            cmdline_str = ' '.join(cmdline_list).lower()
+
+            is_chrome = 'chromium' in name or 'chrome' in name
+            is_headless = (
+                '--headless' in cmdline_str
+                or 'playwright' in cmdline_str
+            )
+            is_old = proc.info.get('create_time', time.time()) < cutoff
+
+            if is_chrome and is_headless and is_old:
                 proc.kill()
                 killed += 1
-                logger.info("Killed zombie Playwright/Chromium PID %d", proc.pid)
+                logger.info("Killed zombie Chrome PID %d (%s)", proc.pid, name)
         except Exception:
             pass
     if killed:
-        logger.warning("Playwright zombie cleanup: killed %d orphaned Chromium process(es)", killed)
+        logger.warning("Playwright cleanup: killed %d zombie Chrome process(es)", killed)
 
 
 def cleanup_old_tasks(task_store, max_age_seconds=3600):
@@ -1952,6 +1962,17 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             except Exception as e2:
                 db.session.rollback()
                 logger.warning(f"Non-critical error during error-state commit: {e2}")
+
+        finally:
+            # Kill any Chrome processes this investigation left behind, and
+            # release the SQLAlchemy connection for this thread back to the pool.
+            # This runs whether the pipeline succeeded, errored, or was cancelled —
+            # so investigation N+1 always starts with a clean slate.
+            _kill_playwright_zombies(max_age_seconds=0)
+            try:
+                db.session.remove()
+            except Exception:
+                pass
 
 
 def _pause():

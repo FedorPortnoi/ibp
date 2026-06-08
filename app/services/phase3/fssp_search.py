@@ -149,13 +149,10 @@ class FSSPSearch:
             logger.warning("FSSP website unreachable — skipping search")
             return []
 
-        # Step 2: Try Playwright-based search (handles JS, detects CAPTCHA)
-        results = self._search_playwright(lastname, firstname, patronymic, birthdate, limit)
-        if results is not None:
-            return results
-
-        # Playwright failed or returned CAPTCHA — return empty (manual link is the fallback)
-        logger.info("FSSP search returned no results (CAPTCHA or unavailable)")
+        # FSSP website is reachable but CAPTCHA-gated — no automated path available.
+        # Pipeline primary is CheckoService; this fallback returns empty so the
+        # pipeline continues without blocking on a CAPTCHA solve.
+        logger.info("FSSP: no automated search path available (CAPTCHA-gated)")
         return []
 
     def search_by_full_name(

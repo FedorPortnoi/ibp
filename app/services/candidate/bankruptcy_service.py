@@ -175,19 +175,7 @@ class BankruptcyService:
             filtered = self._filter_results(all_records, full_name, inn, dob)
             return filtered
 
-        # Strategy 3: Playwright scraper
-        if PLAYWRIGHT_AVAILABLE:
-            try:
-                records = self._search_playwright(full_name)
-                if records is not None:
-                    filtered = self._filter_results(records, full_name, inn, dob)
-                    return filtered
-            except Exception as e:
-                logger.warning(f"ЕФРСБ Playwright error: {e}")
-        else:
-            logger.info("Playwright not available — skipping ЕФРСБ web scraper")
-
-        # Strategy 4: Manual fallback
+        # Strategy 3: Manual fallback
         logger.info("ЕФРСБ: returning manual search URL")
         return self._manual_fallback(full_name)
 
