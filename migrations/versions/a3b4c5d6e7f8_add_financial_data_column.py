@@ -15,7 +15,10 @@ depends_on = None
 
 
 def upgrade():
-    op.execute("ALTER TABLE company_checks ADD COLUMN IF NOT EXISTS financial_data TEXT")
+    try:
+        op.add_column('company_checks', sa.Column('financial_data', sa.Text(), nullable=True))
+    except Exception:
+        pass
 
 
 def downgrade():
