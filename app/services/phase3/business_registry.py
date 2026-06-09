@@ -4,9 +4,10 @@ Business Registry Search - Russian ЕГРЮЛ/ЕГРИП
 Search for company affiliations via official sources.
 
 Sources (in priority order):
-1. egrul.nalog.ru (official FNS, free, 2-step token-based API)
-2. Rusprofile.ru (scraping fallback)
-3. zachestnyibiznes.ru (scraping fallback)
+1. egrul.org       — free JSON API, same FNS source as Контур.Фокус (100 req/day)
+2. egrul.nalog.ru  — official FNS search fallback (basic data + 1 director)
+3. Rusprofile.ru   — scraping fallback
+4. zachestnyibiznes.ru — scraping last resort
 
 Additional checks:
 - check_ip_status() — ИП (individual entrepreneur) registration lookup
@@ -76,6 +77,7 @@ class BusinessRegistrySearch:
     3. List-org.com — Scraping fallback
     """
 
+    EGRUL_ORG_BASE = "https://egrul.org"
     NALOG_BASE = "https://egrul.nalog.ru"
     RUSPROFILE_BASE = "https://www.rusprofile.ru"
     LISTORG_BASE = "https://www.list-org.com"
@@ -111,7 +113,7 @@ class BusinessRegistrySearch:
 
         logger.info(f"Business registry search: name='{name}', limit={limit}")
 
-        # Source 1: nalog.ru EGRUL (primary — official, reliable)
+        # Source 1: nalog.ru EGRUL (name search — egrul.org has no name search endpoint)
         try:
             nalog_results = self._search_nalog_egrul(name, limit)
             results.extend(nalog_results)
@@ -120,6 +122,15 @@ class BusinessRegistrySearch:
                 logger.info(f"  nalog.ru: {r.company_name} | INN: {r.inn} | {r.role}")
         except Exception as e:
             logger.warning(f"nalog.ru EGRUL search failed: {e}")
+
+        # Enrich nalog.ru results via egrul.org (fills capital, OKVED, full address)
+        # Each record has a 10-digit company INN we can look up directly.
+        if results:
+            for record in results[:10]:  # cap at 10 to stay within 100/day limit
+                try:
+                    self._enrich_record_from_egrul_org(record)
+                except Exception as e:
+                    logger.debug(f"egrul.org enrichment for {record.inn}: {e}")
 
         # Source 2: Rusprofile (fallback if nalog.ru returned few results)
         if len(results) < 3:
@@ -153,7 +164,133 @@ class BusinessRegistrySearch:
 
         return unique_results[:limit]
 
-    # ===== nalog.ru EGRUL (Primary Source) =====
+    # ===== egrul.org (Primary Source) =====
+
+    def _search_egrul_org(self, query: str) -> List[BusinessRecord]:
+        """
+        GET https://egrul.org/{INN_or_OGRN}.json
+        Returns full FNS data — same source as Контур.Фокус. Free, 100 req/day.
+
+        Works for:
+          - 10-digit company INN  → legal entity record
+          - 12-digit personal INN → ИП record (if the person has registered as ИП)
+          - 13-digit OGRN         → legal entity record
+          - 15-digit ОГРНИП       → ИП record
+        """
+        url = f"{self.EGRUL_ORG_BASE}/{query}.json"
+        try:
+            resp = self.session.get(url, timeout=self.timeout)
+            if resp.status_code == 404:
+                return []
+            if resp.status_code != 200:
+                logger.warning("egrul.org: HTTP %s for %s", resp.status_code, query)
+                return []
+
+            data = resp.json()
+            return self._parse_egrul_org_to_records(data, query)
+
+        except Exception as exc:
+            logger.warning("egrul.org search failed: %s", exc)
+            return []
+
+    def _parse_egrul_org_to_records(self, data: dict, query: str) -> List[BusinessRecord]:
+        """Parse egrul.org JSON into BusinessRecord(s)."""
+        from app.services.company.egrul_service import (
+            _attrs, _as_list, _fio, _parse_address, _parse_okveds,
+            _normalize_status, _detect_company_type,
+        )
+
+        ul_data = data.get('СвЮЛ')
+        ip_data = data.get('СвИП')
+        root    = ul_data or ip_data or data
+        is_ip   = ip_data is not None and ul_data is None
+
+        if not root or not isinstance(root, dict):
+            return []
+
+        a    = _attrs(root)
+        inn  = a.get('ИНН', '')
+        ogrn = a.get('ОГРН', a.get('ОГРНИП', ''))
+        kpp  = a.get('КПП', '')
+
+        if not inn and not ogrn:
+            return []
+
+        # Name
+        if is_ip:
+            fio      = a.get('ФИОПолн', '')
+            name     = f"ИП {fio}" if fio else f"ИП (ИНН {inn})"
+            ctype    = 'ИП'
+            role     = 'ИП'
+        else:
+            nb    = root.get('СвНаимЮЛ', {})
+            na    = _attrs(nb)
+            name  = na.get('НаимЮЛСокр', '') or na.get('НаимЮЛПолн', '') or a.get('НаимЮЛСокр', '')
+            ctype = _detect_company_type(name)
+            # Determine role: director or founder — left as 'Связан' since
+            # role context comes from the candidate's name matching,
+            # which happens in the pipeline layer, not here.
+            role = 'Связан'
+
+        end_date = a.get('ДатаПрекрЮЛ', a.get('ДатаПрекрИП', ''))
+        reg_date = a.get('ДатаОГРН', a.get('ДатаОГРНИП', ''))
+        status   = _normalize_status(_attrs(root.get('СвСтатус', {})).get('НаимСтатусЮЛ', ''))
+        if end_date:
+            status = 'Ликвидировано'
+
+        address, _ = _parse_address(root.get('СвАдресЮЛ', root.get('СвМНЖ', {})))
+
+        cap_raw = _attrs(root.get('СвУстКап', {})).get('СумКап', '')
+        capital = f"{cap_raw} руб." if cap_raw else ''
+
+        okved, okved_name, _ = _parse_okveds(root.get('СвОКВЭД', {}))
+
+        return [BusinessRecord(
+            company_name=name,
+            inn=inn,
+            ogrn=ogrn,
+            role=role,
+            status=status,
+            registration_date=reg_date,
+            address=address,
+            capital=capital,
+            source='egrul.org',
+            url=f"{self.EGRUL_ORG_BASE}/{query}.json",
+            confidence='high',
+            company_type=ctype,
+            okved=okved,
+            okved_name=okved_name,
+        )]
+
+    def _enrich_record_from_egrul_org(self, record: BusinessRecord) -> None:
+        """
+        Fill gaps in a BusinessRecord that came from nalog.ru or rusprofile
+        by fetching the full data from egrul.org using the record's company INN.
+        Only called when the record has a company INN (10-digit) and is missing
+        capital / OKVED / full address.
+        """
+        company_inn = record.inn
+        if not company_inn or len(company_inn) != 10:
+            return
+        if record.capital and record.okved:
+            return  # Already rich enough
+
+        enriched = self._search_egrul_org(company_inn)
+        if not enriched:
+            return
+
+        src = enriched[0]
+        if not record.address and src.address:
+            record.address = src.address
+        if not record.capital and src.capital:
+            record.capital = src.capital
+        if not record.okved and src.okved:
+            record.okved = src.okved
+            record.okved_name = src.okved_name
+        if not record.ogrn and src.ogrn:
+            record.ogrn = src.ogrn
+
+    # ===== nalog.ru EGRUL (Fallback) =====
 
     def _search_nalog_egrul(self, name: str, limit: int) -> List[BusinessRecord]:
         """
@@ -681,18 +818,29 @@ class BusinessRegistrySearch:
         if not inn or not inn.isdigit():
             return []
 
-        logger.info(f"[EGRUL] Запрос: query='{inn}', тип={'ИНН' if inn.isdigit() else 'имя'}")
+        logger.info(f"[EGRUL] Запрос: query='{inn}'")
 
         results = []
 
-        # Primary: nalog.ru EGRUL
+        # Primary: egrul.org — same FNS source as Контур.Фокус
         try:
-            nalog_results = self._search_nalog_egrul(inn, limit=50)
-            if nalog_results:
-                results = nalog_results
-                logger.info(f"INN search: nalog.ru returned {len(results)} records")
+            org_results = self._search_egrul_org(inn)
+            if org_results:
+                results = org_results
+                logger.info(f"INN search: egrul.org returned {len(results)} records")
         except Exception as e:
-            logger.warning(f"INN search nalog.ru failed: {e}")
+            logger.warning(f"INN search egrul.org failed: {e}")
+
+        # Fallback: nalog.ru EGRUL
+        if not results:
+            logger.info(f"INN search: falling back to nalog.ru for INN {inn[:4]}***")
+            try:
+                nalog_results = self._search_nalog_egrul(inn, limit=50)
+                if nalog_results:
+                    results = nalog_results
+                    logger.info(f"INN search: nalog.ru returned {len(results)} records")
+            except Exception as e:
+                logger.warning(f"INN search nalog.ru failed: {e}")
 
         # Fallback: Rusprofile by INN
         if not results:

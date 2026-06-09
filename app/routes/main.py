@@ -118,17 +118,20 @@ def privacy():
 
 @main_bp.route('/')
 def index():
-    """Root — authenticated users go to new check form, others to login."""
+    """Root — authenticated users go to dashboard, others to login."""
     from flask import session as _session
     if _session.get('user_id'):
-        return redirect(url_for('candidate.new_check'))
+        return redirect(url_for('main.dashboard'))
     return redirect(url_for('auth.login'))
 
 
 @main_bp.route('/dashboard')
 def dashboard():
-    """Dashboard — redirect to candidate check."""
-    return redirect(url_for('candidate.new_check'))
+    """Investigation type selection — first screen after login."""
+    from flask import session as _session
+    if not _session.get('user_id'):
+        return redirect(url_for('auth.login'))
+    return render_template('dashboard.html')
 
 
 @main_bp.route('/investigations')

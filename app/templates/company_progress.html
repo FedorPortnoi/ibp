@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Расследование — {{ check.inn }} — СЛЕД{% endblock %}
+
+{% block head %}
+<style>
+    .stage-item { transition: all 0.3s ease; }
+    .stage-item.active { border-color: var(--accent); background: var(--accent-subtle); }
+    .stage-item.done { border-color: rgba(52,211,153,0.25); }
+    .stage-item.done .stage-icon { color: #34d399; }
+    .stage-item.active .stage-icon { animation: pulse-icon 1.5s infinite; }
+    @keyframes pulse-icon { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .log-entry { animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <div class="mono-label mb-3">Pipeline Active</div>
+        <h1 class="text-2xl font-normal text-white mb-1 tracking-tight">Расследование организации</h1>
+        <p class="text-accent text-lg font-mono">{{ check.inn }}</p>
+        {% if check.query_name %}
+        <p class="text-gray-500 text-sm mt-1">{{ check.query_name }}</p>
+        {% endif %}
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between text-sm mb-2">
+            <span id="progress-label" class="text-gray-400">Инициализация...</span>
+            <span id="progress-pct" class="text-accent font-mono">0%</span>
+        </div>
+        <div class="progress">
+            <div id="progress-bar" class="progress-bar" style="width:0%;transition:width 1.2s ease-out;"></div>
+        </div>
+    </div>
+
+    <!-- Stages -->
+    <div class="space-y-3 mb-8">
+        <div id="stage-egrul" class="stage-item flex items-center gap-3 p-3 border border-white/[0.06] bg-bg-panel" style="border-radius:0;">
+            <span class="stage-icon text-lg text-gray-500">🏛️</span>
+            <div class="flex-1">
+                <div class="text-sm font-medium text-gray-300">ЕГРЮЛ / ЕГРИП</div>
+                <div class="text-xs text-gray-500">Реестр организаций: учредители, директора, адрес, ОКВЭД</div>
+            </div>
+            <span id="stage-egrul-status" class="text-xs text-gray-600">ожидание</span>
+        </div>
+        <div id="stage-courts" class="stage-item flex items-center gap-3 p-3 border border-white/[0.06] bg-bg-panel" style="border-radius:0;">
+            <span class="stage-icon text-lg text-gray-500">⚖️</span>
+            <div class="flex-1">
+                <div class="text-sm font-medium text-gray-300">Суды</div>
+                <div class="text-xs text-gray-500">Арбитражные и гражданские дела</div>
+            </div>
+            <span id="stage-courts-status" class="text-xs text-gray-600">ожидание</span>
+        </div>
+        <div id="stage-sanctions" class="stage-item flex items-center gap-3 p-3 border border-white/[0.06] bg-bg-panel" style="border-radius:0;">
+            <span class="stage-icon text-lg text-gray-500">🛡️</span>
+            <div class="flex-1">
+                <div class="text-sm font-medium text-gray-300">Санкции</div>
+                <div class="text-xs text-gray-500">OpenSanctions, международные и российские списки</div>
+            </div>
+            <span id="stage-sanctions-status" class="text-xs text-gray-600">ожидание</span>
+        </div>
+        <div id="stage-risk" class="stage-item flex items-center gap-3 p-3 border border-white/[0.06] bg-bg-panel" style="border-radius:0;">
+            <span class="stage-icon text-lg text-gray-500">📊</span>
+            <div class="flex-1">
+                <div class="text-sm font-medium text-gray-300">Оценка рисков</div>
+                <div class="text-xs text-gray-500">Составление профиля риска</div>
+            </div>
+            <span id="stage-risk-status" class="text-xs text-gray-600">ожидание</span>
+        </div>
+    </div>
+
+    <!-- Log -->
+    <div id="log-container" class="bg-bg-panel border border-white/[0.06] p-4 font-mono text-xs text-gray-500 space-y-1 max-h-48 overflow-y-auto" style="border-radius:0;"></div>
+
+    <!-- Error -->
+    <div id="error-box" class="hidden mt-6 p-4 border border-red-500/30 bg-red-500/05 text-red-400 text-sm" style="border-radius:0;"></div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CHECK_ID = {{ check.id | tojson }};
+const STATUS_URL = '/company/status/' + CHECK_ID;
+
+const STAGE_MAP = {
+    egrul:     'stage-egrul',
+    courts:    'stage-courts',
+    sanctions: 'stage-sanctions',
+    risk:      'stage-risk',
+    complete:  'stage-risk',
+};
+
+const STAGE_ORDER = ['egrul', 'courts', 'sanctions', 'risk'];
+
+let lastLogCount = 0;
+
+function markStage(stageKey, state) {
+    const el = document.getElementById(STAGE_MAP[stageKey]);
+    if (!el) return;
+    el.classList.remove('active', 'done');
+    el.classList.add(state);
+    const statusEl = document.getElementById(STAGE_MAP[stageKey] + '-status');
+    if (statusEl) statusEl.textContent = state === 'active' ? 'выполняется...' : state === 'done' ? '✓' : 'ожидание';
+}
+
+function updateStages(currentStage, pct) {
+    const idx = STAGE_ORDER.indexOf(currentStage);
+    STAGE_ORDER.forEach(function(s, i) {
+        if (i < idx) markStage(s, 'done');
+        else if (i === idx) markStage(s, 'active');
+    });
+    if (pct >= 100) STAGE_ORDER.forEach(s => markStage(s, 'done'));
+}
+
+function appendLog(messages) {
+    const container = document.getElementById('log-container');
+    for (let i = lastLogCount; i < messages.length; i++) {
+        const m = messages[i];
+        const div = document.createElement('div');
+        div.className = 'log-entry';
+        div.innerHTML = '<span class="text-gray-600">' + (m.ts || '') + '</span> ' + (m.msg || m);
+        container.appendChild(div);
+    }
+    lastLogCount = messages.length;
+    container.scrollTop = container.scrollHeight;
+}
+
+async function poll() {
+    try {
+        const resp = await fetch(STATUS_URL);
+        if (!resp.ok) { setTimeout(poll, 3000); return; }
+        const data = await resp.json();
+
+        const pct = data.percent_complete || 0;
+        document.getElementById('progress-bar').style.width = pct + '%';
+        document.getElementById('progress-pct').textContent = pct + '%';
+        document.getElementById('progress-label').textContent = data.current_step || data.current_stage || '';
+
+        if (data.messages) appendLog(data.messages);
+        if (data.current_stage) updateStages(data.current_stage, pct);
+
+        if (data.status === 'complete') {
+            STAGE_ORDER.forEach(s => markStage(s, 'done'));
+            document.getElementById('progress-bar').style.width = '100%';
+            document.getElementById('progress-pct').textContent = '100%';
+            document.getElementById('progress-label').textContent = 'Завершено';
+            setTimeout(() => { window.location.href = data.dossier_url; }, 800);
+            return;
+        }
+
+        if (data.status === 'error') {
+            const box = document.getElementById('error-box');
+            box.textContent = 'Ошибка: ' + (data.error || 'неизвестная ошибка');
+            box.classList.remove('hidden');
+            return;
+        }
+
+        setTimeout(poll, 2500);
+    } catch (e) {
+        setTimeout(poll, 4000);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(poll, 600);
+});
+</script>
+{% endblock %}

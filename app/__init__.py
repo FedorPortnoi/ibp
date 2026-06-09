@@ -121,19 +121,32 @@ def create_app(config_name=None):
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'reports'), exist_ok=True)
 
-    # Import and register blueprints directly from each file
+    # Core blueprints — required for the app to function
     from app.routes.auth import auth_bp
     from app.routes.admin_users import admin_users_bp
     from app.routes.main import main_bp
-    from app.routes.candidate_check import candidate_bp
     from app.routes.subscribe import subscribe_bp
     from app.routes.chat import chat_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_users_bp)
     app.register_blueprint(main_bp)
-    app.register_blueprint(candidate_bp)
     app.register_blueprint(subscribe_bp)
     app.register_blueprint(chat_bp)
+
+    # Investigation blueprints — isolated: failure of one does NOT crash the other
+    try:
+        from app.routes.candidate_check import candidate_bp
+        app.register_blueprint(candidate_bp)
+        logger.info("Candidate blueprint registered")
+    except Exception as _bp_exc:
+        logger.error("Candidate blueprint failed to load — Тип 01 unavailable: %s", _bp_exc)
+
+    try:
+        from app.routes.company_check import company_bp
+        app.register_blueprint(company_bp)
+        logger.info("Company blueprint registered")
+    except Exception as _bp_exc:
+        logger.error("Company blueprint failed to load — Тип 02 unavailable: %s", _bp_exc)
 
     # Global auth check — protect ALL routes except login, register, and static files
     @app.before_request

@@ -180,7 +180,7 @@ def set_lang(lang):
 def login():
     """Login page — username + password."""
     if session.get('user_id'):
-        return redirect(url_for('candidate.new_check'))
+        return redirect(url_for('main.dashboard'))
 
     lang = detect_language()
 
@@ -233,7 +233,7 @@ def login():
                     next_url = None
                 elif next_url.startswith('//'):
                     next_url = None
-            return redirect(next_url or url_for('candidate.new_check'))
+            return redirect(next_url or url_for('main.dashboard'))
         else:
             _record_login_failure(username)
             error = 'wrong_password'
@@ -253,7 +253,7 @@ def register():
         return render_template('login.html', error='registration_closed', lang=lang, mode='register'), 403
 
     if session.get('user_id'):
-        return redirect(url_for('candidate.new_check'))
+        return redirect(url_for('main.dashboard'))
 
     lang = detect_language()
 
@@ -314,7 +314,7 @@ def register():
     from app import audit
     audit.log('auth.register', user_id=user.id, metadata={'username': user.username})
 
-    return redirect(url_for('candidate.new_check'))
+    return redirect(url_for('main.dashboard'))
 
 
 @auth_bp.route('/logout', methods=['POST'])
