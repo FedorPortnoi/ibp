@@ -16,12 +16,8 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column('company_checks',
-        sa.Column('sanctions_meta', sa.Text(), nullable=True)
-    )
-    op.add_column('company_checks',
-        sa.Column('gov_contracts_data', sa.Text(), nullable=True)
-    )
+    op.execute("ALTER TABLE company_checks ADD COLUMN IF NOT EXISTS sanctions_meta TEXT")
+    op.execute("ALTER TABLE company_checks ADD COLUMN IF NOT EXISTS gov_contracts_data TEXT")
 
 
 def downgrade():
