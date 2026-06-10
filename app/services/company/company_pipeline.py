@@ -173,7 +173,7 @@ def _score_risk(egrul: dict, courts: list, sanctions: list, bankruptcy: dict, fi
 
     # Liquidated or bankruptcy status from EGRUL
     status = (egrul.get('status') or '').lower()
-    if any(kw in status for kw in ('ликвидир', 'прекрат', 'банкрот')):
+    if any(kw in status for kw in ('ликвидир', 'прекрат', 'прекращ', 'банкрот')):
         score += 25
         flags.append({'severity': 'high', 'text': f'Статус организации: {egrul.get("status", "")}'})
 

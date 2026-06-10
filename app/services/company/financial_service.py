@@ -19,6 +19,7 @@ Register at: https://dadata.ru/profile/
 
 import logging
 import os
+import time
 from typing import Dict, Optional
 
 import requests
@@ -71,6 +72,9 @@ def _fmt_rub(value: Optional[float]) -> str:
     return f'{value:,.0f} ₽'.replace(',', ' ')
 
 
+_CACHE_TTL = 3600  # seconds — reuse dadata result for same INN within 1 hour
+
+
 class FinancialService:
     """Fetch company financial snapshot from dadata.ru."""
 
@@ -80,6 +84,7 @@ class FinancialService:
             os.getenv('DADATA_API_KEY') or
             os.getenv('DADATA_TOKEN') or ''
         ).strip()
+        self._cache: Dict[str, tuple] = {}  # inn → (result_dict, expires_at)
 
     @property
     def has_key(self) -> bool:
@@ -135,6 +140,12 @@ class FinancialService:
 
         if not inn:
             return empty
+
+        # Return cached result if still fresh — avoids burning quota on repeat checks
+        cached, expires_at = self._cache.get(inn, (None, 0))
+        if cached is not None and time.time() < expires_at:
+            logger.debug("dadata.ru: cache hit for INN %s", inn)
+            return cached
 
         try:
             resp = requests.post(
@@ -232,13 +243,16 @@ class FinancialService:
                     inn, _fmt_rub(income), _fmt_rub(expense), year, employees,
                     identity['party_status'],
                 )
+                self._cache[inn] = (result, time.time() + _CACHE_TTL)
                 return result
 
             # dadata returned no financial data (large PAO, or not in FNS open data).
             # Try Playwright fallback for financials, but keep identity fields from dadata.
             logger.info("dadata.ru: no financial data for %s — trying bo.nalog.ru", inn)
             playwright_result = self._playwright_fallback(inn)
-            return {**playwright_result, **identity}
+            merged = {**playwright_result, **identity}
+            self._cache[inn] = (merged, time.time() + _CACHE_TTL)
+            return merged
 
         except requests.Timeout:
             logger.warning("dadata.ru: timeout for INN %s — trying bo.nalog.ru", inn)
