@@ -183,6 +183,7 @@ def dossier(check_id: str):
     bankruptcy = check.bankruptcy_data
     gov_contracts = check.gov_contracts_data
     financial = check.financial_data
+    rnp = check.rnp_data
     flags = check.risk_flags
 
     # Manual search URLs for the investigator
@@ -202,6 +203,7 @@ def dossier(check_id: str):
         bankruptcy=bankruptcy,
         gov_contracts=gov_contracts,
         financial=financial,
+        rnp=rnp,
         flags=flags,
         manual_urls=manual_urls,
     )

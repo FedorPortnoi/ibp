@@ -215,6 +215,10 @@ class FinancialService:
                 profit = income - expense
                 is_loss = profit < 0
 
+            profit_fmt = (
+                ('-' if is_loss else '+') + _fmt_rub(abs(profit))
+                if profit is not None else ''
+            )
             result = {
                 'found': income is not None or expense is not None,
                 'no_key': False,
@@ -225,17 +229,34 @@ class FinancialService:
                 'is_loss': is_loss,
                 'income_fmt': _fmt_rub(income),
                 'expense_fmt': _fmt_rub(expense),
-                'profit_fmt': (
-                    ('-' if is_loss else '+') + _fmt_rub(abs(profit))
-                    if profit is not None else ''
-                ),
+                'profit_fmt': profit_fmt,
                 'year': year,
                 'tax_system': _TAX_SYSTEM_RU.get(tax_sys, tax_sys),
                 'debts': debts,
                 'debts_fmt': _fmt_rub(debts) if debts else '',
                 'employee_count': employees,
+                'source': 'dadata.ru',
                 **identity,
             }
+
+            # Single-year history for unified template rendering
+            if result['found']:
+                result['history'] = [{
+                    'year': year,
+                    'revenue': income,
+                    'revenue_fmt': _fmt_rub(income) if income else '',
+                    'net_profit': profit,
+                    'net_profit_fmt': profit_fmt,
+                    'cost_of_sales': None, 'cost_of_sales_fmt': '',
+                    'gross_profit': None, 'gross_profit_fmt': '',
+                    'operating_profit': None, 'operating_profit_fmt': '',
+                    'pretax_profit': None, 'pretax_profit_fmt': '',
+                    'income_tax': None, 'income_tax_fmt': '',
+                    'assets': None, 'assets_fmt': '',
+                    'equity': None, 'equity_fmt': '',
+                    'lt_liabilities': None, 'lt_liabilities_fmt': '',
+                    'st_liabilities': None, 'st_liabilities_fmt': '',
+                }]
 
             if result['found']:
                 logger.info(
