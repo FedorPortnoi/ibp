@@ -23,17 +23,27 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Accounting line numbers we care about
+# Accounting line numbers — Отчёт о фин. результатах + Бухгалтерский баланс
 _LINES = {
-    '2110': 'revenue',        # Выручка
-    '2400': 'net_profit',     # Чистая прибыль (убыток)
-    '1600': 'assets',         # Баланс (активы)
-    '1300': 'equity',         # Капитал и резервы
-    '1400': 'lt_liabilities', # Долгосрочные обязательства
-    '1500': 'st_liabilities', # Краткосрочные обязательства
-    '2110': 'revenue',
-    '2200': 'operating_profit', # Прибыль от продаж
+    '2110': 'revenue',           # Выручка
+    '2120': 'cost_of_sales',     # Себестоимость продаж
+    '2100': 'gross_profit',      # Валовая прибыль
+    '2200': 'operating_profit',  # Прибыль/убыток от продаж
+    '2300': 'pretax_profit',     # Прибыль до налогообложения
+    '2410': 'income_tax',        # Налог на прибыль
+    '2400': 'net_profit',        # Чистая прибыль (убыток)
+    '1600': 'assets',            # Баланс (активы)
+    '1300': 'equity',            # Капитал и резервы
+    '1400': 'lt_liabilities',    # Долгосрочные обязательства
+    '1500': 'st_liabilities',    # Краткосрочные обязательства
 }
+
+# All numeric fields that get a _fmt companion in history items
+_NUMERIC_FIELDS = (
+    'revenue', 'cost_of_sales', 'gross_profit', 'operating_profit',
+    'pretax_profit', 'net_profit', 'income_tax',
+    'assets', 'equity', 'lt_liabilities', 'st_liabilities',
+)
 
 _DEFAULT_TIMEOUT_SEC = 45
 
@@ -49,6 +59,15 @@ def _parse_amount(text: str) -> Optional[int]:
         return val * 1000
     except (ValueError, OverflowError):
         return None
+
+
+def _enrich_item(item: Dict) -> Dict:
+    """Stamp _fmt formatted strings onto every numeric field in a history year dict."""
+    enriched = dict(item)
+    for key in _NUMERIC_FIELDS:
+        val = item.get(key)
+        enriched[f'{key}_fmt'] = _fmt(val) if val is not None else ''
+    return enriched
 
 
 def _fmt(value: Optional[int]) -> str:
@@ -271,16 +290,17 @@ class PlaywrightFinancialService:
             logger.info("bo.nalog.ru: no financial data found for %s", inn)
             return {'found': False}
 
-        # Most recent year first
+        # Enrich each year with _fmt companions, then sort most-recent first
+        history = [_enrich_item(yr) for yr in history]
         history.sort(key=lambda x: x.get('year', 0), reverse=True)
         latest = history[0]
 
-        revenue = latest.get('revenue')
+        revenue    = latest.get('revenue')
         net_profit = latest.get('net_profit')
-        assets = latest.get('assets')
+        assets     = latest.get('assets')
 
-        # Map to FinancialService-compatible fields
-        income = revenue
+        # FinancialService-compatible shim fields
+        income  = revenue
         expense = (revenue - net_profit) if revenue and net_profit else None
 
         logger.info(
@@ -299,14 +319,30 @@ class PlaywrightFinancialService:
             'expense_fmt': _fmt(expense),
             'profit_fmt': (('-' if net_profit < 0 else '+') + _fmt(abs(net_profit))
                            if net_profit is not None else ''),
-            'revenue': revenue,
-            'revenue_fmt': _fmt(revenue),
-            'net_profit': net_profit,
-            'net_profit_fmt': _fmt(net_profit),
-            'assets': assets,
-            'assets_fmt': _fmt(assets),
-            'equity': latest.get('equity'),
-            'equity_fmt': _fmt(latest.get('equity')),
+            # Full P&L fields from latest year
+            'revenue':              revenue,
+            'revenue_fmt':          latest.get('revenue_fmt', ''),
+            'cost_of_sales':        latest.get('cost_of_sales'),
+            'cost_of_sales_fmt':    latest.get('cost_of_sales_fmt', ''),
+            'gross_profit':         latest.get('gross_profit'),
+            'gross_profit_fmt':     latest.get('gross_profit_fmt', ''),
+            'operating_profit':     latest.get('operating_profit'),
+            'operating_profit_fmt': latest.get('operating_profit_fmt', ''),
+            'pretax_profit':        latest.get('pretax_profit'),
+            'pretax_profit_fmt':    latest.get('pretax_profit_fmt', ''),
+            'net_profit':           net_profit,
+            'net_profit_fmt':       latest.get('net_profit_fmt', ''),
+            'income_tax':           latest.get('income_tax'),
+            'income_tax_fmt':       latest.get('income_tax_fmt', ''),
+            # Balance sheet fields from latest year
+            'assets':               assets,
+            'assets_fmt':           latest.get('assets_fmt', ''),
+            'equity':               latest.get('equity'),
+            'equity_fmt':           latest.get('equity_fmt', ''),
+            'lt_liabilities':       latest.get('lt_liabilities'),
+            'lt_liabilities_fmt':   latest.get('lt_liabilities_fmt', ''),
+            'st_liabilities':       latest.get('st_liabilities'),
+            'st_liabilities_fmt':   latest.get('st_liabilities_fmt', ''),
             'history': history,
             'source': 'bo.nalog.ru',
         }
@@ -397,26 +433,82 @@ class PlaywrightFinancialService:
             year = int(year_m.group(1))
             data = {}
 
-            # Revenue (Выручка, line 2110)
+            # Revenue / Выручка (2110)
             m = re.search(r'(?:Выручка|2110)[^\d\-]*(-?[\d\s]+)', section, re.I)
             if m:
                 val = _parse_amount(m.group(1))
                 if val:
                     data['revenue'] = val
 
-            # Net profit (line 2400)
+            # Cost of sales / Себестоимость продаж (2120)
+            m = re.search(r'(?:Себестоимость продаж|Себестоимость|2120)[^\d\-]*(-?[\d\s]+)', section, re.I)
+            if m:
+                val = _parse_amount(m.group(1))
+                if val is not None:
+                    data['cost_of_sales'] = val
+
+            # Gross profit / Валовая прибыль (2100)
+            m = re.search(r'(?:Валовая прибыль|2100)[^\d\-]*(-?[\d\s]+)', section, re.I)
+            if m:
+                val = _parse_amount(m.group(1))
+                if val is not None:
+                    data['gross_profit'] = val
+
+            # Operating profit / Прибыль от продаж (2200)
+            m = re.search(r'(?:Прибыль.*?от продаж|2200)[^\d\-]*(-?[\d\s]+)', section, re.I)
+            if m:
+                val = _parse_amount(m.group(1))
+                if val is not None:
+                    data['operating_profit'] = val
+
+            # Pre-tax profit / Прибыль до налогообложения (2300)
+            m = re.search(r'(?:Прибыль до налог|2300)[^\d\-]*(-?[\d\s]+)', section, re.I)
+            if m:
+                val = _parse_amount(m.group(1))
+                if val is not None:
+                    data['pretax_profit'] = val
+
+            # Income tax / Налог на прибыль (2410)
+            m = re.search(r'(?:Налог на прибыль|2410)[^\d\-]*(-?[\d\s]+)', section, re.I)
+            if m:
+                val = _parse_amount(m.group(1))
+                if val is not None:
+                    data['income_tax'] = val
+
+            # Net profit / Чистая прибыль (2400)
             m = re.search(r'(?:Чистая прибыль|убыток|2400)[^\d\-]*(-?[\d\s]+)', section, re.I)
             if m:
                 val = _parse_amount(m.group(1))
                 if val is not None:
                     data['net_profit'] = val
 
-            # Total assets (line 1600)
+            # Total assets / Баланс (1600)
             m = re.search(r'(?:Баланс|Активы|1600)[^\d\-]*(-?[\d\s]+)', section, re.I)
             if m:
                 val = _parse_amount(m.group(1))
                 if val:
                     data['assets'] = val
+
+            # Equity / Капитал и резервы (1300)
+            m = re.search(r'(?:Капитал и резервы|1300)[^\d\-]*(-?[\d\s]+)', section, re.I)
+            if m:
+                val = _parse_amount(m.group(1))
+                if val is not None:
+                    data['equity'] = val
+
+            # LT liabilities / Долгосрочные обязательства (1400)
+            m = re.search(r'(?:Долгосрочные обязательства|1400)[^\d\-]*(-?[\d\s]+)', section, re.I)
+            if m:
+                val = _parse_amount(m.group(1))
+                if val is not None:
+                    data['lt_liabilities'] = val
+
+            # ST liabilities / Краткосрочные обязательства (1500)
+            m = re.search(r'(?:Краткосрочные обязательства|1500)[^\d\-]*(-?[\d\s]+)', section, re.I)
+            if m:
+                val = _parse_amount(m.group(1))
+                if val is not None:
+                    data['st_liabilities'] = val
 
             if data:
                 results[year] = {**results.get(year, {}), **data, 'year': year}

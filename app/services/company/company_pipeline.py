@@ -119,6 +119,17 @@ def _run_bankruptcy(inn: str, query_name: str, egrul: dict) -> dict:
         return {'found': False}
 
 
+def _run_rnp(inn: str) -> dict:
+    """Stage 2f — check РНП (реестр недобросовестных поставщиков). Plain values only."""
+    from app.services.company.rnp_service import RNPService
+    try:
+        svc = RNPService(timeout=20)
+        return svc.lookup(inn=inn)
+    except Exception as exc:
+        logger.warning("[%s] РНП failed: %s", inn, exc)
+        return {'found': False, 'unavailable': True}
+
+
 def _run_sanctions(inn: str, query_name: str, egrul: dict) -> dict:
     """
     Stage 2b — check local sanctions database (OFAC + UN SC).
@@ -145,7 +156,7 @@ def _run_sanctions(inn: str, query_name: str, egrul: dict) -> dict:
         return {**empty, 'unavailable': True}
 
 
-def _score_risk(egrul: dict, courts: list, sanctions: list, bankruptcy: dict, financial: dict = None) -> tuple:
+def _score_risk(egrul: dict, courts: list, sanctions: list, bankruptcy: dict, financial: dict = None, rnp: dict = None) -> tuple:
     """
     Risk scoring for companies.
 
@@ -207,6 +218,21 @@ def _score_risk(egrul: dict, courts: list, sanctions: list, bankruptcy: dict, fi
         if financial.get('debts') and financial['debts'] > 0:
             score += 20
             flags.append({'severity': 'high', 'text': f'Налоговая задолженность: {financial.get("debts_fmt", "")}' })
+
+    # РНП — Реестр недобросовестных поставщиков
+    if rnp and rnp.get('found'):
+        if rnp.get('active'):
+            score += 50
+            flags.append({
+                'severity': 'critical',
+                'text': 'Включён в реестр недобросовестных поставщиков (активная запись)',
+            })
+        else:
+            score += 20
+            flags.append({
+                'severity': 'medium',
+                'text': 'Ранее включался в реестр недобросовестных поставщиков (истёкшая запись)',
+            })
 
     # Sanctions
     if sanctions:
@@ -280,13 +306,14 @@ def run_company_pipeline(check_id: str, app) -> None:
             _inn = check.inn
             _query_name = check.query_name or ''
 
-            executor = ThreadPoolExecutor(max_workers=5, thread_name_prefix='co_pipeline')
+            executor = ThreadPoolExecutor(max_workers=6, thread_name_prefix='co_pipeline')
             try:
                 court_future      = executor.submit(_run_courts,        _inn, _query_name, egrul)
                 sanctions_future  = executor.submit(_run_sanctions,     _inn, _query_name, egrul)
                 bankruptcy_future = executor.submit(_run_bankruptcy,    _inn, _query_name, egrul)
                 contracts_future  = executor.submit(_run_gov_contracts, _inn, _query_name, egrul)
                 financial_future  = executor.submit(_run_financial,     _inn, _query_name, egrul)
+                rnp_future        = executor.submit(_run_rnp,           _inn)
 
                 courts = []
                 sanctions_wrap = {'results': [], 'no_key': False, 'unavailable': False}
@@ -297,6 +324,7 @@ def run_company_pipeline(check_id: str, app) -> None:
                             'is_loss': False, 'income_fmt': '', 'expense_fmt': '',
                             'profit_fmt': '', 'year': None, 'tax_system': '',
                             'debts': None, 'debts_fmt': '', 'employee_count': ''}
+                rnp = {'found': False, 'unavailable': False}
 
                 try:
                     courts = court_future.result(timeout=65)
@@ -324,6 +352,11 @@ def run_company_pipeline(check_id: str, app) -> None:
                 except Exception as exc:
                     logger.warning("[%s] Financial future failed: %s", check.inn, exc)
 
+                try:
+                    rnp = rnp_future.result(timeout=25)
+                except Exception as exc:
+                    logger.warning("[%s] РНП future failed: %s", check.inn, exc)
+
             finally:
                 executor.shutdown(wait=False, cancel_futures=True)
 
@@ -337,6 +370,7 @@ def run_company_pipeline(check_id: str, app) -> None:
             check.bankruptcy_data = bankruptcy
             check.gov_contracts_data = gov_contracts
             check.financial_data = financial
+            check.rnp_data = rnp
 
             if courts:
                 sources_found += 1
@@ -367,6 +401,15 @@ def run_company_pipeline(check_id: str, app) -> None:
                 _log(check, f'ЕФРСБ: банкротство — {stage}' if stage else 'ЕФРСБ: найдена процедура банкротства')
             else:
                 _log(check, 'ЕФРСБ: банкротство не найдено')
+            if rnp.get('found'):
+                sources_found += 1
+                active_str = 'активная запись' if rnp.get('active') else 'истёкшая запись'
+                cnt = len(rnp.get('entries', []))
+                _log(check, f'РНП: {cnt} запис{"ь" if cnt == 1 else "и" if cnt < 5 else "ей"} ({active_str})')
+            elif rnp.get('unavailable'):
+                _log(check, 'РНП: zakupki.gov.ru недоступен (geo-block)')
+            else:
+                _log(check, 'РНП: не найдено')
 
             _set_progress(check, 75, 'courts', f'Суды: {len(courts)} дел')
 
@@ -392,7 +435,7 @@ def run_company_pipeline(check_id: str, app) -> None:
 
             # ── Wave 2: Risk scoring ────────────────────────────────────────
             _set_progress(check, 85, 'risk', 'Оценка рисков...')
-            score, level, flags = _score_risk(egrul, courts, sanctions, bankruptcy, financial)
+            score, level, flags = _score_risk(egrul, courts, sanctions, bankruptcy, financial, rnp)
             check.risk_score = score
             check.risk_level = level
             check.risk_flags = flags

@@ -38,6 +38,7 @@ class CompanyCheck(db.Model):
     _sanctions_meta = db.Column('sanctions_meta', db.Text, nullable=True)
     _gov_contracts_data = db.Column('gov_contracts_data', db.Text, nullable=True)
     _financial_data = db.Column('financial_data', db.Text, nullable=True)
+    _rnp_data = db.Column('rnp_data', db.Text, nullable=True)
     _risk_flags = db.Column('risk_flags', db.Text, default='[]')
 
     # ── Risk ──
@@ -138,6 +139,14 @@ class CompanyCheck(db.Model):
     @financial_data.setter
     def financial_data(self, value):
         self._financial_data = self._dump(value)
+
+    @property
+    def rnp_data(self):
+        return self._load(self._rnp_data, {'found': False, 'unavailable': False})
+
+    @rnp_data.setter
+    def rnp_data(self, value):
+        self._rnp_data = self._dump(value)
 
     @property
     def risk_flags(self):
