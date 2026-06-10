@@ -41,6 +41,23 @@ _TAX_SYSTEM_RU = {
     'NPD':  'НПД (самозанятый)',
 }
 
+_STATUS_RU = {
+    'ACTIVE':        'Действующее',
+    'LIQUIDATING':   'В стадии ликвидации',
+    'LIQUIDATED':    'Ликвидировано',
+    'REORGANIZING':  'В стадии реорганизации',
+    'BANKRUPT':      'Банкротство',
+}
+
+# ИП cessation comes through as LIQUIDATED in dadata but the FNS wording is different
+_IP_STATUS_RU = {
+    'ACTIVE':        'Действующее',
+    'LIQUIDATING':   'В стадии прекращения',
+    'LIQUIDATED':    'Прекратил деятельность',
+    'REORGANIZING':  'В стадии реорганизации',
+    'BANKRUPT':      'Банкротство',
+}
+
 
 def _fmt_rub(value: Optional[float]) -> str:
     if not value or value <= 0:
@@ -105,6 +122,11 @@ class FinancialService:
             'debts': None,
             'debts_fmt': '',
             'employee_count': '',
+            # Identity fields — populated from dadata even when financial data is absent
+            'party_name': '',
+            'party_short_name': '',
+            'party_status': '',
+            'party_liquidation_date': '',
         }
 
         if not self.has_key:
@@ -141,6 +163,32 @@ class FinancialService:
                 return empty
 
             company = suggestions[0].get('data') or {}
+
+            # ── Identity fields (always extracted, used to patch ИП name/status) ──
+            name_block  = company.get('name') or {}
+            state_block = company.get('state') or {}
+            status_code = state_block.get('status') or ''
+            is_ip = len(inn.strip()) == 12
+            status_map = _IP_STATUS_RU if is_ip else _STATUS_RU
+
+            liq_date = ''
+            liq_ms = state_block.get('liquidation_date')
+            if liq_ms:
+                try:
+                    from datetime import datetime, timezone
+                    dt = datetime.fromtimestamp(liq_ms / 1000, tz=timezone.utc)
+                    liq_date = dt.strftime('%d.%m.%Y')
+                except Exception:
+                    pass
+
+            identity = {
+                'party_name':             name_block.get('full_with_opf') or name_block.get('full') or '',
+                'party_short_name':       name_block.get('short_with_opf') or name_block.get('short') or '',
+                'party_status':           status_map.get(status_code, ''),
+                'party_liquidation_date': liq_date,
+            }
+
+            # ── Financial fields ──
             fin = company.get('finance') or {}
 
             income  = fin.get('income')
@@ -150,7 +198,6 @@ class FinancialService:
             tax_sys = fin.get('tax_system') or ''
             employees = company.get('employee_count') or ''
 
-            # Derive profit
             profit = None
             is_loss = False
             if income is not None and expense is not None:
@@ -176,19 +223,22 @@ class FinancialService:
                 'debts': debts,
                 'debts_fmt': _fmt_rub(debts) if debts else '',
                 'employee_count': employees,
+                **identity,
             }
 
             if result['found']:
                 logger.info(
-                    "dadata.ru: INN %s → income=%s expense=%s year=%s employees=%s",
+                    "dadata.ru: INN %s → income=%s expense=%s year=%s employees=%s party_status=%s",
                     inn, _fmt_rub(income), _fmt_rub(expense), year, employees,
+                    identity['party_status'],
                 )
                 return result
 
-            # dadata returned empty (large PAO, or data not in FNS open data)
-            # Fall back to Playwright bo.nalog.ru scraper
+            # dadata returned no financial data (large PAO, or not in FNS open data).
+            # Try Playwright fallback for financials, but keep identity fields from dadata.
             logger.info("dadata.ru: no financial data for %s — trying bo.nalog.ru", inn)
-            return self._playwright_fallback(inn)
+            playwright_result = self._playwright_fallback(inn)
+            return {**playwright_result, **identity}
 
         except requests.Timeout:
             logger.warning("dadata.ru: timeout for INN %s — trying bo.nalog.ru", inn)
@@ -213,4 +263,6 @@ class FinancialService:
                 'is_loss': False, 'income_fmt': '', 'expense_fmt': '',
                 'profit_fmt': '', 'year': None, 'tax_system': '',
                 'debts': None, 'debts_fmt': '', 'employee_count': '',
+                'party_name': '', 'party_short_name': '',
+                'party_status': '', 'party_liquidation_date': '',
             }

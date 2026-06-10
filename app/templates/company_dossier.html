@@ -220,6 +220,12 @@
                 <div class="field-value">{{ egrul.registration_date }}</div>
             </div>
             {% endif %}
+            {% if egrul.get('liquidation_date') %}
+            <div>
+                <div class="field-label">Дата прекращения</div>
+                <div class="field-value" style="color:#f87171;">{{ egrul.liquidation_date }}</div>
+            </div>
+            {% endif %}
             {% if egrul.get('kpp') %}
             <div>
                 <div class="field-label">КПП</div>

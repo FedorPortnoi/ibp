@@ -370,6 +370,26 @@ def run_company_pipeline(check_id: str, app) -> None:
 
             _set_progress(check, 75, 'courts', f'Суды: {len(courts)} дел')
 
+            # ── ИП identity patch from dadata ──────────────────────────────
+            # egrul.org is often stale or misses the entrepreneur's name for 12-digit INNs.
+            # dadata returns name and current status in the same call already made for
+            # financials — reuse those fields here at no extra quota cost.
+            if len(_inn) == 12:
+                party_name = financial.get('party_name') or financial.get('party_short_name')
+                if party_name and (not check.company_name or check.company_name == check.inn):
+                    check.company_name = financial.get('party_name') or party_name
+                    check.company_short_name = financial.get('party_short_name') or party_name
+                    _log(check, f'ИП: наименование получено из dadata — {check.company_short_name}')
+                if financial.get('party_status'):
+                    check.company_status = financial['party_status']
+                    egrul['status'] = financial['party_status']  # risk scorer reads this
+                    _egrul = check.egrul_data or {}
+                    _egrul['status'] = financial['party_status']
+                    if financial.get('party_liquidation_date'):
+                        _egrul['liquidation_date'] = financial['party_liquidation_date']
+                        _log(check, f'ИП: прекращение деятельности {financial["party_liquidation_date"]}')
+                    check.egrul_data = _egrul
+
             # ── Wave 2: Risk scoring ────────────────────────────────────────
             _set_progress(check, 85, 'risk', 'Оценка рисков...')
             score, level, flags = _score_risk(egrul, courts, sanctions, bankruptcy, financial)
