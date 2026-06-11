@@ -1,20 +1,31 @@
 """
 Checko.ru Service — Enforcement Proceedings & Business Registry
 ================================================================
-Global alternative to FSSP (geo-blocked) for enforcement proceedings.
-Checko.ru aggregates data from FSSP, EGRUL, and other Russian registries
-and is accessible globally without geo-restrictions.
+Alternative to FSSP for enforcement proceedings. Checko.ru aggregates
+data from FSSP, EGRUL, and other Russian registries.
+
+Geo/rate note (probed 2026-06-11 from a non-RU dev IP): the public
+search page returns HTTP 429 aggressively even for a single request.
+This is rate-limiting (likely IP-reputation based), NOT a permanent
+block — it is expected to work from the production VM. Because a
+rate-limited or blocked response is otherwise indistinguishable from
+"this person has no enforcement proceedings", search_enforcement returns
+(records, status): a non-'ok'/'empty' status means the source was NOT
+readable and an empty list must never be presented as a clean record.
+
+Enforcement proceedings is a high-stakes dossier section (debts, alimony,
+tax arrears) — a false "Нет" here is the worst failure mode.
 
 Usage:
     from app.services.phase3.checko_service import CheckoService
     svc = CheckoService()
-    records = svc.search_person("Иванов Иван Иванович")
+    records, status = svc.search_enforcement("Иванов Иван Иванович")
 """
 
 import logging
 import re
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import requests
 from bs4 import BeautifulSoup
@@ -118,8 +129,7 @@ class CheckoService:
 
     Usage:
         svc = CheckoService()
-        fssp_records = svc.search_enforcement("Иванов Иван Иванович")
-        biz_records = svc.search_business("Иванов Иван Иванович")
+        records, status = svc.search_enforcement("Иванов Иван Иванович")
     """
 
     BASE_URL = 'https://checko.ru'
@@ -131,27 +141,24 @@ class CheckoService:
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
 
-    def search_person(self, full_name: str) -> List[CheckoRecord]:
-        """
-        Search checko.ru for a person by name.
-        Returns combined enforcement + business records.
-        """
-        records = []
-        try:
-            records.extend(self.search_enforcement(full_name))
-        except Exception as e:
-            logger.warning(f"Checko enforcement search error: {e}")
-        try:
-            records.extend(self.search_business(full_name))
-        except Exception as e:
-            logger.warning(f"Checko business search error: {e}")
-        return records
-
-    def search_enforcement(self, full_name: str) -> List[CheckoRecord]:
+    def search_enforcement(self, full_name: str) -> Tuple[List[CheckoRecord], str]:
         """
         Search checko.ru for FSSP enforcement proceedings.
-        Scrapes the person search page.
+
+        Returns (records, status). Status is one of:
+        - 'ok'           — page read, >=1 proceeding parsed
+        - 'empty'        — page read, no proceedings for this name
+        - 'blocked'      — 403 anti-bot
+        - 'rate_limited' — 429
+        - 'http_error'   — other non-200
+        - 'timeout' / 'error' — network/unexpected failure
+        - 'skipped'      — empty input
+
+        A status other than 'ok'/'empty' means the source was NOT readable;
+        the caller must not treat the empty list as "no debts".
         """
+        if not full_name or not full_name.strip():
+            return [], 'skipped'
         try:
             resp = self.session.get(
                 self.SEARCH_URL,
@@ -161,46 +168,27 @@ class CheckoService:
 
             if resp.status_code == 403:
                 logger.warning("Checko.ru returned 403 (anti-bot)")
-                return []
+                return [], 'blocked'
             if resp.status_code == 429:
                 logger.warning("Checko.ru rate limit (429)")
-                return []
+                return [], 'rate_limited'
+            if resp.status_code != 200:
+                logger.warning("Checko.ru HTTP %d", resp.status_code)
+                return [], 'http_error'
 
-            resp.raise_for_status()
             resp.encoding = resp.apparent_encoding or 'utf-8'
-            return self._parse_enforcement_results(resp.text, full_name)
+            records = self._parse_enforcement_results(resp.text, full_name)
+            return records, ('ok' if records else 'empty')
 
         except requests.Timeout:
             logger.warning("Checko.ru timeout")
-            return []
+            return [], 'timeout'
         except requests.ConnectionError:
             logger.warning("Checko.ru connection error")
-            return []
+            return [], 'error'
         except Exception as e:
             logger.error(f"Checko.ru search error: {e}")
-            return []
-
-    def search_business(self, full_name: str) -> List[CheckoRecord]:
-        """
-        Search checko.ru for business registrations.
-        """
-        try:
-            resp = self.session.get(
-                self.SEARCH_URL,
-                params={'query': full_name},
-                timeout=self.timeout,
-            )
-
-            if resp.status_code in (403, 429):
-                return []
-
-            resp.raise_for_status()
-            resp.encoding = resp.apparent_encoding or 'utf-8'
-            return self._parse_business_results(resp.text, full_name)
-
-        except Exception as e:
-            logger.warning(f"Checko.ru business search error: {e}")
-            return []
+            return [], 'error'
 
     def _parse_enforcement_results(
         self, html: str, full_name: str,
@@ -309,55 +297,3 @@ class CheckoService:
             amount=_parse_amount(row_text),
             is_active=True,
         )
-
-    def _parse_business_results(
-        self, html: str, full_name: str,
-    ) -> List[CheckoRecord]:
-        """Parse business records from checko.ru HTML."""
-        records = []
-        try:
-            soup = BeautifulSoup(html, 'html.parser')
-
-            # Look for company cards/links (skip navigation links like /company/select)
-            for link in soup.find_all('a', href=re.compile(r'/company/')):
-                href = link.get('href', '')
-                if '/select' in href or '?' in href:
-                    continue
-                text = link.get_text(separator=' ').strip()
-                if not text or len(text) < 3:
-                    continue
-
-                # Extract INN from surrounding context
-                parent = link.parent
-                parent_text = parent.get_text(separator=' ') if parent else ''
-                inn_match = re.search(r'ИНН\s*[:\s]*(\d{10,12})', parent_text)
-                ogrn_match = re.search(r'ОГРН\s*[:\s]*(\d{13,15})', parent_text)
-
-                # Detect role
-                role = 'Связанное лицо'
-                if re.search(r'учредител|участни', parent_text, re.IGNORECASE):
-                    role = 'Учредитель'
-                elif re.search(r'директор|руководител|генеральн', parent_text, re.IGNORECASE):
-                    role = 'Руководитель'
-                elif re.search(r'ИП|индивидуальн', parent_text, re.IGNORECASE):
-                    role = 'Индивидуальный предприниматель'
-
-                # Status
-                status = 'Действующее'
-                if re.search(r'ликвидир|прекращ|недействующ', parent_text, re.IGNORECASE):
-                    status = 'Ликвидировано'
-
-                records.append(CheckoRecord(
-                    record_type='business',
-                    person_name=full_name,
-                    company_name=text[:200],
-                    inn=inn_match.group(1) if inn_match else '',
-                    ogrn=ogrn_match.group(1) if ogrn_match else '',
-                    role=role,
-                    status=status,
-                ))
-
-        except Exception as e:
-            logger.error(f"Checko business parse error: {e}")
-
-        return records

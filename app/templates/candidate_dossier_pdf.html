@@ -240,10 +240,22 @@
     {% if fssp_records is not none %}<span class="count">&mdash; {{ fssp_records|length }}</span>{% endif %}
 </h2>
 
+{% set fssp_failed_labels = {
+    'blocked': 'CAPTCHA / геоблок',
+    'rate_limited': 'ограничение запросов (429)',
+    'timeout': 'таймаут',
+    'http_error': 'ошибка HTTP',
+    'error': 'источник недоступен',
+} %}
 {% if fssp_records is none %}
     <div class="empty">Источник не подключён</div>
 {% elif fssp_records|length == 0 %}
-    <div class="clean">Исполнительных производств не найдено</div>
+    {% if fssp_status in fssp_failed_labels %}
+        <div class="empty">Проверка неполная &mdash; {{ fssp_failed_labels[fssp_status] }}.
+            Отсутствие производств не подтверждено; требуется ручная проверка на fssp.gov.ru.</div>
+    {% else %}
+        <div class="clean">Исполнительных производств не найдено</div>
+    {% endif %}
 {% else %}
     {% for proc in fssp_records %}
         {% if proc.get('source') == 'manual' %}

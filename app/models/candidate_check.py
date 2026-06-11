@@ -47,6 +47,9 @@ class CandidateCheck(db.Model):
     # Lets the dossier distinguish "no cases found" from "source unreadable".
     _court_source_statuses = db.Column('court_source_statuses', db.Text, default='{}')
     _fssp_records = db.Column('fssp_records', db.Text, default='[]')
+    # Enforcement-search outcome: 'ok'/'empty'/'blocked'/'rate_limited'/
+    # 'timeout'/'error'. Distinguishes "no debts" from "source unreadable".
+    fssp_status = db.Column(db.String(20), default='')
     _bankruptcy_records = db.Column('bankruptcy_records', db.Text, default='[]')
     _sanctions_results = db.Column('sanctions_results', db.Text, default='[]')
     _pledge_records = db.Column('pledge_records', db.Text, default='[]')

@@ -215,6 +215,16 @@ class FSSPService:
         date_of_birth: Optional[str] = None,
         region: Optional[str] = None,
     ) -> List[FSSPRecord]:
+        """Back-compat wrapper: returns only the records (drops status)."""
+        records, _status = self.search_with_status(full_name, date_of_birth, region)
+        return records
+
+    def search_with_status(
+        self,
+        full_name: str,
+        date_of_birth: Optional[str] = None,
+        region: Optional[str] = None,
+    ) -> 'tuple[List[FSSPRecord], str]':
         """
         Search ФССП for enforcement proceedings.
 
@@ -224,12 +234,19 @@ class FSSPService:
             region: Region name (e.g. "Москва")
 
         Returns:
-            List of FSSPRecord (may be empty if CAPTCHA blocks access)
+            (records, status). Status:
+            - 'ok'      — a strategy returned >=1 real proceeding
+            - 'empty'   — a strategy successfully read "no results"
+            - 'blocked' — every automated strategy hit CAPTCHA/geo; the
+                          returned record is the manual-fallback placeholder
+            - 'skipped' — invalid name input
+
+            'blocked' must never be presented as "no debts".
         """
         parts = full_name.strip().split()
         if len(parts) < 2:
             logger.warning(f"ФССП: need at least 2 name parts, got: '{full_name}'")
-            return []
+            return [], 'skipped'
 
         last_name = parts[0]
         first_name = parts[1]
@@ -253,7 +270,7 @@ class FSSPService:
                 )
                 if records is not None:  # None = API error; [] = no results
                     logger.info(f"ФССП Strategy 1 (API): success, {len(records)} records")
-                    return records
+                    return records, ('ok' if records else 'empty')
                 else:
                     logger.info("ФССП Strategy 1 (API): returned None (API error), falling through")
             except Exception as e:
@@ -269,7 +286,7 @@ class FSSPService:
             )
             if records is not None:
                 logger.info(f"ФССП Strategy 2 (AJAX): success, {len(records)} records")
-                return records
+                return records, ('ok' if records else 'empty')
             else:
                 logger.info("ФССП Strategy 2 (AJAX): returned None (CAPTCHA or parse error), falling through")
         except Exception as e:
@@ -288,7 +305,7 @@ class FSSPService:
                             f"ФССП Strategy 3 (Playwright): success on attempt {attempt}, "
                             f"{len(records)} records"
                         )
-                        return records
+                        return records, ('ok' if records else 'empty')
                     else:
                         logger.info(
                             f"ФССП Strategy 3 (Playwright): attempt {attempt}/2 returned None "
@@ -307,7 +324,10 @@ class FSSPService:
             "ФССП Strategy 4/4: all automated strategies failed, "
             "returning manual fallback URL (source='manual')"
         )
-        return self._manual_fallback(last_name, first_name, patronymic, dob, region_code)
+        return (
+            self._manual_fallback(last_name, first_name, patronymic, dob, region_code),
+            'blocked',
+        )
 
     def get_manual_url(
         self,

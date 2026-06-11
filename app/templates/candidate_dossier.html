@@ -802,10 +802,25 @@
             {% endif %}
         </div>
 
+        {% set fssp_failed_labels = {
+            'blocked': 'CAPTCHA / геоблок',
+            'rate_limited': 'ограничение запросов (429)',
+            'timeout': 'таймаут',
+            'http_error': 'ошибка HTTP',
+            'error': 'источник недоступен',
+        } %}
         {% if fssp_records is none %}
             <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
         {% elif fssp_records|length == 0 %}
-            <div class="empty-state good">Нет</div>
+            {% if fssp_status in fssp_failed_labels %}
+                <div class="empty-state stub" style="border-color: rgba(234,179,8,0.3);">
+                    &#x26A0;&#xFE0F; Проверка неполная — {{ fssp_failed_labels[fssp_status] }}.
+                    Отсутствие производств не подтверждено, требуется ручная проверка на
+                    <a href="https://fssp.gov.ru/iss/ip/" target="_blank" rel="noopener" class="text-accent">fssp.gov.ru</a>.
+                </div>
+            {% else %}
+                <div class="empty-state good">Нет</div>
+            {% endif %}
         {% else %}
             {% for proc in fssp_records %}
                 {% if proc.get('source') == 'manual' %}

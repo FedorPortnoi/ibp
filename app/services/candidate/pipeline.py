@@ -846,27 +846,47 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 return records, statuses
 
             def _search_fssp(full_name, date_of_birth, region):
-                """Search enforcement proceedings — checko.ru primary, ФССП fallback."""
-                # Primary: checko.ru (globally accessible)
+                """Search enforcement proceedings — checko.ru primary, ФССП fallback.
+
+                Returns (records, status). Status distinguishes a genuine
+                "no debts" read ('empty') from an unreadable source
+                ('rate_limited'/'blocked'/...) so the dossier never shows a
+                falsely-clean enforcement section. Enforcement is high-stakes
+                (debts/alimony/tax arrears) — a false "Нет" is the worst case.
+                """
+                # Primary: checko.ru (aggregator). Trust a clean read; only
+                # fall through to the CAPTCHA-walled official ФССП when checko
+                # was NOT readable.
+                checko_status = 'error'
                 try:
                     from app.services.phase3.checko_service import CheckoService
                     checko = CheckoService(timeout=30)
-                    checko_records = checko.search_enforcement(full_name)
-                    if checko_records:
-                        return [r.to_fssp_dict() for r in checko_records]
+                    checko_records, checko_status = checko.search_enforcement(full_name)
+                    if checko_status == 'ok':
+                        return [r.to_fssp_dict() for r in checko_records], 'ok'
+                    if checko_status == 'empty':
+                        # checko read the person and found nothing — a real
+                        # clean signal. Don't show a misleading CAPTCHA card.
+                        return [], 'empty'
                 except Exception as e:
                     logger.warning(f"Checko.ru enforcement search failed: {e}")
 
-                # Fallback: ФССП (may be geo-blocked)
+                # Fallback: official ФССП (CAPTCHA/geo-walled from many IPs)
                 from app.services.candidate.fssp_service import FSSPService
                 svc = FSSPService(timeout=30, max_pages=3)
                 dob_str = date_of_birth.strftime('%Y-%m-%d') if date_of_birth else None
-                results = svc.search(full_name, dob_str, region)
-                return [r.to_dict() for r in results]
+                results, fssp_status = svc.search_with_status(full_name, dob_str, region)
+                if fssp_status in ('ok', 'empty'):
+                    return [r.to_dict() for r in results], fssp_status
+                # FSSP blocked too. Surface checko's non-clean status if it was
+                # more specific (rate_limited/blocked) so the report is precise.
+                merged = checko_status if checko_status not in ('ok', 'empty', 'error') else 'blocked'
+                return [r.to_dict() for r in results], merged
 
             task.update('gov_registries', 'ЕГРЮЛ + Суды + ФССП + Залоги — параллельный поиск...', 12)
 
             fssp_records = []
+            fssp_status = 'error'
             pledge_records = []
             # Note: bankruptcy_records already populated by Stage 0
 
@@ -897,7 +917,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 completed_futures = set()
 
                 def _process_future(future):
-                    nonlocal biz_records, fssp_records, pledge_records
+                    nonlocal biz_records, fssp_records, fssp_status, pledge_records
                     nonlocal sources_checked, sources_with_results
                     try:
                         if future is future_biz:
@@ -920,24 +940,25 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             sources_checked += 1
 
                         elif future is future_fssp:
-                            fssp_records = future.result(timeout=60)
-                            is_manual = (
-                                fssp_records
-                                and len(fssp_records) == 1
-                                and fssp_records[0].get('source') == 'manual'
-                            )
-                            if is_manual:
-                                task.add_message(
-                                    'ФССП: требуется ручная проверка (CAPTCHA)',
-                                    'warning',
-                                )
-                            elif fssp_records:
+                            fssp_records, fssp_status = future.result(timeout=60)
+                            if fssp_status == 'ok':
                                 task.add_message(
                                     f'ФССП: найдено {len(fssp_records)} производств', 'success',
                                 )
                                 sources_with_results += 1
-                            else:
+                            elif fssp_status == 'empty':
                                 task.add_message('ФССП: производств не найдено', 'info')
+                            elif fssp_status == 'rate_limited':
+                                task.add_message(
+                                    'ФССП: источник ограничил запросы (429) — проверка неполная',
+                                    'warning',
+                                )
+                            else:
+                                # blocked / error — CAPTCHA or unreachable
+                                task.add_message(
+                                    'ФССП: требуется ручная проверка (источник недоступен)',
+                                    'warning',
+                                )
                             sources_checked += 1
 
                         elif future is future_pledges:
@@ -957,6 +978,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             logger.warning("ЕГРЮЛ search failed: %s", e)
                             task.add_message('ЕГРЮЛ: источник недоступен', 'warning')
                         elif future is future_fssp:
+                            fssp_status = 'error'
                             logger.warning("ФССП search failed: %s", e)
                             task.add_message('ФССП: источник недоступен', 'warning')
                         elif future is future_pledges:
@@ -980,6 +1002,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         if future is future_biz:
                             task.add_message('ЕГРЮЛ: таймаут (60с)', 'warning')
                         elif future is future_fssp:
+                            fssp_status = 'timeout'
                             task.add_message('ФССП: таймаут (60с)', 'warning')
                         elif future is future_pledges:
                             task.add_message('Залоговый реестр: таймаут (60с)', 'warning')
@@ -1051,6 +1074,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 court_records = demo_courts
                 court_source_statuses = {}  # demo data — real statuses would mislead
                 fssp_records = demo_fssp
+                fssp_status = 'ok' if demo_fssp else 'empty'
                 if not bankruptcy_records:
                     bankruptcy_records = demo_bankruptcy
                     check.bankruptcy_records = bankruptcy_records
@@ -1091,6 +1115,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             check.court_records = court_records
             check.court_source_statuses = court_source_statuses
             check.fssp_records = fssp_records
+            check.fssp_status = fssp_status
             check.pledge_records = pledge_records
             # bankruptcy_records already set in Stage 0
             stage1_elapsed = time.time() - task.started_at.timestamp()
