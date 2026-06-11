@@ -294,8 +294,16 @@ class TelegramDiscoveryService:
                 else:
                     source = 'Шаблон → TG: частичное совпадение'
             else:
-                confidence = 'низкая'
-                source = 'Шаблон → TG: имя не совпадает'
+                # A GUESSED username has no provenance link to the candidate
+                # (unlike Method A, where the handle comes from the candidate's
+                # own VK profile). If the found account's display name also
+                # doesn't match, it's a different person who happens to own a
+                # name-pattern handle — attributing it would be a false positive.
+                logger.debug(
+                    f"TG Method B: dropping @{candidate} — display name "
+                    f'"{tg_profile.display_name}" does not match (score={score:.2f})'
+                )
+                return None
 
             profile_dict = self._to_dict(
                 tg_profile,

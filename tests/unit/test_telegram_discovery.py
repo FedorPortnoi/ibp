@@ -202,6 +202,56 @@ def test_score_emoji_in_display_name():
 
 
 # ============================================================
+# Method B precision: guessed handle must match the candidate's name
+# ============================================================
+
+def _run_method_b(svc, display_name):
+    """Run Method B with a single guessed candidate whose t.me account has
+    the given display name. Returns the list of attributed profiles."""
+    from app.services.phase2.telegram_crossref import TelegramProfile
+    profile = TelegramProfile(
+        exists=True, is_personal=True, username='ivan_petrov',
+        display_name=display_name,
+    )
+    with patch.object(svc, '_generate_telegram_candidates', return_value=['ivan_petrov']), \
+         patch.object(svc, '_check_username_web_fast', return_value=profile):
+        return svc._method_b_username_guessing('Иван', 'Петров', set())
+
+
+def test_method_b_drops_name_mismatch():
+    """A GUESSED handle whose owner has a different name is a false positive
+    (no provenance link to the candidate) and must NOT be attributed."""
+    svc = TelegramDiscoveryService()
+    try:
+        results = _run_method_b(svc, 'Ольга Белкина')  # score < 0.3
+    finally:
+        svc.close()
+    assert results == []
+
+
+def test_method_b_keeps_full_name_match():
+    """A guessed handle whose owner's name matches the candidate is kept."""
+    svc = TelegramDiscoveryService()
+    try:
+        results = _run_method_b(svc, 'Иван Петров')  # score >= 0.6
+    finally:
+        svc.close()
+    assert len(results) == 1
+    assert results[0].get('confidence') in ('высокая', 'high')
+
+
+def test_method_b_keeps_partial_name_match():
+    """A partial (first-name-only) match is still plausible and kept as medium."""
+    svc = TelegramDiscoveryService()
+    try:
+        results = _run_method_b(svc, 'Иван')  # first-name-only, 0.3 <= score
+    finally:
+        svc.close()
+    assert len(results) == 1
+    assert results[0].get('confidence') in ('средняя', 'medium')
+
+
+# ============================================================
 # Helpers
 # ============================================================
 
