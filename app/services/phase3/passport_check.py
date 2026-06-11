@@ -154,11 +154,15 @@ def _try_guvm_mvd(series: str, number: str) -> dict | None:
                     'checked': False,
                     'error': 'Автоматическая проверка невозможна — сервис требует авторизацию на Госуслугах',
                 }
+            # Unrecognized page: we could NOT complete the check. Must report
+            # checked=False — otherwise the pipeline maps valid=None to
+            # found=False and the dossier shows the passport as "verified
+            # valid" when nothing was actually confirmed.
             logger.warning(f"MVD passport: unexpected response for {series} ******")
             return {
                 'valid': None,
                 'status': 'Статус не определён',
-                'checked': True,
+                'checked': False,
                 'error': 'Не удалось распознать ответ сервиса',
             }
 
