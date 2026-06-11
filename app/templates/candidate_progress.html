@@ -276,7 +276,7 @@ function detectStage(text) {
     var t = text.toLowerCase();
     if (t.indexOf('инн') >= 0 || t.indexOf('личность') >= 0 || t.indexOf('егрюл по инн') >= 0 || t.indexOf('банкротство') >= 0 || t.indexOf('ефрсб') >= 0)
         return {key: 'identity', label: 'Личность'};
-    if (t.indexOf('суды') >= 0 || t.indexOf('фссп') >= 0 || t.indexOf('залог') >= 0 || t.indexOf('реестр') >= 0 || t.indexOf('егрюл') >= 0 || t.indexOf('casebook') >= 0)
+    if (t.indexOf('суды') >= 0 || t.indexOf('фссп') >= 0 || t.indexOf('залог') >= 0 || t.indexOf('реестр') >= 0 || t.indexOf('егрюл') >= 0 || t.indexOf('arbitr') >= 0)
         return {key: 'registries', label: 'Реестры'};
     if (t.indexOf('санкц') >= 0 || t.indexOf('мвд') >= 0 || t.indexOf('интерпол') >= 0 || t.indexOf('безопасн') >= 0 || t.indexOf('розыск') >= 0)
         return {key: 'security', label: 'Безопасность'};

@@ -35,7 +35,7 @@ def _normalize_court_confidence(records, candidate_region=None):
     expect the four-level VERIFIED/LIKELY/POSSIBLE/UNVERIFIED system.
 
     Baseline per source:
-      - судебныерешения.рф / casebook.ru: POSSIBLE (participant-name search)
+      - судебныерешения.рф: POSSIBLE (participant-name search)
       - reputation.su: POSSIBLE (aggregator, name search)
       - kad.arbitr.ru: POSSIBLE for name matches (official cardfile, but a
         ФИО search still hits namesakes); INN-matched cases arrive already
@@ -48,7 +48,6 @@ def _normalize_court_confidence(records, candidate_region=None):
     """
     SOURCE_BASELINE = {
         'судебныерешения.рф': 'POSSIBLE',
-        'casebook.ru': 'POSSIBLE',
         'reputation.su': 'POSSIBLE',
         'kad.arbitr.ru': 'POSSIBLE',
         'sudact.ru': 'UNVERIFIED',
@@ -813,7 +812,10 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             def _search_courts(full_name, inn=''):
                 """Search court records — sudact + судебныерешения + reputation.su
-                + kad.arbitr.ru (all inside CourtRecordSearch) + casebook.ru.
+                + kad.arbitr.ru (all inside CourtRecordSearch).
+
+                casebook.ru was dropped 2026-06-11: /search 404s, the API
+                returns 401 (login wall) — dead code fully covered by kad.
 
                 Returns (records, source_statuses). source_statuses maps source
                 name → 'ok'/'empty'/'blocked'/'timeout'/'error'/... so the
@@ -840,21 +842,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         logger.info(f"Stage 1 Courts: 0 cases (statuses: {statuses})")
                 except Exception as e:
                     logger.warning(f"Court search failed: {e}")
-
-                # Supplementary: casebook.ru (arbitration aggregator)
-                try:
-                    from app.services.phase3.casebook_service import CasebookService
-                    casebook = CasebookService(timeout=25)
-                    cb_results = casebook.search_person(full_name)
-                    if cb_results:
-                        existing_numbers = {r.get('case_number', '') for r in records}
-                        for cb in cb_results:
-                            d = cb.to_court_dict()
-                            if d['case_number'] not in existing_numbers:
-                                records.append(d)
-                                existing_numbers.add(d['case_number'])
-                except Exception as e:
-                    logger.warning(f"Casebook court search failed: {e}")
 
                 return records, statuses
 

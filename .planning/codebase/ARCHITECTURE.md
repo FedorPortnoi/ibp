@@ -20,8 +20,8 @@ Pipeline Background Thread:
   Stage 0: pipeline.py → business_registry.py → nalog.ru EGRUL API
                         → bankruptcy_service.py → bankrot.fedresurs.ru
   Stage 1: pipeline.py → phase3/court_search.py → sudact.ru (Playwright)
+                          + судебныерешения.рф + reputation.su + kad.arbitr.ru
                         → phase3/checko_service.py → checko.ru
-                        → phase3/casebook_service.py → casebook.ru
                         → candidate/fssp_service.py → FSSP (4-tier fallback)
   Stage 2: pipeline.py → sanctions_check.py → OpenSanctions API
                         → local_security_db.py → data/mvd_wanted.json
@@ -118,9 +118,9 @@ Key files:
 
 ### Phase 3 Business/Courts (`app/services/phase3/` — 9 files)
 - `business_registry.py` — `BusinessRegistrySearch.search_by_name()` — nalog.ru + Rusprofile
-- `court_search.py` — sudact.ru (Playwright)
+- `court_search.py` — sudact.ru (Playwright) + судебныерешения.рф + reputation.su + kad.arbitr.ru
+- `kad_arbitr_service.py` — kad.arbitr.ru person search (official arbitration cardfile, RU IP only)
 - `checko_service.py` — checko.ru (globally accessible FSSP alternative)
-- `casebook_service.py` — casebook.ru (arbitration courts)
 - `fssp_search.py` — FSSP enforcement
 - `text_analyzer.py` — VK wall sentiment/keywords
 - `geo_extractor.py` — Geographic extraction
