@@ -228,12 +228,19 @@ class LocalSecurityDB:
         return matches
 
     def has_mvd_data(self) -> bool:
-        """Check if MVD wanted data file exists."""
-        return (self.data_dir / 'mvd_wanted.json').exists()
+        """True only if the MVD wanted DB is loaded AND non-empty.
+
+        An existing-but-empty file ([] — the committed placeholder) means the
+        list was never populated. Returning True for it would let the caller
+        report 'checked, not found' = a verified clean against the federal
+        wanted list while screening against zero records. Require records.
+        """
+        return self.mvd_record_count() > 0
 
     def has_extremist_data(self) -> bool:
-        """Check if extremist list data file exists."""
-        return (self.data_dir / 'extremist_list.json').exists()
+        """True only if the extremist DB is loaded AND non-empty (see
+        has_mvd_data — an empty placeholder must not read as 'screened')."""
+        return self.extremist_record_count() > 0
 
     def mvd_record_count(self) -> int:
         """Return number of records in MVD wanted list."""
