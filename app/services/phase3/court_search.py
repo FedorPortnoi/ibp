@@ -172,9 +172,15 @@ class CourtRecordSearch:
     """
     Search Russian court records.
 
-    Sources:
-    - sudact.ru - General courts database (JS-rendered, needs Playwright)
-    - kad.arbitr.ru - Arbitration courts (blocked, manual URL only)
+    Sources (in order):
+    0. sudact.ru — JS-rendered, Playwright required (conditional on PLAYWRIGHT_AVAILABLE)
+    1. судебныерешения.рф — PHP site, CSRF session-based (plain requests)
+    2. reputation.su — Nuxt 3 SSR aggregator, 58M+ cases (plain requests)
+
+    Geo-note: судебныерешения.рф uses DDoS Guard and is intermittently accessible
+    from non-Russian IPs. sudact.ru is accessible globally but requires Playwright.
+    Both work reliably from Yandex Cloud VM (Russian IP).
+    kad.arbitr.ru is hard geo-blocked (HTTP 451) — manual URL only.
     """
 
     SUDACT_BASE = "https://sudact.ru"
@@ -202,8 +208,9 @@ class CourtRecordSearch:
         Search for court cases involving a person.
 
         Sources (in order):
-        1. судебныерешения.рф — session-based PHP search (plain requests)
-        2. reputation.su — Nuxt 3 SSR, 58M+ cases (plain requests)
+        0. sudact.ru via Playwright — full case text, criminal articles, verdict
+        1. судебныерешения.рф — CSRF session-based, case metadata
+        2. reputation.su — aggregator, 58M+ cases
         """
         results = []
         name = full_name.strip()
@@ -211,6 +218,17 @@ class CourtRecordSearch:
             return results
 
         logger.info(f"Court search: starting for '{name}'")
+
+        # --- Source 0: sudact.ru (Playwright, conditional) ---
+        if PLAYWRIGHT_AVAILABLE:
+            try:
+                sudact_results = self._search_sudact_playwright(name, limit)
+                results.extend(sudact_results)
+                logger.info(f"Court search: sudact.ru returned {len(sudact_results)} cases")
+            except Exception as e:
+                logger.warning(f"Court search: sudact.ru Playwright failed: {e}")
+        else:
+            logger.debug("Court search: sudact.ru skipped (Playwright unavailable)")
 
         # --- Source 1: судебныерешения.рф ---
         try:
@@ -230,9 +248,15 @@ class CourtRecordSearch:
                     case_type=rc.get('case_type', ''),
                     date=rc.get('date', ''),
                     role=rc.get('role', ''),
+                    # subject (предмет дела) → category; it's the closest CourtCase field
+                    category=rc.get('subject', ''),
+                    result=rc.get('status', ''),
                     url=rc.get('url', ''),
                     source='reputation.su',
                     confidence='medium',
+                    # Transfer deep-parse fields — fetched at extra HTTP cost, must not be dropped
+                    criminal_articles=rc.get('criminal_articles') or [],
+                    verdict=rc.get('verdict', ''),
                 )
                 if case.case_number:
                     results.append(case)
