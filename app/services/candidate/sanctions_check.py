@@ -270,20 +270,54 @@ class SanctionsService:
 
     # ── Primary: OpenSanctions API ────────────────────────────────
 
+    # OpenSanctions last_status → (was the screening actually performed?, message).
+    # CRITICAL: an empty match list only means "not sanctioned" when the query
+    # actually ran (status 'ok'). Without an API key the API returns nothing,
+    # and reporting that as checked=True/found=False is a false clean on the
+    # single highest-stakes check (terrorism financing, OFAC, UN sanctions).
+    _OPENSANCTIONS_FAILURE_MESSAGES = {
+        'missing_credentials': 'API-ключ OpenSanctions не настроен — проверка не выполнена',
+        'auth_failed': 'Ошибка авторизации OpenSanctions — проверка не выполнена',
+        'rate_limited': 'OpenSanctions ограничил запросы (429) — проверка не выполнена',
+        'timeout': 'OpenSanctions: таймаут — проверка не выполнена',
+        'connection_error': 'OpenSanctions недоступен — проверка не выполнена',
+        'server_error': 'OpenSanctions: ошибка сервера — проверка не выполнена',
+        'error': 'OpenSanctions: ошибка — проверка не выполнена',
+        'not_checked': 'OpenSanctions: проверка не выполнена',
+    }
+
     def _check_opensanctions(
         self, full_name: str, birth_date: Optional[str] = None,
     ) -> List[SanctionsResult]:
         """
         Check OpenSanctions API for sanctions matches.
         Returns list of SanctionsResult (one per matching dataset).
+
+        Honors the service's last_status: only an 'ok' status means the
+        screening ran. Any other status yields checked=False so the dossier
+        shows "источник недоступен" rather than a false "не найден".
         """
         try:
             from app.services.candidate.opensanctions_service import OpenSanctionsService
             svc = OpenSanctionsService(timeout=self.TIMEOUT)
             matches = svc.check_person(full_name, birth_date=birth_date)
+            status = getattr(svc, 'last_status', 'ok')
+
+            if status != 'ok':
+                message = self._OPENSANCTIONS_FAILURE_MESSAGES.get(
+                    status, f'OpenSanctions недоступен ({status})'
+                )
+                logger.info("OpenSanctions not screened: %s", message)
+                return [SanctionsResult(
+                    source_name='OpenSanctions',
+                    checked=False,
+                    found=False,
+                    error=message,
+                    url='https://opensanctions.org/',
+                )]
 
             if not matches:
-                # Checked successfully, no matches
+                # Query actually ran and returned nothing → genuinely clean.
                 return [SanctionsResult(
                     source_name='OpenSanctions',
                     checked=True,
@@ -407,8 +441,14 @@ class SanctionsService:
 
     def _check_rosfinmonitoring(self, full_name: str) -> SanctionsResult:
         """
-        Check Rosfinmonitoring terrorism/sanctions list.
-        Fetches the page at fedsfm.ru and searches for the name in text.
+        Check Rosfinmonitoring terrorism/sanctions list (fallback).
+
+        fedsfm.ru is geo-restricted (SSL/connection failure from non-Russian
+        IPs, probed 2026-06-11) → reported as checked=False, not a false clean.
+        The authoritative path is OpenSanctions, whose ru_fedsfm_terror /
+        ru_fedsfm_wmd datasets ARE this list, properly indexed; this direct
+        scraper only matters from a Russian IP without an OpenSanctions key,
+        and then only does a single-page substring check.
         """
         url = 'https://www.fedsfm.ru/documents/terrorists-catalog-portal-act'
         try:
