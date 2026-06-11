@@ -7,7 +7,10 @@ with court case cards (div.srch-card__affairs-box).
 Key: use ``query=`` parameter (not ``q=``). ``q=`` returns
 unfiltered results identical for every query.
 
-No authentication required. No geo-blocking. Plain requests work.
+No authentication required. Cloudflare bot protection is present —
+plain requests return a JS challenge page ("Click to continue") from
+non-Russian IPs. Works reliably from Yandex Cloud VM (Russian IP).
+Same geo pattern as судебныерешения.рф.
 """
 
 import logging
