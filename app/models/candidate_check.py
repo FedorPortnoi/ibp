@@ -53,6 +53,11 @@ class CandidateCheck(db.Model):
     _bankruptcy_records = db.Column('bankruptcy_records', db.Text, default='[]')
     _sanctions_results = db.Column('sanctions_results', db.Text, default='[]')
     _pledge_records = db.Column('pledge_records', db.Text, default='[]')
+    # General per-source status map for single-provider sources, e.g.
+    # {'reestr-zalogov.ru': 'blocked'}. Courts use court_source_statuses and
+    # enforcement uses fssp_status; everything else lands here. Lets the
+    # dossier tell "nothing found" apart from "source was unreadable".
+    _source_statuses = db.Column('source_statuses', db.Text, default='{}')
     _social_media_profiles = db.Column('social_media_profiles', db.Text, default='[]')
     _contact_discoveries = db.Column('contact_discoveries', db.Text, default='{}')
 
@@ -200,6 +205,15 @@ class CandidateCheck(db.Model):
     @pledge_records.setter
     def pledge_records(self, value):
         self._pledge_records = self._dump_json(value)
+
+    # source_statuses (general per-source status map)
+    @property
+    def source_statuses(self):
+        return self._load_json(self._source_statuses, {})
+
+    @source_statuses.setter
+    def source_statuses(self, value):
+        self._source_statuses = self._dump_json(value)
 
     # social_media_profiles
     @property

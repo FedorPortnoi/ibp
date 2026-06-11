@@ -888,18 +888,24 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             fssp_records = []
             fssp_status = 'error'
             pledge_records = []
+            pledge_status = 'error'
             # Note: bankruptcy_records already populated by Stage 0
 
             def _search_pledges(full_name):
-                """Search pledge registry (reestr-zalogov.ru)."""
+                """Search pledge registry (reestr-zalogov.ru).
+
+                Returns (records, status). reestr-zalogov.ru is reCAPTCHA-walled,
+                so status is usually 'blocked' — that must not read as "no
+                pledged assets".
+                """
                 try:
                     from app.services.phase3.pledge_registry import PledgeRegistrySearch
                     svc = PledgeRegistrySearch(timeout=30)
-                    results = svc.search_by_name(full_name)
-                    return [r.to_dict() for r in results]
+                    results, status = svc.search_by_name(full_name)
+                    return [r.to_dict() for r in results], status
                 except Exception as e:
                     logger.warning(f"Pledge registry search failed: {e}")
-                    return []
+                    return [], 'error'
 
             # Run fast sources (biz + FSSP + pledges) in parallel. Court search
             # (sudact.ru via Playwright) is slow and unpredictable, so it runs
@@ -918,7 +924,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
                 def _process_future(future):
                     nonlocal biz_records, fssp_records, fssp_status, pledge_records
-                    nonlocal sources_checked, sources_with_results
+                    nonlocal pledge_status, sources_checked, sources_with_results
                     try:
                         if future is future_biz:
                             biz_records = future.result(timeout=60)
@@ -962,15 +968,21 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             sources_checked += 1
 
                         elif future is future_pledges:
-                            pledge_records = future.result(timeout=60)
+                            pledge_records, pledge_status = future.result(timeout=60)
                             if pledge_records:
                                 task.add_message(
                                     f'Залоговый реестр: найдено {len(pledge_records)} записей',
                                     'warning',
                                 )
                                 sources_with_results += 1
-                            else:
+                            elif pledge_status in ('ok', 'empty'):
                                 task.add_message('Залоговый реестр: записей не найдено', 'info')
+                            else:
+                                # reCAPTCHA / unreadable — not a clean result
+                                task.add_message(
+                                    'Залоговый реестр: reCAPTCHA — требуется ручная проверка',
+                                    'warning',
+                                )
                             sources_checked += 1
 
                     except Exception as e:
@@ -982,6 +994,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             logger.warning("ФССП search failed: %s", e)
                             task.add_message('ФССП: источник недоступен', 'warning')
                         elif future is future_pledges:
+                            pledge_status = 'error'
                             logger.warning("Pledge registry failed: %s", e)
                             task.add_message('Залоговый реестр: недоступен', 'warning')
                         sources_checked += 1
@@ -1005,6 +1018,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             fssp_status = 'timeout'
                             task.add_message('ФССП: таймаут (60с)', 'warning')
                         elif future is future_pledges:
+                            pledge_status = 'timeout'
                             task.add_message('Залоговый реестр: таймаут (60с)', 'warning')
                         sources_checked += 1
             finally:
@@ -1075,6 +1089,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 court_source_statuses = {}  # demo data — real statuses would mislead
                 fssp_records = demo_fssp
                 fssp_status = 'ok' if demo_fssp else 'empty'
+                pledge_status = 'empty'
                 if not bankruptcy_records:
                     bankruptcy_records = demo_bankruptcy
                     check.bankruptcy_records = bankruptcy_records
@@ -1116,6 +1131,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             check.court_source_statuses = court_source_statuses
             check.fssp_records = fssp_records
             check.fssp_status = fssp_status
+            check.source_statuses = {'reestr-zalogov.ru': pledge_status}
             check.pledge_records = pledge_records
             # bankruptcy_records already set in Stage 0
             stage1_elapsed = time.time() - task.started_at.timestamp()

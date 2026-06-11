@@ -988,7 +988,14 @@
                 </div>
             {% endfor %}
         {% else %}
-            <div class="empty-state good">Нет</div>
+            {% set pledge_status = (source_statuses or {}).get('reestr-zalogov.ru', '') %}
+            {% if pledge_status not in ('ok', 'empty', '') %}
+                <div class="empty-state stub" style="border-color: rgba(234,179,8,0.3);">
+                    &#x26A0;&#xFE0F; Реестр не проверен (reCAPTCHA) — отсутствие залогов не подтверждено.
+                </div>
+            {% else %}
+                <div class="empty-state good">Нет</div>
+            {% endif %}
             <div class="text-xs text-gray-500 mt-2">
                 <a href="https://www.reestr-zalogov.ru/search/index" target="_blank" rel="noopener"
                    class="text-accent hover:text-accent-bright transition">
