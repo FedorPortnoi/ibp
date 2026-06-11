@@ -6,8 +6,7 @@ Search for company affiliations via official sources.
 Sources (in priority order):
 1. egrul.org       — free JSON API, same FNS source as Контур.Фокус (100 req/day)
 2. egrul.nalog.ru  — official FNS search fallback (basic data + 1 director)
-3. Rusprofile.ru   — scraping fallback
-4. zachestnyibiznes.ru — scraping last resort
+3. Rusprofile.ru   — person profile page by INN (/person/p-INN), returns roles
 
 Additional checks:
 - check_ip_status() — ИП (individual entrepreneur) registration lookup
@@ -73,15 +72,12 @@ class BusinessRegistrySearch:
 
     Sources (tried in order):
     1. egrul.nalog.ru — Official FNS EGRUL/EGRIP (free, reliable)
-    2. Rusprofile.ru — Scraping fallback
-    3. List-org.com — Scraping fallback
+    2. Rusprofile.ru — INN-based person profile fallback (/person/p-{INN})
     """
 
     EGRUL_ORG_BASE = "https://egrul.org"
     NALOG_BASE = "https://egrul.nalog.ru"
     RUSPROFILE_BASE = "https://www.rusprofile.ru"
-    LISTORG_BASE = "https://www.list-org.com"
-    ZACHESTNYIBIZNES_BASE = "https://zachestnyibiznes.ru"
 
     HEADERS = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -123,34 +119,22 @@ class BusinessRegistrySearch:
         except Exception as e:
             logger.warning(f"nalog.ru EGRUL search failed: {e}")
 
-        # Enrich nalog.ru results via egrul.org (fills capital, OKVED, full address)
-        # Each record has a 10-digit company INN we can look up directly.
+        # Enrich nalog.ru results via egrul.org (fills capital, OKVED, full address).
+        # Raw JSON is cached by company INN for the role resolution pass below.
+        egrul_cache: dict = {}
         if results:
             for record in results[:10]:  # cap at 10 to stay within 100/day limit
                 try:
-                    self._enrich_record_from_egrul_org(record)
+                    self._enrich_record_from_egrul_org(record, egrul_cache)
                 except Exception as e:
                     logger.debug(f"egrul.org enrichment for {record.inn}: {e}")
 
-        # Source 2: Rusprofile (fallback if nalog.ru returned few results)
-        if len(results) < 3:
-            time.sleep(0.5)
+        # Role resolution pass — no extra HTTP calls, uses cached JSON
+        if egrul_cache:
             try:
-                rp_results = self._search_rusprofile(name, search_directors, search_founders, limit)
-                results.extend(rp_results)
-                logger.info(f"Rusprofile found {len(rp_results)} records")
+                self._resolve_roles_from_cache(results, name, egrul_cache)
             except Exception as e:
-                logger.warning(f"Rusprofile search failed: {e}")
-
-        # Source 3: zachestnyibiznes.ru (fallback if still few results)
-        if len(results) < 3:
-            time.sleep(0.5)
-            try:
-                zb_results = self._search_zachestnyibiznes(name, limit)
-                results.extend(zb_results)
-                logger.info(f"zachestnyibiznes.ru found {len(zb_results)} records")
-            except Exception as e:
-                logger.warning(f"zachestnyibiznes.ru search failed: {e}")
+                logger.debug(f"egrul.org role resolution pass: {e}")
 
         # Deduplicate by INN
         seen_inn = set()
@@ -166,6 +150,21 @@ class BusinessRegistrySearch:
 
     # ===== egrul.org (Primary Source) =====
 
+    def _fetch_egrul_org_raw(self, query: str) -> Optional[dict]:
+        """Fetch raw egrul.org JSON for an INN/OGRN. Returns None on failure."""
+        url = f"{self.EGRUL_ORG_BASE}/{query}.json"
+        try:
+            resp = self.session.get(url, timeout=self.timeout)
+            if resp.status_code == 404:
+                return None
+            if resp.status_code != 200:
+                logger.warning("egrul.org: HTTP %s for %s", resp.status_code, query)
+                return None
+            return resp.json()
+        except Exception as exc:
+            logger.warning("egrul.org fetch failed: %s", exc)
+            return None
+
     def _search_egrul_org(self, query: str) -> List[BusinessRecord]:
         """
         GET https://egrul.org/{INN_or_OGRN}.json
@@ -177,21 +176,10 @@ class BusinessRegistrySearch:
           - 13-digit OGRN         → legal entity record
           - 15-digit ОГРНИП       → ИП record
         """
-        url = f"{self.EGRUL_ORG_BASE}/{query}.json"
-        try:
-            resp = self.session.get(url, timeout=self.timeout)
-            if resp.status_code == 404:
-                return []
-            if resp.status_code != 200:
-                logger.warning("egrul.org: HTTP %s for %s", resp.status_code, query)
-                return []
-
-            data = resp.json()
-            return self._parse_egrul_org_to_records(data, query)
-
-        except Exception as exc:
-            logger.warning("egrul.org search failed: %s", exc)
+        data = self._fetch_egrul_org_raw(query)
+        if data is None:
             return []
+        return self._parse_egrul_org_to_records(data, query)
 
     def _parse_egrul_org_to_records(self, data: dict, query: str) -> List[BusinessRecord]:
         """Parse egrul.org JSON into BusinessRecord(s)."""
@@ -262,20 +250,30 @@ class BusinessRegistrySearch:
             okved_name=okved_name,
         )]
 
-    def _enrich_record_from_egrul_org(self, record: BusinessRecord) -> None:
+    def _enrich_record_from_egrul_org(
+        self, record: BusinessRecord, egrul_cache: dict
+    ) -> None:
         """
         Fill gaps in a BusinessRecord that came from nalog.ru or rusprofile
         by fetching the full data from egrul.org using the record's company INN.
-        Only called when the record has a company INN (10-digit) and is missing
-        capital / OKVED / full address.
+        Stores raw JSON in egrul_cache keyed by company INN for later role resolution.
         """
         company_inn = record.inn
         if not company_inn or len(company_inn) != 10:
             return
-        if record.capital and record.okved:
-            return  # Already rich enough
 
-        enriched = self._search_egrul_org(company_inn)
+        raw = egrul_cache.get(company_inn)
+        if raw is None:
+            if record.capital and record.okved:
+                return  # Already rich enough, skip fetch
+            raw = self._fetch_egrul_org_raw(company_inn)
+            if raw is not None:
+                egrul_cache[company_inn] = raw
+
+        if raw is None:
+            return
+
+        enriched = self._parse_egrul_org_to_records(raw, company_inn)
         if not enriched:
             return
 
@@ -289,6 +287,70 @@ class BusinessRegistrySearch:
             record.okved_name = src.okved_name
         if not record.ogrn and src.ogrn:
             record.ogrn = src.ogrn
+
+    def _resolve_roles_from_cache(
+        self, records: List[BusinessRecord], candidate_name: str, egrul_cache: dict
+    ) -> None:
+        """
+        For records still marked 'Связан', check the cached egrul.org JSON to see
+        if the candidate appears in the directors or founders list, and update role.
+        No HTTP calls — uses egrul_cache populated during enrichment.
+        """
+        if not candidate_name or not egrul_cache:
+            return
+
+        from app.services.company.egrul_service import _attrs, _as_list, _fio
+        from app.utils.name_similarity import calculate_name_similarity
+
+        for record in records:
+            if record.role != 'Связан':
+                continue
+            raw = egrul_cache.get(record.inn)
+            if not raw:
+                continue
+
+            root = raw.get('СвЮЛ') or raw.get('СвИП') or raw
+            if not isinstance(root, dict):
+                continue
+
+            # Check directors
+            for entry in _as_list(root.get('СведДолжнФЛ')):
+                if not isinstance(entry, dict):
+                    continue
+                if _attrs(entry).get('ОгрДосСв') == '1':
+                    continue
+                name = _fio(entry.get('СвФЛ', {}))
+                if name and calculate_name_similarity(candidate_name, name) >= 0.8:
+                    role_raw = _attrs(entry.get('СвДолжн', {})).get(
+                        'НаимДолжн', _attrs(entry.get('СвДолжн', {})).get('НаимВидДолжн', '')
+                    )
+                    record.role = role_raw.strip().capitalize() if role_raw else 'Директор'
+                    logger.info(
+                        "Role resolved via egrul.org cache: %s → %s (matched '%s')",
+                        record.company_name, record.role, name,
+                    )
+                    break
+
+            if record.role != 'Связан':
+                continue
+
+            # Check founders
+            учредит = root.get('СвУчредит', {})
+            if not isinstance(учредит, dict):
+                continue
+            for entry in _as_list(учредит.get('УчрФЛ')):
+                if not isinstance(entry, dict):
+                    continue
+                if _attrs(entry).get('ОгрДосСв') == '1':
+                    continue
+                name = _fio(entry.get('СвФЛ', {}))
+                if name and calculate_name_similarity(candidate_name, name) >= 0.8:
+                    record.role = 'Учредитель'
+                    logger.info(
+                        "Role resolved via egrul.org cache: %s → Учредитель (matched '%s')",
+                        record.company_name, name,
+                    )
+                    break
 
     # ===== nalog.ru EGRUL (Fallback) =====
 
@@ -470,303 +532,6 @@ class BusinessRegistrySearch:
 
     # ===== Rusprofile (Fallback) =====
 
-    def _search_rusprofile(
-        self,
-        name: str,
-        search_directors: bool,
-        search_founders: bool,
-        limit: int
-    ) -> List[BusinessRecord]:
-        """Search Rusprofile.ru for person's company affiliations.
-
-        Two-step process:
-        1. Search with type=fl to find matching physical persons
-        2. For the best match, fetch the person profile page and extract all companies
-
-        URL structure (current as of 2026):
-        - Person search: /search?query=NAME&type=fl
-        - Person profile: /person/SLUG-INN  (e.g. /person/kuznecov-iyu-183511206113)
-        - Company page:   /id/OGRN
-        - ИП page:        /ip/OGRNIP
-        """
-        results = []
-
-        # Step 1: Find matching person records
-        search_url = f"{self.RUSPROFILE_BASE}/search?query={quote(name)}&type=fl"
-
-        try:
-            response = self.session.get(search_url, timeout=self.timeout)
-
-            if response.status_code in (403, 429):
-                logger.warning(
-                    f"Rusprofile blocked (HTTP {response.status_code}) — "
-                    "likely anti-bot protection. nalog.ru EGRUL is the primary source."
-                )
-                return results
-            if response.status_code == 404:
-                logger.warning(
-                    "Rusprofile returned 404 — URL structure may have changed. "
-                    "Falling back to nalog.ru EGRUL."
-                )
-                return results
-            if response.status_code != 200:
-                logger.warning(f"Rusprofile FL search returned status {response.status_code}")
-                return results
-
-            soup = BeautifulSoup(response.text, 'lxml')
-            person_items = soup.select('.list-element')
-
-            if not person_items:
-                logger.debug("Rusprofile: no FL person items found in search")
-                return results
-
-            # Take the first matching person (best match by Rusprofile ranking)
-            # and fetch their profile page for full company list
-            first_item = person_items[0]
-            link = first_item.select_one('a.list-element__title')
-            if not link or not link.get('href'):
-                logger.debug("Rusprofile: no link found for first FL result")
-                return results
-
-            person_href = link.get('href')
-            person_url = f"{self.RUSPROFILE_BASE}{person_href}"
-            logger.debug(f"Rusprofile: fetching person page {person_url}")
-
-        except requests.RequestException as e:
-            logger.warning(f"Rusprofile FL search failed: {e}")
-            return results
-
-        # Step 2: Fetch the person's profile page and extract all companies
-        time.sleep(0.3)
-        try:
-            profile_resp = self.session.get(person_url, timeout=self.timeout)
-
-            if profile_resp.status_code != 200:
-                logger.warning(f"Rusprofile person page returned {profile_resp.status_code}")
-                return results
-
-            profile_soup = BeautifulSoup(profile_resp.text, 'lxml')
-            company_items = profile_soup.select('.list-element')
-
-            for item in company_items[:limit]:
-                try:
-                    record = self._parse_rusprofile_person_company(item)
-                    if record:
-                        results.append(record)
-                except Exception as e:
-                    logger.debug(f"Failed to parse Rusprofile company item: {e}")
-                    continue
-
-        except requests.RequestException as e:
-            logger.warning(f"Rusprofile person profile fetch failed: {e}")
-
-        logger.debug(f"Rusprofile: extracted {len(results)} records from {person_url}")
-        return results
-
-    def _parse_rusprofile_person_company(self, item) -> Optional[BusinessRecord]:
-        """Parse a company list-element from a Rusprofile person profile page.
-
-        The item structure:
-        <div class="list-element">
-          <a class="list-element__title"
-             data-track-click="not_masked,fl_dash_ceo_company,to_ul,link"
-             href="/id/11417314"> ООО "Калинка Комфорт" </a>
-          <div class="list-element__text danger">Ликвидирован</div>  <!-- optional -->
-          <span class="list-element__text">OKVED description</span>
-          <div class="list-element__address">City/Region</div>
-          <div class="list-element__row-info">
-            <span>ИНН: 1831190000</span>
-            <span>ОГРН: 1181832009523</span>
-            <span>Дата регистрации: 20.04.2018</span>
-          </div>
-        </div>
-
-        Role is encoded in data-track-click:
-        - fl_dash_ceo_company  → Директор
-        - fl_dash_founder_company → Учредитель
-        - fl_dash_ip           → ИП
-        """
-        try:
-            link = item.select_one('a.list-element__title')
-            if not link:
-                return None
-
-            company_name = link.get_text(strip=True)
-            if not company_name:
-                return None
-
-            href = link.get('href', '')
-            url = f"{self.RUSPROFILE_BASE}{href}" if href else ""
-
-            # Determine role from data-track-click attribute
-            track = link.get('data-track-click', '')
-            if 'fl_dash_ceo' in track or 'ceo_company' in track:
-                role = "Директор"
-            elif 'fl_dash_founder' in track or 'founder_company' in track:
-                role = "Учредитель"
-            elif 'fl_dash_ip' in track or 'to_ip' in track:
-                role = "ИП"
-            else:
-                role = "Связан"
-
-            # Status: look for danger-class text element (Ликвидирован, etc.)
-            status_danger = item.select_one('.list-element__text.danger')
-            if status_danger:
-                status_text = status_danger.get_text(strip=True)
-                if 'ликвидир' in status_text.lower():
-                    status = "Ликвидировано"
-                else:
-                    status = status_text
-            else:
-                status = "Действующее"
-
-            # OKVED description (non-danger text element)
-            okved_name = ""
-            for span in item.select('.list-element__text, span.list-element__text'):
-                if 'danger' not in (span.get('class') or []):
-                    okved_name = span.get_text(strip=True)
-                    if okved_name:
-                        break
-
-            # Address
-            addr_elem = item.select_one('.list-element__address')
-            address = addr_elem.get_text(strip=True) if addr_elem else ""
-
-            # INN, OGRN, registration date from row-info spans
-            row_info = item.select_one('.list-element__row-info')
-            inn = ""
-            ogrn = ""
-            reg_date = ""
-            if row_info:
-                info_text = row_info.get_text()
-                inn_m = re.search(r'ИНН[:\s]*(\d{10,12})', info_text)
-                inn = inn_m.group(1) if inn_m else ""
-                # ОГРН (13 digits for UL) or ОГРНИП (15 digits for ИП)
-                ogrn_m = re.search(r'ОГРН(?:ИП)?[:\s]*(\d{13,15})', info_text)
-                ogrn = ogrn_m.group(1) if ogrn_m else ""
-                date_m = re.search(r'Дата регистрации[:\s]*([\d.]+)', info_text)
-                reg_date = date_m.group(1) if date_m else ""
-
-            company_type = self._detect_company_type(company_name)
-
-            return BusinessRecord(
-                company_name=company_name,
-                inn=inn,
-                ogrn=ogrn,
-                role=role,
-                status=status,
-                registration_date=reg_date,
-                address=address,
-                source="Rusprofile.ru",
-                url=url,
-                confidence="medium",
-                company_type=company_type,
-                okved_name=okved_name,
-            )
-
-        except Exception as e:
-            logger.debug(f"Parse rusprofile company item error: {e}")
-            return None
-
-    # ===== zachestnyibiznes.ru (Fallback) =====
-
-    def _search_zachestnyibiznes(self, query: str, limit: int = 50) -> List[BusinessRecord]:
-        """Search zachestnyibiznes.ru for company/IP affiliations.
-
-        Works for both name and INN queries.
-        URL: https://zachestnyibiznes.ru/search?query=NAME_OR_INN
-        """
-        results = []
-        search_url = f"{self.ZACHESTNYIBIZNES_BASE}/search?query={quote(query)}"
-
-        try:
-            response = self.session.get(search_url, timeout=self.timeout)
-
-            if response.status_code in (403, 429):
-                logger.warning(f"zachestnyibiznes.ru blocked (HTTP {response.status_code})")
-                return results
-            if response.status_code != 200:
-                logger.warning(f"zachestnyibiznes.ru returned {response.status_code}")
-                return results
-
-            soup = BeautifulSoup(response.text, 'lxml')
-
-            # Company/IP links follow pattern: /company/ul/OGRN_INN_SLUG or /company/ip/OGRNIP_INN_SLUG
-            company_links = soup.find_all(
-                'a', href=lambda h: h and '/company/' in h and h != '/company/select?code=all'
-            )
-
-            for link in company_links[:limit]:
-                try:
-                    record = self._parse_zachestnyibiznes_item(link)
-                    if record:
-                        results.append(record)
-                except Exception as e:
-                    logger.debug(f"Parse zachestnyibiznes item error: {e}")
-
-        except requests.RequestException as e:
-            logger.warning(f"zachestnyibiznes.ru search failed: {e}")
-
-        return results
-
-    def _parse_zachestnyibiznes_item(self, link) -> Optional[BusinessRecord]:
-        """Parse a single zachestnyibiznes.ru search result."""
-        try:
-            company_name = link.get_text(strip=True)
-            if not company_name:
-                return None
-
-            href = link.get('href', '')
-            url = f"{self.ZACHESTNYIBIZNES_BASE}{href}" if href else ""
-
-            # Extract INN and OGRN from surrounding context
-            parent = link.parent
-            grandparent = parent.parent if parent else None
-            context = grandparent.get_text(separator='|', strip=True) if grandparent else ''
-
-            inn_m = re.search(r'ИНН\|(\d{10,12})', context)
-            inn = inn_m.group(1) if inn_m else ''
-
-            ogrn_m = re.search(r'ОГРН(?:ИП)?\|(\d{13,15})', context)
-            ogrn = ogrn_m.group(1) if ogrn_m else ''
-
-            # Status
-            status = 'Действующее'
-            if re.search(r'Ликвидирован|Прекращ', context, re.IGNORECASE):
-                status = 'Ликвидировано'
-
-            # Registration date
-            date_m = re.search(r'Дата регистрации\|(\d{2}\.\d{2}\.\d{4})', context)
-            reg_date = date_m.group(1) if date_m else ''
-
-            # Region/address
-            address = ''
-            addr_m = re.search(r'(?:область|край|республика|город)[^|]*', context, re.IGNORECASE)
-            if addr_m:
-                address = addr_m.group().strip()
-
-            # Determine type from href
-            is_ip = '/ip/' in href
-            company_type = 'ИП' if is_ip else self._detect_company_type(company_name)
-            role = 'ИП' if is_ip else 'Связан'
-
-            return BusinessRecord(
-                company_name=company_name,
-                inn=inn,
-                ogrn=ogrn,
-                role=role,
-                status=status,
-                registration_date=reg_date,
-                address=address,
-                source="zachestnyibiznes.ru",
-                url=url,
-                confidence="medium",
-                company_type=company_type,
-            )
-        except Exception as e:
-            logger.debug(f"Parse zachestnyibiznes item error: {e}")
-            return None
-
     # ===== INN Search =====
 
     def _validate_business_record_owner(
@@ -853,17 +618,6 @@ class BusinessRegistrySearch:
             except Exception as e:
                 logger.warning(f"INN search Rusprofile fallback failed: {e}")
 
-        # Fallback: zachestnyibiznes.ru by INN
-        if not results:
-            logger.info(f"INN search: falling back to zachestnyibiznes.ru for INN {inn[:4]}***")
-            try:
-                zb_results = self._search_zachestnyibiznes(inn)
-                if zb_results:
-                    results = zb_results
-                    logger.info(f"INN search: zachestnyibiznes.ru returned {len(results)} records")
-            except Exception as e:
-                logger.warning(f"INN search zachestnyibiznes.ru fallback failed: {e}")
-
         # Validate ownership and set confidence
         for r in results:
             if candidate_name:
@@ -925,39 +679,53 @@ class BusinessRegistrySearch:
         }
 
     def _search_rusprofile_by_inn(self, inn: str) -> List[BusinessRecord]:
-        """Search Rusprofile by INN — fallback when nalog.ru is unreachable."""
-        results = []
-        search_url = f"{self.RUSPROFILE_BASE}/search?query={inn}"
+        """
+        Fetch the candidate's person profile page on rusprofile.ru by INN.
 
+        URL pattern: /person/p-{INN}
+        The INN suffix is the lookup key; the prefix before the dash is SEO-only
+        and ignored by the server. No search endpoint needed — no bot detection.
+
+        Returns company affiliations with actual roles from data-track-click.
+        """
+        if not inn or not inn.isdigit() or len(inn) != 12:
+            return []
+
+        url = f"{self.RUSPROFILE_BASE}/person/p-{inn}"
         try:
-            response = self.session.get(search_url, timeout=self.timeout)
-            if response.status_code in (403, 429):
-                logger.warning(f"Rusprofile INN search blocked (HTTP {response.status_code})")
-                return results
-            if response.status_code != 200:
-                return results
+            resp = self.session.get(url, timeout=self.timeout)
+            if resp.status_code in (403, 429):
+                logger.warning("Rusprofile person page blocked (HTTP %s) for INN %s***", resp.status_code, inn[:4])
+                return []
+            if resp.status_code != 200:
+                logger.debug("Rusprofile person page: HTTP %s for INN %s***", resp.status_code, inn[:4])
+                return []
 
-            soup = BeautifulSoup(response.text, 'lxml')
+            soup = BeautifulSoup(resp.text, 'lxml')
+            items = soup.select('.list-element')
+            results = []
+            for item in items:
+                record = self._parse_rusprofile_profile_item(item)
+                if record:
+                    results.append(record)
 
-            # Rusprofile INN search returns company cards directly
-            company_items = soup.select('.company-item, .list-element')
-            for item in company_items[:10]:
-                try:
-                    record = self._parse_rusprofile_inn_result(item, inn)
-                    if record:
-                        results.append(record)
-                except Exception as e:
-                    logger.debug(f"Parse Rusprofile INN item error: {e}")
+            logger.info("Rusprofile /person/p-%s***: %d records", inn[:4], len(results))
+            return results
 
-        except requests.RequestException as e:
-            logger.warning(f"Rusprofile INN search failed: {e}")
+        except Exception as exc:
+            logger.warning("Rusprofile INN lookup failed: %s", exc)
+            return []
 
-        return results
+    def _parse_rusprofile_profile_item(self, item) -> Optional[BusinessRecord]:
+        """Parse a .list-element from a rusprofile.ru person profile page.
 
-    def _parse_rusprofile_inn_result(self, item, search_inn: str) -> Optional[BusinessRecord]:
-        """Parse a Rusprofile search result item for INN-based search."""
+        Role is read from data-track-click on the title link:
+          fl_dash_ceo_company / ceo_company  → Директор
+          fl_dash_founder_company            → Учредитель
+          fl_dash_ip / to_ip                 → ИП
+        """
         try:
-            link = item.select_one('a.company-item__title, a.list-element__title')
+            link = item.select_one('a.list-element__title')
             if not link:
                 return None
 
@@ -968,43 +736,59 @@ class BusinessRegistrySearch:
             href = link.get('href', '')
             url = f"{self.RUSPROFILE_BASE}{href}" if href else ""
 
-            # Status
-            status_elem = item.select_one('.company-item__status.is_red, .list-element__text.danger')
-            if status_elem and 'ликвидир' in status_elem.get_text(strip=True).lower():
-                status = "Ликвидировано"
+            track = link.get('data-track-click', '')
+            if 'fl_dash_ceo' in track or 'ceo_company' in track:
+                role = 'Директор'
+            elif 'fl_dash_founder' in track or 'founder_company' in track:
+                role = 'Учредитель'
+            elif 'fl_dash_ip' in track or 'to_ip' in track:
+                role = 'ИП'
             else:
-                status = "Действующее"
+                role = 'Связан'
 
-            # INN, OGRN from info row
-            info_text = item.get_text()
-            inn_m = re.search(r'ИНН[:\s]*(\d{10,12})', info_text)
-            inn = inn_m.group(1) if inn_m else search_inn
-            ogrn_m = re.search(r'ОГРН(?:ИП)?[:\s]*(\d{13,15})', info_text)
-            ogrn = ogrn_m.group(1) if ogrn_m else ""
-            date_m = re.search(r'(?:Дата регистрации|Зарегистрирован)[:\s]*([\d.]+)', info_text)
-            reg_date = date_m.group(1) if date_m else ""
+            status_el = item.select_one('.list-element__text.danger')
+            if status_el and 'ликвидир' in status_el.get_text(strip=True).lower():
+                status = 'Ликвидировано'
+            else:
+                status = 'Действующее'
 
-            # Address
-            addr_elem = item.select_one('.company-item__text, .list-element__address')
-            address = addr_elem.get_text(strip=True) if addr_elem else ""
+            okved_name = ''
+            for span in item.select('.list-element__text'):
+                if 'danger' not in (span.get('class') or []):
+                    okved_name = span.get_text(strip=True)
+                    if okved_name:
+                        break
 
-            company_type = self._detect_company_type(company_name)
+            addr_el = item.select_one('.list-element__address')
+            address = addr_el.get_text(strip=True) if addr_el else ''
+
+            row = item.select_one('.list-element__row-info')
+            inn = ogrn = reg_date = ''
+            if row:
+                t = row.get_text()
+                m = re.search(r'ИНН[:\s]*(\d{10,12})', t)
+                inn = m.group(1) if m else ''
+                m = re.search(r'ОГРН(?:ИП)?[:\s]*(\d{13,15})', t)
+                ogrn = m.group(1) if m else ''
+                m = re.search(r'Дата регистрации[:\s]*([\d.]+)', t)
+                reg_date = m.group(1) if m else ''
 
             return BusinessRecord(
                 company_name=company_name,
                 inn=inn,
                 ogrn=ogrn,
-                role="Связан",
+                role=role,
                 status=status,
                 registration_date=reg_date,
                 address=address,
-                source="Rusprofile.ru",
+                source='Rusprofile.ru',
                 url=url,
-                confidence="high",
-                company_type=company_type,
+                confidence='medium',
+                company_type=self._detect_company_type(company_name),
+                okved_name=okved_name,
             )
-        except Exception as e:
-            logger.debug(f"Parse Rusprofile INN result error: {e}")
+        except Exception as exc:
+            logger.debug('Parse rusprofile profile item: %s', exc)
             return None
 
     # ===== ИП Status Check =====
@@ -1083,135 +867,12 @@ class BusinessRegistrySearch:
             except Exception as e:
                 logger.warning(f"IP check nalog.ru by name failed: {e}")
 
-        # Strategy 3: Rusprofile with type=ip (fallback)
-        if not result['ip_records'] and full_name:
-            time.sleep(0.3)
-            try:
-                logger.info(f"IP check: searching Rusprofile type=ip for '{full_name}'")
-                rp_ip_records = self._search_rusprofile_ip(full_name)
-                seen_ogrns = {r['ogrn'] for r in result['ip_records'] if r.get('ogrn')}
-                for rp in rp_ip_records:
-                    if rp.ogrn and rp.ogrn in seen_ogrns:
-                        continue
-                    result['ip_records'].append({
-                        'name': rp.company_name,
-                        'inn': rp.inn,
-                        'ogrn': rp.ogrn,
-                        'status': rp.status,
-                        'registration_date': rp.registration_date,
-                        'source': 'Rusprofile.ru',
-                    })
-                    if rp.ogrn:
-                        seen_ogrns.add(rp.ogrn)
-            except Exception as e:
-                logger.warning(f"IP check Rusprofile failed: {e}")
-
         result['has_ip'] = len(result['ip_records']) > 0
         result['ip_count'] = len(result['ip_records'])
         logger.info(
             f"IP check complete: has_ip={result['has_ip']}, count={result['ip_count']}"
         )
         return result
-
-    def _search_rusprofile_ip(self, full_name: str) -> List[BusinessRecord]:
-        """Search Rusprofile for ИП registrations (type=ip).
-
-        URL: /search?query=NAME&type=ip
-        Returns BusinessRecord list with ИП entries.
-        """
-        results = []
-        search_url = f"{self.RUSPROFILE_BASE}/search?query={quote(full_name)}&type=ip"
-
-        try:
-            response = self.session.get(search_url, timeout=self.timeout)
-
-            if response.status_code in (403, 429):
-                logger.warning(
-                    f"Rusprofile IP search blocked (HTTP {response.status_code})"
-                )
-                return results
-            if response.status_code == 404:
-                logger.warning("Rusprofile IP search returned 404")
-                return results
-            if response.status_code != 200:
-                logger.warning(f"Rusprofile IP search returned {response.status_code}")
-                return results
-
-            soup = BeautifulSoup(response.text, 'lxml')
-            items = soup.select('.company-item, .list-element')
-
-            for item in items[:10]:
-                try:
-                    record = self._parse_rusprofile_ip_item(item)
-                    if record:
-                        results.append(record)
-                except Exception as e:
-                    logger.debug(f"Parse Rusprofile IP item error: {e}")
-
-        except requests.RequestException as e:
-            logger.warning(f"Rusprofile IP search failed: {e}")
-
-        logger.debug(f"Rusprofile IP search: {len(results)} records")
-        return results
-
-    def _parse_rusprofile_ip_item(self, item) -> Optional[BusinessRecord]:
-        """Parse a Rusprofile ИП search result item."""
-        try:
-            link = item.select_one('a.company-item__title, a.list-element__title')
-            if not link:
-                return None
-
-            company_name = link.get_text(strip=True)
-            if not company_name:
-                return None
-
-            href = link.get('href', '')
-            url = f"{self.RUSPROFILE_BASE}{href}" if href else ""
-
-            # Status
-            status_elem = item.select_one(
-                '.company-item__status.is_red, .list-element__text.danger'
-            )
-            if status_elem and 'ликвидир' in status_elem.get_text(strip=True).lower():
-                status = "Ликвидировано"
-            elif status_elem and 'прекращ' in status_elem.get_text(strip=True).lower():
-                status = "Прекращено"
-            else:
-                status = "Действующее"
-
-            # INN, OGRNIP from info row
-            info_text = item.get_text()
-            inn_m = re.search(r'ИНН[:\s]*(\d{10,12})', info_text)
-            inn = inn_m.group(1) if inn_m else ""
-            ogrn_m = re.search(r'ОГРНИП[:\s]*(\d{15})', info_text)
-            if not ogrn_m:
-                ogrn_m = re.search(r'ОГРН[:\s]*(\d{13,15})', info_text)
-            ogrn = ogrn_m.group(1) if ogrn_m else ""
-            date_m = re.search(
-                r'(?:Дата регистрации|Зарегистрирован)[:\s]*([\d.]+)', info_text
-            )
-            reg_date = date_m.group(1) if date_m else ""
-
-            # Address
-            addr_elem = item.select_one('.company-item__text, .list-element__address')
-            address = addr_elem.get_text(strip=True) if addr_elem else ""
-
-            return BusinessRecord(
-                company_name=company_name,
-                inn=inn,
-                ogrn=ogrn,
-                role="ИП",
-                status=status,
-                registration_date=reg_date,
-                address=address,
-                source="Rusprofile.ru",
-                url=url,
-                confidence="medium",
-                company_type="ИП",
-            )
-        except Exception as e:
-            logger.debug(f"Parse Rusprofile IP item error: {e}")
-            return None
 
     # ===== ФНС Tax Debt Check =====
 
@@ -1532,16 +1193,6 @@ class BusinessRegistrySearch:
                 'name': 'Rusprofile.ru',
                 'url': f'https://www.rusprofile.ru/search?query={encoded}&type=fl',
                 'description': 'Поиск физических лиц, руководителей и учредителей'
-            },
-            {
-                'name': 'Zachestnyibiznes.ru',
-                'url': f'https://zachestnyibiznes.ru/search?query={encoded}',
-                'description': 'Проверка контрагентов, ИП и юридических лиц'
-            },
-            {
-                'name': 'List-org.com',
-                'url': f'https://www.list-org.com/search?val={encoded}&type=person',
-                'description': 'Каталог организаций России'
             },
             {
                 'name': 'ФНС Задолженность',
