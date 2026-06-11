@@ -43,6 +43,9 @@ class CandidateCheck(db.Model):
     # Results (JSON)
     _business_records = db.Column('business_records', db.Text, default='[]')
     _court_records = db.Column('court_records', db.Text, default='[]')
+    # Per-source court search outcome: {'kad.arbitr.ru': 'blocked', ...}.
+    # Lets the dossier distinguish "no cases found" from "source unreadable".
+    _court_source_statuses = db.Column('court_source_statuses', db.Text, default='{}')
     _fssp_records = db.Column('fssp_records', db.Text, default='[]')
     _bankruptcy_records = db.Column('bankruptcy_records', db.Text, default='[]')
     _sanctions_results = db.Column('sanctions_results', db.Text, default='[]')
@@ -149,6 +152,15 @@ class CandidateCheck(db.Model):
     @court_records.setter
     def court_records(self, value):
         self._court_records = self._dump_json(value)
+
+    # court_source_statuses
+    @property
+    def court_source_statuses(self):
+        return self._load_json(self._court_source_statuses, {})
+
+    @court_source_statuses.setter
+    def court_source_statuses(self, value):
+        self._court_source_statuses = self._dump_json(value)
 
     # fssp_records
     @property

@@ -632,11 +632,39 @@
             {% endif %}
         </div>
 
+        {# Per-source availability: an unreadable source is NOT a clean record #}
+        {% set court_status_labels = {
+            'blocked': 'заблокирован (гео)',
+            'timeout': 'таймаут',
+            'http_error': 'ошибка HTTP',
+            'rate_limited': 'лимит запросов',
+            'error': 'ошибка',
+        } %}
+        {% set failed_court_sources = [] %}
+        {% for src, st in (court_source_statuses or {}).items() %}
+            {% if st in court_status_labels %}
+                {% set _ = failed_court_sources.append(src ~ ' — ' ~ court_status_labels[st]) %}
+            {% endif %}
+        {% endfor %}
+
         {% if court_records is none %}
             <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
         {% elif court_records|length == 0 %}
-            <div class="empty-state good">Нет</div>
+            {% if failed_court_sources %}
+                <div class="empty-state stub" style="border-color: rgba(234,179,8,0.3);">
+                    &#x26A0;&#xFE0F; Дела не найдены, но проверка неполная &mdash; недоступны источники:
+                    {{ failed_court_sources|join(', ') }}.
+                    Отсутствие записей не подтверждено.
+                </div>
+            {% else %}
+                <div class="empty-state good">Нет</div>
+            {% endif %}
         {% else %}
+            {% if failed_court_sources %}
+            <div class="mb-3 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+                Часть источников недоступна: {{ failed_court_sources|join(', ') }} &mdash; список дел может быть неполным.
+            </div>
+            {% endif %}
             {# Confidence summary #}
             {% set verified_count = court_records | selectattr('confidence', 'defined') | selectattr('confidence', 'equalto', 'VERIFIED') | list | length %}
             {% set likely_count = court_records | selectattr('confidence', 'defined') | selectattr('confidence', 'equalto', 'LIKELY') | list | length %}

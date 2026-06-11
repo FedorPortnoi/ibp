@@ -11,11 +11,18 @@ No authentication required. Cloudflare bot protection is present —
 plain requests return a JS challenge page ("Click to continue") from
 non-Russian IPs. Works reliably from Yandex Cloud VM (Russian IP).
 Same geo pattern as судебныерешения.рф.
+
+A challenge page comes back as HTTP 200 with no case cards, so it is
+indistinguishable from "person has no court cases" unless detected
+explicitly. search_reputation_su therefore returns (cases, status):
+'blocked' means the source was NOT readable and zero cases proves
+nothing — callers must never present it as a clean record.
 """
 
 import logging
 import re
 import time
+from typing import List, Tuple
 from urllib.parse import quote
 
 import requests
@@ -29,6 +36,52 @@ HEADERS = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
 }
+
+# Bot-wall fingerprints (Cloudflare / DDoS-Guard interstitials).
+_BLOCK_MARKERS = (
+    'click to continue',
+    'just a moment',
+    'checking your browser',
+    'cf-browser-verification',
+    'cf-challenge',
+    '__cf_chl',
+    'ddos-guard',
+    'ddg-l7',
+)
+
+# A real reputation.su page is a Nuxt SSR document well over 50KB even for
+# zero results. The observed Cloudflare challenge is ~1.2KB. Anything this
+# small cannot be a valid results page.
+_MIN_VALID_PAGE_BYTES = 2048
+
+# Deep parse limits: each detail fetch costs an HTTP round-trip + 0.5s sleep.
+_DEEP_PARSE_MAX_FETCHES = 8
+_DEEP_PARSE_MAX_CONSECUTIVE_FAILURES = 3
+_DETAIL_TIMEOUT = 10
+
+# Deep-parse priority: criminal verdicts/articles are what the dossier needs
+# most; civil cases rarely contain УК РФ data worth a round-trip.
+_DEEP_PARSE_PRIORITY = {'уголовное': 0, 'административное': 1}
+
+
+def _is_blocked_page(html: str, size_heuristic: bool = True) -> bool:
+    """True if the response is a bot-wall interstitial, not a results page.
+
+    ``size_heuristic`` applies to SEARCH pages only (a real Nuxt results page
+    is large even with zero cards). Detail pages pass ``size_heuristic=False``
+    — there only explicit bot-wall markers count, because a short legitimate
+    detail page must not be discarded.
+    """
+    if not html:
+        return False
+    lowered = html.lower()
+    if any(marker in lowered for marker in _BLOCK_MARKERS):
+        return True
+    # Tiny 200-response without any case cards: interstitial or proxy stub —
+    # either way not a readable results page.
+    if size_heuristic and len(html) < _MIN_VALID_PAGE_BYTES and 'srch-card' not in lowered:
+        return True
+    return False
 
 # Category label -> case_type
 _CATEGORY_MAP = {
@@ -216,16 +269,22 @@ def _extract_criminal_articles(text: str) -> list:
     return found
 
 
-def _fetch_reputation_case_details(url: str, timeout: int = 15) -> str:
+def _fetch_reputation_case_details(
+    url: str, session: requests.Session, timeout: int = _DETAIL_TIMEOUT,
+) -> str:
     """Fetch a reputation.su case detail page and return its text body.
 
-    Returns an empty string on any error — never raises.
+    Uses the caller's session (cookie continuity matters under Cloudflare).
+    Returns an empty string on any error or bot-wall page — never raises.
     """
     if not url:
         return ""
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=timeout)
+        resp = session.get(url, timeout=timeout)
         if resp.status_code == 200:
+            if _is_blocked_page(resp.text, size_heuristic=False):
+                logger.debug(f"[REPUTATION] detail fetch blocked for {url}")
+                return ""
             soup = BeautifulSoup(resp.text, 'lxml')
             for tag in soup(['script', 'style', 'nav', 'header', 'footer']):
                 tag.decompose()
@@ -236,11 +295,19 @@ def _fetch_reputation_case_details(url: str, timeout: int = 15) -> str:
     return ""
 
 
-def _deep_parse_records(records: list) -> None:
-    """Second-pass: visit each case URL and enrich with criminal_articles + verdict.
+def _deep_parse_records(
+    records: list,
+    session: requests.Session,
+    max_fetches: int = _DEEP_PARSE_MAX_FETCHES,
+) -> None:
+    """Second-pass: visit case URLs and enrich with criminal_articles + verdict.
 
-    Mutates ``records`` in-place. Records without ``url`` or already enriched are
-    skipped. Adds a polite 0.5s delay between requests.
+    Mutates ``records`` in-place. Bounded so a common name with a wall of
+    civil cases can't burn the pipeline's time budget:
+    - criminal cases first, then administrative, then the rest (stable order)
+    - at most ``max_fetches`` detail requests per search
+    - aborts after 3 consecutive failed fetches (site blocking detail pages)
+    Records beyond the budget keep their card-level data.
     """
     verdict_patterns = [
         r'(лишение свободы[^.]{0,100})',
@@ -248,14 +315,39 @@ def _deep_parse_records(records: list) -> None:
         r'(штраф[^.]{0,80})',
         r'(исправительн[^.]{0,80}работ[^.]{0,50})',
     ]
-    for record in records:
-        url = record.get('url', '')
-        if not url or record.get('criminal_articles'):
-            continue
+
+    candidates = [
+        r for r in records
+        if r.get('url') and not r.get('criminal_articles')
+    ]
+    candidates.sort(
+        key=lambda r: _DEEP_PARSE_PRIORITY.get(r.get('case_type', ''), 2)
+    )
+
+    fetches = 0
+    consecutive_failures = 0
+    for record in candidates:
+        if fetches >= max_fetches:
+            logger.debug(
+                f"[REPUTATION] deep parse budget ({max_fetches}) exhausted, "
+                f"{len(candidates) - fetches} cases keep card-level data only"
+            )
+            break
+        if consecutive_failures >= _DEEP_PARSE_MAX_CONSECUTIVE_FAILURES:
+            logger.warning(
+                "[REPUTATION] deep parse aborted: "
+                f"{consecutive_failures} consecutive fetch failures"
+            )
+            break
+
         time.sleep(0.5)
-        detail_text = _fetch_reputation_case_details(url)
+        fetches += 1
+        detail_text = _fetch_reputation_case_details(record['url'], session)
         if not detail_text:
+            consecutive_failures += 1
             continue
+        consecutive_failures = 0
+
         record['criminal_articles'] = _extract_criminal_articles(detail_text)
         for vp in verdict_patterns:
             m = re.search(vp, detail_text, re.IGNORECASE)
@@ -269,7 +361,7 @@ def _deep_parse_records(records: list) -> None:
         )
 
 
-def search_reputation_su(full_name: str, timeout: int = 20) -> list:
+def search_reputation_su(full_name: str, timeout: int = 20) -> Tuple[List[dict], str]:
     """Search reputation.su for court cases involving a person.
 
     Args:
@@ -277,42 +369,65 @@ def search_reputation_su(full_name: str, timeout: int = 20) -> list:
         timeout: HTTP request timeout in seconds
 
     Returns:
-        List of court case dicts with keys:
-        case_number, court_name, case_type, date, role, status, url, source
+        (cases, status). Cases are dicts with keys: case_number, court_name,
+        case_type, date, role, status, subject, url, source (+
+        criminal_articles/verdict from deep parse).
+
+        Status is one of:
+        - 'ok'         — page read, >=1 case parsed
+        - 'empty'      — page read, genuinely no cases for this name
+        - 'blocked'    — bot-wall page (Cloudflare/DDoS-Guard); the source was
+                         NOT readable, zero cases proves nothing
+        - 'http_error' — non-200 response
+        - 'timeout'    — request timed out
+        - 'error'      — network or unexpected failure
+        - 'skipped'    — empty input, source not queried
     """
     if not full_name or not full_name.strip():
-        return []
+        return [], 'skipped'
 
     name = full_name.strip()
     # IMPORTANT: use ``query=`` not ``q=`` — the latter returns unfiltered results
     url = f'https://reputation.su/search?query={quote(name)}'
     logger.info(f"reputation.su: searching for '{name}'")
 
+    session = requests.Session()
+    session.headers.update(HEADERS)
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=timeout)
+        resp = session.get(url, timeout=timeout)
         logger.debug(f"reputation.su: HTTP {resp.status_code}, {len(resp.text)} bytes")
 
         if resp.status_code != 200:
             logger.warning(f"reputation.su: unexpected status {resp.status_code}")
-            return []
+            return [], 'http_error'
+
+        if _is_blocked_page(resp.text):
+            logger.warning(
+                f"reputation.su: bot-wall page detected ({len(resp.text)} bytes) "
+                f"— source blocked, NOT a clean record"
+            )
+            return [], 'blocked'
 
         cases = _parse_cards(resp.text, name)
         logger.info(f"reputation.su: found {len(cases)} cases for '{name}'")
 
-        # Deep parse: visit each case URL and extract criminal_articles + verdict
+        # Deep parse: visit case URLs and extract criminal_articles + verdict
         if cases:
             try:
-                _deep_parse_records(cases)
+                _deep_parse_records(cases, session)
             except Exception as e:
                 logger.warning(f"reputation.su: deep parse failed: {e}")
 
-        return cases
+        return cases, ('ok' if cases else 'empty')
 
     except requests.Timeout:
         logger.warning(f"reputation.su: timeout after {timeout}s for '{name}'")
+        return [], 'timeout'
     except requests.RequestException as e:
         logger.warning(f"reputation.su: request failed: {e}")
+        return [], 'error'
     except Exception as e:
         logger.error(f"reputation.su: unexpected error: {e}")
-
-    return []
+        return [], 'error'
+    finally:
+        session.close()

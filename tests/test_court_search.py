@@ -426,7 +426,8 @@ class TestDeduplication:
 
         with patch.object(svc, '_search_sudebnye_resheniya', return_value=[dupe1]), \
              patch.object(svc, '_search_sudact_playwright', return_value=[dupe2]), \
-             patch('app.services.phase3.reputation_su_service.search_reputation_su', return_value=[]), \
+             patch('app.services.phase3.reputation_su_service.search_reputation_su', return_value=([], 'empty')), \
+             patch('app.services.phase3.kad_arbitr_service.search_kad_arbitr_person', return_value=([], 'empty')), \
              patch('app.services.phase3.court_search.PLAYWRIGHT_AVAILABLE', True):
             results = svc.search_by_name('Иванов Иван')
 
@@ -439,7 +440,8 @@ class TestDeduplication:
         c2 = make_case('2-200/2025')
 
         with patch.object(svc, '_search_sudebnye_resheniya', return_value=[c1, c2]), \
-             patch('app.services.phase3.reputation_su_service.search_reputation_su', return_value=[]), \
+             patch('app.services.phase3.reputation_su_service.search_reputation_su', return_value=([], 'empty')), \
+             patch('app.services.phase3.kad_arbitr_service.search_kad_arbitr_person', return_value=([], 'empty')), \
              patch('app.services.phase3.court_search.PLAYWRIGHT_AVAILABLE', False):
             results = svc.search_by_name('Иванов Иван')
 
@@ -450,7 +452,8 @@ class TestDeduplication:
         c = CourtCase(case_number='', court_name='Суд', source='test')
 
         with patch.object(svc, '_search_sudebnye_resheniya', return_value=[c]), \
-             patch('app.services.phase3.reputation_su_service.search_reputation_su', return_value=[]), \
+             patch('app.services.phase3.reputation_su_service.search_reputation_su', return_value=([], 'empty')), \
+             patch('app.services.phase3.kad_arbitr_service.search_kad_arbitr_person', return_value=([], 'empty')), \
              patch('app.services.phase3.court_search.PLAYWRIGHT_AVAILABLE', False):
             results = svc.search_by_name('Иванов Иван')
 
@@ -465,7 +468,8 @@ class TestSourceOrdering:
         svc = make_svc()
         with patch.object(svc, '_search_sudact_playwright', return_value=[]) as mock_sudact, \
              patch.object(svc, '_search_sudebnye_resheniya', return_value=[]), \
-             patch('app.services.phase3.reputation_su_service.search_reputation_su', return_value=[]), \
+             patch('app.services.phase3.reputation_su_service.search_reputation_su', return_value=([], 'empty')), \
+             patch('app.services.phase3.kad_arbitr_service.search_kad_arbitr_person', return_value=([], 'empty')), \
              patch('app.services.phase3.court_search.PLAYWRIGHT_AVAILABLE', True):
             svc.search_by_name('Иванов Иван')
         mock_sudact.assert_called_once()
@@ -474,7 +478,8 @@ class TestSourceOrdering:
         svc = make_svc()
         with patch.object(svc, '_search_sudact_playwright', return_value=[]) as mock_sudact, \
              patch.object(svc, '_search_sudebnye_resheniya', return_value=[]), \
-             patch('app.services.phase3.reputation_su_service.search_reputation_su', return_value=[]), \
+             patch('app.services.phase3.reputation_su_service.search_reputation_su', return_value=([], 'empty')), \
+             patch('app.services.phase3.kad_arbitr_service.search_kad_arbitr_person', return_value=([], 'empty')), \
              patch('app.services.phase3.court_search.PLAYWRIGHT_AVAILABLE', False):
             svc.search_by_name('Иванов Иван')
         mock_sudact.assert_not_called()
@@ -484,7 +489,8 @@ class TestSourceOrdering:
         for pw_available in [True, False]:
             with patch.object(svc, '_search_sudact_playwright', return_value=[]), \
                  patch.object(svc, '_search_sudebnye_resheniya', return_value=[]) as mock_sr, \
-                 patch('app.services.phase3.reputation_su_service.search_reputation_su', return_value=[]), \
+                 patch('app.services.phase3.reputation_su_service.search_reputation_su', return_value=([], 'empty')), \
+             patch('app.services.phase3.kad_arbitr_service.search_kad_arbitr_person', return_value=([], 'empty')), \
                  patch.dict(vars(court_mod), {'PLAYWRIGHT_AVAILABLE': pw_available}):
                 svc.search_by_name('Иванов Иван')
             mock_sr.assert_called_once()
@@ -501,7 +507,8 @@ class TestSourceOrdering:
     def test_source_exception_does_not_propagate(self):
         svc = make_svc()
         with patch.object(svc, '_search_sudebnye_resheniya', side_effect=Exception('network error')), \
-             patch('app.services.phase3.reputation_su_service.search_reputation_su', return_value=[]), \
+             patch('app.services.phase3.reputation_su_service.search_reputation_su', return_value=([], 'empty')), \
+             patch('app.services.phase3.kad_arbitr_service.search_kad_arbitr_person', return_value=([], 'empty')), \
              patch('app.services.phase3.court_search.PLAYWRIGHT_AVAILABLE', False):
             results = svc.search_by_name('Иванов Иван')
         assert isinstance(results, list)
@@ -531,3 +538,178 @@ class TestManualUrls:
     def test_at_least_four_sources(self):
         urls = CourtRecordSearch.get_manual_search_urls('Тест')
         assert len(urls) >= 4
+
+
+# ── per-source statuses + kad.arbitr.ru wiring ────────────────────────────
+
+def _stub_sources(svc, sr_cases=None, rep=([], 'empty'), kad=([], 'empty'),
+                  playwright=False, sudact_cases=None):
+    """Patch all four sources of search_by_name in one place."""
+    return [
+        patch.object(svc, '_search_sudact_playwright',
+                     return_value=sudact_cases or []),
+        patch.object(svc, '_search_sudebnye_resheniya',
+                     return_value=sr_cases or []),
+        patch('app.services.phase3.reputation_su_service.search_reputation_su',
+              return_value=rep),
+        patch('app.services.phase3.kad_arbitr_service.search_kad_arbitr_person',
+              return_value=kad),
+        patch('app.services.phase3.court_search.PLAYWRIGHT_AVAILABLE', playwright),
+    ]
+
+
+def _search_with_stubs(svc, name='Иванов Иван Иванович', inn='', **stub_kw):
+    from contextlib import ExitStack
+    with ExitStack() as stack:
+        mocks = [stack.enter_context(p) for p in _stub_sources(svc, **stub_kw)]
+        results = svc.search_by_name(name, inn=inn)
+    return results, dict(svc.last_source_statuses), mocks
+
+
+KAD_RECORD = {
+    'case_number': 'А40-555/2024',
+    'court_name': 'АС города Москвы',
+    'case_type': 'банкротное',
+    'date': '15.03.2024',
+    'role': 'ответчик',
+    'subject': 'О несостоятельности (банкротстве)',
+    'url': 'https://kad.arbitr.ru/Card/abc',
+    'source': 'kad.arbitr.ru',
+    'matched_by': 'inn',
+}
+
+
+class TestSourceStatuses:
+
+    def test_all_empty_statuses(self):
+        svc = make_svc()
+        _, statuses, _ = _search_with_stubs(svc)
+        assert statuses == {
+            'sudact.ru': 'skipped',
+            'судебныерешения.рф': 'empty',
+            'reputation.su': 'empty',
+            'kad.arbitr.ru': 'empty',
+        }
+
+    def test_reputation_blocked_propagates(self):
+        """A bot-walled reputation.su must read 'blocked', not 'empty'."""
+        svc = make_svc()
+        _, statuses, _ = _search_with_stubs(svc, rep=([], 'blocked'))
+        assert statuses['reputation.su'] == 'blocked'
+
+    def test_kad_blocked_propagates(self):
+        svc = make_svc()
+        _, statuses, _ = _search_with_stubs(svc, kad=([], 'blocked'))
+        assert statuses['kad.arbitr.ru'] == 'blocked'
+
+    def test_sr_exception_reports_error(self):
+        svc = make_svc()
+        with patch.object(svc, '_search_sudebnye_resheniya',
+                          side_effect=Exception('boom')), \
+             patch('app.services.phase3.reputation_su_service.search_reputation_su',
+                   return_value=([], 'empty')), \
+             patch('app.services.phase3.kad_arbitr_service.search_kad_arbitr_person',
+                   return_value=([], 'empty')), \
+             patch('app.services.phase3.court_search.PLAYWRIGHT_AVAILABLE', False):
+            svc.search_by_name('Иванов Иван')
+        assert svc.last_source_statuses['судебныерешения.рф'] == 'error'
+
+    def test_ok_status_when_source_returns_cases(self):
+        svc = make_svc()
+        _, statuses, _ = _search_with_stubs(
+            svc, sr_cases=[make_case('2-1/2025', source='судебныерешения.рф')],
+        )
+        assert statuses['судебныерешения.рф'] == 'ok'
+
+    def test_sudact_status_when_playwright_on(self):
+        svc = make_svc()
+        _, statuses, _ = _search_with_stubs(svc, playwright=True)
+        assert statuses['sudact.ru'] == 'empty'
+
+    def test_empty_name_resets_statuses(self):
+        svc = make_svc()
+        svc.last_source_statuses = {'stale': 'ok'}
+        results = svc.search_by_name('')
+        assert results == []
+        assert svc.last_source_statuses == {}
+
+
+class TestKadWiring:
+
+    def test_kad_case_mapped_to_court_case(self):
+        svc = make_svc()
+        results, statuses, _ = _search_with_stubs(svc, kad=([KAD_RECORD], 'ok'))
+        assert statuses['kad.arbitr.ru'] == 'ok'
+        assert len(results) == 1
+        case = results[0]
+        assert case.source == 'kad.arbitr.ru'
+        assert case.case_type == 'банкротное'
+        assert case.category == 'О несостоятельности (банкротстве)'
+        assert case.role == 'ответчик'
+
+    def test_inn_matched_kad_case_is_verified(self):
+        svc = make_svc()
+        results, _, _ = _search_with_stubs(svc, kad=([KAD_RECORD], 'ok'))
+        assert results[0].confidence == 'VERIFIED'
+
+    def test_name_matched_kad_case_is_medium(self):
+        svc = make_svc()
+        rec = dict(KAD_RECORD, matched_by='full')
+        results, _, _ = _search_with_stubs(svc, kad=([rec], 'ok'))
+        assert results[0].confidence == 'medium'
+
+    def test_inn_passed_through_to_kad(self):
+        svc = make_svc()
+        _, _, mocks = _search_with_stubs(svc, inn='771234567890')
+        kad_mock = mocks[3]
+        assert kad_mock.call_args.kwargs['inn'] == '771234567890'
+
+    def test_verified_kad_duplicate_replaces_aggregator_copy(self):
+        """An official INN match must not be downgraded by an earlier
+        aggregator row with the same case number."""
+        svc = make_svc()
+        rep_rec = {
+            'case_number': 'А40-555/2024',
+            'court_name': 'АС города Москвы',
+            'case_type': 'арбитражное',
+            'date': '', 'role': '', 'subject': '', 'status': '',
+            'url': '', 'criminal_articles': [], 'verdict': '',
+            'source': 'reputation.su',
+        }
+        results, _, _ = _search_with_stubs(
+            svc, rep=([rep_rec], 'ok'), kad=([KAD_RECORD], 'ok'),
+        )
+        matching = [r for r in results if r.case_number == 'А40-555/2024']
+        assert len(matching) == 1
+        assert matching[0].source == 'kad.arbitr.ru'
+        assert matching[0].confidence == 'VERIFIED'
+
+    def test_weaker_kad_duplicate_does_not_replace(self):
+        svc = make_svc()
+        rep_rec = {
+            'case_number': 'А40-555/2024',
+            'court_name': 'АС города Москвы',
+            'case_type': 'арбитражное',
+            'date': '', 'role': 'истец', 'subject': '', 'status': '',
+            'url': '', 'criminal_articles': [], 'verdict': '',
+            'source': 'reputation.su',
+        }
+        kad_rec = dict(KAD_RECORD, matched_by='full')
+        results, _, _ = _search_with_stubs(
+            svc, rep=([rep_rec], 'ok'), kad=([kad_rec], 'ok'),
+        )
+        matching = [r for r in results if r.case_number == 'А40-555/2024']
+        assert len(matching) == 1
+        assert matching[0].source == 'reputation.su'  # first occurrence kept
+
+    def test_kad_exception_isolated(self):
+        svc = make_svc()
+        with patch.object(svc, '_search_sudebnye_resheniya', return_value=[]), \
+             patch('app.services.phase3.reputation_su_service.search_reputation_su',
+                   return_value=([], 'empty')), \
+             patch('app.services.phase3.kad_arbitr_service.search_kad_arbitr_person',
+                   side_effect=Exception('boom')), \
+             patch('app.services.phase3.court_search.PLAYWRIGHT_AVAILABLE', False):
+            results = svc.search_by_name('Иванов Иван')
+        assert isinstance(results, list)
+        assert svc.last_source_statuses['kad.arbitr.ru'] == 'error'

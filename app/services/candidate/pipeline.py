@@ -37,14 +37,20 @@ def _normalize_court_confidence(records, candidate_region=None):
     Baseline per source:
       - судебныерешения.рф / casebook.ru: POSSIBLE (participant-name search)
       - reputation.su: POSSIBLE (aggregator, name search)
+      - kad.arbitr.ru: POSSIBLE for name matches (official cardfile, but a
+        ФИО search still hits namesakes); INN-matched cases arrive already
+        VERIFIED from court_search and are preserved below
       - sudact.ru: UNVERIFIED (full-text search, name may appear anywhere)
 
+    Records whose confidence is already on the four-level scale keep it
+    (the source asserted a final confidence, e.g. kad INN match).
     If the candidate's region matches the court name → upgrade one level.
     """
     SOURCE_BASELINE = {
         'судебныерешения.рф': 'POSSIBLE',
         'casebook.ru': 'POSSIBLE',
         'reputation.su': 'POSSIBLE',
+        'kad.arbitr.ru': 'POSSIBLE',
         'sudact.ru': 'UNVERIFIED',
     }
     UPGRADE = {
@@ -53,14 +59,27 @@ def _normalize_court_confidence(records, candidate_region=None):
         'LIKELY': 'VERIFIED',
         'VERIFIED': 'VERIFIED',
     }
+    FINAL_LEVELS = ('VERIFIED', 'LIKELY', 'POSSIBLE', 'UNVERIFIED')
+    # Generic geography words would match ANY "... областной суд" — only the
+    # distinctive part of the region name may trigger an upgrade.
+    REGION_STOPWORDS = {
+        'область', 'край', 'республика', 'город', 'округ',
+        'автономный', 'автономная', 'федеральный', 'федерального',
+    }
 
     region_keywords = []
     if candidate_region:
         for word in candidate_region.lower().replace('-', ' ').split():
-            if len(word) >= 4:
-                region_keywords.append(word)
+            if len(word) >= 4 and word not in REGION_STOPWORDS:
+                # Court names inflect region adjectives (Свердловская →
+                # суд СвердловскОЙ области) — match on a stem, not the
+                # exact form, or the upgrade never fires.
+                stem = word[:-2] if len(word) >= 6 else word
+                region_keywords.append(stem)
 
     for r in records:
+        if r.get('confidence') in FINAL_LEVELS:
+            continue  # source already assigned a final confidence
         source = r.get('source', '')
         r['confidence'] = SOURCE_BASELINE.get(source, 'UNVERIFIED')
 
@@ -792,22 +811,25 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
                 return records
 
-            def _search_courts(full_name):
-                """Search court records — sudact.ru + casebook.ru.
+            def _search_courts(full_name, inn=''):
+                """Search court records — sudact + судебныерешения + reputation.su
+                + kad.arbitr.ru (all inside CourtRecordSearch) + casebook.ru.
 
-                reputation.su is already called inside CourtRecordSearch.search_by_name();
-                calling it again here was a duplicate network request.
+                Returns (records, source_statuses). source_statuses maps source
+                name → 'ok'/'empty'/'blocked'/'timeout'/'error'/... so the
+                dossier can distinguish "no cases" from "source unreadable".
                 """
                 records = []
-                # Primary: sudact.ru (general + arbitration, works globally)
-                logger.info(f"Stage 1 Courts: searching sudact.ru for '{full_name}'")
+                statuses = {}
+                logger.info(f"Stage 1 Courts: searching for '{full_name}'")
                 try:
                     from app.services.phase3.court_search import CourtRecordSearch
                     searcher = CourtRecordSearch(timeout=30)
-                    results = searcher.search_by_name(full_name)
+                    results = searcher.search_by_name(full_name, inn=inn)
+                    statuses = dict(getattr(searcher, 'last_source_statuses', {}) or {})
                     if results:
                         records = [r.to_dict() for r in results]
-                        logger.info(f"Stage 1 Courts sudact.ru: {len(records)} cases")
+                        logger.info(f"Stage 1 Courts: {len(records)} cases")
                         for r in records[:3]:
                             logger.info(
                                 f"  Court: {r.get('case_number', '?')} | "
@@ -815,11 +837,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                                 f"Source: {r.get('source', 'N/A')}"
                             )
                     else:
-                        logger.info("Stage 1 Courts sudact.ru: 0 cases")
+                        logger.info(f"Stage 1 Courts: 0 cases (statuses: {statuses})")
                 except Exception as e:
-                    logger.warning(f"Sudact court search failed: {e}")
+                    logger.warning(f"Court search failed: {e}")
 
-                # Supplementary: casebook.ru (arbitration courts, replaces kad.arbitr.ru)
+                # Supplementary: casebook.ru (arbitration aggregator)
                 try:
                     from app.services.phase3.casebook_service import CasebookService
                     casebook = CasebookService(timeout=25)
@@ -834,7 +856,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 except Exception as e:
                     logger.warning(f"Casebook court search failed: {e}")
 
-                return records
+                return records, statuses
 
             def _search_fssp(full_name, date_of_birth, region):
                 """Search enforcement proceedings — checko.ru primary, ФССП fallback."""
@@ -982,23 +1004,50 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             # Individual Playwright ops have 30s each; 120s covers retries + reputation.su.
             # Outer timeout prevents an OS-level browser hang from stalling the pipeline.
             _court_pool = ThreadPoolExecutor(max_workers=1)
+            _COURT_SOURCES = (
+                'sudact.ru', 'судебныерешения.рф', 'reputation.su', 'kad.arbitr.ru',
+            )
+            _FAILURE_STATUSES = (
+                'blocked', 'timeout', 'http_error', 'rate_limited', 'error',
+            )
             try:
-                _court_future = _court_pool.submit(_ctx(_search_courts), effective_name)
+                _court_future = _court_pool.submit(
+                    _ctx(_search_courts), effective_name, check.inn or '',
+                )
                 try:
-                    court_records = _court_future.result(timeout=150) or []
+                    _court_result = _court_future.result(timeout=150)
+                    court_records, court_source_statuses = _court_result or ([], {})
+                    court_records = court_records or []
+                    court_source_statuses = court_source_statuses or {}
+                    _failed_sources = [
+                        s for s, st in court_source_statuses.items()
+                        if st in _FAILURE_STATUSES
+                    ]
                     if court_records:
-                        task.add_message(f'Суды: найдено {len(court_records)} дел', 'success')
+                        msg = f'Суды: найдено {len(court_records)} дел'
+                        if _failed_sources:
+                            msg += f' (недоступны: {", ".join(_failed_sources)})'
+                        task.add_message(msg, 'success')
                         sources_with_results += 1
+                    elif _failed_sources:
+                        # An unreadable source is NOT a clean record — say so.
+                        task.add_message(
+                            f'Суды: источники недоступны ({", ".join(_failed_sources)}) '
+                            f'— проверка неполная',
+                            'warning',
+                        )
                     else:
                         task.add_message('Суды: дела не найдены', 'info')
                 except TimeoutError:
                     logger.warning("Court search: outer 150s timeout — Playwright may be hung")
                     task.add_message('Суды: таймаут (150с) — пропущен', 'warning')
                     court_records = []
+                    court_source_statuses = dict.fromkeys(_COURT_SOURCES, 'timeout')
                 except Exception as e:
                     logger.warning("Court search failed: %s", e)
                     task.add_message('Суды: источник недоступен', 'warning')
                     court_records = []
+                    court_source_statuses = dict.fromkeys(_COURT_SOURCES, 'error')
             finally:
                 _court_pool.shutdown(wait=False, cancel_futures=True)
             sources_checked += 1
@@ -1013,6 +1062,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 demo_biz, demo_courts, demo_fssp, demo_bankruptcy = _get_demo_gov_data(effective_name)
                 biz_records = demo_biz
                 court_records = demo_courts
+                court_source_statuses = {}  # demo data — real statuses would mislead
                 fssp_records = demo_fssp
                 if not bankruptcy_records:
                     bankruptcy_records = demo_bankruptcy
@@ -1052,6 +1102,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             check.business_records = biz_records
             check.court_records = court_records
+            check.court_source_statuses = court_source_statuses
             check.fssp_records = fssp_records
             check.pledge_records = pledge_records
             # bankruptcy_records already set in Stage 0

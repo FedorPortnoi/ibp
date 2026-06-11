@@ -183,11 +183,34 @@
     {% if court_records is not none %}<span class="count">&mdash; {{ court_records|length }} дел</span>{% endif %}
 </h2>
 
+{% set court_status_labels = {
+    'blocked': 'заблокирован (гео)',
+    'timeout': 'таймаут',
+    'http_error': 'ошибка HTTP',
+    'rate_limited': 'лимит запросов',
+    'error': 'ошибка',
+} %}
+{% set failed_court_sources = [] %}
+{% for src, st in (court_source_statuses or {}).items() %}
+    {% if st in court_status_labels %}
+        {% set _ = failed_court_sources.append(src ~ ' — ' ~ court_status_labels[st]) %}
+    {% endif %}
+{% endfor %}
+
 {% if court_records is none %}
     <div class="empty">Источник не подключён</div>
 {% elif court_records|length == 0 %}
-    <div class="clean">Судебных дел не найдено</div>
+    {% if failed_court_sources %}
+        <div class="empty">Дела не найдены, но проверка неполная &mdash; недоступны источники:
+            {{ failed_court_sources|join(', ') }}. Отсутствие записей не подтверждено.</div>
+    {% else %}
+        <div class="clean">Судебных дел не найдено</div>
+    {% endif %}
 {% else %}
+    {% if failed_court_sources %}
+        <div class="empty">Часть источников недоступна: {{ failed_court_sources|join(', ') }} &mdash;
+            список дел может быть неполным.</div>
+    {% endif %}
     {% for case in court_records %}
     <div class="card">
         <div class="card-head">

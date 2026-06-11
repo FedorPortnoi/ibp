@@ -7,14 +7,17 @@ Sources:
 - sudact.ru: JS-rendered, requires Playwright for results
 - судебныерешения.рф: PHP site, session-based search (plain requests)
 - reputation.su: Nuxt 3 SSR, 58M+ cases (plain requests)
-- kad.arbitr.ru: Geo-blocked (HTTP 451) for non-Russian IPs.
-  The site uses DDoS Guard with IP-based geo-restriction.
-  Even Playwright with full browser sessions returns 451 on the
-  /Kad/SearchInstances POST endpoint from outside Russia.
-  Attempts made: session cookies, X-Requested-With, pr_fp cookie,
-  Playwright in-page fetch with credentials:include — all blocked.
-  Manual fallback URL is provided so users can open it directly.
+- kad.arbitr.ru: official arbitration cardfile, JSON POST API
+  (kad_arbitr_service). Geo-blocked (HTTP 451) for non-Russian IPs —
+  automated search works only from a Russian IP (production VM);
+  elsewhere the source reports status='blocked'. Personal bankruptcy,
+  ИП disputes and subsidiary liability live here.
 - All provide manual search URL fallbacks
+
+Every search records a per-source status in
+``CourtRecordSearch.last_source_statuses`` ('ok'/'empty'/'blocked'/
+'timeout'/'error'/...). 'blocked' must surface as "source unavailable"
+in reports — an unreadable source is NOT evidence of a clean record.
 """
 
 import logging
@@ -176,11 +179,17 @@ class CourtRecordSearch:
     0. sudact.ru — JS-rendered, Playwright required (conditional on PLAYWRIGHT_AVAILABLE)
     1. судебныерешения.рф — PHP site, CSRF session-based (plain requests)
     2. reputation.su — Nuxt 3 SSR aggregator, 58M+ cases (plain requests)
+    3. kad.arbitr.ru — official arbitration cardfile, JSON API (INN-first)
 
     Geo-note: судебныерешения.рф uses DDoS Guard and is intermittently accessible
     from non-Russian IPs. sudact.ru is accessible globally but requires Playwright.
-    Both work reliably from Yandex Cloud VM (Russian IP).
-    kad.arbitr.ru is hard geo-blocked (HTTP 451) — manual URL only.
+    kad.arbitr.ru returns HTTP 451 from non-Russian IPs. All work reliably from
+    the Russian production VM.
+
+    After each search_by_name() call, ``last_source_statuses`` maps source name
+    → 'ok'/'empty'/'blocked'/'timeout'/'http_error'/'rate_limited'/'error'/
+    'skipped'. The attribute belongs to THIS instance and is overwritten per
+    call — use a dedicated instance per concurrent search (the pipeline does).
     """
 
     SUDACT_BASE = "https://sudact.ru"
@@ -196,13 +205,18 @@ class CourtRecordSearch:
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update(self.HEADERS)
+        # Per-source outcome of the most recent search_by_name() call.
+        # Overwritten on every call — not safe across concurrent calls on a
+        # shared instance; construct one instance per search (pipeline does).
+        self.last_source_statuses: Dict[str, str] = {}
 
     def search_by_name(
         self,
         full_name: str,
         search_plaintiff: bool = True,
         search_defendant: bool = True,
-        limit: int = 50
+        limit: int = 50,
+        inn: str = '',
     ) -> List[CourtCase]:
         """
         Search for court cases involving a person.
@@ -211,8 +225,15 @@ class CourtRecordSearch:
         0. sudact.ru via Playwright — full case text, criminal articles, verdict
         1. судебныерешения.рф — CSRF session-based, case metadata
         2. reputation.su — aggregator, 58M+ cases
+        3. kad.arbitr.ru — official arbitration cardfile (INN-first when
+           ``inn`` is a 12-digit personal INN; INN-matched cases get
+           confidence VERIFIED)
+
+        Per-source outcomes land in ``self.last_source_statuses``.
         """
         results = []
+        statuses: Dict[str, str] = {}
+        self.last_source_statuses = statuses
         name = full_name.strip()
         if not name:
             return results
@@ -224,23 +245,32 @@ class CourtRecordSearch:
             try:
                 sudact_results = self._search_sudact_playwright(name, limit)
                 results.extend(sudact_results)
+                statuses['sudact.ru'] = 'ok' if sudact_results else 'empty'
                 logger.info(f"Court search: sudact.ru returned {len(sudact_results)} cases")
             except Exception as e:
+                statuses['sudact.ru'] = 'error'
                 logger.warning(f"Court search: sudact.ru Playwright failed: {e}")
         else:
+            statuses['sudact.ru'] = 'skipped'
             logger.debug("Court search: sudact.ru skipped (Playwright unavailable)")
 
         # --- Source 1: судебныерешения.рф ---
         try:
-            sr_results = self._search_sudebnye_resheniya(name, limit)
+            sr_results = self._search_sudebnye_resheniya(name, limit, status_out=statuses)
             results.extend(sr_results)
+            if sr_results:
+                statuses['судебныерешения.рф'] = 'ok'
+            else:
+                statuses.setdefault('судебныерешения.рф', 'empty')
         except Exception as e:
+            statuses['судебныерешения.рф'] = 'error'
             logger.warning(f"Court search: судебныерешения.рф failed: {e}")
 
         # --- Source 2: reputation.su ---
         try:
             from app.services.phase3.reputation_su_service import search_reputation_su
-            rep_cases = search_reputation_su(name)
+            rep_cases, rep_status = search_reputation_su(name)
+            statuses['reputation.su'] = rep_status
             for rc in rep_cases:
                 case = CourtCase(
                     case_number=rc.get('case_number', ''),
@@ -262,33 +292,82 @@ class CourtRecordSearch:
                     results.append(case)
             logger.info(f"Court search: reputation.su returned {len(rep_cases)} cases")
         except Exception as e:
+            statuses['reputation.su'] = 'error'
             logger.warning(f"Court search: reputation.su failed: {e}")
 
-        # Deduplicate by case number
-        seen = set()
-        unique = []
+        # --- Source 3: kad.arbitr.ru (official arbitration cardfile) ---
+        try:
+            from app.services.phase3.kad_arbitr_service import search_kad_arbitr_person
+            # Tight per-request timeout: kad is a fast JSON API, and at worst
+            # 6 requests (2 queries x 3 pages) must not eat the pipeline's
+            # 150s court budget that also covers Playwright + deep parse.
+            kad_cases, kad_status = search_kad_arbitr_person(
+                name, inn=inn, timeout=min(self.timeout, 12),
+            )
+            statuses['kad.arbitr.ru'] = kad_status
+            for kc in kad_cases:
+                case = CourtCase(
+                    case_number=kc.get('case_number', ''),
+                    court_name=kc.get('court_name', ''),
+                    case_type=kc.get('case_type', ''),
+                    date=kc.get('date', ''),
+                    role=kc.get('role', ''),
+                    category=kc.get('subject', ''),
+                    url=kc.get('url', ''),
+                    source='kad.arbitr.ru',
+                    # INN-matched cases are exact: the official cardfile matched
+                    # the candidate's unique tax id, not just a name string.
+                    confidence='VERIFIED' if kc.get('matched_by') == 'inn' else 'medium',
+                )
+                if case.case_number:
+                    results.append(case)
+            logger.info(f"Court search: kad.arbitr.ru returned {len(kad_cases)} cases (status={kad_status})")
+        except Exception as e:
+            statuses['kad.arbitr.ru'] = 'error'
+            logger.warning(f"Court search: kad.arbitr.ru failed: {e}")
+
+        # Deduplicate by case number. First occurrence wins, EXCEPT a
+        # VERIFIED (INN-matched) duplicate replaces a weaker earlier copy —
+        # an official INN match must not be downgraded by an aggregator row.
+        seen: Dict[str, int] = {}
+        unique: List[CourtCase] = []
         for case in results:
             key = case.case_number
-            if key and key not in seen:
-                seen.add(key)
-                unique.append(case)
-            elif not key:
+            if not key:
                 # Keep cases without a number (rare edge case)
                 unique.append(case)
+                continue
+            if key not in seen:
+                seen[key] = len(unique)
+                unique.append(case)
+            else:
+                idx = seen[key]
+                if case.confidence == 'VERIFIED' and unique[idx].confidence != 'VERIFIED':
+                    unique[idx] = case
 
         logger.info(f"Court search: total {len(unique)} unique cases for '{name}'")
         return unique[:limit]
 
-    def _search_sudebnye_resheniya(self, name: str, limit: int = 20) -> List[CourtCase]:
+    def _search_sudebnye_resheniya(
+        self, name: str, limit: int = 20, status_out: Optional[dict] = None,
+    ) -> List[CourtCase]:
         """Search судебныерешения.рф (xn--90afdbaav0bd1afy6eub5d.xn--p1ai).
 
         Two-step session flow:
         1. GET form page -> extract CSRF _token
         2. POST /simple_filter with person name -> follow redirect to /search
         3. Parse HTML table results
+
+        When ``status_out`` is given, failure modes are recorded under the
+        'судебныерешения.рф' key ('blocked'/'timeout'/'http_error'/'error')
+        so the caller can distinguish "source unreadable" from "no cases".
         """
         base = 'https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai'
         results = []
+
+        def _set_status(value: str) -> None:
+            if status_out is not None:
+                status_out['судебныерешения.рф'] = value
 
         try:
             session = requests.Session()
@@ -298,6 +377,7 @@ class CourtRecordSearch:
             logger.info(f"судебныерешения.рф: fetching form page")
             resp = session.get(base + '/', timeout=self.timeout)
             if resp.status_code != 200:
+                _set_status('http_error')
                 logger.warning(f"судебныерешения.рф: form page HTTP {resp.status_code}")
                 return results
 
@@ -318,6 +398,9 @@ class CourtRecordSearch:
                     r'id="simpleSearch__token"[^>]+value="([^"]+)"', resp.text
                 )
             if not token_match:
+                # No search form on the page: DDoS-Guard interstitial or a
+                # markup change — either way the source was not searchable.
+                _set_status('blocked')
                 logger.warning("судебныерешения.рф: CSRF token not found")
                 return results
 
@@ -345,6 +428,7 @@ class CourtRecordSearch:
             )
 
             if resp.status_code != 200:
+                _set_status('http_error')
                 logger.warning(f"судебныерешения.рф: search HTTP {resp.status_code}")
                 return results
 
@@ -434,10 +518,13 @@ class CourtRecordSearch:
             logger.info(f"судебныерешения.рф: parsed {len(results)} cases for '{name}'")
 
         except requests.Timeout:
+            _set_status('timeout')
             logger.warning(f"судебныерешения.рф: timeout for '{name}'")
         except requests.RequestException as e:
+            _set_status('error')
             logger.warning(f"судебныерешения.рф: request failed: {e}")
         except Exception as e:
+            _set_status('error')
             logger.error(f"судебныерешения.рф: unexpected error: {e}")
 
         return results
@@ -1035,17 +1122,10 @@ class CourtRecordSearch:
         """
         Generate manual court search URLs for the user.
 
-        Note on kad.arbitr.ru: The automated /Kad/SearchInstances endpoint
-        returns HTTP 451 (geo-blocked) for non-Russian IP addresses.
-        DDoS Guard IP-blocks the API even with full browser sessions.
-        The homepage itself loads fine, so we link directly to it and
-        instruct the user to search manually. If you have a Russian VPN,
-        you can re-enable automated search — the API accepts:
-            POST /Kad/SearchInstances
-            Content-Type: application/json
-            X-Requested-With: XMLHttpRequest
-            x-date-format: iso
-            Body: {"Sides":[{"Name":"<name>","Type":-1}],"Page":1,"Count":25,...}
+        Note on kad.arbitr.ru: automated search via kad_arbitr_service works
+        from Russian IPs (production VM). From non-Russian IPs the
+        /Kad/SearchInstances endpoint returns HTTP 451 and the source reports
+        status='blocked' — this manual link is the fallback for that case.
         """
         encoded = quote(name)
         # kad.arbitr.ru: the SPA doesn't support name pre-fill in the URL,
@@ -1062,7 +1142,8 @@ class CourtRecordSearch:
                 'url': f'https://kad.arbitr.ru/',
                 'description': (
                     f'Арбитражные (экономические) дела — введите «{name}» в поле «Участники» и нажмите Найти. '
-                    'Автоматический поиск недоступен: сайт блокирует запросы с не-российских IP (HTTP 451).'
+                    'Автоматический поиск выполняется с российского IP; '
+                    'с зарубежного IP сайт отвечает HTTP 451 — используйте эту ссылку вручную.'
                 )
             },
             {
