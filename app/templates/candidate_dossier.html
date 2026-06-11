@@ -1381,12 +1381,24 @@
     {# ================================================================
        11. FOUND ACCOUNTS (Stage 5)
        ================================================================ #}
-    {% if username_accounts or face_matches %}
+    {% set face_status = (source_statuses or {}).get('search4faces', '') %}
+    {% set face_failed_labels = {
+        'unavailable': 'нет API-ключа и браузерная проверка недоступна',
+        'no_face': 'на фото не обнаружено лица',
+        'error': 'ошибка',
+    } %}
+    {% if username_accounts or face_matches or face_status in face_failed_labels %}
     <section id="sec-accounts" class="mb-10">
         <div class="section-header">
             <h2>&#x1F465; Найденные аккаунты</h2>
             <span class="section-count">{{ username_accounts|length }} аккаунтов{% if face_matches %}, {{ face_matches|length }} совпадений лиц{% endif %}</span>
         </div>
+
+        {% if not face_matches and face_status in face_failed_labels %}
+        <div class="mb-4 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+            &#x26A0;&#xFE0F; Поиск по фото не выполнен ({{ face_failed_labels[face_status] }}) — отсутствие совпадений по лицу не подтверждено.
+        </div>
+        {% endif %}
 
         {% if face_matches %}
         <div class="mb-4">

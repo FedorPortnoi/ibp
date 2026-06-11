@@ -1709,6 +1709,15 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 check.social_graph_data = social_results.get('social_graph', {})
                 check.face_matches = social_results.get('face_matches', [])
                 check.username_accounts = social_results.get('username_accounts', [])
+                # Merge face-search status into the general source-status map so
+                # the dossier can tell "searched, no match" from "couldn't search"
+                # (no API key + Playwright unavailable). Merge, don't overwrite —
+                # Stage 1 already stored the pledge-registry status here.
+                _face_status = social_results.get('face_search_status', '')
+                if _face_status:
+                    _ss = check.source_statuses or {}
+                    _ss['search4faces'] = _face_status
+                    check.source_statuses = _ss
                 db.session.commit()
 
                 face_count = len(social_results.get('face_matches', []))

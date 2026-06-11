@@ -62,14 +62,17 @@ def _get_vk_id(profiles: List[Dict]) -> Optional[int]:
     return None
 
 
-def _run_face_search(photo_url: str = None, photo_path: str = None) -> List[Dict]:
+def _run_face_search(photo_url: str = None, photo_path: str = None):
     """Run facial recognition via Search4Faces.
 
     Supports both image URL (from VK profile) and local file path (from upload).
+    Returns (matches, status). Status distinguishes "searched, no match" from
+    "could not search" (no API key + Playwright unavailable, or no detectable
+    face) so the dossier never shows a false "no photos found online".
     """
     try:
-        from app.services.phase2.search4faces_service import search_all_databases
-        matches = search_all_databases(
+        from app.services.phase2.search4faces_service import search_all_databases_with_status
+        matches, status = search_all_databases_with_status(
             image_url=photo_url,
             image_path=photo_path,
             max_results_per_db=10,
@@ -84,10 +87,10 @@ def _run_face_search(photo_url: str = None, photo_path: str = None) -> List[Dict
                 'thumbnail_url': m.thumbnail_url,
             }
             for m in matches
-        ]
+        ], status
     except Exception as e:
         logger.error(f"Face search failed: {e}")
-        return []
+        return [], 'error'
 
 
 def _run_snoop_search(usernames: List[str]) -> List[Dict]:
@@ -543,6 +546,7 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
 
     results = {
         'face_matches': [],
+        'face_search_status': '',
         'social_graph': {},
         'username_accounts': [],
         'new_accounts_for_enrichment': [],
@@ -598,11 +602,19 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
             try:
                 result = future.result(timeout=180)
                 if key == 'face':
-                    results['face_matches'] = result
-                    if result:
-                        logger.info(f"[SocialAnalysis] face: found {len(result)} matches")
+                    # _run_face_search returns (matches, status)
+                    if isinstance(result, tuple):
+                        face_list, face_status = result
+                    else:  # defensive: older return shape
+                        face_list, face_status = result, 'ok'
+                    results['face_matches'] = face_list
+                    results['face_search_status'] = face_status
+                    if face_list:
+                        logger.info(f"[SocialAnalysis] face: found {len(face_list)} matches")
+                    elif face_status in ('ok', 'empty'):
+                        logger.info("[SocialAnalysis] face: 0 matches (searched)")
                     else:
-                        logger.info("[SocialAnalysis] face: 0 matches")
+                        logger.info(f"[SocialAnalysis] face: not searched (status={face_status})")
                 elif key in ('snoop', 'maigret', 'sherlock', 'yaseeker'):
                     results['username_accounts'].extend(result)
                     if result:
