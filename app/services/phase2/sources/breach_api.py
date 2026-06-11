@@ -110,6 +110,12 @@ class HudsonRockSource(BaseSource):
     REQUEST_TIMEOUT = 5
     DELAY_BETWEEN_REQUESTS = 1.0
 
+    # Outcome of the most recent HTTP call: 'ok' (got a parseable response,
+    # with or without breach data), 'timeout', 'blocked', 'http_error',
+    # 'error', or 'not_run'. Lets breach-intelligence tell "checked, clean"
+    # apart from "couldn't check" — an empty result list means both otherwise.
+    last_status = 'not_run'
+
     def is_available(self) -> bool:
         return True
 
@@ -184,11 +190,15 @@ class HudsonRockSource(BaseSource):
             )
 
             if resp.status_code == 404:
+                # Definitive "not found" from the API — a completed check.
+                self.last_status = 'ok'
                 return results
             if resp.status_code != 200:
+                self.last_status = 'http_error'
                 self.logger.debug(f"HudsonRock returned {resp.status_code} for {email}")
                 return results
 
+            self.last_status = 'ok'
             data = resp.json()
 
             # Check for "no results" response
@@ -288,10 +298,13 @@ class HudsonRockSource(BaseSource):
                         ))
 
         except requests.Timeout:
+            self.last_status = 'timeout'
             self.logger.warning(f"HudsonRock timeout for email: {email}")
         except requests.ConnectionError:
+            self.last_status = 'blocked'
             self.logger.warning("HudsonRock connection error (offline or blocked)")
         except Exception as e:
+            self.last_status = 'error'
             self.logger.warning(f"HudsonRock search error: {e}")
 
         return results
@@ -508,6 +521,9 @@ class LeakCheckSource(BaseSource):
     MAX_RETRIES = 2
     RETRY_DELAY = 2.0
 
+    # See HudsonRockSource.last_status.
+    last_status = 'not_run'
+
     def is_available(self) -> bool:
         return True
 
@@ -572,22 +588,10 @@ class LeakCheckSource(BaseSource):
         return results
 
     def _search(self, query: str, query_type: str) -> List[SourceResult]:
-        """Query LeakCheck API. Pro if key set, else public (free)."""
-        pro_key = self._pro_key
-        if pro_key:
-            return self._search_pro(query, query_type, pro_key)
+        """Query LeakCheck. The Pro API is not implemented yet, so always use
+        the working free public endpoint — a configured (but unused) Pro key
+        must NOT disable the free check and silently return 'no breaches'."""
         return self._search_public(query, query_type)
-
-    def _search_pro(self, query: str, query_type: str, api_key: str) -> List[SourceResult]:
-        """Query LeakCheck Pro API (full results with passwords)."""
-        self.logger.info(
-            f"LeakCheck PRO mode: would call API with key={api_key[:8]}... "
-            f"query={query}"
-        )
-        # TODO: Implement real Pro API call
-        # GET /api/v2/query/{query}
-        # Header: X-API-Key: {api_key}
-        return []
 
     def _search_public(self, query: str, query_type: str) -> List[SourceResult]:
         """Query LeakCheck free public API with retry on 429."""
@@ -607,15 +611,19 @@ class LeakCheckSource(BaseSource):
                         self.logger.debug(f"LeakCheck rate limited, retrying in {self.RETRY_DELAY}s")
                         time.sleep(self.RETRY_DELAY * (attempt + 1))
                         continue
+                    self.last_status = 'rate_limited'
                     self.logger.warning("LeakCheck rate limit exceeded, skipping")
                     return results
 
                 if resp.status_code == 404:
+                    self.last_status = 'ok'  # definitive "not found"
                     return results
                 if resp.status_code != 200:
+                    self.last_status = 'http_error'
                     self.logger.debug(f"LeakCheck returned {resp.status_code} for {query}")
                     return results
 
+                self.last_status = 'ok'
                 data = resp.json()
 
                 # Handle different response formats
@@ -668,12 +676,15 @@ class LeakCheckSource(BaseSource):
                 break  # Success, no retry needed
 
             except requests.Timeout:
+                self.last_status = 'timeout'
                 self.logger.warning(f"LeakCheck timeout for: {query}")
                 break
             except requests.ConnectionError:
+                self.last_status = 'blocked'
                 self.logger.warning("LeakCheck connection error (offline or blocked)")
                 break
             except Exception as e:
+                self.last_status = 'error'
                 self.logger.warning(f"LeakCheck search error: {e}")
                 break
 
@@ -696,12 +707,16 @@ class SnusbaseSource(BaseSource):
     source_type = SourceType.BOTH
     source_tier = SourceTier.S
     requires_api_key = True
+    # The real /data/search call is a TODO stub (always returns []), so this
+    # source is NOT implemented. SourceManager skips implemented=False sources
+    # at discovery — they must not be counted as breach sources that ran.
+    implemented = False
     rate_limit_per_minute = 512
 
     BASE_URL = "https://api.snusbase.com"
 
     def is_available(self) -> bool:
-        return True  # Always available — demo mode when no key
+        return bool(self._api_key)
 
     @property
     def _api_key(self) -> Optional[str]:
@@ -753,12 +768,15 @@ class DehashedSource(BaseSource):
     source_type = SourceType.BOTH
     source_tier = SourceTier.S
     requires_api_key = True
+    # The real /search call is a TODO stub (always returns []), so this source
+    # is NOT implemented and must not be discovered/counted (see Snusbase).
+    implemented = False
     rate_limit_per_minute = 60
 
     BASE_URL = "https://api.dehashed.com"
 
     def is_available(self) -> bool:
-        return True  # Always available — demo mode when no keys
+        return self._credentials is not None
 
     @property
     def _credentials(self) -> Optional[tuple]:
@@ -819,6 +837,9 @@ class ProxyNovaCOMBSource(BaseSource):
     BASE_URL = "https://api.proxynova.com/comb"
     REQUEST_TIMEOUT = 5
     MAX_RESULTS = 100
+
+    # See HudsonRockSource.last_status.
+    last_status = 'not_run'
 
     def is_available(self) -> bool:
         return True
@@ -882,12 +903,15 @@ class ProxyNovaCOMBSource(BaseSource):
             )
 
             if resp.status_code == 429:
+                self.last_status = 'rate_limited'
                 self.logger.warning("ProxyNova COMB rate limited")
                 return results
             if resp.status_code != 200:
+                self.last_status = 'http_error'
                 self.logger.debug(f"ProxyNova COMB returned {resp.status_code} for {email}")
                 return results
 
+            self.last_status = 'ok'
             data = resp.json()
             count = data.get('count', 0)
             lines = data.get('lines', [])
@@ -966,10 +990,13 @@ class ProxyNovaCOMBSource(BaseSource):
                     ))
 
         except requests.Timeout:
+            self.last_status = 'timeout'
             self.logger.warning(f"ProxyNova COMB timeout for: {email}")
         except requests.ConnectionError:
+            self.last_status = 'blocked'
             self.logger.warning("ProxyNova COMB connection error")
         except Exception as e:
+            self.last_status = 'error'
             self.logger.warning(f"ProxyNova COMB search error: {e}")
 
         return results

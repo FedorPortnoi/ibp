@@ -1303,13 +1303,19 @@
        10b. BREACH INTELLIGENCE (Stage 4)
        ================================================================ #}
     {% set bi = contacts.get('breach_intelligence', {}) if contacts else {} %}
-    {% if bi and (bi.get('services_used') or bi.get('old_emails') or bi.get('breach_count', 0) > 0) %}
+    {% if bi and (bi.get('services_used') or bi.get('old_emails') or bi.get('breach_count', 0) > 0 or bi.get('sources_failed')) %}
     <section id="sec-breach-intel" class="mb-10">
         <div class="section-header">
             <h2>&#x1F513; Анализ утечек данных</h2>
             <span class="section-count">{{ bi.get('breach_count', 0) }} утечек</span>
         </div>
         <div class="dossier-card">
+            {% if bi.get('sources_failed') %}
+            <div class="mb-4 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+                &#x26A0;&#xFE0F; Проверка утечек неполная — недоступны источники: {{ bi.get('sources_failed', [])|join(', ') }}.
+                {% if bi.get('breach_count', 0) == 0 %}Отсутствие утечек не подтверждено.{% else %}Список может быть неполным.{% endif %}
+            </div>
+            {% endif %}
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-center mb-4">
                 <div>
                     <div class="text-lg font-bold {% if bi.get('breach_count', 0) >= 5 %}text-red-400{% elif bi.get('breach_count', 0) >= 1 %}text-yellow-400{% else %}text-green-400{% endif %}">{{ bi.get('breach_count', 0) }}</div>
