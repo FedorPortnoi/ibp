@@ -16,6 +16,7 @@ Output stored in CandidateCheck.geo_intelligence (JSON).
 """
 
 import logging
+import threading
 import time
 from collections import Counter
 from datetime import datetime, timedelta
@@ -27,8 +28,15 @@ from app.services.phase3.geo_extractor import RUSSIAN_CITIES
 
 logger = logging.getLogger(__name__)
 
-# Nominatim rate limit: 1 req/sec per ToS
+# Nominatim rate limit: 1 req/sec per ToS. geocode_city() is called from
+# ThreadPoolExecutor workers across the pipeline, so the rate-limit gate and
+# the result cache are guarded by a lock — otherwise two threads can clear the
+# 1s check simultaneously and double-fire Nominatim, risking an IP ban.
+_nominatim_lock = threading.Lock()
 _last_nominatim_ts: float = 0.0
+# Process-wide cache of successful geocodes (city->coords is stable). Failures
+# are NOT cached so transient timeouts/rate-limits can be retried.
+_geocode_cache: Dict[str, Tuple[float, float]] = {}
 
 # VK last_seen platform codes
 VK_PLATFORM_MAP = {
@@ -76,27 +84,40 @@ def geocode_city(city_name: str) -> Optional[Tuple[float, float]]:
 
 
 def _nominatim_geocode(query: str) -> Optional[Tuple[float, float]]:
-    """Geocode via Nominatim with 1 req/sec rate limiting."""
-    global _last_nominatim_ts
-    elapsed = time.time() - _last_nominatim_ts
-    if elapsed < 1.0:
-        time.sleep(1.0 - elapsed)
+    """Geocode via Nominatim, thread-safe with 1 req/sec rate limiting + cache.
 
-    try:
-        r = requests.get(
-            'https://nominatim.openstreetmap.org/search',
-            params={'q': query, 'format': 'json', 'limit': 1},
-            headers={'User-Agent': 'SLED-IBP/1.0'},
-            timeout=5,
-        )
-        _last_nominatim_ts = time.time()
-        r.raise_for_status()
-        data = r.json()
-        if data:
-            return float(data[0]['lat']), float(data[0]['lon'])
-    except Exception as e:
-        logger.debug(f"Nominatim geocode failed for '{query}': {e}")
-        _last_nominatim_ts = time.time()
+    The lock makes the rate-limit gate atomic across threads (ToS compliance)
+    and serializes Nominatim calls. Successful results are cached process-wide;
+    failures are not, so a transient error can be retried later.
+    """
+    global _last_nominatim_ts
+    cache_key = query.strip().lower()
+
+    with _nominatim_lock:
+        if cache_key in _geocode_cache:
+            return _geocode_cache[cache_key]
+
+        elapsed = time.time() - _last_nominatim_ts
+        if elapsed < 1.0:
+            time.sleep(1.0 - elapsed)
+
+        try:
+            r = requests.get(
+                'https://nominatim.openstreetmap.org/search',
+                params={'q': query, 'format': 'json', 'limit': 1},
+                headers={'User-Agent': 'SLED-IBP/1.0'},
+                timeout=5,
+            )
+            _last_nominatim_ts = time.time()
+            r.raise_for_status()
+            data = r.json()
+            if data:
+                coords = (float(data[0]['lat']), float(data[0]['lon']))
+                _geocode_cache[cache_key] = coords
+                return coords
+        except Exception as e:
+            logger.debug(f"Nominatim geocode failed for '{query}': {e}")
+            _last_nominatim_ts = time.time()
     return None
 
 
