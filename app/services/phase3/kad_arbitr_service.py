@@ -51,6 +51,14 @@ HEADERS = {
 
 _SIDE_TYPES = {1: 'ответчик', 2: 'истец', 3: 'заявитель', 4: 'третье лицо'}
 
+# parser-api.com participant array name -> role (used by the proxied path)
+_PARSER_ROLE_BY_ARRAY = {
+    'Plaintiffs': 'истец',
+    'Respondents': 'ответчик',
+    'Thirds': 'третье лицо',
+    'Others': 'иное лицо',
+}
+
 # Statuses returned alongside results. 'blocked' means geo-block (HTTP 451) —
 # the source was NOT consulted and absence of records proves nothing.
 _TERMINAL_STATUSES = ('blocked', 'rate_limited', 'timeout', 'http_error', 'error')
@@ -250,6 +258,103 @@ def _fetch_page(
     return items, total, None
 
 
+def _record_from_parser_case(
+    case: dict, full_name: str, inn: str, query_kind: str,
+) -> Optional[Dict]:
+    """Map one parser-api.com arbitr case to a record dict, or None to drop it.
+
+    The candidate's role comes from which participant array (Plaintiffs/
+    Respondents/Thirds/Others) holds their INN or matching name. A participant
+    whose INN is present and DIFFERENT from the candidate's is a namesake and
+    is skipped. For name queries the candidate MUST be found among participants.
+    """
+    case_number = case.get('CaseNumber') or ''
+    if not case_number:
+        return None
+
+    role: Optional[str] = None
+    matched_by: Optional[str] = None
+    for arr_key, role_label in _PARSER_ROLE_BY_ARRAY.items():
+        for party in case.get(arr_key) or []:
+            if not isinstance(party, dict):
+                continue
+            p_name = party.get('Name') or ''
+            p_inn = (party.get('Inn') or '').strip()
+            if inn and p_inn == inn:
+                role, matched_by = role_label, 'inn'
+                break
+            strength = _match_side_to_person(p_name, full_name)
+            if not strength:
+                continue
+            if inn and p_inn and p_inn != inn:
+                continue  # namesake with a different INN
+            if matched_by is None or (strength == 'full' and matched_by == 'initials'):
+                role, matched_by = role_label, strength
+        if matched_by == 'inn':
+            break
+
+    if query_kind == 'inn':
+        matched_by = 'inn'
+        role = role or ''
+    elif matched_by is None:
+        return None  # name query — candidate not among participants
+
+    case_type = 'банкротное' if str(case.get('CaseType', '')).upper() == 'Б' else 'арбитражное'
+    case_id = case.get('CaseId') or ''
+    return {
+        'case_number': case_number,
+        'court_name': case.get('Court') or '',
+        'case_type': case_type,
+        'date': _convert_iso_date(case.get('StartDate') or ''),
+        'role': role or '',
+        'subject': '',
+        'url': f'{KAD_BASE}/Card/{case_id}' if case_id else '',
+        'source': 'kad.arbitr.ru',
+        'matched_by': matched_by,
+    }
+
+
+def _search_via_parser_api(name: str, inn: str) -> Tuple[List[Dict], str]:
+    """Primary path: kad.arbitr.ru via parser-api.com (works from any IP).
+
+    INN-first (an INN hit is exact, so the name query is skipped), then name.
+    """
+    from app.services import parser_api
+
+    records: List[Dict] = []
+    seen: set = set()
+    failure = ''
+
+    def _ingest(raw_cases, query_kind):
+        for case in raw_cases:
+            if not isinstance(case, dict):
+                continue
+            rec = _record_from_parser_case(case, name, inn, query_kind)
+            if rec and rec['case_number'] not in seen:
+                seen.add(rec['case_number'])
+                records.append(rec)
+
+    if _is_person_inn(inn):
+        raw, status = parser_api.arbitr_search(inn, inn_type='Any')
+        if status in ('rate_limited', 'blocked', 'timeout', 'http_error', 'error', 'not_configured'):
+            failure = status
+        else:
+            _ingest(raw, 'inn')
+        if records:
+            return records, 'ok'  # INN hit is exact — skip the name query
+
+    if name:
+        raw, status = parser_api.arbitr_search(name, inn_type='Any')
+        if status in ('rate_limited', 'blocked', 'timeout', 'http_error', 'error', 'not_configured'):
+            failure = failure or status
+        else:
+            _ingest(raw, 'name')
+
+    if records:
+        return records, 'ok'
+    return [], (failure or 'empty')
+
+
 def search_kad_arbitr_person(
     full_name: str,
     inn: str = '',
@@ -274,6 +379,11 @@ def search_kad_arbitr_person(
 
         'blocked' (HTTP 451 geo-block) means the source was not consulted:
         zero records is NOT evidence of a clean record.
+
+    Provider order: when PARSER_API_KEY is configured, parser-api.com is used
+    first (it proxies kad server-side and works from ANY IP, avoiding the
+    451 geo-block). The direct kad.arbitr.ru client is the fallback (and the
+    only path that works from a Russian IP without the key).
     """
     name = (full_name or '').strip()
     inn = (inn or '').strip()
@@ -281,6 +391,20 @@ def search_kad_arbitr_person(
 
     if not name and not use_inn:
         return [], 'skipped'
+
+    # Primary: parser-api.com proxy (any IP) when configured.
+    try:
+        from app.services import parser_api
+        if parser_api.is_available():
+            records, status = _search_via_parser_api(name, inn)
+            if status == 'ok' or records:
+                logger.info("kad.arbitr.ru (parser-api): %d cases (status=%s)", len(records), status)
+                return records, status
+            # parser-api returned empty/failed — fall through to direct kad,
+            # which may still work from a Russian IP.
+            logger.info("kad.arbitr.ru: parser-api status=%s, trying direct", status)
+    except Exception as exc:
+        logger.warning("kad.arbitr.ru: parser-api path error: %s", exc)
 
     queries: List[Tuple[str, dict]] = []
     if use_inn:

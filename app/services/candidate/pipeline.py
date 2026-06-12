@@ -846,15 +846,31 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 return records, statuses
 
             def _search_fssp(full_name, date_of_birth, region):
-                """Search enforcement proceedings — checko.ru primary, ФССП fallback.
+                """Search enforcement proceedings.
 
-                Returns (records, status). Status distinguishes a genuine
+                Provider order: parser-api.com (proxied official ФССП, works
+                from ANY IP) → checko.ru aggregator → CAPTCHA-walled official
+                ФССП. Returns (records, status). Status distinguishes a genuine
                 "no debts" read ('empty') from an unreadable source
                 ('rate_limited'/'blocked'/...) so the dossier never shows a
                 falsely-clean enforcement section. Enforcement is high-stakes
                 (debts/alimony/tax arrears) — a false "Нет" is the worst case.
                 """
-                # Primary: checko.ru (aggregator). Trust a clean read; only
+                dob_str = date_of_birth.strftime('%Y-%m-%d') if date_of_birth else None
+
+                # Primary: parser-api.com — official ФССП data, any IP, when keyed.
+                try:
+                    from app.services.candidate.fssp_service import search_fssp_via_parser_api
+                    pa_records, pa_status = search_fssp_via_parser_api(full_name, dob_str)
+                    if pa_status == 'ok':
+                        return [r.to_dict() for r in pa_records], 'ok'
+                    if pa_status == 'empty':
+                        return [], 'empty'
+                    # not_configured / rate_limited / error → fall through
+                except Exception as e:
+                    logger.warning(f"parser-api ФССП search failed: {e}")
+
+                # Secondary: checko.ru (aggregator). Trust a clean read; only
                 # fall through to the CAPTCHA-walled official ФССП when checko
                 # was NOT readable.
                 checko_status = 'error'
@@ -874,7 +890,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 # Fallback: official ФССП (CAPTCHA/geo-walled from many IPs)
                 from app.services.candidate.fssp_service import FSSPService
                 svc = FSSPService(timeout=30, max_pages=3)
-                dob_str = date_of_birth.strftime('%Y-%m-%d') if date_of_birth else None
                 results, fssp_status = svc.search_with_status(full_name, dob_str, region)
                 if fssp_status in ('ok', 'empty'):
                     return [r.to_dict() for r in results], fssp_status

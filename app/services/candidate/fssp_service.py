@@ -144,6 +144,71 @@ def parse_amount(text: str) -> Optional[float]:
         return None
 
 
+def _fssp_record_from_parser(row: dict) -> 'FSSPRecord':
+    """Map one parser-api.com fssp_search_fiz result row to an FSSPRecord."""
+    subjects = row.get('subjects') or []
+    subject = ''
+    amount = None
+    if subjects and isinstance(subjects[0], dict):
+        subject = subjects[0].get('title', '') or ''
+        amount = parse_amount(subjects[0].get('sum', '') or '')
+    if amount is None:
+        amount = parse_amount(row.get('process_total', '') or '')
+
+    # The proceeding identifier (…-ИП) usually lives in process_title;
+    # fall back to the raw title or the document number.
+    process_title = row.get('process_title', '') or ''
+    ip_match = re.search(r'\d+/\d+/[\d\w]+-ИП', process_title)
+    proceedings_number = (
+        ip_match.group(0) if ip_match else (process_title or row.get('document_num', ''))
+    )
+
+    stop_date = row.get('stop_date') or None
+    return FSSPRecord(
+        debtor_name=row.get('debtor_name', '') or '',
+        debtor_dob=row.get('debtor_dob', '') or '',
+        proceedings_number=proceedings_number,
+        document_details=row.get('document_title', '') or row.get('document_num', '') or '',
+        subject=subject or process_title,
+        amount=amount,
+        department=row.get('department_title', '') or '',
+        end_date=stop_date,
+        end_reason=row.get('stop_reason') or None,
+        is_active=not stop_date,
+        source='api-ip.fssp.gov.ru',
+    )
+
+
+def search_fssp_via_parser_api(
+    full_name: str,
+    dob_iso: Optional[str] = None,
+    region_id: Optional[str] = None,
+) -> 'tuple[List[FSSPRecord], str]':
+    """Primary ФССП path via parser-api.com (proxied, works from ANY IP).
+
+    Needs the candidate's name + DOB (search_fiz requires dob). Returns
+    (records, status); 'not_configured' when PARSER_API_KEY is unset so the
+    caller falls back to checko / direct ФССП.
+    """
+    from app.services import parser_api
+    if not parser_api.is_available():
+        return [], 'not_configured'
+
+    parts = (full_name or '').strip().split()
+    if len(parts) < 2:
+        return [], 'skipped'
+    last_name, first_name = parts[0], parts[1]
+    patronymic = parts[2] if len(parts) > 2 else ''
+
+    raw, status = parser_api.fssp_search_fiz(
+        last_name, first_name, patronymic, dob_iso or '', region_id,
+    )
+    if status not in ('ok', 'empty'):
+        return [], status
+    records = [_fssp_record_from_parser(r) for r in raw if isinstance(r, dict)]
+    return records, ('ok' if records else 'empty')
+
+
 @dataclass
 class FSSPRecord:
     """An enforcement proceeding from ФССП."""

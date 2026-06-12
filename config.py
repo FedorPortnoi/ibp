@@ -66,6 +66,12 @@ _ENV_KEYS = {
     'HIBP_API_KEY': ('HIBP_API_KEY', None),
 
     # Government
+    # parser-api.com — proxied ФССП + kad.arbitr (works from any IP). Primary
+    # enforcement/court provider; read directly from os.environ by
+    # app/services/parser_api.py, mapped here for visibility in app.config.
+    'PARSER_API_KEY': ('PARSER_API_KEY', None),
+    # Legacy: official api-ip.fssp.gov.ru shut down Feb 2026. Kept for the
+    # direct-API fallback path in fssp_service.py; normally unset.
     'FSSP_API_TOKEN': ('FSSP_API_TOKEN', None),
 
     # Other
