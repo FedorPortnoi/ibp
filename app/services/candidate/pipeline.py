@@ -699,7 +699,22 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             f"По адресу найдено {len(addr_intel['connections'])} связанных лиц",
                             'info',
                         )
+                    elif addr_intel.get('status') in ('error', 'blocked'):
+                        # Don't let an unreadable FNS lookup pass as "no
+                        # connections" — a mass-registration address is a flag.
+                        task.add_message(
+                            'Проверка адреса (связанные лица) не выполнена — '
+                            'источник ФНС недоступен',
+                            'warning',
+                        )
+                    _addr_status = addr_intel.get('status', '')
+                    if _addr_status:
+                        _ss = check.source_statuses or {}
+                        _ss['address_intel'] = _addr_status
+                        check.source_statuses = _ss
+                        db.session.commit()
                 except Exception as e:
+                    db.session.rollback()
                     logger.debug(f"Address intelligence: {e}")
 
             task.update('identity', 'Личность подтверждена', 8)
