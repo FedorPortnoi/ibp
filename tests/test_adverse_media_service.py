@@ -24,20 +24,40 @@ def _resp(status=200, items=None):
     return r
 
 
+def _xml_resp(text, status=200):
+    r = MagicMock()
+    r.status_code = status
+    r.text = text
+    return r
+
+
 def _item(title='t', snippet='s', link='https://news.ru/x'):
     return {'title': title, 'snippet': snippet, 'link': link}
 
 
+def _clear_providers(monkeypatch):
+    for v in ('GOOGLE_CSE_KEY', 'GOOGLE_CSE_ID', 'YANDEX_XML_KEY', 'YANDEX_XML_FOLDERID'):
+        monkeypatch.delenv(v, raising=False)
+
+
 @pytest.fixture
 def keyed(monkeypatch):
+    """Google-only env (deterministic google path)."""
+    _clear_providers(monkeypatch)
     monkeypatch.setenv('GOOGLE_CSE_KEY', 'k')
     monkeypatch.setenv('GOOGLE_CSE_ID', 'cx')
 
 
 @pytest.fixture
+def yandex(monkeypatch):
+    _clear_providers(monkeypatch)
+    monkeypatch.setenv('YANDEX_XML_KEY', 'yk')
+    monkeypatch.setenv('YANDEX_XML_FOLDERID', 'b1g')
+
+
+@pytest.fixture
 def nokey(monkeypatch):
-    monkeypatch.delenv('GOOGLE_CSE_KEY', raising=False)
-    monkeypatch.delenv('GOOGLE_CSE_ID', raising=False)
+    _clear_providers(monkeypatch)
 
 
 # ── availability + query ────────────────────────────────────────────────────
@@ -52,9 +72,21 @@ def test_available_with_key(keyed):
     assert ams.is_available() is True
 
 
-def test_query_quotes_name_and_ors_terms():
-    q = ams._build_query(FULL)
+def test_google_query_quotes_name_and_ors_terms():
+    q = ams._build_query_google(FULL)
     assert q.startswith(f'"{FULL}"') and ' OR ' in q and 'мошенник' in q
+
+
+def test_yandex_query_uses_pipe_operator():
+    q = ams._build_query_yandex(FULL)
+    assert q.startswith(f'"{FULL}"') and ' | ' in q and 'мошенник' in q
+
+
+def test_provider_prefers_yandex(monkeypatch):
+    _clear_providers(monkeypatch)
+    monkeypatch.setenv('GOOGLE_CSE_KEY', 'k'); monkeypatch.setenv('GOOGLE_CSE_ID', 'cx')
+    monkeypatch.setenv('YANDEX_XML_KEY', 'yk'); monkeypatch.setenv('YANDEX_XML_FOLDERID', 'b1g')
+    assert ams._provider() == 'yandex'
 
 
 # ── term classification ─────────────────────────────────────────────────────
@@ -134,4 +166,45 @@ def test_rate_limited_not_clean(keyed):
 
 def test_blocked_not_clean(keyed):
     with patch.object(ams.requests, 'get', return_value=_resp(403)):
+        assert ams.search_adverse_media(FULL, CTX)[1] == 'blocked'
+
+
+# ── Yandex provider (primary) ───────────────────────────────────────────────
+
+_YANDEX_OK = """<?xml version="1.0" encoding="utf-8"?>
+<yandexsearch version="1.0"><response><results><grouping><group>
+<doc><url>https://news.ru/a</url>
+<title>Иванов Иван Иванович обвиняется</title>
+<passages><passage>ИНН 7712345678, мошенничество в крупном размере</passage></passages>
+</doc></group></grouping></results></response></yandexsearch>"""
+
+
+def test_yandex_unavailable_without_keys(nokey):
+    assert ams.search_adverse_media(FULL, CTX) == ([], 'unavailable')
+
+
+def test_yandex_parses_and_confirms(yandex):
+    with patch.object(ams.requests, 'get', return_value=_xml_resp(_YANDEX_OK)):
+        hits, status = ams.search_adverse_media(FULL, CTX)
+    assert status == 'ok' and len(hits) == 1
+    h = hits[0]
+    assert h.confidence == 'confirmed' and h.severity == 'criminal'
+    assert h.source_domain == 'news.ru'
+
+
+def test_yandex_error_15_is_empty(yandex):
+    xml = '<yandexsearch><response><error code="15">empty</error></response></yandexsearch>'
+    with patch.object(ams.requests, 'get', return_value=_xml_resp(xml)):
+        assert ams.search_adverse_media(FULL, CTX) == ([], 'empty')
+
+
+def test_yandex_error_32_is_rate_limited(yandex):
+    xml = '<yandexsearch><response><error code="32">limit</error></response></yandexsearch>'
+    with patch.object(ams.requests, 'get', return_value=_xml_resp(xml)):
+        assert ams.search_adverse_media(FULL, CTX)[1] == 'rate_limited'
+
+
+def test_yandex_bad_key_is_blocked(yandex):
+    xml = '<yandexsearch><response><error code="2">bad key</error></response></yandexsearch>'
+    with patch.object(ams.requests, 'get', return_value=_xml_resp(xml)):
         assert ams.search_adverse_media(FULL, CTX)[1] == 'blocked'

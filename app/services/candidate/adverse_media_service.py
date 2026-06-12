@@ -8,9 +8,10 @@ checks). This is the negative-media / "adverse media" layer.
 
 Design (matches the pipeline doctrine):
 1. Search via a real search API, never speculative scraping. Provider is
-   pluggable; the free default is Google Programmable Search (CSE), one query
-   per candidate to stay inside the free 100/day tier. A Yandex adapter can be
-   dropped in later for deeper Russian/compromat coverage.
+   pluggable; the PRIMARY backend is Yandex XML (Google is blocked in Russia
+   and the pipeline runs from the RU VM; Yandex also has better RU/compromat
+   coverage). Google CSE remains a fallback for non-RU deployments. One query
+   per candidate.
 2. DISAMBIGUATION is the whole game. A common ФИО returns mentions of many
    different people, so every hit is gated against what we already know about
    THIS person (birth year, city/region, ИНН-linked company names, ИНН). A hit
@@ -20,12 +21,14 @@ Design (matches the pipeline doctrine):
    as "no adverse media found". Only 'empty' means we actually searched and the
    person turned up clean.
 
-Env: GOOGLE_CSE_KEY + GOOGLE_CSE_ID (both free).
+Env: YANDEX_XML_KEY + YANDEX_XML_FOLDERID (primary), or GOOGLE_CSE_KEY +
+GOOGLE_CSE_ID (fallback).
 """
 
 import logging
 import os
 import re
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
@@ -33,6 +36,10 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+# Yandex is the PRIMARY backend: Google is blocked in Russia (the pipeline runs
+# from the RU VM) and Yandex has better Russian/compromat coverage. Google CSE
+# is kept as a fallback for non-RU deployments.
+YANDEX_XML_URL = 'https://yandex.ru/search/xml'
 GOOGLE_CSE_URL = 'https://www.googleapis.com/customsearch/v1'
 _TIMEOUT = 20
 
@@ -54,8 +61,9 @@ LEXICON: Dict[str, List[str]] = {
     ],
 }
 
-# Terms OR-ed into the single search query (stemmed roots kept short for recall).
-_QUERY_TERMS = LEXICON['criminal'] + LEXICON['reputational']
+# Terms used in the actual search query. Kept short to respect Yandex's ~400-char
+# query limit; classification below still scans the FULL lexicon in the results.
+_SEARCH_TERMS = LEXICON['criminal'] + ['скандал', 'афер', 'компромат', 'разоблач']
 
 
 @dataclass
@@ -83,15 +91,29 @@ class AdverseMediaHit:
         }
 
 
+def _provider() -> Optional[str]:
+    """Pick the configured search backend. Yandex preferred (Google is blocked
+    in Russia); Google CSE is the fallback for non-RU deployments."""
+    if os.environ.get('YANDEX_XML_KEY') and os.environ.get('YANDEX_XML_FOLDERID'):
+        return 'yandex'
+    if os.environ.get('GOOGLE_CSE_KEY') and os.environ.get('GOOGLE_CSE_ID'):
+        return 'google'
+    return None
+
+
 def is_available() -> bool:
-    """True only if a search backend is configured (Google CSE key + id)."""
-    return bool(os.environ.get('GOOGLE_CSE_KEY') and os.environ.get('GOOGLE_CSE_ID'))
+    """True only if a search backend (Yandex or Google) is configured."""
+    return _provider() is not None
 
 
-def _build_query(full_name: str) -> str:
-    """Quoted full name + OR-ed negative lexicon, one query per candidate."""
-    terms = ' OR '.join(_QUERY_TERMS)
-    return f'"{full_name}" ({terms})'
+def _build_query_google(full_name: str) -> str:
+    """Quoted full name + OR-ed negative lexicon (Google syntax)."""
+    return f'"{full_name}" ({" OR ".join(_SEARCH_TERMS)})'
+
+
+def _build_query_yandex(full_name: str) -> str:
+    """Quoted full name + |-ed negative lexicon (Yandex query language)."""
+    return f'"{full_name}" ({" | ".join(_SEARCH_TERMS)})'
 
 
 def _google_cse_search(query: str, num: int = 10) -> Tuple[List[dict], str]:
@@ -125,6 +147,71 @@ def _google_cse_search(query: str, num: int = 10) -> Tuple[List[dict], str]:
     if r.status_code != 200:
         return [], 'error'
     return data.get('items', []) or [], ''
+
+
+def _yandex_xml_search(query: str) -> Tuple[List[dict], str]:
+    """One Yandex XML search call. Returns (items, status); items are normalized
+    to {title, snippet, link} like the CSE adapter so the caller is provider-
+    agnostic. Yandex returns 200 with an <error code=..> body on failure."""
+    key = os.environ.get('YANDEX_XML_KEY')
+    folderid = os.environ.get('YANDEX_XML_FOLDERID')
+    if not key or not folderid:
+        return [], 'unavailable'
+    try:
+        r = requests.get(YANDEX_XML_URL, params={
+            'folderid': folderid, 'apikey': key, 'query': query, 'l10n': 'ru',
+            'sortby': 'rlv',
+            'groupby': 'attr=d.mode=flat.groups-on-page=10.docs-in-group=1',
+        }, timeout=_TIMEOUT)
+    except requests.Timeout:
+        return [], 'timeout'
+    except requests.RequestException as e:
+        logger.warning('adverse-media: yandex request failed: %s', e)
+        return [], 'error'
+
+    if r.status_code in (401, 403):
+        return [], 'blocked'
+    if r.status_code != 200:
+        return [], 'error'
+    try:
+        root = ET.fromstring(r.text)
+    except ET.ParseError:
+        return [], 'error'
+
+    err = root.find('.//error')
+    if err is not None:
+        code = err.get('code')
+        if code in ('15', '55'):            # nothing found
+            return [], 'empty'
+        if code in ('32', '33'):            # query / IP limit reached
+            return [], 'rate_limited'
+        logger.warning('adverse-media: yandex error %s: %s', code, err.text or '')
+        return [], 'blocked'                # bad key / folder / config
+
+    items = []
+    for doc in root.findall('.//doc'):
+        url = (doc.findtext('url') or '').strip()
+        title_el = doc.find('title')
+        title = ''.join(title_el.itertext()).strip() if title_el is not None else ''
+        passages_el = doc.find('.//passages')
+        snippet = ''
+        if passages_el is not None:
+            snippet = ' '.join(
+                ''.join(p.itertext()) for p in passages_el.findall('passage')
+            ).strip()
+        if url:
+            items.append({'title': title, 'snippet': snippet, 'link': url})
+    return items, ''
+
+
+def _run_search(full_name: str) -> Tuple[List[dict], str]:
+    """Dispatch to the configured provider. Items normalized to {title,snippet,link}."""
+    provider = _provider()
+    if provider == 'yandex':
+        return _yandex_xml_search(_build_query_yandex(full_name))
+    if provider == 'google':
+        return _google_cse_search(_build_query_google(full_name))
+    return [], 'unavailable'
 
 
 def _domain(url: str) -> str:
@@ -203,7 +290,7 @@ def search_adverse_media(
     if not full_name or len(full_name.strip().split()) < 2:
         return [], 'skipped'
 
-    items, err = _google_cse_search(_build_query(full_name))
+    items, err = _run_search(full_name)
     if err:
         return [], err
 
