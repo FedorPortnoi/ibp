@@ -1082,6 +1082,76 @@
     </section>
 
     {# ================================================================
+       8b. ADVERSE MEDIA (negative news / compromat)
+       ================================================================ #}
+    {% set am_status = (source_statuses or {}).get('adverse_media', '') %}
+    {% set am_hits = check.adverse_media or [] %}
+    {% set am_confirmed = am_hits | selectattr('confidence', 'equalto', 'confirmed') | list %}
+    {% set am_possible = am_hits | selectattr('confidence', 'equalto', 'possible') | list %}
+    {% set am_failed_labels = {
+        'unavailable': 'поиск не настроен (нет ключа)',
+        'rate_limited': 'исчерпан дневной лимит поиска',
+        'blocked': 'поисковый сервис недоступен',
+        'error': 'ошибка',
+        'timeout': 'таймаут',
+    } %}
+    {% if am_hits or am_status in am_failed_labels %}
+    <section id="sec-adverse-media" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F4F0; Негативные упоминания в СМИ</h2>
+            <span class="section-count">{{ am_confirmed|length }} подтв., {{ am_possible|length }} возможн.</span>
+        </div>
+
+        {% if am_status in am_failed_labels %}
+        <div class="mb-4 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+            &#x26A0;&#xFE0F; Проверка негативных упоминаний не выполнена ({{ am_failed_labels[am_status] }}) — отсутствие компромата не подтверждено.
+        </div>
+        {% endif %}
+
+        {% if am_confirmed %}
+        <div class="mb-4">
+            <div class="text-sm font-semibold text-red-300 mb-2">Подтверждённые (личность совпадает)</div>
+            {% for h in am_confirmed %}
+            <div class="dossier-card mb-2" style="border-left: 3px solid rgba(239,68,68,0.6);">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs px-2 py-0.5 rounded-full {{ 'bg-red-500/10 text-red-300' if h.severity == 'criminal' else 'bg-amber-500/10 text-amber-300' }}">
+                        {{ 'криминал' if h.severity == 'criminal' else 'репутация' }}
+                    </span>
+                    <span class="text-xs text-gray-500">{{ h.source_domain }}</span>
+                </div>
+                <a href="{{ h.url }}" target="_blank" rel="noopener" class="text-sm text-accent-bright hover:underline">{{ h.title }}</a>
+                {% if h.snippet %}<p class="text-xs text-gray-400 mt-1 leading-relaxed">{{ h.snippet }}</p>{% endif %}
+                {% if h.corroboration %}<p class="text-xs text-gray-500 mt-1">Совпадение: {{ h.corroboration | join(', ') }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if am_possible %}
+        <details class="mb-2">
+            <summary class="text-sm font-semibold text-gray-400 cursor-pointer">Возможные ({{ am_possible|length }}) — личность не подтверждена, возможны однофамильцы</summary>
+            <div class="mt-2">
+            {% for h in am_possible %}
+            <div class="dossier-card mb-2" style="border-left: 3px solid rgba(156,163,175,0.4);">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-gray-500/10 text-gray-300">{{ 'криминал' if h.severity == 'criminal' else 'репутация' }}</span>
+                    <span class="text-xs text-gray-500">{{ h.source_domain }}</span>
+                </div>
+                <a href="{{ h.url }}" target="_blank" rel="noopener" class="text-sm text-gray-300 hover:underline">{{ h.title }}</a>
+                {% if h.snippet %}<p class="text-xs text-gray-500 mt-1 leading-relaxed">{{ h.snippet }}</p>{% endif %}
+            </div>
+            {% endfor %}
+            </div>
+        </details>
+        {% endif %}
+
+        {% if not am_hits and am_status == 'empty' %}
+        <p class="text-sm text-gray-400">Негативных упоминаний не обнаружено.</p>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    {# ================================================================
        9. SOCIAL MEDIA SECTION
        ================================================================ #}
     <section id="sec-social" class="mb-10">

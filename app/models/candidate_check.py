@@ -58,6 +58,10 @@ class CandidateCheck(db.Model):
     # enforcement uses fssp_status; everything else lands here. Lets the
     # dossier tell "nothing found" apart from "source was unreadable".
     _source_statuses = db.Column('source_statuses', db.Text, default='{}')
+    # Adverse-media hits (criminal/reputational news mentions), each tagged
+    # confirmed/possible by the disambiguation engine. Status lives in
+    # source_statuses['adverse_media'].
+    _adverse_media = db.Column('adverse_media', db.Text, default='[]')
     _social_media_profiles = db.Column('social_media_profiles', db.Text, default='[]')
     _contact_discoveries = db.Column('contact_discoveries', db.Text, default='{}')
 
@@ -214,6 +218,15 @@ class CandidateCheck(db.Model):
     @source_statuses.setter
     def source_statuses(self, value):
         self._source_statuses = self._dump_json(value)
+
+    # adverse_media (negative news/compromat mentions)
+    @property
+    def adverse_media(self):
+        return self._load_json(self._adverse_media, [])
+
+    @adverse_media.setter
+    def adverse_media(self, value):
+        self._adverse_media = self._dump_json(value)
 
     # social_media_profiles
     @property

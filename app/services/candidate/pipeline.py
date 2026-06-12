@@ -1174,6 +1174,54 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 db.session.rollback()
                 logger.error(f"DB commit failed (Stage 1 gov registries): {e}")
 
+            # ── Adverse-media screening (negative news / compromat) ──
+            # Runs here so the disambiguation engine has the ИНН-linked company
+            # names from Stage 1 as corroborators. Status honesty: 'unavailable'
+            # (no search key) must not read as "no adverse media".
+            try:
+                from app.services.candidate import adverse_media_service as ams
+                if not ams.is_available():
+                    am_hits, am_status = [], 'unavailable'
+                else:
+                    am_companies = [
+                        r.get('company_name') or r.get('name')
+                        for r in (check.business_records or [])
+                        if isinstance(r, dict) and (r.get('company_name') or r.get('name'))
+                    ]
+                    am_context = {
+                        'inns': [check.inn] if check.inn else [],
+                        'companies': am_companies,
+                        'birth_year': (
+                            check.date_of_birth.year if check.date_of_birth else None
+                        ),
+                        'city': check.region or '',
+                    }
+                    am_hits, am_status = ams.search_adverse_media(
+                        check.full_name, am_context,
+                    )
+                check.adverse_media = [h.to_dict() for h in am_hits]
+                _ss = check.source_statuses or {}
+                _ss['adverse_media'] = am_status
+                check.source_statuses = _ss
+                _confirmed = [h for h in am_hits if h.confidence == 'confirmed']
+                if _confirmed:
+                    task.add_message(
+                        f'Негативные упоминания: {len(_confirmed)} подтверждённых',
+                        'error',
+                    )
+                    sources_with_results += 1
+                elif am_status == 'ok':
+                    task.add_message(
+                        f'Негативные упоминания: {len(am_hits)} возможных '
+                        f'(требуют проверки на однофамильцев)',
+                        'warning',
+                    )
+                sources_checked += 1
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                logger.warning(f"Adverse-media screening failed: {e}")
+
             # ── STAGE 2: COLLECT SECURITY RESULTS (ran in parallel) ──
             task.update('security', 'Получение результатов проверки безопасности...', 20)
             stage2_start = time.time()

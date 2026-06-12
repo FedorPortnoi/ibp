@@ -39,6 +39,8 @@ RISK_WEIGHTS = {
     'sanctions_match': 30,
     'passport_invalid': 20,
     'interpol_found': 35,
+    'adverse_media_criminal': 22,
+    'adverse_media_reputational': 8,
     'name_discrepancy': 8,
     # SUSPICIONS (indirect signals)
     'serial_entrepreneur': 5,
@@ -71,6 +73,7 @@ RISK_WEIGHTS = {
     'inactive_profile': 3,
     'identity_not_confirmed': 3,
     'sanctions_unchecked': 5,
+    'adverse_media_possible': 2,
     'many_cases': 8,
     'defendant_cases': 10,
 }
@@ -91,6 +94,9 @@ RECOMMENDATIONS = {
     'many_pledges': 'Множественные залоги. Возможны значительные финансовые обязательства',
     'pledge_found': 'Информационный факт — обнаружены записи в реестре залогов',
     'sanctions_match': 'КРИТИЧНО: кандидат в санкционном списке. Немедленное уведомление compliance',
+    'adverse_media_criminal': 'Негативные публикации криминального характера. Рекомендуется изучить первоисточники и проверка СБ',
+    'adverse_media_reputational': 'Негативные репутационные упоминания в СМИ. Рекомендуется контекстная оценка',
+    'adverse_media_possible': 'Совпадения без подтверждения личности (возможны однофамильцы). Рекомендуется ручная проверка',
     'passport_invalid': 'Паспорт числится недействительным. Рекомендуется запросить оригинал',
     'name_discrepancy': 'Расхождение ФИО. Рекомендуется уточнить у кандидата',
     'serial_entrepreneur': 'Косвенный признак. Множественные бизнес-связи могут быть нормой',
@@ -174,6 +180,7 @@ class RiskScorer:
         red_flags.extend(self._analyze_bankruptcy(check))
         red_flags.extend(self._analyze_pledges(check))
         red_flags.extend(self._analyze_sanctions(check))
+        red_flags.extend(self._analyze_adverse_media(check))
         red_flags.extend(self._analyze_social(check))
         red_flags.extend(self._analyze_social_behavior(check))
         red_flags.extend(self._analyze_behavioral_patterns(check))
@@ -230,6 +237,48 @@ class RiskScorer:
                     flag_type='fact',
                 ))
 
+        return flags
+
+    # ── Adverse-Media Red Flags ──
+
+    def _analyze_adverse_media(self, check):
+        """Score negative news/compromat. Only CONFIRMED hits become facts;
+        'possible' (namesake-unverified) hits are a low-weight suspicion that
+        asks for a manual однофамилец check — never penalised as fact."""
+        flags = []
+        hits = getattr(check, 'adverse_media', None) or []
+        if not hits:
+            return flags
+
+        confirmed = [h for h in hits if h.get('confidence') == 'confirmed']
+        possible = [h for h in hits if h.get('confidence') == 'possible']
+        crim = [h for h in confirmed if h.get('severity') == 'criminal']
+        rep = [h for h in confirmed if h.get('severity') == 'reputational']
+
+        if crim:
+            flags.append(self._flag(
+                SEVERITY_HIGH, 'adverse_media', 'adverse_media_criminal',
+                f'Негативные упоминания в СМИ (криминал): {len(crim)} подтверждённых',
+                flag_type='fact',
+                evidence='; '.join(h.get('source_domain', '') for h in crim[:3]),
+                details=crim[0].get('title', ''),
+            ))
+        if rep:
+            flags.append(self._flag(
+                SEVERITY_MEDIUM, 'adverse_media', 'adverse_media_reputational',
+                f'Негативные упоминания в СМИ (репутация): {len(rep)} подтверждённых',
+                flag_type='fact',
+                evidence='; '.join(h.get('source_domain', '') for h in rep[:3]),
+                details=rep[0].get('title', ''),
+            ))
+        if possible:
+            flags.append(self._flag(
+                SEVERITY_LOW, 'adverse_media', 'adverse_media_possible',
+                f'Возможные негативные упоминания: {len(possible)} '
+                f'(не подтверждена личность — возможны однофамильцы)',
+                flag_type='suspicion',
+                evidence=f'{len(possible)} совпадений без подтверждающих признаков',
+            ))
         return flags
 
     # ── Business Red Flags ──
