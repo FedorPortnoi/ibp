@@ -192,7 +192,11 @@ class SherlockSearchService:
                     if isinstance(info, dict):
                         status_raw = (info.get('status', '') or '').lower()
                         url = info.get('url_user', info.get('url', ''))
-                        is_found = status_raw in ('claimed', 'found') or bool(url)
+                        # Sherlock emits url_user for EVERY site it probes
+                        # (the constructed candidate URL), found or not — so
+                        # `or bool(url)` marked every site a hit. The real
+                        # signal is the status field; require it explicitly.
+                        is_found = status_raw in ('claimed', 'found')
                         results.append({
                             'platform': site_name,
                             'url': url,

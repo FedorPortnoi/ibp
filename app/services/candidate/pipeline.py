@@ -1729,9 +1729,16 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 # (no API key + Playwright unavailable). Merge, don't overwrite —
                 # Stage 1 already stored the pledge-registry status here.
                 _face_status = social_results.get('face_search_status', '')
-                if _face_status:
+                _uname_status = social_results.get('username_search_status', '')
+                if _face_status or _uname_status:
                     _ss = check.source_statuses or {}
-                    _ss['search4faces'] = _face_status
+                    if _face_status:
+                        _ss['search4faces'] = _face_status
+                    # username-search trio (Snoop/Maigret/Sherlock): records
+                    # whether we could search at all, so an uninstalled toolset
+                    # doesn't render as "no accounts found".
+                    if _uname_status:
+                        _ss['username_search'] = _uname_status
                     check.source_statuses = _ss
                 db.session.commit()
 

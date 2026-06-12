@@ -14,7 +14,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 
 import requests
 
@@ -93,14 +93,40 @@ def _run_face_search(photo_url: str = None, photo_path: str = None):
         return [], 'error'
 
 
-def _run_snoop_search(usernames: List[str]) -> List[Dict]:
-    """Run Snoop username search."""
+# Status semantics for the username-search tools (Snoop/Maigret/Sherlock).
+# 'unavailable' (tool not installed) and 'error' must NEVER render as "no
+# accounts found" — that is a false clean. Only 'empty' means we actually
+# searched and the candidate's username turned up nothing.
+def _combine_username_status(statuses: Dict[str, str]) -> str:
+    """Combine the per-tool statuses of the username-search trio into one
+    honest source status.
+
+    Precedence: any tool found accounts -> 'ok'; else any tool actually
+    searched and was clean -> 'empty'; else any tool errored -> 'error';
+    else every tool was missing -> 'unavailable'. Empty input -> '' (the
+    trio never ran, e.g. no usernames to search). 'unavailable'/'error'
+    must not be rendered as "no accounts found".
+    """
+    if not statuses:
+        return ''
+    vals = set(statuses.values())
+    if 'ok' in vals:
+        return 'ok'
+    if 'empty' in vals:
+        return 'empty'
+    if 'error' in vals:
+        return 'error'
+    return 'unavailable'
+
+
+def _run_snoop_search(usernames: List[str]) -> Tuple[List[Dict], str]:
+    """Run Snoop username search. Returns (accounts, status)."""
     try:
         from app.services.snoop_search import SnoopSearchService
         snoop = SnoopSearchService()
         if not snoop.available:
             logger.info("Snoop not available, skipping username search")
-            return []
+            return [], 'unavailable'
 
         all_results = []
         for username in usernames[:3]:
@@ -110,20 +136,20 @@ def _run_snoop_search(usernames: List[str]) -> List[Dict]:
                 all_results.extend(found)
             except Exception as e:
                 logger.warning(f"Snoop search for '{username}' failed: {e}")
-        return all_results
+        return all_results, ('ok' if all_results else 'empty')
     except Exception as e:
         logger.error(f"Snoop search failed: {e}")
-        return []
+        return [], 'error'
 
 
-def _run_maigret_search(usernames: List[str]) -> List[Dict]:
-    """Run Maigret username search."""
+def _run_maigret_search(usernames: List[str]) -> Tuple[List[Dict], str]:
+    """Run Maigret username search. Returns (accounts, status)."""
     try:
         from app.services.maigret_search import MaigretSearchService
         maigret = MaigretSearchService()
         if not maigret.available:
             logger.info("Maigret not available, skipping")
-            return []
+            return [], 'unavailable'
 
         all_results = []
         for username in usernames[:3]:
@@ -133,20 +159,20 @@ def _run_maigret_search(usernames: List[str]) -> List[Dict]:
                 all_results.extend(found)
             except Exception as e:
                 logger.warning(f"Maigret search for '{username}' failed: {e}")
-        return all_results
+        return all_results, ('ok' if all_results else 'empty')
     except Exception as e:
         logger.error(f"Maigret search failed: {e}")
-        return []
+        return [], 'error'
 
 
-def _run_sherlock_search(usernames: List[str]) -> List[Dict]:
-    """Run Sherlock username search."""
+def _run_sherlock_search(usernames: List[str]) -> Tuple[List[Dict], str]:
+    """Run Sherlock username search. Returns (accounts, status)."""
     try:
         from app.services.sherlock_search import SherlockSearchService
         sherlock = SherlockSearchService()
         if not sherlock.available:
             logger.info("Sherlock not available, skipping")
-            return []
+            return [], 'unavailable'
 
         all_results = []
         for username in usernames[:3]:
@@ -156,10 +182,10 @@ def _run_sherlock_search(usernames: List[str]) -> List[Dict]:
                 all_results.extend(found)
             except Exception as e:
                 logger.warning(f"Sherlock search for '{username}' failed: {e}")
-        return all_results
+        return all_results, ('ok' if all_results else 'empty')
     except Exception as e:
         logger.error(f"Sherlock search failed: {e}")
-        return []
+        return [], 'error'
 
 
 def _run_yaseeker(usernames: List[str]) -> List[Dict]:
@@ -598,6 +624,9 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
         if usernames:
             futures['yaseeker'] = _submit_with_ctx(executor, _run_yaseeker, usernames)
 
+        # Per-tool status for the username-search trio (Snoop/Maigret/Sherlock),
+        # combined into one honest source status below.
+        username_tool_statuses: Dict[str, str] = {}
         for key, future in futures.items():
             try:
                 result = future.result(timeout=180)
@@ -615,7 +644,20 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
                         logger.info("[SocialAnalysis] face: 0 matches (searched)")
                     else:
                         logger.info(f"[SocialAnalysis] face: not searched (status={face_status})")
-                elif key in ('snoop', 'maigret', 'sherlock', 'yaseeker'):
+                elif key in ('snoop', 'maigret', 'sherlock'):
+                    # These now return (accounts, status); be defensive about
+                    # the older bare-list shape.
+                    if isinstance(result, tuple):
+                        accts, u_status = result
+                    else:
+                        accts, u_status = result, ('ok' if result else 'empty')
+                    results['username_accounts'].extend(accts)
+                    username_tool_statuses[key] = u_status
+                    if accts:
+                        logger.info(f"[SocialAnalysis] {key}: found {len(accts)} accounts")
+                    else:
+                        logger.info(f"[SocialAnalysis] {key}: 0 results (status={u_status})")
+                elif key == 'yaseeker':
                     results['username_accounts'].extend(result)
                     if result:
                         logger.info(f"[SocialAnalysis] {key}: found {len(result)} accounts")
@@ -623,6 +665,13 @@ def run_social_analysis(check, task_status_callback=None) -> Dict[str, Any]:
                         logger.info(f"[SocialAnalysis] {key}: 0 results (tool may be unavailable)")
             except Exception as e:
                 logger.error(f"Social analysis sub-task '{key}' failed: {e}")
+                if key in ('snoop', 'maigret', 'sherlock'):
+                    username_tool_statuses[key] = 'error'
+
+        # Combine the trio into one honest username-search status.
+        _combined = _combine_username_status(username_tool_statuses)
+        if _combined:
+            results['username_search_status'] = _combined
 
         # Deduplicate username_accounts by URL
         seen_urls = set()
