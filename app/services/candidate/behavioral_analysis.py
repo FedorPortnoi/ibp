@@ -12,7 +12,7 @@ import random
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 
 import requests
 
@@ -524,12 +524,24 @@ def _get_vk_profiles(check) -> List[Dict]:
     return [p for p in confirmed if p.get('platform') == 'vk']
 
 
-def _fetch_vk_wall_posts(vk_profiles: List[Dict], token: str, max_posts: int = 100) -> List[Dict]:
-    """Fetch VK wall posts for text and timeline analysis."""
-    if not token or not vk_profiles:
-        return []
+def _fetch_vk_wall_posts(
+    vk_profiles: List[Dict], token: str, max_posts: int = 100,
+) -> Tuple[List[Dict], str]:
+    """Fetch VK wall posts for text and timeline analysis.
+
+    Returns (posts, status). Status distinguishes a wall we genuinely read
+    (ok/empty) from one we could NOT read (private/error/no_token/no_profile),
+    so an unreadable wall does not silently render as "no activity". VK returns
+    HTTP 200 with an {"error": {...}} body for private walls / bad tokens, so
+    the old code's `if 'response' in data` swallowed those as zero posts.
+    """
+    if not token:
+        return [], 'no_token'
+    if not vk_profiles:
+        return [], 'no_profile'
 
     all_posts = []
+    statuses = []
     for profile in vk_profiles[:2]:  # Max 2 VK profiles
         vk_id = profile.get('platform_id') or profile.get('vk_id') or profile.get('id')
         # Fallback: extract numeric ID from URL (e.g., https://vk.com/id380010961)
@@ -567,10 +579,33 @@ def _fetch_vk_wall_posts(vk_profiles: List[Dict], token: str, max_posts: int = 1
                     if item.get('geo'):
                         post['geo'] = item['geo']
                     all_posts.append(post)
+                statuses.append('ok' if items else 'empty')
+            elif 'error' in data:
+                # VK API error (15/30 = private/access denied, 5 = auth,
+                # 6/29 = rate/limit). Surface it instead of silently dropping.
+                err = data['error']
+                code = err.get('error_code')
+                msg = err.get('error_msg', '')
+                logger.warning(
+                    f"VK wall.get for {vk_id} returned error {code}: {msg}"
+                )
+                statuses.append('private' if code in (15, 18, 30) else 'error')
+            else:
+                statuses.append('error')
         except Exception as e:
             logger.warning(f"VK wall fetch for {vk_id} failed: {e}")
+            statuses.append('error')
 
-    return all_posts
+    if all_posts:
+        return all_posts, 'ok'
+    if not statuses:
+        return [], 'no_profile'
+    # No posts and at least one wall was unreadable -> report that, not "empty".
+    if 'private' in statuses:
+        return [], 'private'
+    if all(s == 'empty' for s in statuses):
+        return [], 'empty'
+    return [], 'error'
 
 
 def _run_text_analysis(posts: List[Dict]) -> Dict:
@@ -944,7 +979,8 @@ def run_behavioral_analysis(check, task_status_callback=None) -> Dict[str, Any]:
 
     # Fetch wall posts (needed for text analysis and timeline)
     _update('Загрузка постов VK', 72)
-    posts = _fetch_vk_wall_posts(vk_profiles, vk_token)
+    posts, vk_wall_status = _fetch_vk_wall_posts(vk_profiles, vk_token)
+    results['vk_wall_status'] = vk_wall_status
 
     # --- Pre-compute vk_id (no I/O, just a loop) ---
     vk_id = None

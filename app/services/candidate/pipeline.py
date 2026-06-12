@@ -1835,6 +1835,14 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 check.activity_timeline = behavioral_results.get('activity_timeline', [])
                 check.group_analysis = behavioral_results.get('group_analysis', {})
                 check.activity_patterns = behavioral_results.get('activity_patterns', {})
+                # Record whether the VK wall was actually readable so an empty
+                # behavioral section doesn't read as "no activity" when the wall
+                # was private / the token failed (VK returns 200 + error body).
+                _vk_wall_status = behavioral_results.get('vk_wall_status', '')
+                if _vk_wall_status:
+                    _ss = check.source_statuses or {}
+                    _ss['vk_wall'] = _vk_wall_status
+                    check.source_statuses = _ss
                 db.session.commit()
 
                 has_text = bool(behavioral_results.get('text_analysis'))

@@ -1684,6 +1684,20 @@
     {# ================================================================
        14. BEHAVIORAL ANALYSIS (Stage 6)
        ================================================================ #}
+    {% set vk_wall_status = (source_statuses or {}).get('vk_wall', '') %}
+    {% set vk_wall_failed_labels = {
+        'private': 'стена скрыта настройками приватности',
+        'error': 'ошибка доступа к VK',
+        'no_token': 'нет VK-токена',
+    } %}
+    {% if not text_analysis and vk_wall_status in vk_wall_failed_labels %}
+    <section class="mb-10">
+        <div class="mb-4 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+            &#x26A0;&#xFE0F; Поведенческий анализ не выполнен ({{ vk_wall_failed_labels[vk_wall_status] }}) — отсутствие активности не подтверждено.
+        </div>
+    </section>
+    {% endif %}
+
     {% if text_analysis %}
     <section id="sec-behavioral" class="mb-10">
         <div class="section-header">
