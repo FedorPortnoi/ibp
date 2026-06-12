@@ -33,13 +33,14 @@ def test_fssp_search_uses_stubbed_ajax_without_network():
         patch.object(fssp_service.FSSPService, '_search_playwright', fail_if_called),
     ):
         svc = fssp_service.FSSPService(timeout=1)
-        results = svc.search('Иванов Иван Иванович', '1990-01-01', 'Москва')
+        results, status = svc.search_with_status('Иванов Иван Иванович', '1990-01-01', 'Москва')
 
     assert isinstance(results, list), "FAIL: not a list"
     assert calls == [('Иванов', 'Иван', 'Иванович', '01.01.1990', '77')]
     assert len(results) == 1
     assert results[0].source == 'stubbed ajax'
     assert results[0].debtor_name == 'Иванов Иван Иванович'
+    assert status == 'ok'
 
 
 def test_fssp_search_manual_fallback_without_network():
@@ -60,11 +61,23 @@ def test_fssp_search_manual_fallback_without_network():
         patch.object(fssp_service.FSSPService, '_search_playwright', fail_if_called),
     ):
         svc = fssp_service.FSSPService(timeout=1)
-        records = svc.search('Иванов Иван Иванович', '01.01.1990', 'Москва')
+        records, status = svc.search_with_status('Иванов Иван Иванович', '01.01.1990', 'Москва')
 
     assert len(records) == 1
     assert records[0].source == 'manual'
     assert records[0].debtor_name == 'Иванов Иван Иванович'
+    assert status == 'blocked'
+
+    # Back-compat: search() still returns just the list.
+    with (
+        patch.dict(os.environ, {'FSSP_API_TOKEN': ''}),
+        patch.object(fssp_service, 'PLAYWRIGHT_AVAILABLE', False),
+        patch.object(fssp_service.FSSPService, '_search_api', fail_if_called),
+        patch.object(fssp_service.FSSPService, '_search_ajax', fake_ajax),
+        patch.object(fssp_service.FSSPService, '_search_playwright', fail_if_called),
+    ):
+        legacy = fssp_service.FSSPService(timeout=1).search('Иванов Иван Иванович', '01.01.1990', 'Москва')
+    assert isinstance(legacy, list) and legacy[0].source == 'manual'
 
 
 def test_dob_format():

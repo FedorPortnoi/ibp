@@ -270,20 +270,54 @@ class SanctionsService:
 
     # ── Primary: OpenSanctions API ────────────────────────────────
 
+    # OpenSanctions last_status → (was the screening actually performed?, message).
+    # CRITICAL: an empty match list only means "not sanctioned" when the query
+    # actually ran (status 'ok'). Without an API key the API returns nothing,
+    # and reporting that as checked=True/found=False is a false clean on the
+    # single highest-stakes check (terrorism financing, OFAC, UN sanctions).
+    _OPENSANCTIONS_FAILURE_MESSAGES = {
+        'missing_credentials': 'API-ключ OpenSanctions не настроен — проверка не выполнена',
+        'auth_failed': 'Ошибка авторизации OpenSanctions — проверка не выполнена',
+        'rate_limited': 'OpenSanctions ограничил запросы (429) — проверка не выполнена',
+        'timeout': 'OpenSanctions: таймаут — проверка не выполнена',
+        'connection_error': 'OpenSanctions недоступен — проверка не выполнена',
+        'server_error': 'OpenSanctions: ошибка сервера — проверка не выполнена',
+        'error': 'OpenSanctions: ошибка — проверка не выполнена',
+        'not_checked': 'OpenSanctions: проверка не выполнена',
+    }
+
     def _check_opensanctions(
         self, full_name: str, birth_date: Optional[str] = None,
     ) -> List[SanctionsResult]:
         """
         Check OpenSanctions API for sanctions matches.
         Returns list of SanctionsResult (one per matching dataset).
+
+        Honors the service's last_status: only an 'ok' status means the
+        screening ran. Any other status yields checked=False so the dossier
+        shows "источник недоступен" rather than a false "не найден".
         """
         try:
             from app.services.candidate.opensanctions_service import OpenSanctionsService
             svc = OpenSanctionsService(timeout=self.TIMEOUT)
             matches = svc.check_person(full_name, birth_date=birth_date)
+            status = getattr(svc, 'last_status', 'ok')
+
+            if status != 'ok':
+                message = self._OPENSANCTIONS_FAILURE_MESSAGES.get(
+                    status, f'OpenSanctions недоступен ({status})'
+                )
+                logger.info("OpenSanctions not screened: %s", message)
+                return [SanctionsResult(
+                    source_name='OpenSanctions',
+                    checked=False,
+                    found=False,
+                    error=message,
+                    url='https://opensanctions.org/',
+                )]
 
             if not matches:
-                # Checked successfully, no matches
+                # Query actually ran and returned nothing → genuinely clean.
                 return [SanctionsResult(
                     source_name='OpenSanctions',
                     checked=True,
@@ -407,8 +441,14 @@ class SanctionsService:
 
     def _check_rosfinmonitoring(self, full_name: str) -> SanctionsResult:
         """
-        Check Rosfinmonitoring terrorism/sanctions list.
-        Fetches the page at fedsfm.ru and searches for the name in text.
+        Check Rosfinmonitoring terrorism/sanctions list (fallback).
+
+        fedsfm.ru is geo-restricted (SSL/connection failure from non-Russian
+        IPs, probed 2026-06-11) → reported as checked=False, not a false clean.
+        The authoritative path is OpenSanctions, whose ru_fedsfm_terror /
+        ru_fedsfm_wmd datasets ARE this list, properly indexed; this direct
+        scraper only matters from a Russian IP without an OpenSanctions key,
+        and then only does a single-page substring check.
         """
         url = 'https://www.fedsfm.ru/documents/terrorists-catalog-portal-act'
         try:
@@ -460,108 +500,10 @@ class SanctionsService:
                 url=url,
             )
 
-    # ── Source 2: МВД Розыск ──────────────────────────────────────
-
-    def _check_mvd_wanted(self, full_name: str) -> SanctionsResult:
-        """
-        Check MVD wanted persons list.
-        The site uses Cyrillic domain (xn--b1aew.xn--p1ai).
-        """
-        base_url = 'https://xn--b1aew.xn--p1ai/wanted'
-        url = base_url
-        try:
-            parts = full_name.strip().split()
-            if len(parts) >= 2:
-                # Try search with name params
-                params = {
-                    'lastName': parts[0],
-                    'firstName': parts[1],
-                }
-                if len(parts) > 2:
-                    params['middleName'] = parts[2]
-                r = requests.get(
-                    base_url,
-                    params=params,
-                    headers=HEADERS,
-                    timeout=self.TIMEOUT,
-                    allow_redirects=True,
-                )
-            else:
-                r = requests.get(
-                    base_url,
-                    headers=HEADERS,
-                    timeout=self.TIMEOUT,
-                )
-
-            r.raise_for_status()
-            r.encoding = r.apparent_encoding or 'utf-8'
-            text = r.text
-
-            # Check for actual person cards in search results
-            # MVD wanted page shows person blocks with names
-            match = _name_matches(full_name, text)
-            if match:
-                # Verify it's in a result context, not just page chrome
-                lower_text = text.lower()
-                name_lower = full_name.lower()
-                # Look for the name near wanted-related markers
-                idx = lower_text.find(name_lower)
-                if idx == -1:
-                    # Try last+first only
-                    search_parts = full_name.strip().split()
-                    search_term = f"{search_parts[0]} {search_parts[1]}".lower()
-                    idx = lower_text.find(search_term)
-
-                if idx >= 0:
-                    # Check surrounding context for result markers
-                    context = lower_text[max(0, idx - 500):idx + 500]
-                    result_markers = [
-                        'розыск', 'wanted', 'фио', 'person',
-                        'card', 'result', 'item',
-                    ]
-                    if any(m in context for m in result_markers):
-                        return SanctionsResult(
-                            source_name='МВД Розыск',
-                            checked=True,
-                            found=True,
-                            match_details=match,
-                            url=url,
-                        )
-
-            return SanctionsResult(
-                source_name='МВД Розыск',
-                checked=True,
-                found=False,
-                url=url,
-            )
-
-        except requests.Timeout:
-            return SanctionsResult(
-                source_name='МВД Розыск',
-                checked=False,
-                found=False,
-                error='Таймаут соединения',
-                url=url,
-            )
-        except requests.ConnectionError:
-            return SanctionsResult(
-                source_name='МВД Розыск',
-                checked=False,
-                found=False,
-                error='Сайт недоступен (возможна геоблокировка)',
-                url=url,
-            )
-        except Exception as e:
-            logger.warning(f"MVD wanted check error: {e}")
-            return SanctionsResult(
-                source_name='МВД Розыск',
-                checked=False,
-                found=False,
-                error=f'Ошибка: {e}',
-                url=url,
-            )
-
-    # ── Source 3: Интерпол ────────────────────────────────────────
+    # ── Интерпол ──────────────────────────────────────────────────
+    # (Live МВД-розыск and Minjust-extremist scrapers were removed
+    #  2026-06-11: never called from check_all, geo-blocked, and only did
+    #  single-page substring matching. Local DBs + OpenSanctions cover these.)
 
     def _check_interpol(self, full_name: str) -> SanctionsResult:
         """
@@ -721,57 +663,3 @@ class SanctionsService:
                 url='https://www.interpol.int/en/How-we-work/Notices/View-Red-Notices',
             )
 
-    # ── Source 4: Перечень экстремистов ───────────────────────────
-
-    def _check_extremists(self, full_name: str) -> SanctionsResult:
-        """
-        Check Minjust extremist organizations/persons list.
-        """
-        url = 'https://minjust.gov.ru/ru/extremist-materials/'
-        alt_url = 'https://minjust.gov.ru/ru/activity/directions/942/'
-
-        for check_url in [url, alt_url]:
-            try:
-                r = requests.get(
-                    check_url,
-                    headers=HEADERS,
-                    timeout=self.TIMEOUT,
-                )
-                r.raise_for_status()
-                r.encoding = r.apparent_encoding or 'utf-8'
-                text = r.text
-
-                match = _name_matches(full_name, text)
-                if match:
-                    return SanctionsResult(
-                        source_name='Перечень экстремистов',
-                        checked=True,
-                        found=True,
-                        match_details=match,
-                        url=check_url,
-                    )
-
-            except requests.Timeout:
-                continue
-            except requests.ConnectionError:
-                continue
-            except Exception as e:
-                logger.warning(f"Extremist list check error ({check_url}): {e}")
-                continue
-
-            # If we got here, the page loaded but no match was found
-            return SanctionsResult(
-                source_name='Перечень экстремистов',
-                checked=True,
-                found=False,
-                url=check_url,
-            )
-
-        # All URLs failed
-        return SanctionsResult(
-            source_name='Перечень экстремистов',
-            checked=False,
-            found=False,
-            error='Сайт недоступен (возможна геоблокировка)',
-            url=url,
-        )

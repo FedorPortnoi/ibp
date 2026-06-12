@@ -1,12 +1,17 @@
 """
 ЕФРСБ Bankruptcy Service
 ========================
-Searches for bankruptcy proceedings via bankrot.fedresurs.ru.
+Searches for bankruptcy proceedings via bankrot.fedresurs.ru / fedresurs.ru.
 
 Strategy:
-1. Try the JSON API endpoint (no auth required)
-2. Fall back to Playwright scraper
-3. Fall back to manual search URL
+1. fedresurs.ru/backend/bankrupts JSON API (newer, preferred)
+2. bankrot.fedresurs.ru/api/v1/debtors legacy JSON API
+3. Playwright HTML scraper (last resort)
+4. Manual search URL fallback
+
+Geo-note: both fedresurs.ru and bankrot.fedresurs.ru are geo-blocked outside
+Russia. Timeouts are expected from non-Russian IPs — same as kad.arbitr.ru.
+The service runs on Yandex Cloud VM (Russian IP) in production.
 """
 
 import logging
@@ -693,42 +698,67 @@ class BankruptcyService:
         dob: Optional[str] = None,
     ) -> List[BankruptcyRecord]:
         """
-        Filter results to match our candidate.
-        INN match is exact. Name match is fuzzy.
+        Filter API results to match our specific candidate.
+
+        Priority:
+        1. INN exact match → definite hit, return immediately.
+        2. calculate_name_similarity >= 0.65 → confident name match.
+        3. Surname stem match (first 5 chars) → catches Russian gender
+           inflection (Иванов/Иванова) that pure word matching misses.
+
+        Returns empty list when no records match — never returns all records
+        as a fallback, which would produce mass false-positives for common
+        names.
+
+        dob is forwarded to the API call upstream; it is not re-applied here
+        because the API response rarely surfaces a parseable birth date.
         """
         if not records:
             return records
 
-        # If we have INN, records matching INN are definite matches
+        from app.utils.name_similarity import calculate_name_similarity
+
+        # INN exact match — highest confidence, short-circuit
         if inn:
             inn_matches = [r for r in records if r.debtor_inn == inn]
             if inn_matches:
                 return inn_matches
 
-        # Otherwise filter by name similarity
-        query_parts = set(full_name.lower().split())
+        query_tokens = full_name.lower().split()
+        query_surname = query_tokens[0] if query_tokens else ''
+        query_first = query_tokens[1] if len(query_tokens) > 1 else ''
 
         filtered = []
         for record in records:
             if not record.debtor_name:
-                # Keep records without a name (they matched on search query)
+                # Record matched on search string but has no parsed name —
+                # trust the API result.
                 filtered.append(record)
                 continue
 
-            record_parts = set(record.debtor_name.lower().split())
-
-            # At least 2 parts must match (last name + first name)
-            common = query_parts & record_parts
-            if len(common) >= 2:
+            # Primary: fuzzy name similarity (threshold 0.75 requires roughly
+            # 2 of 3 name parts to match — prevents "same surname" false positives)
+            sim = calculate_name_similarity(full_name, record.debtor_name)
+            if sim >= 0.75:
                 filtered.append(record)
-            elif len(query_parts) == 2 and len(common) >= 1:
-                # If query has only 2 parts, 1 match is enough
-                # but only if the matching part is the last name (first word)
-                query_last = full_name.lower().split()[0]
-                if query_last in record_parts:
-                    filtered.append(record)
+                continue
 
-        return filtered if filtered else records
+            # Fallback: stem match for Russian gender/case inflection.
+            # Requires BOTH surname AND first-name stems — surname alone is
+            # too broad (Иванов Иван vs Иванов Борис would wrongly pass).
+            rec_tokens = record.debtor_name.lower().split()
+            rec_surname = rec_tokens[0] if rec_tokens else ''
+            rec_first = rec_tokens[1] if len(rec_tokens) > 1 else ''
+
+            surname_stem = (len(query_surname) >= 5 and len(rec_surname) >= 5
+                            and query_surname[:5] == rec_surname[:5])
+            first_stem = (len(query_first) >= 4 and len(rec_first) >= 4
+                          and query_first[:4] == rec_first[:4])
+
+            if surname_stem and first_stem:
+                filtered.append(record)
+
+        return filtered
 
     # ── Helpers ────────────────────────────────────────────────────
 

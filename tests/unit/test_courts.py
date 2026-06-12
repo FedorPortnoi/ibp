@@ -14,8 +14,12 @@ def test_court_search_no_crash(monkeypatch):
     import app.services.phase3.reputation_su_service as reputation_su
     from app.services.phase3.court_search import CourtRecordSearch
 
+    import app.services.phase3.kad_arbitr_service as kad_arbitr
     monkeypatch.setattr(court_search, 'PLAYWRIGHT_AVAILABLE', False)
-    monkeypatch.setattr(reputation_su, 'search_reputation_su', lambda name: [])
+    monkeypatch.setattr(reputation_su, 'search_reputation_su',
+                        lambda name, **kw: ([], 'empty'))
+    monkeypatch.setattr(kad_arbitr, 'search_kad_arbitr_person',
+                        lambda name, **kw: ([], 'empty'))
     monkeypatch.setattr(
         CourtRecordSearch,
         '_search_sudact_basic',
@@ -24,7 +28,7 @@ def test_court_search_no_crash(monkeypatch):
     monkeypatch.setattr(
         CourtRecordSearch,
         '_search_sudebnye_resheniya',
-        lambda self, name, limit: (_ for _ in ()).throw(requests.Timeout("test timeout")),
+        lambda self, name, limit, **kw: (_ for _ in ()).throw(requests.Timeout("test timeout")),
     )
 
     svc = CourtRecordSearch(timeout=1)
@@ -70,8 +74,12 @@ def test_court_search_returns_court_case_objects(monkeypatch):
     import app.services.phase3.reputation_su_service as reputation_su
     from app.services.phase3.court_search import CourtRecordSearch, CourtCase
 
+    import app.services.phase3.kad_arbitr_service as kad_arbitr
     monkeypatch.setattr(court_search, 'PLAYWRIGHT_AVAILABLE', False)
-    monkeypatch.setattr(reputation_su, 'search_reputation_su', lambda name: [])
+    monkeypatch.setattr(reputation_su, 'search_reputation_su',
+                        lambda name, **kw: ([], 'empty'))
+    monkeypatch.setattr(kad_arbitr, 'search_kad_arbitr_person',
+                        lambda name, **kw: ([], 'empty'))
     monkeypatch.setattr(
         CourtRecordSearch,
         '_search_sudact_basic',
@@ -83,7 +91,8 @@ def test_court_search_returns_court_case_objects(monkeypatch):
             )
         ],
     )
-    monkeypatch.setattr(CourtRecordSearch, '_search_sudebnye_resheniya', lambda self, name, limit: [])
+    monkeypatch.setattr(CourtRecordSearch, '_search_sudebnye_resheniya',
+                        lambda self, name, limit, **kw: [])
 
     svc = CourtRecordSearch(timeout=1)
     results = svc.search_by_name('Петров Сергей')

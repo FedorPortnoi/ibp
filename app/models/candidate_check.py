@@ -43,10 +43,21 @@ class CandidateCheck(db.Model):
     # Results (JSON)
     _business_records = db.Column('business_records', db.Text, default='[]')
     _court_records = db.Column('court_records', db.Text, default='[]')
+    # Per-source court search outcome: {'kad.arbitr.ru': 'blocked', ...}.
+    # Lets the dossier distinguish "no cases found" from "source unreadable".
+    _court_source_statuses = db.Column('court_source_statuses', db.Text, default='{}')
     _fssp_records = db.Column('fssp_records', db.Text, default='[]')
+    # Enforcement-search outcome: 'ok'/'empty'/'blocked'/'rate_limited'/
+    # 'timeout'/'error'. Distinguishes "no debts" from "source unreadable".
+    fssp_status = db.Column(db.String(20), default='')
     _bankruptcy_records = db.Column('bankruptcy_records', db.Text, default='[]')
     _sanctions_results = db.Column('sanctions_results', db.Text, default='[]')
     _pledge_records = db.Column('pledge_records', db.Text, default='[]')
+    # General per-source status map for single-provider sources, e.g.
+    # {'reestr-zalogov.ru': 'blocked'}. Courts use court_source_statuses and
+    # enforcement uses fssp_status; everything else lands here. Lets the
+    # dossier tell "nothing found" apart from "source was unreadable".
+    _source_statuses = db.Column('source_statuses', db.Text, default='{}')
     _social_media_profiles = db.Column('social_media_profiles', db.Text, default='[]')
     _contact_discoveries = db.Column('contact_discoveries', db.Text, default='{}')
 
@@ -150,6 +161,15 @@ class CandidateCheck(db.Model):
     def court_records(self, value):
         self._court_records = self._dump_json(value)
 
+    # court_source_statuses
+    @property
+    def court_source_statuses(self):
+        return self._load_json(self._court_source_statuses, {})
+
+    @court_source_statuses.setter
+    def court_source_statuses(self, value):
+        self._court_source_statuses = self._dump_json(value)
+
     # fssp_records
     @property
     def fssp_records(self):
@@ -185,6 +205,15 @@ class CandidateCheck(db.Model):
     @pledge_records.setter
     def pledge_records(self, value):
         self._pledge_records = self._dump_json(value)
+
+    # source_statuses (general per-source status map)
+    @property
+    def source_statuses(self):
+        return self._load_json(self._source_statuses, {})
+
+    @source_statuses.setter
+    def source_statuses(self, value):
+        self._source_statuses = self._dump_json(value)
 
     # social_media_profiles
     @property

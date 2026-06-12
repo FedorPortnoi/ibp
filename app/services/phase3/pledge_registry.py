@@ -3,19 +3,23 @@ Pledge Registry Search — reestr-zalogov.ru (Реестр залогов ФНП
 ===============================================================
 Searches the Federal Notary Chamber's pledge registry for pledged assets.
 
-The site uses Google reCAPTCHA, so automated search is limited.
-Primary strategy: Playwright-based search with fallback to manual URL.
+The site uses Google reCAPTCHA on the by-pledgor search, so automated
+name search is blocked by design from any IP (probed 2026-06-11: the
+challenge is always present). A reCAPTCHA-blocked attempt is otherwise
+indistinguishable from "this person has pledged nothing", so
+search_by_name returns (records, status): 'blocked' means the registry
+was NOT searched and an empty list must never read as "no pledges".
 
 Usage:
     from app.services.phase3.pledge_registry import PledgeRegistrySearch
     svc = PledgeRegistrySearch()
-    results = svc.search_by_name("Иванов Иван Иванович")
+    results, status = svc.search_by_name("Иванов Иван Иванович")
 """
 
 import logging
 import re
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
@@ -70,35 +74,44 @@ class PledgeRegistrySearch:
     def __init__(self, timeout: int = 30):
         self.timeout = timeout
 
-    def search_by_name(self, full_name: str) -> List[PledgeRecord]:
-        """Search pledge registry by person name."""
+    def search_by_name(self, full_name: str) -> Tuple[List[PledgeRecord], str]:
+        """Search pledge registry by person name.
+
+        Returns (records, status). Status:
+        - 'ok'          — search ran, >=1 pledge parsed
+        - 'empty'       — search ran (no reCAPTCHA), no pledges for this name
+        - 'blocked'     — reCAPTCHA challenge; registry not searched
+        - 'unavailable' — Playwright not installed (cannot drive the JS form)
+        - 'skipped'     — empty input
+        - 'error'       — unexpected failure
+
+        Anything other than 'ok'/'empty' means the registry was NOT searched;
+        the empty list must not be presented as "no pledged assets".
+        """
         if not full_name or not full_name.strip():
-            return []
+            return [], 'skipped'
 
         logger.info(f"Pledge registry: searching for '{full_name}'")
 
-        # Try Playwright search
         try:
-            results = self._search_playwright(full_name)
-            if results:
-                logger.info(f"Pledge registry: found {len(results)} records via Playwright")
-                return results
+            return self._search_playwright(full_name)
         except Exception as e:
             logger.warning(f"Pledge registry Playwright search failed: {e}")
+            return [], 'error'
 
-        # Return empty — manual URL provided separately
-        logger.info("Pledge registry: no automated results (reCAPTCHA likely)")
-        return []
+    def _search_playwright(self, full_name: str) -> Tuple[List[PledgeRecord], str]:
+        """Search using Playwright for JS-rendered content.
 
-    def _search_playwright(self, full_name: str) -> List[PledgeRecord]:
-        """Search using Playwright for JS-rendered content."""
+        Returns (records, status) — see search_by_name for the status set.
+        """
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:
             logger.debug("Playwright not available for pledge search")
-            return []
+            return [], 'unavailable'
 
-        results = []
+        results: List[PledgeRecord] = []
+        status = 'error'
         browser = None
 
         try:
@@ -121,32 +134,37 @@ class PledgeRegistrySearch:
                         'form input[type="text"], input.form-control'
                     )
 
-                if name_input:
-                    name_input.fill(full_name)
-                    page.wait_for_timeout(500)
+                if not name_input:
+                    # Couldn't find the form — page structure changed or an
+                    # interstitial is up. Not a confirmed "no results".
+                    logger.info("Pledge registry: search form not found")
+                    return [], 'blocked'
 
-                    # Submit form
-                    submit_btn = page.query_selector(
-                        'button[type="submit"], input[type="submit"], '
-                        '.btn-search, button.btn-primary'
-                    )
-                    if submit_btn:
-                        submit_btn.click()
-                        page.wait_for_timeout(3000)
+                name_input.fill(full_name)
+                page.wait_for_timeout(500)
 
-                    # Check for reCAPTCHA challenge
-                    captcha = page.query_selector(
-                        'iframe[src*="recaptcha"], .g-recaptcha, #recaptcha'
-                    )
-                    if captcha:
-                        logger.info("Pledge registry: reCAPTCHA detected, cannot proceed")
-                        return []
+                submit_btn = page.query_selector(
+                    'button[type="submit"], input[type="submit"], '
+                    '.btn-search, button.btn-primary'
+                )
+                if submit_btn:
+                    submit_btn.click()
+                    page.wait_for_timeout(3000)
 
-                    # Parse results
-                    results = self._parse_playwright_results(page)
+                # reCAPTCHA challenge → registry not searched
+                captcha = page.query_selector(
+                    'iframe[src*="recaptcha"], .g-recaptcha, #recaptcha'
+                )
+                if captcha:
+                    logger.info("Pledge registry: reCAPTCHA detected, cannot proceed")
+                    return [], 'blocked'
+
+                results = self._parse_playwright_results(page)
+                status = 'ok' if results else 'empty'
 
         except Exception as e:
             logger.warning(f"Pledge registry Playwright error: {e}")
+            status = 'error'
         finally:
             if browser:
                 try:
@@ -154,7 +172,7 @@ class PledgeRegistrySearch:
                 except Exception:
                     pass
 
-        return results
+        return results, status
 
     def _parse_playwright_results(self, page) -> List[PledgeRecord]:
         """Parse search results from Playwright page."""

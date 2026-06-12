@@ -282,6 +282,10 @@
         </div>
         <p class="text-sm text-gray-300 leading-relaxed">{{ check.executive_summary }}</p>
     </div>
+    {% elif (source_statuses or {}).get('ai_summary') in ('unavailable', 'error') %}
+    <div class="mb-6 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+        &#x26A0;&#xFE0F; AI-сводки не сформированы ({{ 'AI-ключ не настроен' if (source_statuses or {}).get('ai_summary') == 'unavailable' else 'ошибка AI-сервиса' }}) — это не влияет на собранные данные.
+    </div>
     {% endif %}
 
     {# ================================================================
@@ -632,11 +636,39 @@
             {% endif %}
         </div>
 
+        {# Per-source availability: an unreadable source is NOT a clean record #}
+        {% set court_status_labels = {
+            'blocked': 'заблокирован (гео)',
+            'timeout': 'таймаут',
+            'http_error': 'ошибка HTTP',
+            'rate_limited': 'лимит запросов',
+            'error': 'ошибка',
+        } %}
+        {% set failed_court_sources = [] %}
+        {% for src, st in (court_source_statuses or {}).items() %}
+            {% if st in court_status_labels %}
+                {% set _ = failed_court_sources.append(src ~ ' — ' ~ court_status_labels[st]) %}
+            {% endif %}
+        {% endfor %}
+
         {% if court_records is none %}
             <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
         {% elif court_records|length == 0 %}
-            <div class="empty-state good">Нет</div>
+            {% if failed_court_sources %}
+                <div class="empty-state stub" style="border-color: rgba(234,179,8,0.3);">
+                    &#x26A0;&#xFE0F; Дела не найдены, но проверка неполная &mdash; недоступны источники:
+                    {{ failed_court_sources|join(', ') }}.
+                    Отсутствие записей не подтверждено.
+                </div>
+            {% else %}
+                <div class="empty-state good">Нет</div>
+            {% endif %}
         {% else %}
+            {% if failed_court_sources %}
+            <div class="mb-3 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+                Часть источников недоступна: {{ failed_court_sources|join(', ') }} &mdash; список дел может быть неполным.
+            </div>
+            {% endif %}
             {# Confidence summary #}
             {% set verified_count = court_records | selectattr('confidence', 'defined') | selectattr('confidence', 'equalto', 'VERIFIED') | list | length %}
             {% set likely_count = court_records | selectattr('confidence', 'defined') | selectattr('confidence', 'equalto', 'LIKELY') | list | length %}
@@ -774,10 +806,25 @@
             {% endif %}
         </div>
 
+        {% set fssp_failed_labels = {
+            'blocked': 'CAPTCHA / геоблок',
+            'rate_limited': 'ограничение запросов (429)',
+            'timeout': 'таймаут',
+            'http_error': 'ошибка HTTP',
+            'error': 'источник недоступен',
+        } %}
         {% if fssp_records is none %}
             <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
         {% elif fssp_records|length == 0 %}
-            <div class="empty-state good">Нет</div>
+            {% if fssp_status in fssp_failed_labels %}
+                <div class="empty-state stub" style="border-color: rgba(234,179,8,0.3);">
+                    &#x26A0;&#xFE0F; Проверка неполная — {{ fssp_failed_labels[fssp_status] }}.
+                    Отсутствие производств не подтверждено, требуется ручная проверка на
+                    <a href="https://fssp.gov.ru/iss/ip/" target="_blank" rel="noopener" class="text-accent">fssp.gov.ru</a>.
+                </div>
+            {% else %}
+                <div class="empty-state good">Нет</div>
+            {% endif %}
         {% else %}
             {% for proc in fssp_records %}
                 {% if proc.get('source') == 'manual' %}
@@ -945,7 +992,14 @@
                 </div>
             {% endfor %}
         {% else %}
-            <div class="empty-state good">Нет</div>
+            {% set pledge_status = (source_statuses or {}).get('reestr-zalogov.ru', '') %}
+            {% if pledge_status not in ('ok', 'empty', '') %}
+                <div class="empty-state stub" style="border-color: rgba(234,179,8,0.3);">
+                    &#x26A0;&#xFE0F; Реестр не проверен (reCAPTCHA) — отсутствие залогов не подтверждено.
+                </div>
+            {% else %}
+                <div class="empty-state good">Нет</div>
+            {% endif %}
             <div class="text-xs text-gray-500 mt-2">
                 <a href="https://www.reestr-zalogov.ru/search/index" target="_blank" rel="noopener"
                    class="text-accent hover:text-accent-bright transition">
@@ -1253,13 +1307,19 @@
        10b. BREACH INTELLIGENCE (Stage 4)
        ================================================================ #}
     {% set bi = contacts.get('breach_intelligence', {}) if contacts else {} %}
-    {% if bi and (bi.get('services_used') or bi.get('old_emails') or bi.get('breach_count', 0) > 0) %}
+    {% if bi and (bi.get('services_used') or bi.get('old_emails') or bi.get('breach_count', 0) > 0 or bi.get('sources_failed')) %}
     <section id="sec-breach-intel" class="mb-10">
         <div class="section-header">
             <h2>&#x1F513; Анализ утечек данных</h2>
             <span class="section-count">{{ bi.get('breach_count', 0) }} утечек</span>
         </div>
         <div class="dossier-card">
+            {% if bi.get('sources_failed') %}
+            <div class="mb-4 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+                &#x26A0;&#xFE0F; Проверка утечек неполная — недоступны источники: {{ bi.get('sources_failed', [])|join(', ') }}.
+                {% if bi.get('breach_count', 0) == 0 %}Отсутствие утечек не подтверждено.{% else %}Список может быть неполным.{% endif %}
+            </div>
+            {% endif %}
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-center mb-4">
                 <div>
                     <div class="text-lg font-bold {% if bi.get('breach_count', 0) >= 5 %}text-red-400{% elif bi.get('breach_count', 0) >= 1 %}text-yellow-400{% else %}text-green-400{% endif %}">{{ bi.get('breach_count', 0) }}</div>
@@ -1325,12 +1385,35 @@
     {# ================================================================
        11. FOUND ACCOUNTS (Stage 5)
        ================================================================ #}
-    {% if username_accounts or face_matches %}
+    {% set face_status = (source_statuses or {}).get('search4faces', '') %}
+    {% set face_failed_labels = {
+        'unavailable': 'нет API-ключа и браузерная проверка недоступна',
+        'no_face': 'на фото не обнаружено лица',
+        'error': 'ошибка',
+    } %}
+    {% set username_search_status = (source_statuses or {}).get('username_search', '') %}
+    {% set username_failed_labels = {
+        'unavailable': 'инструменты поиска по нику не установлены',
+        'error': 'ошибка',
+    } %}
+    {% if username_accounts or face_matches or face_status in face_failed_labels or username_search_status in username_failed_labels %}
     <section id="sec-accounts" class="mb-10">
         <div class="section-header">
             <h2>&#x1F465; Найденные аккаунты</h2>
             <span class="section-count">{{ username_accounts|length }} аккаунтов{% if face_matches %}, {{ face_matches|length }} совпадений лиц{% endif %}</span>
         </div>
+
+        {% if not face_matches and face_status in face_failed_labels %}
+        <div class="mb-4 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+            &#x26A0;&#xFE0F; Поиск по фото не выполнен ({{ face_failed_labels[face_status] }}) — отсутствие совпадений по лицу не подтверждено.
+        </div>
+        {% endif %}
+
+        {% if not username_accounts and username_search_status in username_failed_labels %}
+        <div class="mb-4 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+            &#x26A0;&#xFE0F; Поиск аккаунтов по нику не выполнен ({{ username_failed_labels[username_search_status] }}) — отсутствие аккаунтов не подтверждено.
+        </div>
+        {% endif %}
 
         {% if face_matches %}
         <div class="mb-4">
@@ -1605,6 +1688,20 @@
     {# ================================================================
        14. BEHAVIORAL ANALYSIS (Stage 6)
        ================================================================ #}
+    {% set vk_wall_status = (source_statuses or {}).get('vk_wall', '') %}
+    {% set vk_wall_failed_labels = {
+        'private': 'стена скрыта настройками приватности',
+        'error': 'ошибка доступа к VK',
+        'no_token': 'нет VK-токена',
+    } %}
+    {% if not text_analysis and vk_wall_status in vk_wall_failed_labels %}
+    <section class="mb-10">
+        <div class="mb-4 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+            &#x26A0;&#xFE0F; Поведенческий анализ не выполнен ({{ vk_wall_failed_labels[vk_wall_status] }}) — отсутствие активности не подтверждено.
+        </div>
+    </section>
+    {% endif %}
+
     {% if text_analysis %}
     <section id="sec-behavioral" class="mb-10">
         <div class="section-header">

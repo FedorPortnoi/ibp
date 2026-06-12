@@ -44,6 +44,22 @@ def _get_client():
         return None
 
 
+def is_available() -> bool:
+    """Lightweight check (no network, no client construction): is Claude usable?
+
+    True only if ANTHROPIC_API_KEY is set AND the anthropic package is importable.
+    Lets the pipeline record an honest 'unavailable' AI status so a dossier with
+    no AI sections isn't mistaken for "AI ran and found nothing notable".
+    """
+    if not os.environ.get('ANTHROPIC_API_KEY'):
+        return False
+    try:
+        import anthropic  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
 def _call_claude(system_prompt, user_content, max_tokens=_MAX_TOKENS):
     """Make a Claude API call. Returns response text or None on failure."""
     client = _get_client()

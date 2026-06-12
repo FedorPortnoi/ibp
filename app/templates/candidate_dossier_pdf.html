@@ -183,11 +183,34 @@
     {% if court_records is not none %}<span class="count">&mdash; {{ court_records|length }} дел</span>{% endif %}
 </h2>
 
+{% set court_status_labels = {
+    'blocked': 'заблокирован (гео)',
+    'timeout': 'таймаут',
+    'http_error': 'ошибка HTTP',
+    'rate_limited': 'лимит запросов',
+    'error': 'ошибка',
+} %}
+{% set failed_court_sources = [] %}
+{% for src, st in (court_source_statuses or {}).items() %}
+    {% if st in court_status_labels %}
+        {% set _ = failed_court_sources.append(src ~ ' — ' ~ court_status_labels[st]) %}
+    {% endif %}
+{% endfor %}
+
 {% if court_records is none %}
     <div class="empty">Источник не подключён</div>
 {% elif court_records|length == 0 %}
-    <div class="clean">Судебных дел не найдено</div>
+    {% if failed_court_sources %}
+        <div class="empty">Дела не найдены, но проверка неполная &mdash; недоступны источники:
+            {{ failed_court_sources|join(', ') }}. Отсутствие записей не подтверждено.</div>
+    {% else %}
+        <div class="clean">Судебных дел не найдено</div>
+    {% endif %}
 {% else %}
+    {% if failed_court_sources %}
+        <div class="empty">Часть источников недоступна: {{ failed_court_sources|join(', ') }} &mdash;
+            список дел может быть неполным.</div>
+    {% endif %}
     {% for case in court_records %}
     <div class="card">
         <div class="card-head">
@@ -217,10 +240,22 @@
     {% if fssp_records is not none %}<span class="count">&mdash; {{ fssp_records|length }}</span>{% endif %}
 </h2>
 
+{% set fssp_failed_labels = {
+    'blocked': 'CAPTCHA / геоблок',
+    'rate_limited': 'ограничение запросов (429)',
+    'timeout': 'таймаут',
+    'http_error': 'ошибка HTTP',
+    'error': 'источник недоступен',
+} %}
 {% if fssp_records is none %}
     <div class="empty">Источник не подключён</div>
 {% elif fssp_records|length == 0 %}
-    <div class="clean">Исполнительных производств не найдено</div>
+    {% if fssp_status in fssp_failed_labels %}
+        <div class="empty">Проверка неполная &mdash; {{ fssp_failed_labels[fssp_status] }}.
+            Отсутствие производств не подтверждено; требуется ручная проверка на fssp.gov.ru.</div>
+    {% else %}
+        <div class="clean">Исполнительных производств не найдено</div>
+    {% endif %}
 {% else %}
     {% for proc in fssp_records %}
         {% if proc.get('source') == 'manual' %}

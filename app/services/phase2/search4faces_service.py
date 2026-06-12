@@ -651,6 +651,67 @@ def search_all_databases(
     return all_matches
 
 
+def search_all_databases_with_status(
+    image_path: str = None,
+    image_url: str = None,
+    image_bytes: bytes = None,
+    max_results_per_db: int = 20,
+) -> tuple:
+    """Like search_all_databases but also returns a status distinguishing
+    "searched, no match" from "could not search".
+
+    Returns (matches, status) where status is one of:
+    - 'ok'          — a database search ran and returned >=1 match
+    - 'empty'       — a search ran (API key or Playwright) but found no match
+    - 'no_face'     — no detectable face in the supplied photo (can't search)
+    - 'unavailable' — neither the API (no SEARCH4FACES_API_KEY) nor Playwright
+                      could perform the search; result is NOT "no photos found"
+    - 'error'       — image could not be prepared / unexpected failure
+
+    Any status other than 'ok'/'empty' means the photo was NOT actually
+    matched against the database — the empty list must not read as
+    "no photos of this person exist online".
+    """
+    all_matches = []
+    seen_urls = set()
+    any_searchable = False   # a real face search executed (key or browser)
+    any_no_face = False
+
+    for db_name in ['vkok', 'vk01']:
+        try:
+            result = search_by_photo(
+                image_path=image_path, image_url=image_url,
+                image_bytes=image_bytes, database=db_name,
+                max_results=max_results_per_db,
+            )
+        except Exception as exc:
+            logger.warning(f"Search4faces {db_name} raised: {exc}")
+            continue
+
+        if result.success:
+            if result.error and 'no face' in result.error.lower():
+                any_no_face = True
+            else:
+                any_searchable = True
+                for match in result.matches:
+                    if match.profile_url not in seen_urls:
+                        all_matches.append(match)
+                        seen_urls.add(match.profile_url)
+        else:
+            logger.warning(f"Search4faces {db_name} failed: {result.error}")
+        time.sleep(2)
+
+    if all_matches:
+        status = 'ok'
+    elif any_searchable:
+        status = 'empty'
+    elif any_no_face:
+        status = 'no_face'
+    else:
+        status = 'unavailable'
+    return all_matches, status
+
+
 def search_vk_only(
     image_path: str = None,
     image_url: str = None,

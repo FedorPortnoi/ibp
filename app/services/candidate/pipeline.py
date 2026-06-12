@@ -35,16 +35,21 @@ def _normalize_court_confidence(records, candidate_region=None):
     expect the four-level VERIFIED/LIKELY/POSSIBLE/UNVERIFIED system.
 
     Baseline per source:
-      - судебныерешения.рф / casebook.ru: POSSIBLE (participant-name search)
+      - судебныерешения.рф: POSSIBLE (participant-name search)
       - reputation.su: POSSIBLE (aggregator, name search)
+      - kad.arbitr.ru: POSSIBLE for name matches (official cardfile, but a
+        ФИО search still hits namesakes); INN-matched cases arrive already
+        VERIFIED from court_search and are preserved below
       - sudact.ru: UNVERIFIED (full-text search, name may appear anywhere)
 
+    Records whose confidence is already on the four-level scale keep it
+    (the source asserted a final confidence, e.g. kad INN match).
     If the candidate's region matches the court name → upgrade one level.
     """
     SOURCE_BASELINE = {
         'судебныерешения.рф': 'POSSIBLE',
-        'casebook.ru': 'POSSIBLE',
         'reputation.su': 'POSSIBLE',
+        'kad.arbitr.ru': 'POSSIBLE',
         'sudact.ru': 'UNVERIFIED',
     }
     UPGRADE = {
@@ -53,14 +58,27 @@ def _normalize_court_confidence(records, candidate_region=None):
         'LIKELY': 'VERIFIED',
         'VERIFIED': 'VERIFIED',
     }
+    FINAL_LEVELS = ('VERIFIED', 'LIKELY', 'POSSIBLE', 'UNVERIFIED')
+    # Generic geography words would match ANY "... областной суд" — only the
+    # distinctive part of the region name may trigger an upgrade.
+    REGION_STOPWORDS = {
+        'область', 'край', 'республика', 'город', 'округ',
+        'автономный', 'автономная', 'федеральный', 'федерального',
+    }
 
     region_keywords = []
     if candidate_region:
         for word in candidate_region.lower().replace('-', ' ').split():
-            if len(word) >= 4:
-                region_keywords.append(word)
+            if len(word) >= 4 and word not in REGION_STOPWORDS:
+                # Court names inflect region adjectives (Свердловская →
+                # суд СвердловскОЙ области) — match on a stem, not the
+                # exact form, or the upgrade never fires.
+                stem = word[:-2] if len(word) >= 6 else word
+                region_keywords.append(stem)
 
     for r in records:
+        if r.get('confidence') in FINAL_LEVELS:
+            continue  # source already assigned a final confidence
         source = r.get('source', '')
         r['confidence'] = SOURCE_BASELINE.get(source, 'UNVERIFIED')
 
@@ -681,7 +699,22 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             f"По адресу найдено {len(addr_intel['connections'])} связанных лиц",
                             'info',
                         )
+                    elif addr_intel.get('status') in ('error', 'blocked'):
+                        # Don't let an unreadable FNS lookup pass as "no
+                        # connections" — a mass-registration address is a flag.
+                        task.add_message(
+                            'Проверка адреса (связанные лица) не выполнена — '
+                            'источник ФНС недоступен',
+                            'warning',
+                        )
+                    _addr_status = addr_intel.get('status', '')
+                    if _addr_status:
+                        _ss = check.source_statuses or {}
+                        _ss['address_intel'] = _addr_status
+                        check.source_statuses = _ss
+                        db.session.commit()
                 except Exception as e:
+                    db.session.rollback()
                     logger.debug(f"Address intelligence: {e}")
 
             task.update('identity', 'Личность подтверждена', 8)
@@ -792,22 +825,28 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
                 return records
 
-            def _search_courts(full_name):
-                """Search court records — sudact.ru + casebook.ru.
+            def _search_courts(full_name, inn=''):
+                """Search court records — sudact + судебныерешения + reputation.su
+                + kad.arbitr.ru (all inside CourtRecordSearch).
 
-                reputation.su is already called inside CourtRecordSearch.search_by_name();
-                calling it again here was a duplicate network request.
+                casebook.ru was dropped 2026-06-11: /search 404s, the API
+                returns 401 (login wall) — dead code fully covered by kad.
+
+                Returns (records, source_statuses). source_statuses maps source
+                name → 'ok'/'empty'/'blocked'/'timeout'/'error'/... so the
+                dossier can distinguish "no cases" from "source unreadable".
                 """
                 records = []
-                # Primary: sudact.ru (general + arbitration, works globally)
-                logger.info(f"Stage 1 Courts: searching sudact.ru for '{full_name}'")
+                statuses = {}
+                logger.info(f"Stage 1 Courts: searching for '{full_name}'")
                 try:
                     from app.services.phase3.court_search import CourtRecordSearch
                     searcher = CourtRecordSearch(timeout=30)
-                    results = searcher.search_by_name(full_name)
+                    results = searcher.search_by_name(full_name, inn=inn)
+                    statuses = dict(getattr(searcher, 'last_source_statuses', {}) or {})
                     if results:
                         records = [r.to_dict() for r in results]
-                        logger.info(f"Stage 1 Courts sudact.ru: {len(records)} cases")
+                        logger.info(f"Stage 1 Courts: {len(records)} cases")
                         for r in records[:3]:
                             logger.info(
                                 f"  Court: {r.get('case_number', '?')} | "
@@ -815,62 +854,88 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                                 f"Source: {r.get('source', 'N/A')}"
                             )
                     else:
-                        logger.info("Stage 1 Courts sudact.ru: 0 cases")
+                        logger.info(f"Stage 1 Courts: 0 cases (statuses: {statuses})")
                 except Exception as e:
-                    logger.warning(f"Sudact court search failed: {e}")
+                    logger.warning(f"Court search failed: {e}")
 
-                # Supplementary: casebook.ru (arbitration courts, replaces kad.arbitr.ru)
-                try:
-                    from app.services.phase3.casebook_service import CasebookService
-                    casebook = CasebookService(timeout=25)
-                    cb_results = casebook.search_person(full_name)
-                    if cb_results:
-                        existing_numbers = {r.get('case_number', '') for r in records}
-                        for cb in cb_results:
-                            d = cb.to_court_dict()
-                            if d['case_number'] not in existing_numbers:
-                                records.append(d)
-                                existing_numbers.add(d['case_number'])
-                except Exception as e:
-                    logger.warning(f"Casebook court search failed: {e}")
-
-                return records
+                return records, statuses
 
             def _search_fssp(full_name, date_of_birth, region):
-                """Search enforcement proceedings — checko.ru primary, ФССП fallback."""
-                # Primary: checko.ru (globally accessible)
+                """Search enforcement proceedings.
+
+                Provider order: parser-api.com (proxied official ФССП, works
+                from ANY IP) → checko.ru aggregator → CAPTCHA-walled official
+                ФССП. Returns (records, status). Status distinguishes a genuine
+                "no debts" read ('empty') from an unreadable source
+                ('rate_limited'/'blocked'/...) so the dossier never shows a
+                falsely-clean enforcement section. Enforcement is high-stakes
+                (debts/alimony/tax arrears) — a false "Нет" is the worst case.
+                """
+                dob_str = date_of_birth.strftime('%Y-%m-%d') if date_of_birth else None
+
+                # Primary: parser-api.com — official ФССП data, any IP, when keyed.
+                try:
+                    from app.services.candidate.fssp_service import search_fssp_via_parser_api
+                    pa_records, pa_status = search_fssp_via_parser_api(full_name, dob_str)
+                    if pa_status == 'ok':
+                        return [r.to_dict() for r in pa_records], 'ok'
+                    if pa_status == 'empty':
+                        return [], 'empty'
+                    # not_configured / rate_limited / error → fall through
+                except Exception as e:
+                    logger.warning(f"parser-api ФССП search failed: {e}")
+
+                # Secondary: checko.ru (aggregator). Trust a clean read; only
+                # fall through to the CAPTCHA-walled official ФССП when checko
+                # was NOT readable.
+                checko_status = 'error'
                 try:
                     from app.services.phase3.checko_service import CheckoService
                     checko = CheckoService(timeout=30)
-                    checko_records = checko.search_enforcement(full_name)
-                    if checko_records:
-                        return [r.to_fssp_dict() for r in checko_records]
+                    checko_records, checko_status = checko.search_enforcement(full_name)
+                    if checko_status == 'ok':
+                        return [r.to_fssp_dict() for r in checko_records], 'ok'
+                    if checko_status == 'empty':
+                        # checko read the person and found nothing — a real
+                        # clean signal. Don't show a misleading CAPTCHA card.
+                        return [], 'empty'
                 except Exception as e:
                     logger.warning(f"Checko.ru enforcement search failed: {e}")
 
-                # Fallback: ФССП (may be geo-blocked)
+                # Fallback: official ФССП (CAPTCHA/geo-walled from many IPs)
                 from app.services.candidate.fssp_service import FSSPService
                 svc = FSSPService(timeout=30, max_pages=3)
-                dob_str = date_of_birth.strftime('%Y-%m-%d') if date_of_birth else None
-                results = svc.search(full_name, dob_str, region)
-                return [r.to_dict() for r in results]
+                results, fssp_status = svc.search_with_status(full_name, dob_str, region)
+                if fssp_status in ('ok', 'empty'):
+                    return [r.to_dict() for r in results], fssp_status
+                # FSSP blocked too. Surface checko's non-clean status if it was
+                # more specific (rate_limited/blocked) so the report is precise.
+                merged = checko_status if checko_status not in ('ok', 'empty', 'error') else 'blocked'
+                return [r.to_dict() for r in results], merged
 
             task.update('gov_registries', 'ЕГРЮЛ + Суды + ФССП + Залоги — параллельный поиск...', 12)
 
             fssp_records = []
+            fssp_status = 'error'
             pledge_records = []
+            pledge_status = 'error'
             # Note: bankruptcy_records already populated by Stage 0
 
             def _search_pledges(full_name):
-                """Search pledge registry (reestr-zalogov.ru)."""
+                """Search pledge registry (reestr-zalogov.ru).
+
+                Returns (records, status). reestr-zalogov.ru is reCAPTCHA-walled,
+                so status is usually 'blocked' — that must not read as "no
+                pledged assets".
+                """
                 try:
                     from app.services.phase3.pledge_registry import PledgeRegistrySearch
                     svc = PledgeRegistrySearch(timeout=30)
-                    results = svc.search_by_name(full_name)
-                    return [r.to_dict() for r in results]
+                    results, status = svc.search_by_name(full_name)
+                    return [r.to_dict() for r in results], status
                 except Exception as e:
                     logger.warning(f"Pledge registry search failed: {e}")
-                    return []
+                    return [], 'error'
 
             # Run fast sources (biz + FSSP + pledges) in parallel. Court search
             # (sudact.ru via Playwright) is slow and unpredictable, so it runs
@@ -888,8 +953,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 completed_futures = set()
 
                 def _process_future(future):
-                    nonlocal biz_records, fssp_records, pledge_records
-                    nonlocal sources_checked, sources_with_results
+                    nonlocal biz_records, fssp_records, fssp_status, pledge_records
+                    nonlocal pledge_status, sources_checked, sources_with_results
                     try:
                         if future is future_biz:
                             biz_records = future.result(timeout=60)
@@ -911,36 +976,43 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             sources_checked += 1
 
                         elif future is future_fssp:
-                            fssp_records = future.result(timeout=60)
-                            is_manual = (
-                                fssp_records
-                                and len(fssp_records) == 1
-                                and fssp_records[0].get('source') == 'manual'
-                            )
-                            if is_manual:
-                                task.add_message(
-                                    'ФССП: требуется ручная проверка (CAPTCHA)',
-                                    'warning',
-                                )
-                            elif fssp_records:
+                            fssp_records, fssp_status = future.result(timeout=60)
+                            if fssp_status == 'ok':
                                 task.add_message(
                                     f'ФССП: найдено {len(fssp_records)} производств', 'success',
                                 )
                                 sources_with_results += 1
-                            else:
+                            elif fssp_status == 'empty':
                                 task.add_message('ФССП: производств не найдено', 'info')
+                            elif fssp_status == 'rate_limited':
+                                task.add_message(
+                                    'ФССП: источник ограничил запросы (429) — проверка неполная',
+                                    'warning',
+                                )
+                            else:
+                                # blocked / error — CAPTCHA or unreachable
+                                task.add_message(
+                                    'ФССП: требуется ручная проверка (источник недоступен)',
+                                    'warning',
+                                )
                             sources_checked += 1
 
                         elif future is future_pledges:
-                            pledge_records = future.result(timeout=60)
+                            pledge_records, pledge_status = future.result(timeout=60)
                             if pledge_records:
                                 task.add_message(
                                     f'Залоговый реестр: найдено {len(pledge_records)} записей',
                                     'warning',
                                 )
                                 sources_with_results += 1
-                            else:
+                            elif pledge_status in ('ok', 'empty'):
                                 task.add_message('Залоговый реестр: записей не найдено', 'info')
+                            else:
+                                # reCAPTCHA / unreadable — not a clean result
+                                task.add_message(
+                                    'Залоговый реестр: reCAPTCHA — требуется ручная проверка',
+                                    'warning',
+                                )
                             sources_checked += 1
 
                     except Exception as e:
@@ -948,9 +1020,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             logger.warning("ЕГРЮЛ search failed: %s", e)
                             task.add_message('ЕГРЮЛ: источник недоступен', 'warning')
                         elif future is future_fssp:
+                            fssp_status = 'error'
                             logger.warning("ФССП search failed: %s", e)
                             task.add_message('ФССП: источник недоступен', 'warning')
                         elif future is future_pledges:
+                            pledge_status = 'error'
                             logger.warning("Pledge registry failed: %s", e)
                             task.add_message('Залоговый реестр: недоступен', 'warning')
                         sources_checked += 1
@@ -971,8 +1045,10 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                         if future is future_biz:
                             task.add_message('ЕГРЮЛ: таймаут (60с)', 'warning')
                         elif future is future_fssp:
+                            fssp_status = 'timeout'
                             task.add_message('ФССП: таймаут (60с)', 'warning')
                         elif future is future_pledges:
+                            pledge_status = 'timeout'
                             task.add_message('Залоговый реестр: таймаут (60с)', 'warning')
                         sources_checked += 1
             finally:
@@ -982,23 +1058,50 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             # Individual Playwright ops have 30s each; 120s covers retries + reputation.su.
             # Outer timeout prevents an OS-level browser hang from stalling the pipeline.
             _court_pool = ThreadPoolExecutor(max_workers=1)
+            _COURT_SOURCES = (
+                'sudact.ru', 'судебныерешения.рф', 'reputation.su', 'kad.arbitr.ru',
+            )
+            _FAILURE_STATUSES = (
+                'blocked', 'timeout', 'http_error', 'rate_limited', 'error',
+            )
             try:
-                _court_future = _court_pool.submit(_ctx(_search_courts), effective_name)
+                _court_future = _court_pool.submit(
+                    _ctx(_search_courts), effective_name, check.inn or '',
+                )
                 try:
-                    court_records = _court_future.result(timeout=150) or []
+                    _court_result = _court_future.result(timeout=150)
+                    court_records, court_source_statuses = _court_result or ([], {})
+                    court_records = court_records or []
+                    court_source_statuses = court_source_statuses or {}
+                    _failed_sources = [
+                        s for s, st in court_source_statuses.items()
+                        if st in _FAILURE_STATUSES
+                    ]
                     if court_records:
-                        task.add_message(f'Суды: найдено {len(court_records)} дел', 'success')
+                        msg = f'Суды: найдено {len(court_records)} дел'
+                        if _failed_sources:
+                            msg += f' (недоступны: {", ".join(_failed_sources)})'
+                        task.add_message(msg, 'success')
                         sources_with_results += 1
+                    elif _failed_sources:
+                        # An unreadable source is NOT a clean record — say so.
+                        task.add_message(
+                            f'Суды: источники недоступны ({", ".join(_failed_sources)}) '
+                            f'— проверка неполная',
+                            'warning',
+                        )
                     else:
                         task.add_message('Суды: дела не найдены', 'info')
                 except TimeoutError:
                     logger.warning("Court search: outer 150s timeout — Playwright may be hung")
                     task.add_message('Суды: таймаут (150с) — пропущен', 'warning')
                     court_records = []
+                    court_source_statuses = dict.fromkeys(_COURT_SOURCES, 'timeout')
                 except Exception as e:
                     logger.warning("Court search failed: %s", e)
                     task.add_message('Суды: источник недоступен', 'warning')
                     court_records = []
+                    court_source_statuses = dict.fromkeys(_COURT_SOURCES, 'error')
             finally:
                 _court_pool.shutdown(wait=False, cancel_futures=True)
             sources_checked += 1
@@ -1013,7 +1116,10 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 demo_biz, demo_courts, demo_fssp, demo_bankruptcy = _get_demo_gov_data(effective_name)
                 biz_records = demo_biz
                 court_records = demo_courts
+                court_source_statuses = {}  # demo data — real statuses would mislead
                 fssp_records = demo_fssp
+                fssp_status = 'ok' if demo_fssp else 'empty'
+                pledge_status = 'empty'
                 if not bankruptcy_records:
                     bankruptcy_records = demo_bankruptcy
                     check.bankruptcy_records = bankruptcy_records
@@ -1052,7 +1158,10 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             check.business_records = biz_records
             check.court_records = court_records
+            check.court_source_statuses = court_source_statuses
             check.fssp_records = fssp_records
+            check.fssp_status = fssp_status
+            check.source_statuses = {'reestr-zalogov.ru': pledge_status}
             check.pledge_records = pledge_records
             # bankruptcy_records already set in Stage 0
             stage1_elapsed = time.time() - task.started_at.timestamp()
@@ -1630,6 +1739,22 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 check.social_graph_data = social_results.get('social_graph', {})
                 check.face_matches = social_results.get('face_matches', [])
                 check.username_accounts = social_results.get('username_accounts', [])
+                # Merge face-search status into the general source-status map so
+                # the dossier can tell "searched, no match" from "couldn't search"
+                # (no API key + Playwright unavailable). Merge, don't overwrite —
+                # Stage 1 already stored the pledge-registry status here.
+                _face_status = social_results.get('face_search_status', '')
+                _uname_status = social_results.get('username_search_status', '')
+                if _face_status or _uname_status:
+                    _ss = check.source_statuses or {}
+                    if _face_status:
+                        _ss['search4faces'] = _face_status
+                    # username-search trio (Snoop/Maigret/Sherlock): records
+                    # whether we could search at all, so an uninstalled toolset
+                    # doesn't render as "no accounts found".
+                    if _uname_status:
+                        _ss['username_search'] = _uname_status
+                    check.source_statuses = _ss
                 db.session.commit()
 
                 face_count = len(social_results.get('face_matches', []))
@@ -1725,6 +1850,14 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 check.activity_timeline = behavioral_results.get('activity_timeline', [])
                 check.group_analysis = behavioral_results.get('group_analysis', {})
                 check.activity_patterns = behavioral_results.get('activity_patterns', {})
+                # Record whether the VK wall was actually readable so an empty
+                # behavioral section doesn't read as "no activity" when the wall
+                # was private / the token failed (VK returns 200 + error body).
+                _vk_wall_status = behavioral_results.get('vk_wall_status', '')
+                if _vk_wall_status:
+                    _ss = check.source_statuses or {}
+                    _ss['vk_wall'] = _vk_wall_status
+                    check.source_statuses = _ss
                 db.session.commit()
 
                 has_text = bool(behavioral_results.get('text_analysis'))
@@ -1925,6 +2058,21 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     check.executive_summary = ai_summary
                     db.session.commit()
                     task.add_message('AI: сводка расследования сгенерирована', 'success')
+                # Record one honest AI status so empty AI sections aren't read
+                # as "AI ran, nothing notable". All four AI summaries share the
+                # same client, so a single status is accurate.
+                from app.services.ai.claude_integration import is_available as _ai_available
+                if ai_summary or check.behavioral_summary or check.risk_narrative:
+                    _ai_status = 'ok'
+                elif not _ai_available():
+                    _ai_status = 'unavailable'
+                    task.add_message('AI-сводка недоступна (ключ не настроен)', 'warning')
+                else:
+                    _ai_status = 'error'
+                _ss = check.source_statuses or {}
+                _ss['ai_summary'] = _ai_status
+                check.source_statuses = _ss
+                db.session.commit()
             except Exception as e:
                 db.session.rollback()
                 logger.debug(f"AI executive summary skipped: {e}")

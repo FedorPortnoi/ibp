@@ -420,6 +420,8 @@ def analyze_breach_intelligence(emails: list = None, phones: list = None) -> dic
             'breach_count': 0,
             'breach_sources': [],
             'has_financial_services': False,
+            'sources_failed': [],
+            'checked': False,
         }
 
     services_used: Set[str] = set()
@@ -428,6 +430,19 @@ def analyze_breach_intelligence(emails: list = None, phones: list = None) -> dic
     breach_count = 0
     breach_sources: Set[str] = set()
     search_email_set = set(emails)  # to distinguish old vs. searched emails
+
+    # Track which breach sources actually completed a query vs. failed
+    # (timeout/blocked/rate-limited). A source that never completed must not
+    # let breach_count=0 read as "no compromised credentials".
+    _FAILURE_STATUSES = ('timeout', 'blocked', 'rate_limited', 'http_error', 'error')
+    sources_failed: Set[str] = set()
+    sources_ok: Set[str] = set()
+
+    def _note_status(display_name: str, status: str) -> None:
+        if status in _FAILURE_STATUSES:
+            sources_failed.add(display_name)
+        elif status == 'ok':
+            sources_ok.add(display_name)
 
     # Limit to top 10 emails to avoid excessive API calls
     emails_to_check = emails[:10]
@@ -439,6 +454,7 @@ def analyze_breach_intelligence(emails: list = None, phones: list = None) -> dic
         for email in emails_to_check:
             try:
                 results = hr.query(email=email)
+                _note_status('HudsonRock', getattr(hr, 'last_status', 'ok'))
                 if not results:
                     continue
                 breach_sources.add('HudsonRock')
@@ -477,6 +493,7 @@ def analyze_breach_intelligence(emails: list = None, phones: list = None) -> dic
         for email in emails_to_check:
             try:
                 results = lc.query(email=email)
+                _note_status('LeakCheck', getattr(lc, 'last_status', 'ok'))
                 if not results:
                     continue
                 breach_sources.add('LeakCheck')
@@ -506,6 +523,7 @@ def analyze_breach_intelligence(emails: list = None, phones: list = None) -> dic
         for email in emails_to_check:
             try:
                 results = pn.query(email=email)
+                _note_status('ProxyNova COMB', getattr(pn, 'last_status', 'ok'))
                 if not results:
                     continue
                 breach_sources.add('ProxyNova COMB')
@@ -573,6 +591,10 @@ def analyze_breach_intelligence(emails: list = None, phones: list = None) -> dic
                 digits = '7' + digits[1:]
             old_phones_clean.append('+' + digits)
 
+    # A source counts as "failed" only if it never completed a query on any
+    # email (a transient failure on one email but success on another is fine).
+    sources_failed_final = sorted(sources_failed - sources_ok)
+
     return {
         'services_used': sorted(services_used)[:30],
         'old_emails': old_emails_clean[:10],
@@ -580,6 +602,11 @@ def analyze_breach_intelligence(emails: list = None, phones: list = None) -> dic
         'breach_count': breach_count,
         'breach_sources': sorted(breach_sources),
         'has_financial_services': has_financial,
+        # Honesty signals: which breach sources could not be reached, and
+        # whether at least one completed. breach_count=0 with checked=False
+        # (or non-empty sources_failed) must NOT read as "no leaks".
+        'sources_failed': sources_failed_final,
+        'checked': bool(sources_ok),
     }
 
 

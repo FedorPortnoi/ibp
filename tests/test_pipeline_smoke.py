@@ -90,10 +90,10 @@ _PATCHES = {
     # Stage 1
     'courts': ('app.services.phase3.court_search.CourtRecordSearch.search_by_name', [], {}),
     'fssp': ('app.services.candidate.fssp_service.FSSPService.search', [], {}),
-    'pledges': ('app.services.phase3.pledge_registry.PledgeRegistrySearch.search_by_name', [], {}),
-    'checko': ('app.services.phase3.checko_service.CheckoService.search_enforcement', [], {}),
-    'casebook': ('app.services.phase3.casebook_service.CasebookService.search_person', [], {}),
-    'rep_su': ('app.services.phase3.reputation_su_service.search_reputation_su', [], {}),
+    'pledges': ('app.services.phase3.pledge_registry.PledgeRegistrySearch.search_by_name', ([], 'blocked'), {}),
+    'checko': ('app.services.phase3.checko_service.CheckoService.search_enforcement', ([], 'empty'), {}),
+    'rep_su': ('app.services.phase3.reputation_su_service.search_reputation_su', ([], 'empty'), {}),
+    'kad': ('app.services.phase3.kad_arbitr_service.search_kad_arbitr_person', ([], 'empty'), {}),
     # Stage 1 helpers (side_effect set separately below)
     # Stage 2
     'passport': ('app.services.phase3.passport_check.check_passport_mvd',

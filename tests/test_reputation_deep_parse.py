@@ -48,32 +48,38 @@ def test_extract_criminal_articles_no_matches():
 
 def test_fetch_reputation_case_details_failure():
     """При недоступном URL — возвращает пустую строку, не падает."""
+    sess = MagicMock()
     # Empty URL
-    assert _fetch_reputation_case_details("") == ""
+    assert _fetch_reputation_case_details("", sess) == ""
     # None
-    assert _fetch_reputation_case_details(None) == ""
+    assert _fetch_reputation_case_details(None, sess) == ""
+    sess.get.assert_not_called()
 
 
 def test_fetch_reputation_case_details_request_exception():
     """RequestException не пробрасывается, возвращается пустая строка."""
-    with patch('app.services.phase3.reputation_su_service.requests.get') as mock_get:
-        mock_get.side_effect = Exception("network down")
-        result = _fetch_reputation_case_details("https://reputation.su/sudrf/123")
-        assert result == ""
+    sess = MagicMock()
+    sess.get.side_effect = Exception("network down")
+    result = _fetch_reputation_case_details("https://reputation.su/sudrf/123", sess)
+    assert result == ""
 
 
 def test_fetch_reputation_case_details_http_404():
     """HTTP 404 возвращает пустую строку, не падает."""
-    with patch('app.services.phase3.reputation_su_service.requests.get') as mock_get:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 404
-        mock_get.return_value = mock_resp
-        result = _fetch_reputation_case_details("https://reputation.su/sudrf/missing")
-        assert result == ""
+    sess = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 404
+    sess.get.return_value = mock_resp
+    result = _fetch_reputation_case_details("https://reputation.su/sudrf/missing", sess)
+    assert result == ""
 
 
 def test_fetch_reputation_case_details_success():
-    """Успешный фетч возвращает текст без скриптов/стилей."""
+    """Успешный фетч возвращает текст без скриптов/стилей.
+
+    Страница короткая, но это detail-страница: size-эвристика блокировки
+    применяется только к поисковым страницам и не должна отбросить текст.
+    """
     html = """
     <html>
     <head><script>var x = 1;</script><style>.a{color:red}</style></head>
@@ -83,17 +89,17 @@ def test_fetch_reputation_case_details_success():
     <footer>FOOTER</footer>
     </body></html>
     """
-    with patch('app.services.phase3.reputation_su_service.requests.get') as mock_get:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.text = html
-        mock_get.return_value = mock_resp
-        result = _fetch_reputation_case_details("https://reputation.su/sudrf/123")
-        assert 'Иванов' in result
-        assert 'ч.2 ст.228 УК РФ' in result
-        assert 'NAV' not in result
-        assert 'FOOTER' not in result
-        assert 'var x' not in result
+    sess = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.text = html
+    sess.get.return_value = mock_resp
+    result = _fetch_reputation_case_details("https://reputation.su/sudrf/123", sess)
+    assert 'Иванов' in result
+    assert 'ч.2 ст.228 УК РФ' in result
+    assert 'NAV' not in result
+    assert 'FOOTER' not in result
+    assert 'var x' not in result
 
 
 def test_deep_parse_adds_criminal_articles():
@@ -115,8 +121,8 @@ def test_deep_parse_adds_criminal_articles():
     with patch(
         'app.services.phase3.reputation_su_service._fetch_reputation_case_details',
         return_value=fake_text,
-    ):
-        _deep_parse_records(records)
+    ), patch('app.services.phase3.reputation_su_service.time.sleep'):
+        _deep_parse_records(records, session=MagicMock())
 
     assert records[0]['criminal_articles'], "criminal_articles should be populated"
     assert any('228' in a for a in records[0]['criminal_articles'])
@@ -126,7 +132,7 @@ def test_deep_parse_adds_criminal_articles():
 def test_deep_parse_skips_records_without_url():
     """Записи без url пропускаются и не падают."""
     records = [{'case_number': '2-1/2023', 'url': '', 'criminal_articles': []}]
-    _deep_parse_records(records)
+    _deep_parse_records(records, session=MagicMock())
     # No mutations expected
     assert records[0]['criminal_articles'] == []
 
@@ -144,6 +150,6 @@ def test_deep_parse_skips_already_enriched():
     with patch(
         'app.services.phase3.reputation_su_service._fetch_reputation_case_details',
         return_value="ст.228 УК РФ",
-    ):
-        _deep_parse_records(records)
+    ), patch('app.services.phase3.reputation_su_service.time.sleep'):
+        _deep_parse_records(records, session=MagicMock())
     assert records[0]['criminal_articles'] == pre

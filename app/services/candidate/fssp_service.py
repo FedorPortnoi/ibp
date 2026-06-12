@@ -144,6 +144,71 @@ def parse_amount(text: str) -> Optional[float]:
         return None
 
 
+def _fssp_record_from_parser(row: dict) -> 'FSSPRecord':
+    """Map one parser-api.com fssp_search_fiz result row to an FSSPRecord."""
+    subjects = row.get('subjects') or []
+    subject = ''
+    amount = None
+    if subjects and isinstance(subjects[0], dict):
+        subject = subjects[0].get('title', '') or ''
+        amount = parse_amount(subjects[0].get('sum', '') or '')
+    if amount is None:
+        amount = parse_amount(row.get('process_total', '') or '')
+
+    # The proceeding identifier (…-ИП) usually lives in process_title;
+    # fall back to the raw title or the document number.
+    process_title = row.get('process_title', '') or ''
+    ip_match = re.search(r'\d+/\d+/[\d\w]+-ИП', process_title)
+    proceedings_number = (
+        ip_match.group(0) if ip_match else (process_title or row.get('document_num', ''))
+    )
+
+    stop_date = row.get('stop_date') or None
+    return FSSPRecord(
+        debtor_name=row.get('debtor_name', '') or '',
+        debtor_dob=row.get('debtor_dob', '') or '',
+        proceedings_number=proceedings_number,
+        document_details=row.get('document_title', '') or row.get('document_num', '') or '',
+        subject=subject or process_title,
+        amount=amount,
+        department=row.get('department_title', '') or '',
+        end_date=stop_date,
+        end_reason=row.get('stop_reason') or None,
+        is_active=not stop_date,
+        source='api-ip.fssp.gov.ru',
+    )
+
+
+def search_fssp_via_parser_api(
+    full_name: str,
+    dob_iso: Optional[str] = None,
+    region_id: Optional[str] = None,
+) -> 'tuple[List[FSSPRecord], str]':
+    """Primary ФССП path via parser-api.com (proxied, works from ANY IP).
+
+    Needs the candidate's name + DOB (search_fiz requires dob). Returns
+    (records, status); 'not_configured' when PARSER_API_KEY is unset so the
+    caller falls back to checko / direct ФССП.
+    """
+    from app.services import parser_api
+    if not parser_api.is_available():
+        return [], 'not_configured'
+
+    parts = (full_name or '').strip().split()
+    if len(parts) < 2:
+        return [], 'skipped'
+    last_name, first_name = parts[0], parts[1]
+    patronymic = parts[2] if len(parts) > 2 else ''
+
+    raw, status = parser_api.fssp_search_fiz(
+        last_name, first_name, patronymic, dob_iso or '', region_id,
+    )
+    if status not in ('ok', 'empty'):
+        return [], status
+    records = [_fssp_record_from_parser(r) for r in raw if isinstance(r, dict)]
+    return records, ('ok' if records else 'empty')
+
+
 @dataclass
 class FSSPRecord:
     """An enforcement proceeding from ФССП."""
@@ -215,6 +280,16 @@ class FSSPService:
         date_of_birth: Optional[str] = None,
         region: Optional[str] = None,
     ) -> List[FSSPRecord]:
+        """Back-compat wrapper: returns only the records (drops status)."""
+        records, _status = self.search_with_status(full_name, date_of_birth, region)
+        return records
+
+    def search_with_status(
+        self,
+        full_name: str,
+        date_of_birth: Optional[str] = None,
+        region: Optional[str] = None,
+    ) -> 'tuple[List[FSSPRecord], str]':
         """
         Search ФССП for enforcement proceedings.
 
@@ -224,12 +299,19 @@ class FSSPService:
             region: Region name (e.g. "Москва")
 
         Returns:
-            List of FSSPRecord (may be empty if CAPTCHA blocks access)
+            (records, status). Status:
+            - 'ok'      — a strategy returned >=1 real proceeding
+            - 'empty'   — a strategy successfully read "no results"
+            - 'blocked' — every automated strategy hit CAPTCHA/geo; the
+                          returned record is the manual-fallback placeholder
+            - 'skipped' — invalid name input
+
+            'blocked' must never be presented as "no debts".
         """
         parts = full_name.strip().split()
         if len(parts) < 2:
             logger.warning(f"ФССП: need at least 2 name parts, got: '{full_name}'")
-            return []
+            return [], 'skipped'
 
         last_name = parts[0]
         first_name = parts[1]
@@ -253,7 +335,7 @@ class FSSPService:
                 )
                 if records is not None:  # None = API error; [] = no results
                     logger.info(f"ФССП Strategy 1 (API): success, {len(records)} records")
-                    return records
+                    return records, ('ok' if records else 'empty')
                 else:
                     logger.info("ФССП Strategy 1 (API): returned None (API error), falling through")
             except Exception as e:
@@ -269,7 +351,7 @@ class FSSPService:
             )
             if records is not None:
                 logger.info(f"ФССП Strategy 2 (AJAX): success, {len(records)} records")
-                return records
+                return records, ('ok' if records else 'empty')
             else:
                 logger.info("ФССП Strategy 2 (AJAX): returned None (CAPTCHA or parse error), falling through")
         except Exception as e:
@@ -288,7 +370,7 @@ class FSSPService:
                             f"ФССП Strategy 3 (Playwright): success on attempt {attempt}, "
                             f"{len(records)} records"
                         )
-                        return records
+                        return records, ('ok' if records else 'empty')
                     else:
                         logger.info(
                             f"ФССП Strategy 3 (Playwright): attempt {attempt}/2 returned None "
@@ -307,7 +389,10 @@ class FSSPService:
             "ФССП Strategy 4/4: all automated strategies failed, "
             "returning manual fallback URL (source='manual')"
         )
-        return self._manual_fallback(last_name, first_name, patronymic, dob, region_code)
+        return (
+            self._manual_fallback(last_name, first_name, patronymic, dob, region_code),
+            'blocked',
+        )
 
     def get_manual_url(
         self,
