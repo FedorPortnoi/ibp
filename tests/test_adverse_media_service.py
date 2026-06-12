@@ -6,6 +6,7 @@ is only 'confirmed' with a strong corroborator (ИНН / ИНН-linked company /
 birth year), otherwise 'possible' (однофамилец). All HTTP is mocked.
 """
 
+import base64
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -24,10 +25,13 @@ def _resp(status=200, items=None):
     return r
 
 
-def _xml_resp(text, status=200):
+def _yandex_resp(xml_text, status=200):
+    """Yandex v2 response: JSON with base64-encoded XML in rawData."""
     r = MagicMock()
     r.status_code = status
-    r.text = text
+    r.json.return_value = {
+        'rawData': base64.b64encode(xml_text.encode('utf-8')).decode('ascii'),
+    }
     return r
 
 
@@ -184,7 +188,7 @@ def test_yandex_unavailable_without_keys(nokey):
 
 
 def test_yandex_parses_and_confirms(yandex):
-    with patch.object(ams.requests, 'get', return_value=_xml_resp(_YANDEX_OK)):
+    with patch.object(ams.requests, 'post', return_value=_yandex_resp(_YANDEX_OK)):
         hits, status = ams.search_adverse_media(FULL, CTX)
     assert status == 'ok' and len(hits) == 1
     h = hits[0]
@@ -192,19 +196,28 @@ def test_yandex_parses_and_confirms(yandex):
     assert h.source_domain == 'news.ru'
 
 
+def test_yandex_uses_apikey_header_and_post(yandex):
+    with patch.object(ams.requests, 'post', return_value=_yandex_resp(_YANDEX_OK)) as mp:
+        ams.search_adverse_media(FULL, CTX)
+    _, kwargs = mp.call_args
+    assert kwargs['headers']['Authorization'].startswith('Api-Key ')
+    assert kwargs['json']['responseFormat'] == 'FORMAT_XML'
+    assert kwargs['json']['folderId'] == 'b1g'
+
+
 def test_yandex_error_15_is_empty(yandex):
     xml = '<yandexsearch><response><error code="15">empty</error></response></yandexsearch>'
-    with patch.object(ams.requests, 'get', return_value=_xml_resp(xml)):
+    with patch.object(ams.requests, 'post', return_value=_yandex_resp(xml)):
         assert ams.search_adverse_media(FULL, CTX) == ([], 'empty')
 
 
 def test_yandex_error_32_is_rate_limited(yandex):
     xml = '<yandexsearch><response><error code="32">limit</error></response></yandexsearch>'
-    with patch.object(ams.requests, 'get', return_value=_xml_resp(xml)):
+    with patch.object(ams.requests, 'post', return_value=_yandex_resp(xml)):
         assert ams.search_adverse_media(FULL, CTX)[1] == 'rate_limited'
 
 
-def test_yandex_bad_key_is_blocked(yandex):
-    xml = '<yandexsearch><response><error code="2">bad key</error></response></yandexsearch>'
-    with patch.object(ams.requests, 'get', return_value=_xml_resp(xml)):
+def test_yandex_http_403_is_blocked(yandex):
+    bad = MagicMock(); bad.status_code = 403
+    with patch.object(ams.requests, 'post', return_value=bad):
         assert ams.search_adverse_media(FULL, CTX)[1] == 'blocked'

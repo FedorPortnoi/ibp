@@ -25,6 +25,7 @@ Env: YANDEX_XML_KEY + YANDEX_XML_FOLDERID (primary), or GOOGLE_CSE_KEY +
 GOOGLE_CSE_ID (fallback).
 """
 
+import base64
 import logging
 import os
 import re
@@ -39,9 +40,14 @@ logger = logging.getLogger(__name__)
 # Yandex is the PRIMARY backend: Google is blocked in Russia (the pipeline runs
 # from the RU VM) and Yandex has better Russian/compromat coverage. Google CSE
 # is kept as a fallback for non-RU deployments.
-YANDEX_XML_URL = 'https://yandex.ru/search/xml'
+#
+# Yandex Search API v2 (AI Studio): POST with an `Authorization: Api-Key <key>`
+# header; the response JSON carries the yandexsearch XML base64-encoded in
+# `rawData`. Auth = an AI Studio API key (it already has the needed roles) +
+# the Cloud folder id. https://searchapi.api.cloud.yandex.net/v2/web/search
+YANDEX_SEARCH_URL = 'https://searchapi.api.cloud.yandex.net/v2/web/search'
 GOOGLE_CSE_URL = 'https://www.googleapis.com/customsearch/v1'
-_TIMEOUT = 20
+_TIMEOUT = 25
 
 # Negative-term lexicon, grouped by severity. Deliberately leans toward the
 # criminal / reputational dimension that structured registries miss — we do
@@ -149,32 +155,12 @@ def _google_cse_search(query: str, num: int = 10) -> Tuple[List[dict], str]:
     return data.get('items', []) or [], ''
 
 
-def _yandex_xml_search(query: str) -> Tuple[List[dict], str]:
-    """One Yandex XML search call. Returns (items, status); items are normalized
-    to {title, snippet, link} like the CSE adapter so the caller is provider-
-    agnostic. Yandex returns 200 with an <error code=..> body on failure."""
-    key = os.environ.get('YANDEX_XML_KEY')
-    folderid = os.environ.get('YANDEX_XML_FOLDERID')
-    if not key or not folderid:
-        return [], 'unavailable'
+def _parse_yandex_xml(xml_text: str) -> Tuple[List[dict], str]:
+    """Parse a yandexsearch XML document into (items, status). Items normalized
+    to {title, snippet, link}. A <error code=..> body maps to empty/rate_limited/
+    blocked so failures never read as 'clean'."""
     try:
-        r = requests.get(YANDEX_XML_URL, params={
-            'folderid': folderid, 'apikey': key, 'query': query, 'l10n': 'ru',
-            'sortby': 'rlv',
-            'groupby': 'attr=d.mode=flat.groups-on-page=10.docs-in-group=1',
-        }, timeout=_TIMEOUT)
-    except requests.Timeout:
-        return [], 'timeout'
-    except requests.RequestException as e:
-        logger.warning('adverse-media: yandex request failed: %s', e)
-        return [], 'error'
-
-    if r.status_code in (401, 403):
-        return [], 'blocked'
-    if r.status_code != 200:
-        return [], 'error'
-    try:
-        root = ET.fromstring(r.text)
+        root = ET.fromstring(xml_text)
     except ET.ParseError:
         return [], 'error'
 
@@ -204,11 +190,62 @@ def _yandex_xml_search(query: str) -> Tuple[List[dict], str]:
     return items, ''
 
 
+def _yandex_search(query: str) -> Tuple[List[dict], str]:
+    """One Yandex Search API v2 (synchronous, XML) call. Returns (items, status)
+    normalized to {title, snippet, link}. The response JSON carries the
+    yandexsearch XML base64-encoded in `rawData`."""
+    key = os.environ.get('YANDEX_XML_KEY')
+    folderid = os.environ.get('YANDEX_XML_FOLDERID')
+    if not key or not folderid:
+        return [], 'unavailable'
+    body = {
+        'query': {
+            'searchType': 'SEARCH_TYPE_RU',
+            'queryText': query,
+            'familyMode': 'FAMILY_MODE_NONE',
+        },
+        'groupSpec': {
+            'groupMode': 'GROUP_MODE_FLAT', 'groupsOnPage': 10, 'docsInGroup': 1,
+        },
+        'responseFormat': 'FORMAT_XML',
+        'folderId': folderid,
+    }
+    try:
+        r = requests.post(
+            YANDEX_SEARCH_URL,
+            headers={'Authorization': f'Api-Key {key}'},
+            json=body, timeout=_TIMEOUT,
+        )
+    except requests.Timeout:
+        return [], 'timeout'
+    except requests.RequestException as e:
+        logger.warning('adverse-media: yandex request failed: %s', e)
+        return [], 'error'
+
+    if r.status_code in (401, 403):
+        return [], 'blocked'
+    if r.status_code == 429:
+        return [], 'rate_limited'
+    if r.status_code != 200:
+        return [], 'error'
+    try:
+        raw = (r.json() or {}).get('rawData')
+    except ValueError:
+        return [], 'error'
+    if not raw:
+        return [], 'error'
+    try:
+        xml_text = base64.b64decode(raw).decode('utf-8', 'replace')
+    except (ValueError, TypeError):
+        return [], 'error'
+    return _parse_yandex_xml(xml_text)
+
+
 def _run_search(full_name: str) -> Tuple[List[dict], str]:
     """Dispatch to the configured provider. Items normalized to {title,snippet,link}."""
     provider = _provider()
     if provider == 'yandex':
-        return _yandex_xml_search(_build_query_yandex(full_name))
+        return _yandex_search(_build_query_yandex(full_name))
     if provider == 'google':
         return _google_cse_search(_build_query_google(full_name))
     return [], 'unavailable'
