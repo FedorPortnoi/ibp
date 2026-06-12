@@ -2058,6 +2058,21 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     check.executive_summary = ai_summary
                     db.session.commit()
                     task.add_message('AI: сводка расследования сгенерирована', 'success')
+                # Record one honest AI status so empty AI sections aren't read
+                # as "AI ran, nothing notable". All four AI summaries share the
+                # same client, so a single status is accurate.
+                from app.services.ai.claude_integration import is_available as _ai_available
+                if ai_summary or check.behavioral_summary or check.risk_narrative:
+                    _ai_status = 'ok'
+                elif not _ai_available():
+                    _ai_status = 'unavailable'
+                    task.add_message('AI-сводка недоступна (ключ не настроен)', 'warning')
+                else:
+                    _ai_status = 'error'
+                _ss = check.source_statuses or {}
+                _ss['ai_summary'] = _ai_status
+                check.source_statuses = _ss
+                db.session.commit()
             except Exception as e:
                 db.session.rollback()
                 logger.debug(f"AI executive summary skipped: {e}")

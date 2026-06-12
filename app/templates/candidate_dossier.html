@@ -282,6 +282,10 @@
         </div>
         <p class="text-sm text-gray-300 leading-relaxed">{{ check.executive_summary }}</p>
     </div>
+    {% elif (source_statuses or {}).get('ai_summary') in ('unavailable', 'error') %}
+    <div class="mb-6 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+        &#x26A0;&#xFE0F; AI-сводки не сформированы ({{ 'AI-ключ не настроен' if (source_statuses or {}).get('ai_summary') == 'unavailable' else 'ошибка AI-сервиса' }}) — это не влияет на собранные данные.
+    </div>
     {% endif %}
 
     {# ================================================================
