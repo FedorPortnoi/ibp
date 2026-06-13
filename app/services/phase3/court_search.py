@@ -209,6 +209,8 @@ class CourtRecordSearch:
         # Overwritten on every call — not safe across concurrent calls on a
         # shared instance; construct one instance per search (pipeline does).
         self.last_source_statuses: Dict[str, str] = {}
+        # Axis-2 litigation-counterparty edges from the most recent kad search.
+        self.last_coparty_edges: List[dict] = []
 
     def search_by_name(
         self,
@@ -234,6 +236,7 @@ class CourtRecordSearch:
         results = []
         statuses: Dict[str, str] = {}
         self.last_source_statuses = statuses
+        self.last_coparty_edges = []
         name = full_name.strip()
         if not name:
             return results
@@ -301,9 +304,12 @@ class CourtRecordSearch:
             # Tight per-request timeout: kad is a fast JSON API, and at worst
             # 6 requests (2 queries x 3 pages) must not eat the pipeline's
             # 150s court budget that also covers Playwright + deep parse.
+            _kad_coparties: List[dict] = []
             kad_cases, kad_status = search_kad_arbitr_person(
                 name, inn=inn, timeout=min(self.timeout, 12),
+                coparty_sink=_kad_coparties,
             )
+            self.last_coparty_edges = _kad_coparties
             statuses['kad.arbitr.ru'] = kad_status
             for kc in kad_cases:
                 case = CourtCase(

@@ -870,12 +870,14 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 """
                 records = []
                 statuses = {}
+                coparty_edges = []
                 logger.info(f"Stage 1 Courts: searching for '{full_name}'")
                 try:
                     from app.services.phase3.court_search import CourtRecordSearch
                     searcher = CourtRecordSearch(timeout=30)
                     results = searcher.search_by_name(full_name, inn=inn)
                     statuses = dict(getattr(searcher, 'last_source_statuses', {}) or {})
+                    coparty_edges = list(getattr(searcher, 'last_coparty_edges', []) or [])
                     if results:
                         records = [r.to_dict() for r in results]
                         logger.info(f"Stage 1 Courts: {len(records)} cases")
@@ -890,7 +892,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 except Exception as e:
                     logger.warning(f"Court search failed: {e}")
 
-                return records, statuses
+                return records, statuses, coparty_edges
 
             def _search_fssp(full_name, date_of_birth, region):
                 """Search enforcement proceedings.
@@ -1104,9 +1106,12 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 )
                 try:
                     _court_result = _court_future.result(timeout=150)
-                    court_records, court_source_statuses = _court_result or ([], {})
+                    court_records, court_source_statuses, _court_coparties = (
+                        _court_result or ([], {}, [])
+                    )
                     court_records = court_records or []
                     court_source_statuses = court_source_statuses or {}
+                    connection_edges.extend(_court_coparties or [])
                     _failed_sources = [
                         s for s, st in court_source_statuses.items()
                         if st in _FAILURE_STATUSES

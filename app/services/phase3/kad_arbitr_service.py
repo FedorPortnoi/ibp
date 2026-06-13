@@ -314,25 +314,35 @@ def _record_from_parser_case(
     }
 
 
-def _search_via_parser_api(name: str, inn: str) -> Tuple[List[Dict], str]:
+def _search_via_parser_api(name: str, inn: str, coparty_sink=None) -> Tuple[List[Dict], str]:
     """Primary path: kad.arbitr.ru via parser-api.com (works from any IP).
 
     INN-first (an INN hit is exact, so the name query is skipped), then name.
+
+    If ``coparty_sink`` (a list) is given, Axis-2 litigation-counterparty edges
+    for the OTHER parties in the candidate's cases are appended to it (reuses
+    the same arbitr response — no extra API request).
     """
     from app.services import parser_api
 
     records: List[Dict] = []
     seen: set = set()
     failure = ''
+    all_raw: List[dict] = []
 
     def _ingest(raw_cases, query_kind):
         for case in raw_cases:
             if not isinstance(case, dict):
                 continue
+            all_raw.append(case)
             rec = _record_from_parser_case(case, name, inn, query_kind)
             if rec and rec['case_number'] not in seen:
                 seen.add(rec['case_number'])
                 records.append(rec)
+
+    def _fill_sink():
+        if coparty_sink is not None and all_raw:
+            coparty_sink.extend(extract_court_coparties(all_raw, inn, name))
 
     if _is_person_inn(inn):
         raw, status = parser_api.arbitr_search(inn, inn_type='Any')
@@ -341,6 +351,7 @@ def _search_via_parser_api(name: str, inn: str) -> Tuple[List[Dict], str]:
         else:
             _ingest(raw, 'inn')
         if records:
+            _fill_sink()
             return records, 'ok'  # INN hit is exact — skip the name query
 
     if name:
@@ -350,6 +361,7 @@ def _search_via_parser_api(name: str, inn: str) -> Tuple[List[Dict], str]:
         else:
             _ingest(raw, 'name')
 
+    _fill_sink()
     if records:
         return records, 'ok'
     return [], (failure or 'empty')
@@ -360,6 +372,7 @@ def search_kad_arbitr_person(
     inn: str = '',
     timeout: int = 25,
     max_pages: int = 3,
+    coparty_sink=None,
 ) -> Tuple[List[Dict], str]:
     """Search kad.arbitr.ru for arbitration cases involving a person.
 
@@ -396,7 +409,7 @@ def search_kad_arbitr_person(
     try:
         from app.services import parser_api
         if parser_api.is_available():
-            records, status = _search_via_parser_api(name, inn)
+            records, status = _search_via_parser_api(name, inn, coparty_sink=coparty_sink)
             if status == 'ok' or records:
                 logger.info("kad.arbitr.ru (parser-api): %d cases (status=%s)", len(records), status)
                 return records, status

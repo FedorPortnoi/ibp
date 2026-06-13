@@ -287,3 +287,51 @@ class TestDefensiveCases:
     def test_non_dict_case_skipped(self):
         result = extract_court_coparties(['bad', None, 123])
         assert result == []
+
+
+# ── wiring: coparty_sink threaded through search_kad_arbitr_person ───────────
+
+def test_search_kad_populates_coparty_sink(monkeypatch):
+    """search_kad_arbitr_person fills a passed coparty_sink from the same arbitr
+    response — co-parties are no longer discarded (reuses the API call)."""
+    from app.services import parser_api
+    from app.services.phase3 import kad_arbitr_service as kad
+
+    case = {
+        'CaseNumber': CASE_NUMBER, 'Court': COURT, 'StartDate': '2024-03-15',
+        'CaseType': 'А',
+        'Plaintiffs': [{'Name': 'ООО Ромашка', 'Inn': '7700000001'}],
+        'Respondents': [{'Name': CANDIDATE_NAME, 'Inn': CANDIDATE_INN}],
+        'Thirds': [], 'Others': [],
+    }
+    monkeypatch.setattr(parser_api, 'is_available', lambda: True)
+    monkeypatch.setattr(parser_api, 'arbitr_search', lambda *a, **k: ([case], 'ok'))
+
+    sink = []
+    records, status = kad.search_kad_arbitr_person(
+        CANDIDATE_NAME, inn=CANDIDATE_INN, coparty_sink=sink,
+    )
+    assert status == 'ok' and records
+    # The candidate (respondent) is excluded; the plaintiff company is captured.
+    assert any(e['name'] == 'ООО Ромашка' and e['relation'] == 'co_litigant'
+               and e['kind'] == 'company' for e in sink)
+    assert all(e['name'] != CANDIDATE_NAME for e in sink)
+
+
+def test_search_kad_without_sink_unaffected(monkeypatch):
+    """Omitting coparty_sink keeps the original 2-tuple behavior intact."""
+    from app.services import parser_api
+    from app.services.phase3 import kad_arbitr_service as kad
+
+    case = {
+        'CaseNumber': CASE_NUMBER, 'Court': COURT, 'StartDate': '2024-03-15',
+        'CaseType': 'А',
+        'Plaintiffs': [{'Name': 'ООО Ромашка', 'Inn': '7700000001'}],
+        'Respondents': [{'Name': CANDIDATE_NAME, 'Inn': CANDIDATE_INN}],
+        'Thirds': [], 'Others': [],
+    }
+    monkeypatch.setattr(parser_api, 'is_available', lambda: True)
+    monkeypatch.setattr(parser_api, 'arbitr_search', lambda *a, **k: ([case], 'ok'))
+
+    records, status = kad.search_kad_arbitr_person(CANDIDATE_NAME, inn=CANDIDATE_INN)
+    assert status == 'ok' and len(records) == 1
