@@ -50,7 +50,7 @@ def test_register_creates_regular_user_subscription_and_session(app, client):
     )
 
     assert resp.status_code == 302
-    assert '/candidate/new' in resp.headers['Location']
+    assert '/dashboard' in resp.headers['Location']
 
     with app.app_context():
         from app.models.audit_log import AuditLog
@@ -76,7 +76,7 @@ def test_register_rejects_duplicate_username(app, client):
     }
 
     assert client.post('/register', data=data).status_code == 302
-    client.get('/logout')
+    client.post('/logout')
     resp = client.post('/register', data=data)
 
     assert resp.status_code == 400

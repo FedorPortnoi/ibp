@@ -93,7 +93,7 @@ def test_admin_sees_users_nav_and_user_list(app, client):
     resp = client.get('/admin/users/')
 
     assert resp.status_code == 200
-    assert b'Users' in resp.data
+    assert 'Пользователи'.encode() in resp.data
     assert b'alice' in resp.data
     assert b'bob' in resp.data
     assert f'/admin/users/{alice_id}/investigations'.encode() in resp.data

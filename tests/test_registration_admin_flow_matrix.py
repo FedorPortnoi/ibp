@@ -225,7 +225,7 @@ def test_register_creates_regular_user_subscription_audit_and_session(
     resp = _register(client, submitted, password)
 
     assert resp.status_code == 302
-    assert resp.headers['Location'].endswith('/candidate/new')
+    assert resp.headers['Location'].endswith('/dashboard')
     with client.session_transaction() as sess:
         assert sess['username'] == expected
         assert sess['role'] == 'user'
@@ -321,7 +321,7 @@ DUPLICATE_ATTEMPTS = [
 @pytest.mark.parametrize('second_payload', DUPLICATE_ATTEMPTS)
 def test_duplicate_registration_keeps_original_account_only(app, client, second_payload):
     assert _register(client, 'duplicate').status_code == 302
-    client.get('/logout')
+    client.post('/logout')
 
     resp = client.post('/register', data=second_payload)
 
@@ -349,7 +349,7 @@ def test_logged_in_users_are_redirected_away_from_registration(app, client, meth
     resp = getattr(client, method)('/register', data=data, follow_redirects=False)
 
     assert resp.status_code == 302
-    assert resp.headers['Location'].endswith('/candidate/new')
+    assert resp.headers['Location'].endswith('/dashboard')
     with app.app_context():
         from app.models.user import User
 
@@ -357,15 +357,15 @@ def test_logged_in_users_are_redirected_away_from_registration(app, client, meth
 
 
 ADMIN_LIST_FRAGMENTS = [
-    'Users - SLED',
-    '<span class="text-accent">Users</span>',
-    "Select a user to view only that user's investigations.",
-    'New investigation',
-    '<th>User</th>',
-    '<th>Role</th>',
-    '<th>Investigations</th>',
-    '<th>Last Investigation</th>',
-    '<th>Created</th>',
+    'Пользователи — СЛЕД',
+    '<span class="text-accent">Пользователи</span>',
+    'Выберите пользователя, чтобы просмотреть только его проверки.',
+    'Новая проверка',
+    '<th>Пользователь</th>',
+    '<th>Роль</th>',
+    '<th>Проверок</th>',
+    '<th>Последняя проверка</th>',
+    '<th>Зарегистрирован</th>',
     'role-admin',
     'role-user',
     'Fedor',
@@ -403,14 +403,14 @@ def test_admin_users_list_shows_per_user_investigation_counts(
     html = _text(client.get('/admin/users/'))
     row = _row_for(html, username)
 
-    assert f'data-label="Investigations"' in row
+    assert f'data-label="Проверок"' in row
     assert re.search(rf'>\s*{expected_count}\s*<', row)
 
 
 SELECTED_USER_SCOPES = [
     ('alice', ['Alice New Candidate', 'Alice Old Candidate'], ['Bob High Candidate']),
     ('bob', ['Bob High Candidate'], ['Alice New Candidate', 'Alice Old Candidate']),
-    ('charlie', ['No investigations yet'], ['Alice New Candidate', 'Bob High Candidate']),
+    ('charlie', ['Проверок пока нет'], ['Alice New Candidate', 'Bob High Candidate']),
 ]
 
 
@@ -430,9 +430,9 @@ def test_admin_selected_user_page_is_scoped_to_that_user(app, client, username, 
 
 
 SELECTED_PAGE_FRAGMENTS = [
-    ('alice', '&larr; Users'),
-    ('alice', '<span class="text-accent">alice</span> investigations'),
-    ('alice', 'Total investigations: 2'),
+    ('alice', '&larr; Пользователи'),
+    ('alice', 'Проверки — <span class="text-accent">alice</span>'),
+    ('alice', 'Всего проверок: 2'),
     ('alice', 'Alice New Candidate'),
     ('alice', 'Alice Old Candidate'),
     ('alice', '/candidate/dossier/alice-new'),
@@ -441,7 +441,7 @@ SELECTED_PAGE_FRAGMENTS = [
     ('alice', 'status-pill status-complete'),
     ('alice', 'risk-badge risk-low'),
     ('bob', 'risk-badge risk-high'),
-    ('charlie', 'Total investigations: 0'),
+    ('charlie', 'Всего проверок: 0'),
 ]
 
 
@@ -537,7 +537,7 @@ def test_users_nav_item_visibility_matches_role(app, client, username, route_tem
     html = _text(client.get(route_template.format(**ids), follow_redirects=True))
 
     assert ('/admin/users/' in html) is should_show_users
-    assert ('Users' in html) is should_show_users
+    assert ('Пользователи' in html) is should_show_users
 
 
 PERMISSION_CASES = [
