@@ -1369,26 +1369,36 @@
                 <div>
                     <h3 class="text-sm font-medium text-gray-400 mb-2">Email</h3>
                     {% for em in shown_emails %}
-                        <div class="dossier-card flex items-center justify-between py-3 gap-3">
-                            <div class="flex items-center gap-3 min-w-0">
-                                <span class="text-sm text-white font-mono truncate">{{ em.get('email', em.get('address', '')) }}</span>
-                                {% set ecs = em.get('confidence_score', 0) %}
-                                {% if ecs > 0 %}
-                                    <span class="confidence-badge {% if ecs >= 0.9 %}conf-high{% elif ecs >= 0.7 %}conf-medium{% else %}conf-low{% endif %}">{{ (ecs * 100)|round|int }}%</span>
-                                {% endif %}
-                                {% if em.get('verified') %}
-                                    <span class="status-badge badge-green">&#x2713; Подтверждён</span>
-                                {% endif %}
-                                {% if em.get('source_count', 0) > 1 %}
-                                    <span class="text-xs text-gray-600">({{ em.source_count }} источников)</span>
-                                {% endif %}
-                                {% if em.get('profile_name') and em.get('profile_name') != 'Holehe' %}
-                                    <span class="text-xs text-gray-600 truncate">{{ em.profile_name }}</span>
-                                {% endif %}
+                        <div class="dossier-card py-3">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <span class="text-sm text-white font-mono truncate">{{ em.get('email', em.get('address', '')) }}</span>
+                                    {% set ecs = em.get('confidence_score', 0) %}
+                                    {% if ecs > 0 %}
+                                        <span class="confidence-badge {% if ecs >= 0.9 %}conf-high{% elif ecs >= 0.7 %}conf-medium{% else %}conf-low{% endif %}">{{ (ecs * 100)|round|int }}%</span>
+                                    {% endif %}
+                                    {% if em.get('verified') %}
+                                        <span class="status-badge badge-green">&#x2713; Подтверждён</span>
+                                    {% endif %}
+                                    {% if em.get('source_count', 0) > 1 %}
+                                        <span class="text-xs text-gray-600">({{ em.source_count }} источников)</span>
+                                    {% endif %}
+                                    {% if em.get('profile_name') and em.get('profile_name') != 'Holehe' %}
+                                        <span class="text-xs text-gray-600 truncate">{{ em.profile_name }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <span class="text-xs text-gray-600">{{ em.get('source', '') }}</span>
+                                </div>
                             </div>
-                            <div class="flex items-center gap-2 shrink-0">
-                                <span class="text-xs text-gray-600">{{ em.get('source', '') }}</span>
+                            {% if em.get('services') %}
+                            <div class="mt-2 flex flex-wrap items-center gap-1">
+                                <span class="text-xs text-gray-500 mr-1">&#x1F310; Зарегистрирован на ({{ em.services|length }}):</span>
+                                {% for svc in em.services %}
+                                <span class="text-[10px] px-2 py-0.5 rounded-full text-gray-300 bg-white/[0.04] border border-white/[0.08]">{{ svc }}</span>
+                                {% endfor %}
                             </div>
+                            {% endif %}
                         </div>
                     {% endfor %}
                     {% if hidden_emails %}
