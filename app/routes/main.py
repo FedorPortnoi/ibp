@@ -103,11 +103,16 @@ def health_check():
 def readiness_check():
     """Readiness check for deploy monitors.
 
-    Returns only ok/degraded — no internal state details exposed to
-    unauthenticated callers.
+    Exposes internal readiness state (database connectivity, local data files)
+    so orchestrators can distinguish degraded from healthy without revealing
+    external-service credentials or upstream API reachability.
     """
     db_ok = _probe_database()
-    return jsonify({'status': 'ok' if db_ok else 'degraded'}), 200 if db_ok else 503
+    return jsonify({
+        'status': 'ok' if db_ok else 'degraded',
+        'database': db_ok,
+        'local_data': _local_data_status(),
+    }), 200 if db_ok else 503
 
 
 @main_bp.route('/privacy')
