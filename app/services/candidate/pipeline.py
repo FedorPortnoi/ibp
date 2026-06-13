@@ -681,13 +681,24 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 db.session.rollback()
                 logger.error(f"DB commit failed (Stage 0 identity): {e}")
 
+            # Axis 2: accumulate connection edges across stages; the graph is
+            # built at the end. Address co-registrants and EGRUL co-owners are
+            # rescued here from data that was otherwise discarded.
+            connection_edges = []
+
             # ── Address intelligence ──
             if check.registered_address:
                 try:
-                    from app.services.phase3.address_intelligence import search_by_address
+                    from app.services.phase3.address_intelligence import (
+                        search_by_address, extract_address_coparties,
+                    )
                     addr_intel = search_by_address(
                         check.registered_address, check.inn or '',
                     )
+                    connection_edges.extend(extract_address_coparties(
+                        addr_intel.get('connections'),
+                        check.registered_address, check.inn or '',
+                    ))
                     if addr_intel.get('mass_registration'):
                         task.add_message(
                             f"Адрес массовой регистрации: "
@@ -763,15 +774,25 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             # Run business registry + court search in parallel
             def _search_business(full_name, inn):
-                """Search ЕГРЮЛ by name, and by INN if provided."""
-                from app.services.phase3.business_registry import BusinessRegistrySearch
+                """Search ЕГРЮЛ by name, and by INN if provided.
+
+                Returns (records, coparty_edges). coparty_edges are Axis-2
+                connection edges for the co-directors/co-founders of the
+                candidate's companies, extracted from the EGRUL JSON that
+                enrichment already fetches (zero extra HTTP)."""
+                from app.services.phase3.business_registry import (
+                    BusinessRegistrySearch, extract_egrul_coparties,
+                )
                 from app.utils.name_similarity import calculate_name_similarity
                 records = []
+                # Capture the raw EGRUL JSON (keyed by company INN) so we can
+                # mine co-owners/co-directors after the name search.
+                egrul_cache = {}
                 searcher = BusinessRegistrySearch(timeout=30)
 
                 # By name (always)
                 logger.info(f"Stage 1 ЕГРЮЛ: searching by name '{full_name}'")
-                name_results = searcher.search_by_name(full_name)
+                name_results = searcher.search_by_name(full_name, egrul_cache=egrul_cache)
                 if name_results:
                     # Filter: only keep records where person_name closely matches
                     # the candidate's full name (similarity >= 0.7).
@@ -823,7 +844,18 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     else:
                         logger.info("Stage 1 ЕГРЮЛ by INN: 0 records")
 
-                return records
+                # Axis 2: mine co-directors/co-founders from the cached EGRUL
+                # JSON of the candidate's companies (excludes the candidate).
+                coparty_edges = []
+                for r in records:
+                    c_inn = (r.get('inn') or '').strip()
+                    raw = egrul_cache.get(c_inn)
+                    if raw:
+                        coparty_edges.extend(extract_egrul_coparties(
+                            raw, r.get('company_name', ''), c_inn,
+                            candidate_inn=inn or '', candidate_name=full_name,
+                        ))
+                return records, coparty_edges
 
             def _search_courts(full_name, inn=''):
                 """Search court records — sudact + судебныерешения + reputation.su
@@ -955,9 +987,11 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 def _process_future(future):
                     nonlocal biz_records, fssp_records, fssp_status, pledge_records
                     nonlocal pledge_status, sources_checked, sources_with_results
+                    nonlocal connection_edges
                     try:
                         if future is future_biz:
-                            biz_records = future.result(timeout=60)
+                            biz_records, _biz_coparties = future.result(timeout=60)
+                            connection_edges.extend(_biz_coparties)
                             if egrul_inn_records:
                                 existing_keys = {
                                     (r.get('inn', '') or '') + (r.get('ogrn', '') or '')
@@ -1990,6 +2024,25 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             except Exception as e:
                 db.session.rollback()
                 logger.warning(f"Connected checks analysis failed: {e}")
+
+            # 7b. Build the Axis-2 connection graph — the target's web of ties
+            # (own companies, co-owners, address co-registrants, shared-check
+            # links, flagged friends), entity-resolved by ИНН/name.
+            try:
+                from app.services.candidate.connection_graph import build_from_check
+                _conns = build_from_check(check, extra_edges=connection_edges)
+                check.connections = [c.to_dict() for c in _conns]
+                db.session.commit()
+                if _conns:
+                    _strong = sum(1 for c in _conns if c.confidence == 'strong')
+                    task.add_message(
+                        f'Связи: {len(_conns)} субъектов в графе '
+                        f'({_strong} с подтверждённой личностью)',
+                        'success',
+                    )
+            except Exception as e:
+                db.session.rollback()
+                logger.warning(f"Connection graph build failed: {e}")
 
             task.update('risk', 'Расчёт рисков...', 86)
 

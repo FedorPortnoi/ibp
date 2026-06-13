@@ -1320,3 +1320,150 @@ def check_fns_tax_debt(inn: str) -> dict:
 def search_by_inn_extended(inn: str, full_name: str = '') -> dict:
     """Module-level convenience: EGRUL + ИП status + ФНС tax debt."""
     return business_registry_search.search_by_inn_extended(inn, full_name)
+
+
+# ─────────────────────────────────────────
+# Axis 2 connection graph helpers
+# ─────────────────────────────────────────
+
+def _normalize_name(name: str) -> str:
+    """Lowercase, collapse spaces, replace ё→е for fuzzy matching."""
+    return re.sub(r'\s+', ' ', name.lower().replace('ё', 'е')).strip()
+
+
+def extract_egrul_coparties(
+    raw: dict,
+    company_name: str,
+    company_inn: str,
+    candidate_inn: str = '',
+    candidate_name: str = '',
+) -> list:
+    """
+    Extract co-directors and co-founders (people OTHER than the candidate)
+    from a raw egrul.org FNS JSON for one company.
+
+    Returns a list of edge dicts conforming to the Axis 2 connection-graph
+    edge contract:
+        {
+            'kind':       'person',
+            'name':       str,
+            'inn':        str,   # '' if unknown
+            'ogrn':       '',
+            'relation':   'co_director' | 'co_owner',
+            'label':      str,   # human-readable Russian
+            'via':        str,   # bridge company string
+            'source':     'ЕГРЮЛ',
+            'confidence': 'strong' | 'weak',
+        }
+
+    Args:
+        raw:            Parsed egrul.org JSON for one company (root-level dict).
+        company_name:   Display name of the bridge company.
+        company_inn:    INN of the bridge company.
+        candidate_inn:  INN of the subject — used to exclude them from results.
+        candidate_name: Full name of the subject — fallback exclusion by name.
+    """
+    try:
+        from app.services.company.egrul_service import _attrs, _as_list, _fio
+    except Exception:
+        return []
+
+    edges: list = []
+
+    # Resolve the real root node (СвЮЛ / СвИП / raw itself)
+    root = raw.get('СвЮЛ') or raw.get('СвИП') or raw
+    if not isinstance(root, dict):
+        return []
+
+    via = f'{company_name} (ИНН {company_inn})' if company_inn else company_name
+    norm_candidate = _normalize_name(candidate_name) if candidate_name else ''
+
+    def _is_candidate(inn_fl: str, full_name: str) -> bool:
+        """Return True if this person IS the candidate (should be excluded)."""
+        if candidate_inn and inn_fl and inn_fl == candidate_inn:
+            return True
+        if norm_candidate and full_name and _normalize_name(full_name) == norm_candidate:
+            return True
+        return False
+
+    # ── Officers (СведДолжнФЛ) ────────────────────────────────────────────
+    try:
+        for entry in _as_list(root.get('СведДолжнФЛ')):
+            if not isinstance(entry, dict):
+                continue
+            # Skip restricted entries
+            if _attrs(entry).get('ОгрДосСв') == '1':
+                continue
+
+            fl_node = entry.get('СвФЛ', {})
+            name = _fio(fl_node)
+            if not name:
+                continue
+
+            inn_fl = _attrs(fl_node).get('ИННФЛ', '')
+            if _is_candidate(inn_fl, name):
+                continue
+
+            role_raw = _attrs(entry.get('СвДолжн', {})).get(
+                'НаимДолжн',
+                _attrs(entry.get('СвДолжн', {})).get('НаимВидДолжн', ''),
+            )
+
+            label = f'Соруководитель «{company_name}»'
+            if role_raw:
+                label = f'{role_raw.strip().capitalize()}, {company_name}'
+
+            edges.append({
+                'kind':       'person',
+                'name':       name,
+                'inn':        inn_fl,
+                'ogrn':       '',
+                'relation':   'co_director',
+                'label':      label,
+                'via':        via,
+                'source':     'ЕГРЮЛ',
+                'confidence': 'strong' if inn_fl else 'weak',
+            })
+    except Exception:
+        pass  # Never raise — defensive
+
+    # ── Physical founders (СвУчредит → УчрФЛ) ────────────────────────────
+    try:
+        учредит = root.get('СвУчредит')
+        if isinstance(учредит, dict):
+            for entry in _as_list(учредит.get('УчрФЛ')):
+                if not isinstance(entry, dict):
+                    continue
+                if _attrs(entry).get('ОгрДосСв') == '1':
+                    continue
+
+                fl_node = entry.get('СвФЛ', {})
+                name = _fio(fl_node)
+                if not name:
+                    continue
+
+                inn_fl = _attrs(fl_node).get('ИННФЛ', '')
+                if _is_candidate(inn_fl, name):
+                    continue
+
+                share_pct = _attrs(entry.get('ДолУстКап', {})).get('Процент', '')
+
+                label = f'Соучредитель «{company_name}»'
+                if share_pct:
+                    label = f'Соучредитель «{company_name}» ({share_pct}%)'
+
+                edges.append({
+                    'kind':       'person',
+                    'name':       name,
+                    'inn':        inn_fl,
+                    'ogrn':       '',
+                    'relation':   'co_owner',
+                    'label':      label,
+                    'via':        via,
+                    'source':     'ЕГРЮЛ',
+                    'confidence': 'strong' if inn_fl else 'weak',
+                })
+    except Exception:
+        pass  # Never raise — defensive
+
+    return edges

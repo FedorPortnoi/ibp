@@ -1152,6 +1152,49 @@
     {% endif %}
 
     {# ================================================================
+       8c. WEB OF CONNECTIONS (Axis 2)
+       ================================================================ #}
+    {% set conns = check.connections or [] %}
+    {% if conns %}
+    {% set conns_strong = conns | selectattr('confidence', 'equalto', 'strong') | list %}
+    {% set conns_weak = conns | selectattr('confidence', 'equalto', 'weak') | list %}
+    <section id="sec-web" class="mb-10">
+        <div class="section-header">
+            <h2>&#x1F578;&#xFE0F; Граф связей</h2>
+            <span class="section-count">{{ conns|length }} субъектов</span>
+        </div>
+        <p class="text-xs text-gray-500 mb-3">Все обнаруженные связи цели. «Подтверждённые» — личность совпадает по ИНН или общей компании; «возможные» — совпадение по имени, требуют ручной проверки.</p>
+
+        {% macro conn_card(c, strong) %}
+        <div class="dossier-card mb-2" style="border-left: 3px solid {{ 'rgba(16,185,129,0.6)' if strong else 'rgba(156,163,175,0.4)' }};">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="text-sm font-semibold text-gray-100">{{ c.name }}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-gray-500/10 text-gray-300">{{ 'компания' if c.kind == 'company' else 'физлицо' }}</span>
+                {% if c.inn %}<span class="text-xs text-gray-500">ИНН {{ c.inn }}</span>{% endif %}
+            </div>
+            {% for r in c.relations %}
+            <div class="text-xs text-gray-400">&bull; {{ r.label }}{% if r.via %} — {{ r.via }}{% endif %} <span class="text-gray-600">[{{ r.source }}]</span></div>
+            {% endfor %}
+        </div>
+        {% endmacro %}
+
+        {% if conns_strong %}
+        <div class="mb-4">
+            <div class="text-sm font-semibold text-emerald-300 mb-2">Подтверждённые ({{ conns_strong|length }})</div>
+            {% for c in conns_strong %}{{ conn_card(c, true) }}{% endfor %}
+        </div>
+        {% endif %}
+
+        {% if conns_weak %}
+        <details class="mb-2"{% if not conns_strong %} open{% endif %}>
+            <summary class="text-sm font-semibold text-gray-400 cursor-pointer">Возможные ({{ conns_weak|length }}) — совпадение по имени, требуют проверки</summary>
+            <div class="mt-2">{% for c in conns_weak %}{{ conn_card(c, false) }}{% endfor %}</div>
+        </details>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    {# ================================================================
        9. SOCIAL MEDIA SECTION
        ================================================================ #}
     <section id="sec-social" class="mb-10">

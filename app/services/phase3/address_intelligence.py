@@ -84,3 +84,59 @@ def search_by_address(address: str, candidate_inn: str = '') -> dict:
         results['status'] = 'error'
 
     return results
+
+
+_LEGAL_FORMS = ('ООО', 'ОАО', 'ЗАО', 'ПАО', 'АО', 'НКО', 'АНО')
+
+
+def extract_address_coparties(
+    connections: list,
+    address: str = '',
+    candidate_inn: str = '',
+) -> list:
+    """
+    Turn the `connections` list from search_by_address() into connection-graph
+    edges (Axis 2) that other parties share the same registered address.
+
+    Returns a list of edge dicts; never raises.
+    """
+    if not connections:
+        return []
+
+    via = address if address else 'общий адрес регистрации'
+    edges = []
+
+    for entry in connections:
+        try:
+            name = entry.get('name', '') if isinstance(entry, dict) else ''
+            inn  = entry.get('inn',  '') if isinstance(entry, dict) else ''
+            ogrn = entry.get('ogrn', '') if isinstance(entry, dict) else ''
+        except Exception:
+            continue
+
+        if not name:
+            continue
+
+        # Skip the candidate's own entry when both inns are present and match.
+        if candidate_inn and inn and inn == candidate_inn:
+            continue
+
+        # Determine entity kind.
+        if len(inn) == 10 or any(name.startswith(lf) for lf in _LEGAL_FORMS):
+            kind = 'company'
+        else:
+            kind = 'person'
+
+        edges.append({
+            'kind':       kind,
+            'name':       name,
+            'inn':        inn,
+            'ogrn':       ogrn,
+            'relation':   'co_registered',
+            'label':      'Один адрес регистрации',
+            'via':        via,
+            'source':     'ЕГРЮЛ (адрес)',
+            'confidence': 'strong' if inn else 'weak',
+        })
+
+    return edges

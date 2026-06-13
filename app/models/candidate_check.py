@@ -62,6 +62,9 @@ class CandidateCheck(db.Model):
     # confirmed/possible by the disambiguation engine. Status lives in
     # source_statuses['adverse_media'].
     _adverse_media = db.Column('adverse_media', db.Text, default='[]')
+    # Axis 2: the target's resolved web of connections (people/companies they're
+    # tied to via ownership, courts, address, shared contacts, social).
+    _connections = db.Column('connections', db.Text, default='[]')
     _social_media_profiles = db.Column('social_media_profiles', db.Text, default='[]')
     _contact_discoveries = db.Column('contact_discoveries', db.Text, default='{}')
 
@@ -227,6 +230,15 @@ class CandidateCheck(db.Model):
     @adverse_media.setter
     def adverse_media(self, value):
         self._adverse_media = self._dump_json(value)
+
+    # connections (Axis 2 — web of connections)
+    @property
+    def connections(self):
+        return self._load_json(self._connections, [])
+
+    @connections.setter
+    def connections(self, value):
+        self._connections = self._dump_json(value)
 
     # social_media_profiles
     @property

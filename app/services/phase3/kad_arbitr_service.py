@@ -465,3 +465,105 @@ def search_kad_arbitr_person(
         "kad.arbitr.ru: %d cases for '%s' (status=%s)", len(records), name, status,
     )
     return records, status
+
+
+# ── legal-form prefixes that identify a company ───────────────────────────
+_LEGAL_FORM_PREFIXES = (
+    'ООО', 'ОАО', 'ЗАО', 'ПАО', 'АО', 'НКО', 'АНО',
+)
+
+
+def _normalize_name(text: str) -> str:
+    """Lowercase, ё→е, collapse whitespace — for candidate exclusion."""
+    if not text:
+        return ''
+    return re.sub(r'\s+', ' ', text.lower().replace('ё', 'е')).strip()
+
+
+def _party_kind(inn: str, name: str) -> str:
+    """Return 'company' or 'person' for a case participant."""
+    inn_clean = (inn or '').strip()
+    if inn_clean and len(inn_clean) == 10 and inn_clean.isdigit():
+        return 'company'
+    name_upper = (name or '').strip().upper()
+    for prefix in _LEGAL_FORM_PREFIXES:
+        if name_upper.startswith(prefix):
+            return 'company'
+    return 'person'
+
+
+def extract_court_coparties(
+    cases: list,
+    candidate_inn: str = '',
+    candidate_name: str = '',
+) -> list:
+    """Extract co-party connection edges from arbitration cases.
+
+    For each party in each case (across Plaintiffs, Respondents, Thirds, Others),
+    emit one edge dict — EXCEPT the candidate themselves.  The candidate is
+    identified by INN match (when both present) or by normalised name match.
+
+    Args:
+        cases: raw list returned by parser_api.arbitr_search() — each element
+               is a dict with CaseNumber, Court, Plaintiffs, Respondents,
+               Thirds, Others keys (arrays may be missing or None).
+        candidate_inn:  INN of the candidate (may be empty).
+        candidate_name: Full name of the candidate (may be empty).
+
+    Returns:
+        List of edge dicts conforming to the Axis-2 edge contract.
+        Never raises; returns [] on bad/empty input.
+    """
+    if not cases or not isinstance(cases, list):
+        return []
+
+    cand_inn = (candidate_inn or '').strip()
+    cand_name_norm = _normalize_name(candidate_name)
+
+    edges: List[Dict] = []
+
+    for case in cases:
+        if not isinstance(case, dict):
+            continue
+
+        case_number = (case.get('CaseNumber') or '').strip()
+        if not case_number:
+            continue
+
+        court = (case.get('Court') or '').strip()
+        via = f'дело {case_number}, {court}' if court else f'дело {case_number}'
+
+        for arr_key, role_ru in _PARSER_ROLE_BY_ARRAY.items():
+            for party in case.get(arr_key) or []:
+                if not isinstance(party, dict):
+                    continue
+
+                p_name = (party.get('Name') or '').strip()
+                if not p_name:
+                    continue
+
+                p_inn = (party.get('Inn') or '').strip()
+
+                # Exclude the candidate
+                if cand_inn and p_inn and p_inn == cand_inn:
+                    continue
+                if cand_name_norm and _normalize_name(p_name) == cand_name_norm:
+                    continue
+
+                kind = _party_kind(p_inn, p_name)
+                label = f'{role_ru.capitalize()} по делу {case_number}'
+                confidence = 'strong' if p_inn else 'weak'
+
+                edges.append({
+                    'kind':       kind,
+                    'name':       p_name,
+                    'inn':        p_inn,
+                    'ogrn':       '',
+                    'relation':   'co_litigant',
+                    'label':      label,
+                    'via':        via,
+                    'source':     'kad.arbitr.ru',
+                    'confidence': confidence,
+                })
+
+    return edges
