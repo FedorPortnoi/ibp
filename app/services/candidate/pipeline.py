@@ -17,7 +17,6 @@ Wave-based parallel execution for speed:
   Wave 6: Stage 8 — Report Generation                          [93-100%]
 """
 
-import json
 import logging
 import os
 import threading

@@ -14,11 +14,10 @@ Usage:
     # Returns: ["Портнов", "Портнова", "Портновский", ...]
 """
 
-import logging
 from difflib import SequenceMatcher
 from typing import List, Tuple
 
-logger = logging.getLogger(__name__)
+from app.services.phase1.transliteration import transliterate
 
 # ── Gender suffix pairs ────────────────────────────────────────────
 
@@ -83,8 +82,8 @@ def surname_similarity(name1: str, name2: str) -> float:
         return 1.0
 
     # Try cross-script comparison
-    n1_lat = _to_latin(n1)
-    n2_lat = _to_latin(n2)
+    n1_lat = transliterate(n1)
+    n2_lat = transliterate(n2)
 
     if n1_lat == n2_lat:
         return 1.0
@@ -108,81 +107,6 @@ def surname_similarity(name1: str, name2: str) -> float:
     return max(score_cyr, score_lat)
 
 
-def generate_similar_surnames(surname: str) -> List[str]:
-    """
-    Generate likely surname variants from a base surname.
-    Includes gender variants, common suffix transformations.
-
-    Args:
-        surname: Base surname (e.g. "Портной")
-
-    Returns:
-        List of variant surnames
-    """
-    if not surname:
-        return []
-
-    variants = []
-    s_lower = surname.lower()
-
-    # Generate gender variants
-    for male_end, female_end in _GENDER_PAIRS:
-        if s_lower.endswith(male_end):
-            base = surname[:-len(male_end)]
-            variants.append(base + female_end)
-            # Also capitalize properly
-            if surname[0].isupper():
-                variants[-1] = variants[-1][0].upper() + variants[-1][1:]
-        elif s_lower.endswith(female_end) and male_end != female_end:
-            base = surname[:-len(female_end)]
-            variants.append(base + male_end)
-            if surname[0].isupper():
-                variants[-1] = variants[-1][0].upper() + variants[-1][1:]
-
-    # Suffix transformations
-    for suffix, alternatives in _SUFFIX_TRANSFORMS.items():
-        if s_lower.endswith(suffix):
-            base = surname[:-len(suffix)]
-            for alt in alternatives:
-                new_name = base + alt
-                if surname[0].isupper():
-                    new_name = new_name[0].upper() + new_name[1:]
-                if new_name.lower() != s_lower and new_name not in variants:
-                    variants.append(new_name)
-
-    # Deduplicate while preserving order, exclude original
-    seen = {surname.lower()}
-    result = []
-    for v in variants:
-        if v.lower() not in seen:
-            seen.add(v.lower())
-            result.append(v)
-
-    return result
-
-
-def find_best_surname_match(target: str, candidates: List[str], threshold: float = 0.6) -> List[Tuple[str, float]]:
-    """
-    Find the best matching surnames from a list of candidates.
-
-    Args:
-        target: Target surname to match against
-        candidates: List of candidate surnames
-        threshold: Minimum similarity score (0.0 to 1.0)
-
-    Returns:
-        List of (surname, score) tuples above threshold, sorted by score descending
-    """
-    matches = []
-    for candidate in candidates:
-        score = surname_similarity(target, candidate)
-        if score >= threshold:
-            matches.append((candidate, score))
-
-    matches.sort(key=lambda x: x[1], reverse=True)
-    return matches
-
-
 def _get_surname_base(surname: str) -> str:
     """Extract the base of a surname by removing common suffixes."""
     s = surname.lower()
@@ -200,14 +124,3 @@ def _get_surname_base(surname: str) -> str:
     return s
 
 
-def _to_latin(text: str) -> str:
-    """Basic Cyrillic to Latin transliteration for comparison."""
-    table = {
-        'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e',
-        'ё': 'yo', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'j', 'к': 'k',
-        'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r',
-        'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts',
-        'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '',
-        'э': 'e', 'ю': 'yu', 'я': 'ya',
-    }
-    return ''.join(table.get(ch, ch) for ch in text.lower())

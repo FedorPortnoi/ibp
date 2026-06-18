@@ -22,6 +22,8 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Optional
 
+from app.services.phase1.transliteration import transliterate
+
 logger = logging.getLogger(__name__)
 
 
@@ -635,8 +637,8 @@ class TelegramDiscoveryService:
             first_variants = transliterate_name_part(first_name.lower(), max_variants=2)
             last_variants = transliterate_name_part(last_name.lower(), max_variants=2)
         except (ImportError, Exception):
-            first_variants = [self._basic_translit(first_name)]
-            last_variants = [self._basic_translit(last_name)]
+            first_variants = [transliterate(first_name)]
+            last_variants = [transliterate(last_name)]
 
         candidates = []
         for first in first_variants:
@@ -678,7 +680,7 @@ class TelegramDiscoveryService:
             from app.services.phase1.russian_diminutives import get_all_name_variants
             diminutives = get_all_name_variants(first_name)
             for dim in list(diminutives)[:3]:
-                dim_latin = self._basic_translit(dim)
+                dim_latin = transliterate(dim)
                 if dim_latin and last_variants:
                     last = last_variants[0].replace("'", '').replace(' ', '')
                     if last:
@@ -717,22 +719,9 @@ class TelegramDiscoveryService:
             last_latin = last_variants[0].title() if last_variants else ''
             return f"{first_latin} {last_latin}".strip()
         except (ImportError, Exception):
-            first_latin = self._basic_translit(first_name).title()
-            last_latin = self._basic_translit(last_name).title()
+            first_latin = transliterate(first_name).title()
+            last_latin = transliterate(last_name).title()
             return f"{first_latin} {last_latin}".strip()
-
-    @staticmethod
-    def _basic_translit(text: str) -> str:
-        """Basic Cyrillic to Latin transliteration fallback."""
-        table = {
-            'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e',
-            'ё': 'yo', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k',
-            'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r',
-            'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts',
-            'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '',
-            'э': 'e', 'ю': 'yu', 'я': 'ya',
-        }
-        return ''.join(table.get(ch, ch) for ch in text.lower())
 
     @staticmethod
     def _clean_display_name(name: str) -> str:
@@ -780,9 +769,9 @@ class TelegramDiscoveryService:
         # Pass 2: Transliterate both sides to Latin, compare again
         # Catches "Natalya" vs "Наталья" → both become "natalya"
         # Also normalizes mixed-script names like "Натаshа" → "natasha"
-        target_first_lat = self._basic_translit(first_name)
-        target_last_lat = self._basic_translit(last_name)
-        display_lat = self._basic_translit(cleaned)
+        target_first_lat = transliterate(first_name)
+        target_last_lat = transliterate(last_name)
+        display_lat = transliterate(cleaned)
 
         lat_result = self._checker._verify_names(
             target_first_lat, target_last_lat, display_lat
@@ -802,7 +791,7 @@ class TelegramDiscoveryService:
                 try:
                     from app.services.phase1.russian_diminutives import get_all_name_variants
                     cyrillic_variants = get_all_name_variants(first_name)
-                    latin_variants = {self._basic_translit(v) for v in cyrillic_variants}
+                    latin_variants = {transliterate(v) for v in cyrillic_variants}
                     latin_variants.add(target_first_lat)
 
                     if display_first_lat in latin_variants:

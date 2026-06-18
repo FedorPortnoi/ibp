@@ -11,15 +11,19 @@ os.environ.setdefault('SECRET_KEY', 'test-secret-key')
 
 @pytest.fixture
 def app():
+    import app.routes.auth as _auth_routes
     from app import create_app, db
     from app.models import AuditLog, CandidateCheck, ChatMessage, Subscription, User  # noqa: F401
 
+    _orig_reg_open = _auth_routes._REGISTRATION_OPEN
+    _auth_routes._REGISTRATION_OPEN = True
     application = create_app('testing')
     with application.app_context():
         db.create_all()
         yield application
         db.session.remove()
         db.drop_all()
+    _auth_routes._REGISTRATION_OPEN = _orig_reg_open
 
 
 @pytest.fixture

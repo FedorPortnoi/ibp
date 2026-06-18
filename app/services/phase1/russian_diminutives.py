@@ -14,10 +14,7 @@ Usage:
     # Returns: ["Александр", "Александра"]
 """
 
-import logging
-from typing import List, Optional
-
-logger = logging.getLogger(__name__)
+from typing import List
 
 # ── Diminutive Dictionary ──────────────────────────────────────────
 
@@ -197,12 +194,3 @@ def get_all_name_variants(first_name: str) -> List[str]:
             result.append(v)
 
     return result
-
-
-def is_known_name(name: str) -> bool:
-    """Check if a name exists in our dictionary (formal or diminutive)."""
-    name_lower = name.lower()
-    for key in DIMINUTIVES:
-        if key.lower() == name_lower:
-            return True
-    return name_lower in _REVERSE_LOOKUP

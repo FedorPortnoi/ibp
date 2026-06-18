@@ -5,11 +5,10 @@ Numeric 0-100 risk scoring with fact/suspicion distinction.
 Each flag has: type, code, description, evidence, severity, recommendation.
 """
 
-import json
 import logging
 import re
 from collections import Counter
-from datetime import datetime, date
+from datetime import date
 
 logger = logging.getLogger(__name__)
 
@@ -207,12 +206,6 @@ class RiskScorer:
 
         return risk_level, red_flags
 
-    def analyze_with_score(self, check):
-        """Analyze and return (risk_level, red_flags, risk_score)."""
-        risk_level, red_flags = self.analyze(check)
-        score_data = calculate_risk_score(red_flags)
-        return risk_level, red_flags, score_data['score']
-
     # ── Identity Red Flags (Stage 0) ──
 
     def _analyze_identity(self, check):
@@ -399,11 +392,6 @@ class RiskScorer:
         'POSSIBLE':   0.3,   # 30% — region only
         'UNVERIFIED': 0.0,   # No impact — name-only match, could be namesake
     }
-
-    def _get_court_confidence_weight(self, record):
-        """Return confidence weight for a court record. UNVERIFIED = 0."""
-        confidence = record.get('confidence', '')
-        return self.COURT_CONFIDENCE_WEIGHTS.get(confidence, 1.0)
 
     def _filter_courts_by_confidence(self, records):
         """Filter out UNVERIFIED records from risk-affecting analysis."""
@@ -705,7 +693,6 @@ class RiskScorer:
         flags = []
 
         graph = self._safe_json_attr(check, 'social_graph_data', {})
-        face_matches = self._safe_json_attr(check, 'face_matches', [])
         username_accounts = self._safe_json_attr(check, 'username_accounts', [])
 
         stats = graph.get('stats', {})
@@ -868,7 +855,6 @@ class RiskScorer:
         if not group_analysis:
             return flags
 
-        category_counts = group_analysis.get('category_counts', {})
         flagged_groups = group_analysis.get('flagged_groups', [])
 
         category_to_code = {
@@ -944,7 +930,6 @@ class RiskScorer:
         flags = []
         # Profile anomalies are stored by behavioral_analysis in vk_snapshot,
         # but also passed through behavioral_data. Check both.
-        behavioral = self._safe_json_attr(check, 'activity_patterns', {})
         # The actual anomaly flags are stored in the behavioral_results
         # during Stage 6 and saved separately. We read them from the
         # pipeline's group_analysis or vk_snapshot.
@@ -999,28 +984,6 @@ class RiskScorer:
                 ))
 
         return flags
-
-    # ── Risk Level Calculation ──
-
-    @staticmethod
-    def _calculate_risk_level(red_flags):
-        """Legacy severity-based level (kept for backward compat)."""
-        if any(f['severity'] == SEVERITY_CRITICAL for f in red_flags):
-            return 'critical'
-
-        high_count = sum(1 for f in red_flags if f['severity'] == SEVERITY_HIGH)
-        medium_count = sum(1 for f in red_flags if f['severity'] == SEVERITY_MEDIUM)
-
-        if high_count >= 2 or (high_count >= 1 and medium_count >= 2):
-            return 'high'
-
-        if high_count >= 1 or medium_count >= 3:
-            return 'medium'
-
-        if medium_count >= 1:
-            return 'low'
-
-        return 'clean'
 
     # ── Helpers ──
 

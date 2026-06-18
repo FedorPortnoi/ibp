@@ -14,7 +14,6 @@ Features:
 """
 
 import os
-import json
 import logging
 import time
 from dataclasses import dataclass, asdict
@@ -29,6 +28,8 @@ except ImportError:
 
 from dotenv import load_dotenv
 load_dotenv()
+
+from app.services.phase1.transliteration import transliterate
 
 logger = logging.getLogger(__name__)
 
@@ -129,10 +130,6 @@ class BuratinoVKSearch:
         else:
             logger.info("BuratinoVKSearch: VK API mode enabled")
 
-    @property
-    def is_demo_mode(self) -> bool:
-        return self._demo_mode
-
     def _rate_limit(self):
         """Enforce rate limiting (~3 requests/second)."""
         elapsed = time.time() - self.last_request_time
@@ -187,38 +184,6 @@ class BuratinoVKSearch:
 
         raise VKAPIError(self.RATE_LIMIT, "Max retries exceeded")
 
-    def get_city_id(self, city_name: str, country_id: int = 1) -> Optional[int]:
-        """Get VK city ID by name."""
-        cache_key = f"{country_id}:{city_name.lower()}"
-        if cache_key in self._city_cache:
-            return self._city_cache[cache_key]
-
-        if self._demo_mode:
-            # Known cities in demo mode
-            demo_cities = {
-                'москва': 1, 'санкт-петербург': 2, 'новосибирск': 99,
-                'екатеринбург': 158, 'казань': 60, 'нижний новгород': 95,
-            }
-            return demo_cities.get(city_name.lower())
-
-        try:
-            result = self._api_call("database.getCities", {
-                "country_id": country_id,
-                "q": city_name,
-                "count": 1
-            })
-
-            items = result.get("items", [])
-            if items:
-                city_id = items[0]["id"]
-                self._city_cache[cache_key] = city_id
-                return city_id
-
-        except VKAPIError as e:
-            logger.warning(f"Failed to get city ID for '{city_name}': {e}")
-
-        return None
-
     def _calculate_age(self, bdate: Optional[str]) -> Optional[int]:
         """Calculate age from VK bdate string (D.M.YYYY or D.M)."""
         if not bdate:
@@ -261,8 +226,8 @@ class BuratinoVKSearch:
         found_lower = found.lower().strip()
 
         # Transliterate both to Latin for cross-script comparison
-        target_lat = self._to_latin(target_lower)
-        found_lat = self._to_latin(found_lower)
+        target_lat = transliterate(target_lower)
+        found_lat = transliterate(found_lower)
 
         target_parts_cyr = target_lower.split()
         found_parts_cyr = found_lower.split()
@@ -344,25 +309,6 @@ class BuratinoVKSearch:
         # Both names match: weighted combination (50/50)
         return (first_score * 50) + (last_score * 50)
 
-    @staticmethod
-    def _to_latin(text: str) -> str:
-        """Transliterate text to Latin for comparison. Pass-through if already Latin."""
-        try:
-            from transliterate import translit
-            return translit(text, 'ru', reversed=True).lower()
-        except Exception as e:
-            logger.debug(f"[VKSearch] Transliteration fallback: {e}")
-            # Basic transliteration fallback
-            table = {
-                'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e',
-                'ё': 'yo', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'j', 'к': 'k',
-                'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r',
-                'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts',
-                'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '',
-                'э': 'e', 'ю': 'yu', 'я': 'ya',
-            }
-            return ''.join(table.get(ch, ch) for ch in text)
-
     # VK API returns city names in profile language — map English↔Russian for top cities
     _CITY_ALIASES = {
         'москва': 'moscow', 'санкт-петербург': 'saint petersburg',
@@ -398,8 +344,8 @@ class BuratinoVKSearch:
             return True
 
         # Transliteration match (Новосибирск → novosibirsk)
-        sc_lat = self._to_latin(sc)
-        pc_lat = self._to_latin(pc)
+        sc_lat = transliterate(sc)
+        pc_lat = transliterate(pc)
         if sc_lat in pc_lat or pc_lat in sc_lat:
             return True
 
@@ -647,78 +593,6 @@ class BuratinoVKSearch:
         if strict_mode:
             return profiles[:count], len(all_profiles_by_id)
         return profiles, len(all_profiles_by_id)
-
-    def fetch_friends(
-        self,
-        user_id: int,
-        count: int = 500,
-        offset: int = 0
-    ) -> List[Dict[str, Any]]:
-        """
-        Fetch friends list for a VK user.
-
-        Args:
-            user_id: VK user ID
-            count: Maximum friends to return (max 5000)
-            offset: Pagination offset
-
-        Returns:
-            List of friend profile dicts
-        """
-        if self._demo_mode:
-            return self._demo_friends(user_id)
-
-        params = {
-            "user_id": user_id,
-            "count": min(count, 5000),
-            "offset": offset,
-            "fields": ",".join(self.PROFILE_FIELDS)
-        }
-
-        logger.info(f"Fetching friends for VK user {user_id}")
-
-        try:
-            result = self._api_call("friends.get", params)
-
-            items = result.get("items", [])
-            logger.info(f"VK API returned {len(items)} friends")
-
-            return items
-
-        except VKAPIError as e:
-            logger.error(f"VK API error fetching friends: {e}")
-            return self._demo_friends(user_id)
-
-    def _demo_friends(self, user_id: int) -> List[Dict[str, Any]]:
-        """Generate demo friends for testing."""
-        logger.info(f"Generating demo friends for user {user_id}")
-
-        return [
-            {"id": 111, "first_name": "Петр", "last_name": "Петров",
-             "photo_100": "https://vk.com/images/camera_100.png",
-             "city": {"id": 1, "title": "Москва"}, "is_closed": False},
-            {"id": 222, "first_name": "Мария", "last_name": "Сидорова",
-             "photo_100": "https://vk.com/images/camera_100.png",
-             "city": {"id": 1, "title": "Москва"}, "is_closed": False},
-            {"id": 333, "first_name": "Алексей", "last_name": "Козлов",
-             "photo_100": "https://vk.com/images/camera_100.png",
-             "city": {"id": 2, "title": "Санкт-Петербург"}, "is_closed": False},
-            {"id": 444, "first_name": "Елена", "last_name": "Новикова",
-             "photo_100": "https://vk.com/images/camera_100.png",
-             "city": {"id": 1, "title": "Москва"}, "is_closed": False},
-            {"id": 555, "first_name": "Дмитрий", "last_name": "Морозов",
-             "photo_100": "https://vk.com/images/camera_100.png",
-             "city": {"id": 60, "title": "Казань"}, "is_closed": False},
-            {"id": 666, "first_name": "Анна", "last_name": "Волкова",
-             "photo_100": "https://vk.com/images/camera_100.png",
-             "city": {"id": 1, "title": "Москва"}, "is_closed": False},
-            {"id": 777, "first_name": "Сергей", "last_name": "Соколов",
-             "photo_100": "https://vk.com/images/camera_100.png",
-             "city": {"id": 2, "title": "Санкт-Петербург"}, "is_closed": False},
-            {"id": 888, "first_name": "Ольга", "last_name": "Лебедева",
-             "photo_100": "https://vk.com/images/camera_100.png",
-             "city": {"id": 1, "title": "Москва"}, "is_closed": False},
-        ]
 
     def _demo_search(
         self,
@@ -1066,34 +940,3 @@ class BuratinoVKSearch:
 
 # Singleton instance
 buratino_vk_search = BuratinoVKSearch()
-
-
-def search_vk_buratino(
-    name: str,
-    city: str = None,
-    age_from: int = None,
-    age_to: int = None,
-    limit: int = 50
-) -> List[Dict]:
-    """
-    Convenience function for Buratino-style VK search.
-
-    Args:
-        name: Full name to search
-        city: Optional city filter
-        age_from: Minimum age
-        age_to: Maximum age
-        limit: Max results
-
-    Returns:
-        List of profile dicts
-    """
-    profiles, _ = buratino_vk_search.search(
-        query=name,
-        city=city,
-        age_from=age_from,
-        age_to=age_to,
-        count=limit,
-        target_name=name
-    )
-    return [p.to_dict() for p in profiles]

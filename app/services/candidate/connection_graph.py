@@ -27,12 +27,9 @@ when present, else by normalized name) so the same counterparty seen via five
 sources is one node carrying all its relations.
 """
 
-import logging
 import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
-
-logger = logging.getLogger(__name__)
 
 # Human Russian labels per relation code (fallback when an edge omits 'label').
 RELATION_LABELS = {

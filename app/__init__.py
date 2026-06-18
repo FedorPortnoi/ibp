@@ -173,16 +173,16 @@ def create_app(config_name=None):
         if not session.get('user_id'):
             if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'error': 'Требуется авторизация', 'redirect': '/login'}), 401
-            if 'favicon' not in request.path and not request.path.startswith('/static'):
+            if not request.path.startswith('/static'):
                 session['next_url'] = request.path
             return redirect(url_for('auth.login'))
 
         # Validate user_id actually exists and is active in the DB.
         # A forged session cookie (using a leaked SECRET_KEY) would pass the
         # truthy check above but fail here, preventing impersonation.
-        from app.models.user import User as _User
-        _session_user = db.session.get(_User, session['user_id'])
-        if not _session_user or not _session_user.is_active:
+        from app.models.user import User
+        user = db.session.get(User, session['user_id'])
+        if not user or not user.is_active:
             session.clear()
             if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'error': 'Требуется авторизация', 'redirect': '/login'}), 401
@@ -210,9 +210,7 @@ def create_app(config_name=None):
         # Free tier: users get 2 checks per week without paying.
         # Paid subscription: unlimited. Admin: always unlimited.
         if request.endpoint and request.endpoint not in subscribe_endpoints:
-            from app.models.user import User
             from app.models.subscription import Subscription
-            user = db.session.get(User, session['user_id'])
             if user and not user.is_admin:
                 sub = Subscription.query.filter_by(user_id=user.id).first()
                 # Auto-create subscription row for new users (free tier)
@@ -263,8 +261,7 @@ def create_app(config_name=None):
             "object-src 'none'; "
             "upgrade-insecure-requests"
         )
-        # Remove server fingerprint headers
-        response.headers.pop('Server', None)
+        # Remove server fingerprint headers (Server header already stripped by _StripServerHeader WSGI middleware)
         response.headers.pop('X-Powered-By', None)
         return response
 

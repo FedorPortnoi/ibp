@@ -11,13 +11,11 @@ Primary service: BuratinoVKSearch
 from app.services.phase1.buratino_vk_search import (
     BuratinoVKSearch,
     buratino_vk_search,
-    search_vk_buratino,
     VKProfileResult,
 )
 
 __all__ = [
     'BuratinoVKSearch',
     'buratino_vk_search',
-    'search_vk_buratino',
     'VKProfileResult',
 ]

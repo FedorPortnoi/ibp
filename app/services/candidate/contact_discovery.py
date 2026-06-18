@@ -21,7 +21,6 @@ Discovery chain (order matters — each step feeds the next):
 """
 
 import logging
-import os
 import re
 import time
 from dataclasses import dataclass, field, asdict
@@ -99,11 +98,6 @@ def _score_to_label(score: float) -> str:
     return 'низкая'
 
 
-def _label_to_score(label: str) -> float:
-    """Convert Russian confidence label to numeric score."""
-    return {'высокая': 0.85, 'средняя': 0.60, 'низкая': 0.40}.get(label, 0.40)
-
-
 @dataclass
 class DiscoveredPhone:
     number: str                             # normalized +79161234567
@@ -135,10 +129,6 @@ class DiscoveredEmail:
         d = asdict(self)
         d['confidence_score'] = round(self.confidence_score, 2)
         return d
-
-
-def _confidence_rank(confidence: str) -> int:
-    return {'высокая': 3, 'средняя': 2, 'низкая': 1}.get(confidence, 0)
 
 
 def _get_score(source_key: str) -> float:
@@ -1671,73 +1661,6 @@ class ContactDiscoveryService:
             confidence_score=score,
             sources=[source_key],
         ))
-
-    # ── Step 9: Marketplace Mining ────────────────────────────────────
-
-    def _run_marketplace_scan(self, check):
-        """Mine Russian marketplaces (Avito, Youla, CIAN, Auto.ru) for contacts."""
-        try:
-            from app.services.phase2.marketplace_scanner import MarketplaceOracle
-        except ImportError:
-            logger.debug("Marketplace scanner module not available")
-            return
-
-        oracle = MarketplaceOracle(city=None)
-
-        # Get city from behavioral data if available
-        geo = check.geo_data if hasattr(check, 'geo_data') and check.geo_data else {}
-        if isinstance(geo, dict):
-            cities = geo.get('cities', [])
-            if cities and isinstance(cities, list) and isinstance(cities[0], dict):
-                oracle.city = cities[0].get('name')
-
-        try:
-            known_phone = None
-            for p in self.found_phones:
-                if p.confidence_score >= 0.80:
-                    known_phone = p.number
-                    break
-
-            results = oracle.search_all(
-                full_name=check.full_name,
-                phone=known_phone,
-                city=oracle.city,
-            )
-        except Exception as e:
-            logger.warning(f"Marketplace scan error: {e}")
-            return
-
-        mkt_score = _get_score('marketplace')
-
-        for phone_data in results.get('phones', []):
-            number = phone_data.get('number', '')
-            if number and not any(p.number == number for p in self.found_phones):
-                self.found_phones.append(DiscoveredPhone(
-                    number=number,
-                    source='marketplace',
-                    confidence=_score_to_label(mkt_score),
-                    profile_name=phone_data.get('source', 'marketplace'),
-                    raw_value=number,
-                    confidence_score=mkt_score,
-                    sources=[f"marketplace_{phone_data.get('source', 'unknown')}"],
-                ))
-
-        for email_data in results.get('emails', []):
-            email = email_data.get('email', '').lower()
-            if email and not any(e.email == email for e in self.found_emails):
-                self.found_emails.append(DiscoveredEmail(
-                    email=email,
-                    source='marketplace',
-                    confidence=_score_to_label(mkt_score),
-                    verified=False,
-                    profile_name=email_data.get('source', 'marketplace'),
-                    confidence_score=mkt_score,
-                    sources=[f"marketplace_{email_data.get('source', 'unknown')}"],
-                ))
-
-        total = len(results.get('phones', [])) + len(results.get('emails', []))
-        if total:
-            logger.info(f"Marketplace scan: {total} contacts found")
 
     # ── Step 11: Deduplication + Source Merging + Scoring ─────────────
 

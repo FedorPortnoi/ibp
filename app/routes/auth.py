@@ -41,7 +41,6 @@ _LOCKOUT_DURATION_SECS = 900   # 15-minute lockout
 
 
 def _record_login_failure(username: str) -> None:
-    from app import db
     from app.models.login_attempt import LoginAttempt
     try:
         db.session.add(LoginAttempt(username_lower=username.lower()))
@@ -52,17 +51,15 @@ def _record_login_failure(username: str) -> None:
 
 
 def _clear_login_failures(username: str) -> None:
-    from app import db
     from app.models.login_attempt import LoginAttempt
-    import datetime as _dt
     try:
-        cutoff = _dt.datetime.utcnow() - _dt.timedelta(seconds=_LOCKOUT_DURATION_SECS)
+        cutoff = datetime.utcnow() - datetime.timedelta(seconds=_LOCKOUT_DURATION_SECS)
         LoginAttempt.query.filter(
             LoginAttempt.username_lower == username.lower(),
             LoginAttempt.attempted_at >= cutoff,
         ).delete()
         # Prune old records opportunistically
-        old_cutoff = _dt.datetime.utcnow() - _dt.timedelta(seconds=_LOCKOUT_DURATION_SECS * 4)
+        old_cutoff = datetime.utcnow() - datetime.timedelta(seconds=_LOCKOUT_DURATION_SECS * 4)
         LoginAttempt.query.filter(LoginAttempt.attempted_at < old_cutoff).delete()
         db.session.commit()
     except Exception:
@@ -70,12 +67,10 @@ def _clear_login_failures(username: str) -> None:
 
 
 def _is_locked_out(username: str) -> bool:
-    from app import db
     from app.models.login_attempt import LoginAttempt
-    import datetime as _dt
     try:
-        now = _dt.datetime.utcnow()
-        window_start = now - _dt.timedelta(seconds=_LOCKOUT_WINDOW_SECS)
+        now = datetime.utcnow()
+        window_start = now - datetime.timedelta(seconds=_LOCKOUT_WINDOW_SECS)
         recent = LoginAttempt.query.filter(
             LoginAttempt.username_lower == username.lower(),
             LoginAttempt.attempted_at >= window_start,
@@ -88,7 +83,7 @@ def _is_locked_out(username: str) -> bool:
                 .first()
             )
             if latest:
-                lockout_end = latest.attempted_at + _dt.timedelta(seconds=_LOCKOUT_DURATION_SECS)
+                lockout_end = latest.attempted_at + datetime.timedelta(seconds=_LOCKOUT_DURATION_SECS)
                 return now < lockout_end
     except Exception:
         logger.warning("Lockout DB check failed, defaulting to not locked out")

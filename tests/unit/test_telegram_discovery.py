@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from unittest.mock import patch, MagicMock
 from app.services.phase1.telegram_discovery import TelegramDiscoveryService
+from app.services.phase1.transliteration import transliterate
 
 
 # ============================================================
@@ -269,13 +270,9 @@ def test_clean_display_name():
 
 def test_basic_translit():
     """Basic transliteration covers common Cyrillic characters."""
-    svc = TelegramDiscoveryService()
-
-    assert svc._basic_translit('козлов') == 'kozlov'
-    assert svc._basic_translit('артём') == 'artyom'
-    assert svc._basic_translit('щукина') == 'shchukina'
-
-    svc.close()
+    assert transliterate('козлов') == 'kozlov'
+    assert transliterate('артём') == 'artem'  # shared module maps ё→e (GOST simple)
+    assert transliterate('щукина') == 'shchukina'
 
 
 def test_normalize_yo():

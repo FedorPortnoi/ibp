@@ -6,7 +6,6 @@ Used by the dossier template, JSON export, and PDF export.
 """
 
 import logging
-from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -182,6 +181,22 @@ def _extract_emails(contact_discoveries: Dict) -> List[Dict]:
                 'source_count': len(item.get('sources', [])),
             })
     return emails
+
+
+def _build_contact_info(contact_discoveries: Dict) -> Dict:
+    """Build the contact_info sub-dict, extracting phones and emails exactly once."""
+    phones = _extract_phones(contact_discoveries)
+    emails = _extract_emails(contact_discoveries)
+    phones_shown, phones_hidden = filter_low_confidence(phones)
+    emails_shown, emails_hidden = filter_low_confidence(emails)
+    return {
+        'phones': phones,
+        'emails': emails,
+        'phones_shown': phones_shown,
+        'phones_hidden': phones_hidden,
+        'emails_shown': emails_shown,
+        'emails_hidden': emails_hidden,
+    }
 
 
 def _build_timeline_events(check) -> List[Dict]:
@@ -522,14 +537,7 @@ def build_report(check) -> Dict[str, Any]:
             for a in username_accounts
             if isinstance(a, dict)
         ],
-        'contact_info': {
-            'phones': _extract_phones(contact_discoveries),
-            'emails': _extract_emails(contact_discoveries),
-            'phones_shown': filter_low_confidence(_extract_phones(contact_discoveries))[0],
-            'phones_hidden': filter_low_confidence(_extract_phones(contact_discoveries))[1],
-            'emails_shown': filter_low_confidence(_extract_emails(contact_discoveries))[0],
-            'emails_hidden': filter_low_confidence(_extract_emails(contact_discoveries))[1],
-        },
+        'contact_info': _build_contact_info(contact_discoveries),
         'social_graph_summary': _build_social_graph_summary(social_graph),
         'geo_summary': _build_geo_summary(geo_analysis),
         'behavioral_summary': _build_behavioral_summary(text_analysis),

@@ -5,23 +5,18 @@ Personal scratchpad — like Telegram Favorites.
 All routes scoped to the logged-in user; each user sees only their own messages.
 """
 
-import logging
 from flask import Blueprint, render_template, request, jsonify, session, abort
 
 from app import db, limiter
 from app.models.chat_message import ChatMessage
 
 chat_bp = Blueprint('chat', __name__, url_prefix='/chat')
-logger = logging.getLogger(__name__)
 
 _MAX_CONTENT = 4000
 
 
 def _uid():
-    uid = session.get('user_id')
-    if not uid:
-        abort(401)
-    return uid
+    return session.get('user_id')
 
 
 @chat_bp.route('/')

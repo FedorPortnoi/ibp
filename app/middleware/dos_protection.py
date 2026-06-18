@@ -2,7 +2,6 @@
 DoS/DDoS protection middleware.
 Tracks suspicious patterns and auto-bans repeat offenders.
 """
-import os
 import time
 import threading
 from collections import defaultdict, deque
@@ -83,19 +82,6 @@ class DosProtection:
         with self._lock:
             return ip in self._banned and self._banned[ip] > now
 
-    def ban(self, ip: str, duration: int = 3600):
-        """Ban IP for duration seconds."""
-        if self._redis:
-            try:
-                self._redis.setex(f'ibp:ban:{ip}', duration, '1')
-                logger.warning(f"Banned {ip} for {duration}s (Redis shared)")
-                return
-            except Exception:
-                pass
-        with self._lock:
-            self._banned[ip] = time.time() + duration
-        logger.warning(f"Banned {ip} for {duration}s (in-memory, not shared across workers)")
-
     def record_request(self, ip: str) -> bool:
         """Record request from IP. Returns True if should be blocked."""
         now = time.time()
@@ -153,21 +139,9 @@ class DosProtection:
                 self._banned[ip] = now + 3600
                 logger.warning(f"Scanner detected {ip} ({recent} 404s/min), banned 1h")
 
-    def get_stats(self) -> dict:
-        with self._lock:
-            return {
-                "banned_ips": len([ip for ip, exp in self._banned.items() if exp > time.time()]),
-                "tracked_ips": len(self._requests),
-            }
-
 
 # Global instance
 _dos = DosProtection()
-
-
-def get_dos_protection() -> DosProtection:
-    """Get the global DosProtection instance."""
-    return _dos
 
 
 def init_dos_protection(app):

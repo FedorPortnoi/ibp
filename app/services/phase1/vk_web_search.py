@@ -32,8 +32,9 @@ import os
 import re
 import time
 from difflib import SequenceMatcher
-from pathlib import Path
 from typing import List, Dict, Optional, Tuple
+
+from app.services.phase1.transliteration import transliterate
 
 try:
     import requests
@@ -132,35 +133,12 @@ def verify_profile_name_matches_query(profile: dict, search_first: str, search_l
     if not profile_first and not profile_last:
         return False
 
-    # Transliteration helper
-    try:
-        from transliterate import translit
-
-        def _to_latin(text):
-            try:
-                return translit(text, 'ru', reversed=True).lower()
-            except Exception as e:
-                logger.debug(f"[VKWebSearch] translit failed for '{text}': {e}")
-                return text
-    except ImportError:
-        _table = {
-            'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e',
-            'ё': 'yo', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'j', 'к': 'k',
-            'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r',
-            'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts',
-            'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '',
-            'э': 'e', 'ю': 'yu', 'я': 'ya',
-        }
-
-        def _to_latin(text):
-            return ''.join(_table.get(ch, ch) for ch in text)
-
     # RULE 1: Last name MUST match (>= 0.7 similarity)
     last_sim = max(
         SequenceMatcher(None, search_last, profile_last).ratio(),
-        SequenceMatcher(None, _to_latin(search_last), _to_latin(profile_last)).ratio(),
-        SequenceMatcher(None, _to_latin(search_last), profile_last).ratio(),
-        SequenceMatcher(None, search_last, _to_latin(profile_last)).ratio(),
+        SequenceMatcher(None, transliterate(search_last), transliterate(profile_last)).ratio(),
+        SequenceMatcher(None, transliterate(search_last), profile_last).ratio(),
+        SequenceMatcher(None, search_last, transliterate(profile_last)).ratio(),
     )
     if last_sim < 0.7:
         return False  # Hard reject: last name doesn't match
@@ -168,9 +146,9 @@ def verify_profile_name_matches_query(profile: dict, search_first: str, search_l
     # RULE 2: First name must match (>= 0.6, or diminutive, or transliteration)
     first_sim = max(
         SequenceMatcher(None, search_first, profile_first).ratio(),
-        SequenceMatcher(None, _to_latin(search_first), _to_latin(profile_first)).ratio(),
-        SequenceMatcher(None, _to_latin(search_first), profile_first).ratio(),
-        SequenceMatcher(None, search_first, _to_latin(profile_first)).ratio(),
+        SequenceMatcher(None, transliterate(search_first), transliterate(profile_first)).ratio(),
+        SequenceMatcher(None, transliterate(search_first), profile_first).ratio(),
+        SequenceMatcher(None, search_first, transliterate(profile_first)).ratio(),
     )
 
     if first_sim >= 0.65:
@@ -185,8 +163,8 @@ def verify_profile_name_matches_query(profile: dict, search_first: str, search_l
         profile_variants = set(v.lower() for v in get_all_name_variants(profile_first))
 
         # Add Latin transliterations of all variants for cross-script matching
-        search_variants |= set(_to_latin(v) for v in search_variants)
-        profile_variants |= set(_to_latin(v) for v in profile_variants)
+        search_variants |= set(transliterate(v) for v in search_variants)
+        profile_variants |= set(transliterate(v) for v in profile_variants)
 
         if search_variants & profile_variants:
             return True
@@ -466,8 +444,8 @@ class VKWebSearch:
         except Exception as e:
             logger.debug(f"[VKWebSearch] Transliteration fallback: {e}")
             # Manual basic transliteration fallback
-            first_lat = self._basic_translit(first_name)
-            last_lat = self._basic_translit(last_name)
+            first_lat = transliterate(first_name)
+            last_lat = transliterate(last_name)
 
         if not first_lat or not last_lat:
             return []
@@ -516,22 +494,6 @@ class VKWebSearch:
 
         logger.info(f"VKWebSearch screen names: resolved {len(user_ids)} user IDs from {len(candidates)} candidates for '{query}'")
         return user_ids
-
-    @staticmethod
-    def _basic_translit(text: str) -> str:
-        """Basic Cyrillic→Latin transliteration fallback."""
-        table = {
-            'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e',
-            'ё': 'yo', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'j', 'к': 'k',
-            'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r',
-            'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts',
-            'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '',
-            'э': 'e', 'ю': 'yu', 'я': 'ya',
-        }
-        result = []
-        for ch in text.lower():
-            result.append(table.get(ch, ch))
-        return ''.join(result)
 
     @staticmethod
     def _is_real_human_profile(profile: dict) -> bool:
@@ -1143,33 +1105,6 @@ class VKWebSearch:
 
         except Exception as e:
             logger.warning(f"newsfeed.search error: {e}")
-
-        return user_ids
-
-    def _resolve_screen_names(self, screen_names: List[str]) -> List[int]:
-        """Resolve VK screen names to user IDs using utils.resolveScreenName."""
-        user_ids = []
-        if not self.service_token or not self._session:
-            return user_ids
-
-        for name in screen_names[:20]:
-            try:
-                resp = self._session.post(
-                    f"{self.VK_API_BASE}/utils.resolveScreenName",
-                    data={
-                        'screen_name': name,
-                        'access_token': self.service_token,
-                        'v': self.VK_API_VERSION,
-                    },
-                    timeout=5,
-                )
-                data = resp.json()
-                result = data.get('response', {})
-                if result and result.get('type') == 'user':
-                    user_ids.append(result['object_id'])
-                time.sleep(0.35)
-            except Exception as e:
-                logger.debug(f"[VKWebSearch] resolveScreenName failed for '{name}': {e}")
 
         return user_ids
 

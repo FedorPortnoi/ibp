@@ -8,12 +8,11 @@ import os
 import logging
 from flask import (
     Blueprint, render_template, request,
-    redirect, url_for, flash, current_app
+    redirect, url_for
 )
 
 from app import db
 from app.models.subscription import Subscription
-from app.models.user import User
 from app.routes.auth import get_current_user, login_required
 from app.services.email_service import send_subscription_confirmation
 

@@ -6,10 +6,7 @@ Prints a clear status table. Does NOT block startup on non-critical failures.
 """
 
 import os
-import logging
 from datetime import datetime
-
-logger = logging.getLogger('ibp.startup')
 
 
 def _safe_print(text):
@@ -28,7 +25,6 @@ def run_startup_checks():
     _safe_print("=" * 58)
 
     checks = [
-        check_auth,
         check_database,
         check_vk_token,
         check_playwright,
@@ -56,19 +52,6 @@ def run_startup_checks():
     _safe_print("=" * 58 + "\n")
 
 
-def check_auth():
-    """Check if authentication is configured."""
-    pw_hash = os.environ.get('IBP_PASSWORD_HASH', '').strip()
-    pw_plain = os.environ.get('IBP_PASSWORD', '').strip()
-    secret = os.environ.get('FLASK_SECRET_KEY', '').strip()
-
-    if pw_hash or pw_plain:
-        mode = 'hashed' if pw_hash else 'plain text'
-        warning = '' if secret else ' -- FLASK_SECRET_KEY not set, sessions reset on restart'
-        return 'ok', f'Authentication: ENABLED ({mode}){warning}'
-    return 'warn', 'Authentication: DISABLED -- set IBP_PASSWORD or IBP_PASSWORD_HASH in .env'
-
-
 def check_database():
     """Check if database exists and is readable."""
     db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..', 'instance', 'ibp.db')
@@ -87,53 +70,24 @@ def check_database():
 
 
 def check_vk_token():
-    """Check VK token validity (service + user tokens)."""
+    """Check VK token validity via vk_token_manager.get_token_status()."""
+    from app.utils.vk_token_manager import get_token_status
     from app.utils.logger import mask_token
-    service_token = os.environ.get('VK_SERVICE_TOKEN', '').strip()
-    user_token = os.environ.get('VK_USER_TOKEN', '').strip() or os.environ.get('VK_TOKEN', '').strip()
 
-    if not service_token and not user_token:
+    result = get_token_status()
+
+    if not result['token_set']:
         return 'warn', 'VK Token: Not set -- set VK_SERVICE_TOKEN in .env'
 
-    parts = []
+    token = os.environ.get('VK_SERVICE_TOKEN') or os.environ.get('VK_TOKEN', '')
+    masked = mask_token(token) if token else '?'
 
-    # Check service token
-    if service_token:
-        status = _check_vk_token_validity(service_token)
-        parts.append(f'Service: {status}')
-    else:
-        parts.append('Service: not set')
-
-    # Check user token (for wall/friends/photos)
-    if user_token:
-        status = _check_vk_token_validity(user_token)
-        parts.append(f'User: {status}')
-    else:
-        parts.append('User: not set (wall/friends/photos disabled)')
-
-    has_valid = 'Valid' in ' '.join(parts)
-    has_fail = 'Invalid' in ' '.join(parts)
-    level = 'ok' if has_valid and not has_fail else ('fail' if has_fail else 'warn')
-    return level, f'VK Tokens: {" | ".join(parts)}'
-
-
-def _check_vk_token_validity(token: str) -> str:
-    """Test a single VK token against the API."""
-    from app.utils.logger import mask_token
-    try:
-        import requests as req
-        resp = req.get(
-            'https://api.vk.com/method/users.get',
-            params={'user_ids': '1', 'access_token': token, 'v': '5.199'},
-            timeout=5
-        )
-        data = resp.json()
-        if 'error' in data:
-            error_msg = data['error'].get('error_msg', 'Unknown')
-            return f'Invalid ({mask_token(token)}) -- {error_msg}'
-        return f'Valid ({mask_token(token)})'
-    except Exception as e:
-        return f'Set ({mask_token(token)}) -- {e}'
+    if result['valid'] is True:
+        return 'ok', f'VK Token: Valid ({masked})'
+    if result['valid'] is False:
+        return 'fail', f'VK Token: Invalid ({masked}) -- {result["error"]}'
+    # valid is None — timeout or unknown error
+    return 'warn', f'VK Token: Set ({masked}) -- {result["error"]}'
 
 
 def check_playwright():

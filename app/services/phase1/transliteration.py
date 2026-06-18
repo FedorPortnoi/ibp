@@ -13,11 +13,8 @@ Usage:
     # Returns: ["Tikhon Portnoi", "Tikhon Portnoy", "Tihon Portnoi", ...]
 """
 
-import logging
 from itertools import product
 from typing import List, Set
-
-logger = logging.getLogger(__name__)
 
 # ── Transliteration systems ────────────────────────────────────────
 # Each maps a Cyrillic character to possible Latin representations.
@@ -83,8 +80,6 @@ def transliterate_russian(name: str, max_variants: int = 12) -> List[str]:
         return []
 
     parts = name.strip().split()
-    if not parts:
-        return []
 
     # Transliterate each word independently, then combine
     word_variants = []

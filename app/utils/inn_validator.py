@@ -53,13 +53,3 @@ def _validate_inn_12(inn: str) -> tuple:
         return False, 'Контрольная сумма ИНН некорректна'
 
     return True, ''
-
-
-def inn_type(inn: str) -> str:
-    """Return 'legal' for 10-digit INN, 'individual' for 12-digit, 'unknown' otherwise."""
-    if inn and inn.isdigit():
-        if len(inn) == 10:
-            return 'legal'
-        elif len(inn) == 12:
-            return 'individual'
-    return 'unknown'

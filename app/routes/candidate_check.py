@@ -19,7 +19,7 @@ from werkzeug.utils import secure_filename
 
 from app import db, limiter
 from app.models.candidate_check import CandidateCheck
-from app.permissions import can_access_check, is_admin
+from app.permissions import can_access_check, is_admin, enforce_free_tier_limit
 from app.services.candidate.pipeline import candidate_tasks, _tasks_lock, CandidateTaskStatus, run_candidate_pipeline, cleanup_old_tasks
 
 candidate_bp = Blueprint('candidate', __name__, url_prefix='/candidate')
@@ -116,6 +116,34 @@ def _safe_filename(name_slug: str) -> str:
     # Collapse multiple underscores
     safe = re.sub(r'_+', '_', safe).strip('_')
     return safe[:100] or 'candidate'
+
+
+def _format_duration(seconds) -> str:
+    """Format a duration in seconds to a human-readable Russian string (e.g. '2м 34с')."""
+    if not seconds:
+        return ''
+    secs = seconds
+    if secs >= 60:
+        mins = int(secs // 60)
+        remaining = int(secs % 60)
+        return f'{mins}м {remaining}с'
+    return f'{secs:.0f}с'
+
+
+def _export_filename(check, ext: str) -> str:
+    """Build a sanitized export filename for a dossier download.
+
+    Format: dossier_<NameSlug>_<YYYY-MM-DD>.<ext>
+    """
+    parts = check.full_name.strip().split()
+    if len(parts) >= 3:
+        name_slug = f"{parts[0]}_{''.join(p[0] for p in parts[1:])}"
+    elif len(parts) == 2:
+        name_slug = f"{parts[0]}_{parts[1][0]}"
+    else:
+        name_slug = parts[0] if parts else 'candidate'
+    date_str = datetime.utcnow().strftime('%Y-%m-%d')
+    return f"dossier_{_safe_filename(name_slug)}_{date_str}.{ext}"
 
 
 def _vk_post_json(client, method: str, data: dict) -> dict:
@@ -258,32 +286,13 @@ def start_check():
     redirects to progress page.
     """
     # --- Free tier enforcement (atomic) ---
-    # Use BEGIN IMMEDIATE so SQLite serializes this block across threads.
-    # Without the exclusive lock, two concurrent requests both read count=0,
-    # both pass the guard, and both insert — exceeding the weekly limit (TOCTOU).
+    # enforce_free_tier_limit uses BEGIN IMMEDIATE so SQLite serialises this
+    # block across threads, preventing TOCTOU on the weekly check count.
     from app.routes.auth import get_current_user as _get_user
-    from app.models.subscription import Subscription
     _user = _get_user()
-    if _user and not _user.is_admin:
-        try:
-            db.session.execute(db.text("BEGIN IMMEDIATE"))
-        except Exception:
-            db.session.rollback()
-        _sub = Subscription.query.filter_by(user_id=_user.id).first()
-        if not _sub:
-            _sub = Subscription(user_id=_user.id, status='inactive')
-            db.session.add(_sub)
-            try:
-                db.session.flush()
-            except Exception as e:
-                db.session.rollback()
-                logger.error(f"Failed to create subscription: {e}")
-        if not _sub.can_run_check():
-            db.session.rollback()
-            return _error(
-                'Лимит бесплатных проверок исчерпан (2 в неделю). '
-                'Оформите подписку для безлимитного доступа.', 403
-            )
+    allowed, tier_error = enforce_free_tier_limit(_user)
+    if not allowed:
+        return tier_error
 
     # Parse input — support both form and JSON
     # Explicit UTF-8 decoding to prevent locale-dependent encoding corruption
@@ -601,7 +610,6 @@ def retry_expanded_search(check_id):
 
         buratino = BuratinoVKSearch()
         effective_name = check.confirmed_name or check.full_name
-        name_parts = effective_name.strip().split()
 
         vk_age_from = None
         vk_age_to = None
@@ -891,16 +899,7 @@ def dossier_page(check_id):
         if check.task_id:
             return redirect(f'/candidate/progress/{check.task_id}')
 
-    # Format duration
-    duration_display = ''
-    if check.check_duration_seconds:
-        secs = check.check_duration_seconds
-        if secs >= 60:
-            mins = int(secs // 60)
-            remaining = int(secs % 60)
-            duration_display = f'{mins}м {remaining}с'
-        else:
-            duration_display = f'{secs:.0f}с'
+    duration_display = _format_duration(check.check_duration_seconds)
 
     return render_template(
         'candidate_dossier.html',
@@ -940,12 +939,9 @@ def history():
     user = get_current_user()
     if is_admin(user):
         return redirect(url_for('admin_users.list_users'))
-    if user:
-        checks = CandidateCheck.query.filter_by(user_id=user.id).order_by(
-            CandidateCheck.created_at.desc()
-        ).all()
-    else:
-        checks = []
+    checks = CandidateCheck.query.filter_by(user_id=user.id).order_by(
+        CandidateCheck.created_at.desc()
+    ).all()
     return render_template('candidate_history.html', checks=checks)
 
 
@@ -981,17 +977,7 @@ def export_json(check_id):
 
     _check_owner_or_admin(check)
 
-    # Build initials for filename (e.g. "Иванов_ИИ")
-    parts = check.full_name.strip().split()
-    if len(parts) >= 3:
-        name_slug = f"{parts[0]}_{''.join(p[0] for p in parts[1:])}"
-    elif len(parts) == 2:
-        name_slug = f"{parts[0]}_{parts[1][0]}"
-    else:
-        name_slug = parts[0] if parts else 'candidate'
-
-    date_str = datetime.utcnow().strftime('%Y-%m-%d')
-    filename = f"dossier_{_safe_filename(name_slug)}_{date_str}.json"
+    filename = _export_filename(check, 'json')
 
     dossier = {
         'meta': {
@@ -1069,28 +1055,8 @@ def export_pdf(check_id):
 
     _check_owner_or_admin(check)
 
-    # Build filename
-    parts = check.full_name.strip().split()
-    if len(parts) >= 3:
-        name_slug = f"{parts[0]}_{''.join(p[0] for p in parts[1:])}"
-    elif len(parts) == 2:
-        name_slug = f"{parts[0]}_{parts[1][0]}"
-    else:
-        name_slug = parts[0] if parts else 'candidate'
-
-    date_str = datetime.utcnow().strftime('%Y-%m-%d')
-    filename = f"dossier_{_safe_filename(name_slug)}_{date_str}.pdf"
-
-    # Format duration
-    duration_display = ''
-    if check.check_duration_seconds:
-        secs = check.check_duration_seconds
-        if secs >= 60:
-            mins = int(secs // 60)
-            remaining = int(secs % 60)
-            duration_display = f'{mins}м {remaining}с'
-        else:
-            duration_display = f'{secs:.0f}с'
+    filename = _export_filename(check, 'pdf')
+    duration_display = _format_duration(check.check_duration_seconds)
 
     html_str = render_template(
         'candidate_dossier_pdf.html',

@@ -78,12 +78,22 @@ def get_token_status():
         }
 
 
+def _sanitize_token(raw: str) -> str:
+    """Sanitize and validate a raw VK token string.
+
+    Strips whitespace and injection characters, then validates the character set.
+    Returns the cleaned token if valid, or an empty string if it fails validation.
+    """
+    token = raw.replace('\n', '').replace('\r', '').replace('\0', '').strip()
+    if not re.match(r'^[a-zA-Z0-9._\-]+$', token):
+        return ''
+    return token
+
+
 def save_token(token):
     """Save token to .env file (update VK_TOKEN line, keep other lines)."""
-    # Sanitize token: strip newlines, carriage returns, and null bytes to prevent injection
-    token = token.replace('\n', '').replace('\r', '').replace('\0', '').strip()
-    # VK tokens are alphanumeric with possible dots/dashes — reject anything suspicious
-    if not re.match(r'^[a-zA-Z0-9._\-]+$', token):
+    token = _sanitize_token(token)
+    if not token:
         logger.warning("Rejected VK token with unexpected characters")
         return
 

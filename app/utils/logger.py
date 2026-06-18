@@ -54,23 +54,3 @@ def mask_token(token):
     if not token:
         return '<not set>'
     return f'...{token[-8:]}' if len(token) > 8 else '****'
-
-
-def mask_phone(phone):
-    """Mask phone number for safe logging."""
-    if not phone:
-        return '<none>'
-    digits = ''.join(c for c in phone if c.isdigit())
-    if len(digits) >= 4:
-        return f'+7***{digits[-4:]}'
-    return '****'
-
-
-def mask_email(email):
-    """Mask email for safe logging."""
-    if not email or '@' not in email:
-        return '<none>'
-    local, domain = email.split('@', 1)
-    if len(local) <= 2:
-        return f'{local[0]}***@{domain}'
-    return f'{local[0]}***{local[-1]}@{domain}'

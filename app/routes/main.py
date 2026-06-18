@@ -7,7 +7,7 @@ Root URL routing, investigations list, VK token management
 import logging
 import os
 from flask import Blueprint, redirect, url_for, render_template, jsonify, request
-from app import limiter
+from app.routes.auth import admin_required
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger('ibp.routes.main')
@@ -62,7 +62,7 @@ def health_check():
     """
     from flask import session
 
-    authenticated = bool(session.get('authenticated') or session.get('user_id'))
+    authenticated = bool(session.get('user_id'))
 
     # Unauthenticated: minimal liveness response for load balancers / uptime monitors.
     if not authenticated:
@@ -124,18 +124,12 @@ def privacy():
 @main_bp.route('/')
 def index():
     """Root — authenticated users go to dashboard, others to login."""
-    from flask import session as _session
-    if _session.get('user_id'):
-        return redirect(url_for('main.dashboard'))
-    return redirect(url_for('auth.login'))
+    return redirect(url_for('main.dashboard'))
 
 
 @main_bp.route('/dashboard')
 def dashboard():
     """Investigation type selection — first screen after login."""
-    from flask import session as _session
-    if not _session.get('user_id'):
-        return redirect(url_for('auth.login'))
     return render_template('dashboard.html')
 
 
@@ -149,16 +143,10 @@ def investigations_list():
 # ============================================
 
 @main_bp.route('/vk/auth')
+@admin_required
 def vk_auth():
     """Redirect to VK OAuth URL for token acquisition."""
-    from app.routes.auth import admin_required
     from app.utils.vk_token_manager import get_oauth_url
-    from flask import session as _session
-    from app.permissions import is_admin
-    from app.routes.auth import get_current_user
-    if not is_admin(get_current_user()):
-        from flask import abort
-        abort(403)
     url, error = get_oauth_url()
     if error:
         return render_template('vk_callback.html', error=error)
@@ -166,51 +154,38 @@ def vk_auth():
 
 
 @main_bp.route('/vk/callback')
+@admin_required
 def vk_callback():
     """Landing page that captures VK token from URL fragment via JS."""
-    from app.permissions import is_admin
-    from app.routes.auth import get_current_user
-    if not is_admin(get_current_user()):
-        from flask import abort
-        abort(403)
     return render_template('vk_callback.html', error=None)
 
 
 @main_bp.route('/vk/save-token', methods=['POST'])
+@admin_required
 def vk_save_token():
     """Save VK token received from OAuth callback. Admin only."""
-    from app.permissions import is_admin
-    from app.routes.auth import get_current_user
-    if not is_admin(get_current_user()):
-        from flask import abort
-        abort(403)
+    from app.utils.vk_token_manager import _sanitize_token, save_token, get_token_status
 
-    import re as _re
     data = request.get_json()
     if not data or not data.get('token'):
         return jsonify({'error': 'Токен не предоставлен'}), 400
 
-    token = data['token'].strip()
-    if len(token) < 10 or len(token) > 500:
+    raw = data['token']
+    if len(raw) < 10 or len(raw) > 500:
         return jsonify({'error': 'Недействительный токен'}), 400
 
-    # VK tokens are alphanumeric with dots/dashes only
-    if not _re.match(r'^[a-zA-Z0-9._\-]+$', token):
+    token = _sanitize_token(raw)
+    if not token:
         return jsonify({'error': 'Недействительный формат токена'}), 400
 
-    from app.utils.vk_token_manager import save_token, get_token_status
     save_token(token)
     status = get_token_status()
     return jsonify({'success': True, 'status': status})
 
 
 @main_bp.route('/api/vk/token-status')
+@admin_required
 def vk_token_status():
     """Get VK token status. Admin only."""
-    from app.permissions import is_admin
-    from app.routes.auth import get_current_user
-    if not is_admin(get_current_user()):
-        from flask import abort
-        abort(403)
     from app.utils.vk_token_manager import get_token_status
     return jsonify(get_token_status())

@@ -394,15 +394,6 @@ class FSSPService:
             'blocked',
         )
 
-    def get_manual_url(
-        self,
-        full_name: str,
-        date_of_birth: Optional[str] = None,
-        region: Optional[str] = None,
-    ) -> str:
-        """Generate a direct URL to the ФССП search page."""
-        return self.WEB_URL
-
     # ── API approach ──────────────────────────────────────────────
 
     def _search_api(
