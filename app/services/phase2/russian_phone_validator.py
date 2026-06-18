@@ -295,15 +295,5 @@ class RussianPhoneValidator:
         )
 
 
-def validate_phone(phone: str) -> PhoneInfo:
-    """Convenience function to validate a single phone."""
-    validator = RussianPhoneValidator()
-    return validator.validate(phone)
-
-
-def extract_phones_from_text(text: str) -> List[PhoneInfo]:
-    """Convenience function to extract phones from text."""
-    validator = RussianPhoneValidator()
-    return validator.extract_phones(text)
 
 

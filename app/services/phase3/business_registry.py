@@ -13,7 +13,6 @@ Additional checks:
 - check_fns_tax_debt() — ФНС tax debt check via service.nalog.ru
 """
 
-import json
 import logging
 import re
 import time
@@ -529,8 +528,6 @@ class BusinessRegistrySearch:
         elif 'НКО' in name_upper:
             return 'НКО'
         return ''
-
-    # ===== Rusprofile (Fallback) =====
 
     # ===== INN Search =====
 

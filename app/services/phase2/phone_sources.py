@@ -23,8 +23,6 @@ import logging
 import os
 import re
 import time
-import hashlib
-import base64
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 import requests

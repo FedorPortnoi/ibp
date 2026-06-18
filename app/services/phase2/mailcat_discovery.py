@@ -146,8 +146,7 @@ class MailcatEmailDiscovery:
         # Remove common social media prefixes
         username = re.sub(r'^(id|user|profile|@)', '', username)
 
-        # Remove trailing numbers/underscores
-        # username = re.sub(r'[_\d]+$', '', username)  # Commented - might be intentional
+        # Remove trailing numbers/underscores (commented - might be intentional)
 
         # Remove special characters except underscore/dot
         username = re.sub(r'[^a-z0-9_.]', '', username)
@@ -332,7 +331,3 @@ def discover_emails_for_username(username: str, verify: bool = True) -> EmailDis
     return service.discover_emails(username, verify=verify)
 
 
-def discover_emails_for_usernames(usernames: List[str], verify: bool = True) -> List[str]:
-    """Convenience function that returns flat list of verified emails."""
-    service = MailcatEmailDiscovery()
-    return service.get_all_verified_emails(usernames)

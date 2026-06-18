@@ -15,7 +15,6 @@ It does NOT retrieve or display passwords (even hashed).
 
 import subprocess
 import requests
-import hashlib
 import logging
 import re
 import time
@@ -283,63 +282,10 @@ class BreachChecker:
 
         return breaches
 
-    def check_multiple_emails(self, emails: List[str]) -> List[BreachCheckResult]:
-        """
-        Check multiple emails for breaches.
-
-        Args:
-            emails: List of email addresses
-
-        Returns:
-            List of BreachCheckResult for each email
-        """
-        results = []
-        for email in emails:
-            result = self.check_email(email)
-            results.append(result)
-        return results
-
-    def get_breach_summary(self, results: List[BreachCheckResult]) -> Dict:
-        """
-        Generate summary of breach check results.
-
-        Args:
-            results: List of BreachCheckResult
-
-        Returns:
-            Summary dict with statistics
-        """
-        total_checked = len(results)
-        breached = [r for r in results if r.found_in_breaches]
-        clean = [r for r in results if not r.found_in_breaches]
-
-        all_breaches = set()
-        all_data_types = set()
-        for r in breached:
-            for b in r.breaches:
-                all_breaches.add(b.name)
-                all_data_types.update(b.data_types)
-
-        return {
-            'total_checked': total_checked,
-            'breached_count': len(breached),
-            'clean_count': len(clean),
-            'breached_emails': [r.target for r in breached],
-            'unique_breaches': sorted(all_breaches),
-            'data_types_exposed': sorted(all_data_types),
-        }
-
-
 def check_email_breaches(email: str, hibp_key: Optional[str] = None) -> BreachCheckResult:
     """Convenience function to check single email."""
     checker = BreachChecker(hibp_api_key=hibp_key)
     return checker.check_email(email)
-
-
-def check_emails_breaches(emails: List[str], hibp_key: Optional[str] = None) -> List[BreachCheckResult]:
-    """Convenience function to check multiple emails."""
-    checker = BreachChecker(hibp_api_key=hibp_key)
-    return checker.check_multiple_emails(emails)
 
 
 # ── Breach Intelligence Analysis ─────────────────────────────────────────

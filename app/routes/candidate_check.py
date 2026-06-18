@@ -422,7 +422,6 @@ def start_check():
         status='pending',
         check_mode=check_mode,
         task_id=task_id,
-        task_started_at=datetime.utcnow(),
         user_id=current_user.id if current_user else None,
         pd_consent=True,
         pd_consent_at=datetime.utcnow(),

@@ -128,12 +128,9 @@ def _extract_vk_profile_locations(social_profiles: list) -> List[Dict]:
     points = []
     for p in social_profiles:
         platform = (p.get('platform') or '').lower()
-        if platform not in ('vk', 'vkontakte', ''):
-            # Only process VK profiles; skip if platform is explicitly non-VK
-            if platform not in ('ok', 'telegram', 'tg'):
-                continue
-            if platform in ('ok', 'telegram', 'tg'):
-                continue
+        if platform in ('ok', 'telegram', 'tg'):
+            # Only process VK profiles; skip other platforms
+            continue
 
         vk_data = p.get('vk_data') or p.get('raw_data') or p
         city_obj = vk_data.get('city') or {}

@@ -807,31 +807,3 @@ def _detect_company_type(name: str) -> str:
 # Validation helpers
 # ─────────────────────────────────────────
 
-def validate_inn(inn: str) -> tuple:
-    """
-    Validate Russian INN format.
-    Returns (is_valid: bool, entity_type: str)
-    entity_type: 'company' (10 digits) | 'individual' (12 digits) | 'unknown'
-    """
-    if not inn or not inn.isdigit():
-        return False, 'unknown'
-    if len(inn) == 10:
-        return True, 'company'
-    if len(inn) == 12:
-        return True, 'individual'
-    return False, 'unknown'
-
-
-def validate_ogrn(ogrn: str) -> tuple:
-    """
-    Validate Russian OGRN format.
-    Returns (is_valid: bool, entity_type: str)
-    entity_type: 'company' (13 digits) | 'individual_ip' (15 digits) | 'unknown'
-    """
-    if not ogrn or not ogrn.isdigit():
-        return False, 'unknown'
-    if len(ogrn) == 13:
-        return True, 'company'
-    if len(ogrn) == 15:
-        return True, 'individual_ip'
-    return False, 'unknown'

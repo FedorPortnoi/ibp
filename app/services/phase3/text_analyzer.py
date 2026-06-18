@@ -417,63 +417,6 @@ class TextAnalyzer:
         else:
             return 'unknown'
 
-    def generate_word_cloud_data(self, words: List[str]) -> List[Dict]:
-        """Generate data for word cloud visualization."""
-        # Get word frequencies
-        if self.morph:
-            words = [self._lemmatize(w) for w in words]
-
-        # Filter stopwords after lemmatization
-        words = [w for w in words if w not in ALL_STOP_WORDS]
-
-        word_counts = Counter(words)
-
-        # Format for visualization
-        data = [
-            {'text': word, 'value': count}
-            for word, count in word_counts.most_common(100)
-        ]
-
-        return data
-
-    def get_posting_pattern(self, posting_times: List[int]) -> Dict:
-        """Analyze posting time patterns."""
-        if not posting_times:
-            return {'pattern': 'unknown', 'peak_hours': [], 'timezone_guess': None}
-
-        hour_counts = Counter(posting_times)
-
-        # Find peak hours
-        peak_hours = [hour for hour, _ in hour_counts.most_common(3)]
-
-        # Guess activity pattern
-        night_posts = sum(hour_counts.get(h, 0) for h in range(0, 6))
-        morning_posts = sum(hour_counts.get(h, 0) for h in range(6, 12))
-        day_posts = sum(hour_counts.get(h, 0) for h in range(12, 18))
-        evening_posts = sum(hour_counts.get(h, 0) for h in range(18, 24))
-
-        total = len(posting_times)
-        if total == 0:
-            pattern = 'unknown'
-        elif night_posts / total > 0.3:
-            pattern = 'night_owl'
-        elif morning_posts / total > 0.3:
-            pattern = 'early_bird'
-        elif evening_posts / total > 0.4:
-            pattern = 'evening_active'
-        else:
-            pattern = 'regular'
-
-        return {
-            'pattern': pattern,
-            'peak_hours': peak_hours,
-            'distribution': {
-                'night': round(night_posts / total, 2) if total else 0,
-                'morning': round(morning_posts / total, 2) if total else 0,
-                'day': round(day_posts / total, 2) if total else 0,
-                'evening': round(evening_posts / total, 2) if total else 0
-            }
-        }
 
 
 # Singleton instance

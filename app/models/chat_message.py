@@ -4,7 +4,6 @@ ChatMessage Model
 Personal scratchpad messages per user (like Telegram Favorites).
 """
 
-import json
 from datetime import datetime
 
 from app import db

@@ -236,7 +236,3 @@ class SherlockSearchService:
     def get_found_profiles(self, results: List[Dict]) -> List[Dict]:
         """Filter results to only found profiles."""
         return [r for r in results if r.get('status') == 'found']
-
-
-# Singleton
-sherlock_search = SherlockSearchService()

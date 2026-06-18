@@ -59,10 +59,6 @@ _PARSER_ROLE_BY_ARRAY = {
     'Others': 'иное лицо',
 }
 
-# Statuses returned alongside results. 'blocked' means geo-block (HTTP 451) —
-# the source was NOT consulted and absence of records proves nothing.
-_TERMINAL_STATUSES = ('blocked', 'rate_limited', 'timeout', 'http_error', 'error')
-
 
 def _is_person_inn(inn: str) -> bool:
     """Personal/ИП INN is exactly 12 digits (companies have 10)."""

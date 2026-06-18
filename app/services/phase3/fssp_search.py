@@ -23,7 +23,6 @@ This module provides:
 3. Manual search URL generation (always available, pre-filled params in URL)
 """
 
-import asyncio
 import base64
 import json
 import logging
@@ -33,7 +32,7 @@ import time
 from html import unescape
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple
-from urllib.parse import quote, urlencode
+from urllib.parse import quote
 
 import requests
 import urllib3
@@ -108,8 +107,6 @@ class FSSPSearch:
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update(self.HEADERS)
-        # api_token kept for backward compatibility, but API is shut down
-        self.api_token = os.environ.get('FSSP_API_TOKEN', '')
 
     # -------------------------------------------------------------------------
     # Public search interface
@@ -171,10 +168,6 @@ class FSSPSearch:
             limit=limit,
         )
 
-    # -------------------------------------------------------------------------
-    # Site probe (requests, fast)
-    # -------------------------------------------------------------------------
-
     def _probe_site_availability(self) -> bool:
         """
         Quick HTTP probe to confirm fssp.gov.ru/iss/ip is reachable.
@@ -203,289 +196,6 @@ class FSSPSearch:
         except Exception as e:
             logger.warning(f"FSSP site probe error: {e}")
             return False
-
-    # -------------------------------------------------------------------------
-    # Playwright-based scraper
-    # -------------------------------------------------------------------------
-
-    def _search_playwright(
-        self,
-        lastname: str,
-        firstname: str,
-        patronymic: str,
-        birthdate: str,
-        limit: int,
-    ) -> Optional[List[EnforcementProceeding]]:
-        """
-        Use Playwright to load the FSSP search page, fill the form, and extract results.
-
-        Returns:
-            List of results if found.
-            Empty list if CAPTCHA encountered (with CAPTCHA details logged).
-            None if Playwright unavailable or hard error.
-        """
-        try:
-            from playwright.sync_api import sync_playwright
-        except ImportError:
-            logger.warning("Playwright not installed — skipping browser-based FSSP search")
-            return None
-
-        try:
-            return self._run_playwright_search(
-                lastname, firstname, patronymic, birthdate, limit
-            )
-        except Exception as e:
-            logger.warning(f"FSSP Playwright search error: {type(e).__name__}: {e}")
-            return None
-
-    def _run_playwright_search(
-        self,
-        lastname: str,
-        firstname: str,
-        patronymic: str,
-        birthdate: str,
-        limit: int,
-    ) -> Optional[List[EnforcementProceeding]]:
-        """Internal: run Playwright synchronously."""
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                args=['--no-sandbox', '--disable-dev-shm-usage'],
-                timeout=15000,
-            )
-            context = browser.new_context(
-                user_agent=self.HEADERS['User-Agent'],
-                locale='ru-RU',
-                extra_http_headers={'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8'},
-            )
-            page = context.new_page()
-
-            # Capture AJAX response
-            ajax_responses: list = []
-
-            def on_response(response):
-                if 'ajax_search' in response.url and 'is-go.fssp' in response.url:
-                    try:
-                        body = response.body()
-                        ajax_responses.append({
-                            'url': response.url,
-                            'body': body.decode('utf-8', errors='replace'),
-                        })
-                    except Exception as e:
-                        logger.debug(f"[FSSPSearch] AJAX response parse failed: {e}")
-
-            page.on('response', on_response)
-
-            try:
-                logger.debug("FSSP Playwright: loading search page")
-                page.goto(self.SEARCH_PAGE, wait_until='domcontentloaded', timeout=30_000)
-
-                # Wait for search form
-                page.wait_for_selector('input[name="is[last_name]"]', timeout=10_000)
-
-                # Fill form fields
-                page.fill('input[name="is[last_name]"]', lastname, timeout=10000)
-                if firstname:
-                    page.fill('input[name="is[first_name]"]', firstname, timeout=10000)
-                if patronymic:
-                    page.fill('input[name="is[patronymic]"]', patronymic, timeout=10000)
-
-                # Date of birth (required for individual search)
-                date_input = page.locator('input[name="is[date]"]')
-                if date_input.count() > 0:
-                    if birthdate:
-                        date_input.fill(birthdate, timeout=10000)
-                    else:
-                        # Without DOB, the server still accepts the request
-                        # but may return more/fewer results
-                        pass
-
-                # Submit
-                logger.debug("FSSP Playwright: submitting form")
-                page.click('#btn-sbm', timeout=10000)
-
-                # Wait for AJAX response (either results or CAPTCHA)
-                page.wait_for_timeout(6000)
-
-                if not ajax_responses:
-                    logger.warning("FSSP Playwright: no AJAX response captured")
-                    return None
-
-                # Parse the AJAX response
-                return self._parse_ajax_response(ajax_responses[0], limit, lastname)
-
-            finally:
-                page.close()
-                context.close()
-                browser.close()
-
-    def _parse_ajax_response(
-        self,
-        ajax_resp: dict,
-        limit: int,
-        search_name: str,
-    ) -> List[EnforcementProceeding]:
-        """
-        Parse the JSONP-wrapped AJAX response from is-go.fssp.gov.ru/ajax_search.
-
-        Response format:  ({"data": "<html>...", "err": "", "e": ""});
-
-        Returns empty list on CAPTCHA (with CAPTCHA details logged).
-        """
-        body = ajax_resp.get('body', '')
-        stripped = body.strip()
-
-        # Unwrap JSONP: (JSON);  →  JSON
-        if stripped.startswith('(') and stripped.endswith(');'):
-            stripped = stripped[1:-2]
-        elif stripped.startswith('(') and stripped.endswith(')'):
-            stripped = stripped[1:-1]
-
-        try:
-            obj = json.loads(stripped)
-        except json.JSONDecodeError as e:
-            logger.warning(f"FSSP AJAX response JSON parse error: {e}")
-            return []
-
-        html_data = unescape(obj.get('data', ''))
-
-        # Check for CAPTCHA
-        if 'captcha' in html_data.lower():
-            self._log_captcha_details(html_data, ajax_resp.get('url', ''))
-            return []
-
-        # Parse results table
-        results = self._parse_results_html(html_data, limit)
-        logger.info(f"FSSP parsed {len(results)} proceedings from HTML")
-        return results
-
-    def _log_captcha_details(self, html_data: str, ajax_url: str) -> None:
-        """Extract and log CAPTCHA details for diagnostics."""
-        code_id_match = re.search(r'name=["\']code_id["\'] value=["\']([^"\']+)["\']', html_data)
-        code_id = code_id_match.group(1) if code_id_match else 'unknown'
-
-        # Extract CAPTCHA image and save for inspection
-        img_match = re.search(r'src=["\']data:image/png;base64,([^"\']+)["\']', html_data)
-        captcha_saved = False
-        if img_match:
-            try:
-                b64 = img_match.group(1)
-                # Fix missing padding
-                b64 += '=' * (-len(b64) % 4)
-                img_bytes = base64.b64decode(b64)
-                captcha_path = os.path.join(
-                    os.environ.get('TEMP', '/tmp'), 'fssp_captcha.png'
-                )
-                with open(captcha_path, 'wb') as f:
-                    f.write(img_bytes)
-                captcha_saved = True
-                logger.info(f"FSSP CAPTCHA image saved to {captcha_path}")
-            except Exception as e:
-                logger.debug(f"Could not save CAPTCHA image: {e}")
-
-        # Extract the retry URL (for manual resolution if needed)
-        form_url_match = re.search(r'url=["\'](/ajax_search[^"\']+)["\']', html_data)
-        retry_url = ''
-        if form_url_match:
-            retry_url = self.AJAX_HOST + form_url_match.group(1)
-
-        logger.warning(
-            f"FSSP returned CAPTCHA (code_id={code_id}). "
-            f"Image saved: {captcha_saved}. "
-            f"Retry URL: {retry_url[:100] if retry_url else 'n/a'}"
-        )
-
-    def _parse_results_html(
-        self, html: str, limit: int
-    ) -> List[EnforcementProceeding]:
-        """
-        Parse FSSP results HTML table.
-
-        The results table uses class 'results-frame' with rows containing:
-        - Debtor name + details
-        - Enforcement proceeding number
-        - Debt type
-        - Amount
-        - Bailiff department + name
-        - Status
-        """
-        results = []
-
-        # Look for result rows — FSSP uses a table with class 'results-frame'
-        # Each result is a <tr> with specific cell layout
-        rows = re.findall(
-            r'<tr[^>]*class=["\'][^"\']*border[^"\']*["\'][^>]*>([\s\S]*?)</tr>',
-            html,
-        )
-
-        for row_html in rows[:limit]:
-            try:
-                proc = self._parse_result_row(row_html)
-                if proc:
-                    results.append(proc)
-            except Exception as e:
-                logger.debug(f"Error parsing FSSP row: {e}")
-
-        # Alternative: look for structured result blocks
-        if not results:
-            results = self._parse_result_blocks(html, limit)
-
-        return results
-
-    def _parse_result_row(self, row_html: str) -> Optional[EnforcementProceeding]:
-        """Parse a single FSSP result table row."""
-        cells = re.findall(r'<td[^>]*>([\s\S]*?)</td>', row_html)
-        if len(cells) < 3:
-            return None
-
-        def clean(s):
-            return re.sub(r'<[^>]+>', '', s).strip()
-
-        name = clean(cells[0]) if cells else ''
-        if not name:
-            return None
-
-        return EnforcementProceeding(
-            debtor_name=name,
-            proceeding_number=clean(cells[1]) if len(cells) > 1 else '',
-            debt_type=clean(cells[2]) if len(cells) > 2 else '',
-            amount=clean(cells[3]) if len(cells) > 3 else '',
-            department=clean(cells[4]) if len(cells) > 4 else '',
-            bailiff=clean(cells[5]) if len(cells) > 5 else '',
-            date=clean(cells[6]) if len(cells) > 6 else '',
-            status='На исполнении',
-            source='ФССП',
-        )
-
-    def _parse_result_blocks(
-        self, html: str, limit: int
-    ) -> List[EnforcementProceeding]:
-        """
-        Alternative parser for FSSP result blocks (used when table format differs).
-        Looks for divs with class 'results-body' or 'b-result'.
-        """
-        results = []
-        blocks = re.findall(
-            r'class=["\'][^"\']*(?:results-body|b-result)[^"\']*["\'][^>]*>([\s\S]*?)</div>',
-            html,
-        )
-        for block in blocks[:limit]:
-            name_match = re.search(r'class=["\'][^"\']*name[^"\']*["\'][^>]*>([^<]+)', block)
-            if not name_match:
-                continue
-            name = name_match.group(1).strip()
-            amount_match = re.search(r'(\d[\d\s.,]+)\s*руб', block)
-            dept_match = re.search(r'Подразделение[^:]*:\s*([^\n<]+)', block)
-            results.append(EnforcementProceeding(
-                debtor_name=name,
-                amount=amount_match.group(1).strip() if amount_match else '',
-                department=dept_match.group(1).strip() if dept_match else '',
-                status='На исполнении',
-                source='ФССП',
-            ))
-        return results
 
     # -------------------------------------------------------------------------
     # Utility methods
@@ -524,17 +234,6 @@ class FSSPSearch:
                 f'Имя={parts["firstname"]}, '
                 f'Отчество={parts["patronymic"]}'
             ),
-        }
-
-    @staticmethod
-    def get_status_info() -> Dict[str, str]:
-        """Return current FSSP service status for display in the UI."""
-        return {
-            'api_status': 'shutdown',
-            'api_note': 'Официальный API api-ip.fssp.gov.ru отключён (все пути возвращают 404)',
-            'website_status': 'captcha_gated',
-            'website_note': 'fssp.gov.ru/iss/ip доступен снаружи РФ, но всегда показывает CAPTCHA при автоматических запросах',
-            'search_url': 'https://fssp.gov.ru/iss/ip',
         }
 
 

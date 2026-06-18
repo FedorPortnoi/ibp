@@ -166,13 +166,6 @@ class OKChecker:
         except Exception as e:
             logger.debug(f"Phone recovery check failed: {e}")
 
-        # Method 2: API registration check
-        if not result.exists:
-            try:
-                result = self._check_via_registration_api(normalized, result)
-            except Exception as e:
-                logger.debug(f"Phone API check failed: {e}")
-
         return result
 
     def _check_by_email(self, email: str, result: OKAccountInfo) -> OKAccountInfo:
@@ -234,32 +227,6 @@ class OKChecker:
 
         return result
 
-    def _check_via_registration_api(self, login: str, result: OKAccountInfo) -> OKAccountInfo:
-        """Check if login is taken via registration API."""
-        try:
-            # This endpoint checks if login is available for registration
-            params = {
-                'method': 'users.getInfo',
-                'login': login,
-                'format': 'json',
-            }
-
-            response = self.session.get(
-                'https://ok.ru/api/users/getInfo',
-                params=params,
-                timeout=self.timeout
-            )
-
-            if response.status_code == 200:
-                data = response.json()
-                if data and not data.get('error'):
-                    result.exists = True
-                    result.raw_response = data
-
-        except Exception as e:
-            logger.debug(f"[OKChecker] Profile API check failed: {e}")
-
-        return result
 
     def _parse_recovery_html(self, html: str, result: OKAccountInfo):
         """Parse account recovery page for masked data."""
@@ -329,7 +296,3 @@ def check_ok_account(query: str) -> OKAccountInfo:
     return checker.check_account(query)
 
 
-def check_ok_accounts(queries: List[str]) -> List[OKAccountInfo]:
-    """Convenience function to check multiple accounts."""
-    checker = OKChecker()
-    return checker.check_multiple(queries)

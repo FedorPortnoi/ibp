@@ -791,81 +791,6 @@ class CourtRecordSearch:
             logger.debug(f"[CourtSearch] Failed to parse sudact list item: {e}")
             return None
 
-    def _search_sudact_basic(self, name: str, limit: int) -> List[CourtCase]:
-        """Search sudact.ru with basic requests (limited — JS-rendered content)."""
-        results = []
-
-        # Use the same parameter set as the Playwright method
-        params = {
-            'regular-txt': name,
-            'regular-case_doc': '',
-            'regular-lawchunkinfo': '',
-            'regular-date_from': '',
-            'regular-date_to': '',
-            'regular-workflow_stage': '',
-            'regular-area': '',
-            'regular-court': '',
-            'regular-judge': '',
-            '_': '',
-        }
-
-        url = f"{self.SUDACT_BASE}/regular/doc/"
-        logger.info(f"Sudact basic: fetching {url} with name='{name}'")
-
-        try:
-            response = self.session.get(
-                url,
-                params=params,
-                timeout=self.timeout
-            )
-
-            logger.debug(f"Sudact basic: HTTP {response.status_code}, {len(response.text)} bytes")
-
-            if response.status_code != 200:
-                logger.warning(f"Sudact basic: unexpected status {response.status_code}")
-                return results
-
-            soup = BeautifulSoup(response.text, 'lxml')
-
-            # Try multiple selectors — sudact.ru may use different structures
-            selector_groups = [
-                ('ul.results > li', 'list items'),
-                ('#resultTable tr', 'table rows'),
-                ('.bsr-item', 'BSR items'),
-                ('.result-item', 'result items'),
-                ('.doc-item', 'doc items'),
-            ]
-
-            for selector, label in selector_groups:
-                items = soup.select(selector)
-                if items:
-                    logger.debug(f"Sudact basic: found {len(items)} {label} via '{selector}'")
-                    for item in items[:limit]:
-                        case = self._parse_sudact_item(item, name)
-                        if not case:
-                            case = self._parse_sudact_list_item(item, name)
-                        if case:
-                            results.append(case)
-                    if results:
-                        break
-
-            # Fallback: doc links
-            if not results:
-                doc_links = soup.select('a[href*="/doc/"]')
-                if doc_links:
-                    logger.debug(f"Sudact basic: found {len(doc_links)} doc links as fallback")
-                    for link in doc_links[:limit]:
-                        case = self._parse_sudact_doc_link(link, name)
-                        if case:
-                            results.append(case)
-
-            logger.info(f"Sudact basic: parsed {len(results)} cases (note: JS-rendered content may be missing)")
-
-        except requests.RequestException as e:
-            logger.warning(f"Sudact basic request failed: {e}")
-
-        return results
-
     def _parse_sudact_item(self, item, search_name: str) -> Optional[CourtCase]:
         """Parse a Sudact search result item."""
         try:
@@ -960,7 +885,6 @@ class CourtRecordSearch:
         try:
             resp = self.session.get(url, timeout=15)
             if resp.status_code == 200:
-                from bs4 import BeautifulSoup
                 soup = BeautifulSoup(resp.text, 'lxml')
                 for tag in soup(['script', 'style', 'nav', 'header', 'footer']):
                     tag.decompose()

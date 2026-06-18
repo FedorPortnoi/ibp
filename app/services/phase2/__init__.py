@@ -13,7 +13,6 @@ from app.services.phase1.transliteration import transliterate
 from .email_generator import generate_email_candidates, generate_from_username
 from .profile_scraper import scrape_profile, ExtractedContacts
 from .gravatar_lookup import check_gravatar, GravatarProfile
-from .holehe_service import check_email_sync, HoleheResults, EmailRegistration
 from .search4faces_service import search_by_photo, search_all_databases, FaceMatch, Search4FacesResults
 from .yaseeker_service import check_yandex_username, check_yandex_email, YandexAccount, YaSeekerService, get_verified_yandex_accounts
 from .combined_search import Phase2CombinedSearch, Phase2Results
@@ -34,14 +33,11 @@ from app.utils.phone import normalize_phone
 from .russian_phone_validator import (
     RussianPhoneValidator,
     PhoneInfo,
-    validate_phone,
-    extract_phones_from_text,
 )
 from .mailcat_discovery import (
     MailcatEmailDiscovery,
     EmailDiscoveryResult,
     discover_emails_for_username,
-    discover_emails_for_usernames,
 )
 from .vk_api_extractor import (
     VKAPIExtractor,
@@ -55,7 +51,6 @@ from .ok_checker import (
     OKChecker,
     OKAccountInfo,
     check_ok_account,
-    check_ok_accounts,
 )
 from .username_intelligence import (
     UsernameIntelligence,
@@ -69,7 +64,6 @@ from .breach_checker import (
     BreachCheckResult,
     BreachInfo,
     check_email_breaches,
-    check_emails_breaches,
 )
 from .vk_wall_extractor import (
     VKWallExtractor,
@@ -88,16 +82,6 @@ from .email_discovery import (
     DiscoveredEmail as EmailDiscoveryEmail,
 )
 
-# NEW: API-based face search (Search4faces, Yandex, FaceCheck)
-from .face_search_api import (
-    ApiFaceSearchService,
-    Search4FacesService,
-    YandexImageSearch,
-    FaceCheckService,
-    FaceMatch as ApiFaceMatch,
-    search_faces_sync,
-    search_faces_async,
-)
 
 # NEW: Social Graph Builder for vis.js visualization
 from .social_graph import (
@@ -122,10 +106,6 @@ __all__ = [
     # Gravatar
     'check_gravatar',
     'GravatarProfile',
-    # Holehe
-    'check_email_sync',
-    'HoleheResults',
-    'EmailRegistration',
     # Search4faces
     'search_by_photo',
     'search_all_databases',
@@ -153,14 +133,11 @@ __all__ = [
     # NEW: Russian Phone Validator
     'RussianPhoneValidator',
     'PhoneInfo',
-    'validate_phone',
-    'extract_phones_from_text',
     'normalize_phone',
     # NEW: Mailcat Email Discovery
     'MailcatEmailDiscovery',
     'EmailDiscoveryResult',
     'discover_emails_for_username',
-    'discover_emails_for_usernames',
     # NEW: VK API Extractor
     'VKAPIExtractor',
     'VKContact',
@@ -170,7 +147,6 @@ __all__ = [
     'OKChecker',
     'OKAccountInfo',
     'check_ok_account',
-    'check_ok_accounts',
     # NEW: Username Intelligence (Deep Dive Part 2)
     'UsernameIntelligence',
     'UsernameAnalysis',
@@ -182,7 +158,6 @@ __all__ = [
     'BreachCheckResult',
     'BreachInfo',
     'check_email_breaches',
-    'check_emails_breaches',
     # NEW: VK Wall Extractor (Deep Dive Part 2)
     'VKWallExtractor',
     'WallExtractionResult',
@@ -195,12 +170,4 @@ __all__ = [
     'discover_emails',
     'discover_emails_async',
     'EmailDiscoveryEmail',
-    # NEW: API-based Face Search
-    'ApiFaceSearchService',
-    'Search4FacesService',
-    'YandexImageSearch',
-    'FaceCheckService',
-    'ApiFaceMatch',
-    'search_faces_sync',
-    'search_faces_async',
 ]

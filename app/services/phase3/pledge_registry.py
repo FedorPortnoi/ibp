@@ -234,7 +234,3 @@ class PledgeRegistrySearch:
             status=status,
         )
 
-    @staticmethod
-    def get_manual_search_url(full_name: str) -> str:
-        """Generate manual search URL for pledge registry."""
-        return 'https://www.reestr-zalogov.ru/search/index'

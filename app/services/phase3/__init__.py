@@ -36,11 +36,7 @@ from .fssp_search import (
     EnforcementProceeding
 )
 from .combined_search import (
-    Phase3CombinedSearch,
-    phase3_combined_search,
     Phase3Results,
-    SocialConnection,
-    RiskIndicator,
     ManualSearchLink
 )
 
@@ -65,10 +61,7 @@ __all__ = [
     'FSSPSearch',
     'fssp_search',
     'EnforcementProceeding',
-    # Combined Search (Orchestrator)
-    'Phase3CombinedSearch',
-    'phase3_combined_search',
+    # Combined Search
     'Phase3Results',
-    'SocialConnection',
-    'RiskIndicator',
+    'ManualSearchLink',
 ]

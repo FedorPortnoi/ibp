@@ -11,25 +11,6 @@ For INN validation and phone normalization (algorithmic code, not config) see:
 """
 
 # Geographic
-COUNTRY_CODE = 'RU'
 CIS_COUNTRY_CODES = frozenset((
     'RU', 'BY', 'KZ', 'UA', 'UZ', 'KG', 'TJ', 'TM', 'AZ', 'AM', 'GE', 'MD',
 ))
-
-# Locale
-LOCALE = 'ru-RU'
-TIMEZONE = 'Europe/Moscow'
-LANGUAGE_CODE = 'ru'
-
-# Currency / payments
-CURRENCY = 'RUB'
-PAYMENT_METHODS = ('SBP', 'MIR', 'invoice')
-
-# Phone
-PHONE_PREFIX = '+7'
-PHONE_COUNTRY_CODE = '7'
-
-# Compliance (152-FZ Personal Data Law)
-PERSONAL_DATA_LAW = '152-FZ'
-DATA_LOCALIZATION_REQUIRED = True
-CONSENT_REQUIRED = True

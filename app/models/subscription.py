@@ -25,7 +25,6 @@ class Subscription(db.Model):
     expires_at = db.Column(db.DateTime, nullable=True)
     auto_renew = db.Column(db.Boolean, default=False)
     payment_id = db.Column(db.String(128), nullable=True)
-    amount = db.Column(db.Integer, default=1500)  # rub
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow,
                            onupdate=datetime.utcnow)

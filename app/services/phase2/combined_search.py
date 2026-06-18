@@ -15,7 +15,6 @@ import os
 from .email_generator import generate_email_candidates, generate_from_username
 from .profile_scraper import scrape_profile, ExtractedContacts
 from .gravatar_lookup import check_gravatar, GravatarProfile
-from .holehe_service import check_email_sync, HoleheResults
 from .search4faces_service import search_all_databases, FaceMatch
 from .yaseeker_service import check_yandex_username, YandexAccount, YaSeekerService, get_verified_yandex_accounts
 from .url_validator import (
@@ -40,8 +39,6 @@ from .vk_wall_extractor import VKWallExtractor, WallExtractionResult
 # NEW: Fast async email discovery
 from .email_discovery import EmailDiscoveryService, EmailDiscoveryResults
 
-# NEW: API-based face search (discovers NEW profiles from photo)
-from .face_search_api import ApiFaceSearchService, FaceMatch as ApiFaceMatch
 
 # NEW: Phone discovery service
 from .phone_discovery import PhoneDiscoveryService, PhoneDiscoveryResults
@@ -468,13 +465,11 @@ class Phase2CombinedSearch:
         self._update_progress("Discovering emails via Mailcat...", 40)
         self.logger.info("Step 3.5: Mailcat email discovery")
 
-        verified_emails_from_mailcat = []
         try:
             # Try to verify emails for top usernames using Mailcat
             for username in username_hints[:5]:
                 result = self.mailcat_discovery.discover_emails(username, verify=True)
                 if result.verified_emails:
-                    verified_emails_from_mailcat.extend(result.verified_emails)
                     for email in result.verified_emails:
                         emails.append(DiscoveredEmail(
                             email=email,

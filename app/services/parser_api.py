@@ -37,7 +37,6 @@ BASE_URL = 'https://parser-api.com'
 ARBITR_SEARCH_URL = f'{BASE_URL}/parser/arbitr_api/search'
 FSSP_SEARCH_FIZ_URL = f'{BASE_URL}/parser/fssp_api/search_fiz'
 FSSP_SEARCH_UR_INN_URL = f'{BASE_URL}/parser/fssp_api/search_ur_by_inn'
-STAT_URL = f'{BASE_URL}/stat/'
 
 API_KEY_ENV = 'PARSER_API_KEY'
 
@@ -198,15 +197,3 @@ def fssp_search_fiz(
     return [], 'empty'
 
 
-def fssp_search_ur_by_inn(inn: str) -> Tuple[List[dict], str]:
-    """Search ФССП enforcement proceedings for a legal entity / ИП by INN."""
-    inn = (inn or '').strip()
-    if not inn:
-        return [], 'skipped'
-    data, err = _request(FSSP_SEARCH_UR_INN_URL, {'inn': inn})
-    if err:
-        return [], err
-    result = data.get('result') or []
-    if data.get('done') == 1 or result:
-        return result, ('ok' if result else 'empty')
-    return [], 'empty'

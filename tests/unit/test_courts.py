@@ -22,11 +22,6 @@ def test_court_search_no_crash(monkeypatch):
                         lambda name, **kw: ([], 'empty'))
     monkeypatch.setattr(
         CourtRecordSearch,
-        '_search_sudact_basic',
-        lambda self, name, limit: (_ for _ in ()).throw(requests.Timeout("test timeout")),
-    )
-    monkeypatch.setattr(
-        CourtRecordSearch,
         '_search_sudebnye_resheniya',
         lambda self, name, limit, **kw: (_ for _ in ()).throw(requests.Timeout("test timeout")),
     )
@@ -82,8 +77,8 @@ def test_court_search_returns_court_case_objects(monkeypatch):
                         lambda name, **kw: ([], 'empty'))
     monkeypatch.setattr(
         CourtRecordSearch,
-        '_search_sudact_basic',
-        lambda self, name, limit: [
+        '_search_sudebnye_resheniya',
+        lambda self, name, limit, **kw: [
             CourtCase(
                 case_number='2-336/2025',
                 court_name='Тестовый суд',
@@ -91,8 +86,6 @@ def test_court_search_returns_court_case_objects(monkeypatch):
             )
         ],
     )
-    monkeypatch.setattr(CourtRecordSearch, '_search_sudebnye_resheniya',
-                        lambda self, name, limit, **kw: [])
 
     svc = CourtRecordSearch(timeout=1)
     results = svc.search_by_name('Петров Сергей')

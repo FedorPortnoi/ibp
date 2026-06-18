@@ -17,11 +17,11 @@ import subprocess
 import os
 import csv
 import logging
-import time
 import re
 from pathlib import Path
 from typing import List, Dict, Optional
-from datetime import datetime
+
+from app.market.russia import CIS_COUNTRY_CODES
 
 logger = logging.getLogger(__name__)
 
@@ -70,15 +70,12 @@ class SnoopSearchService:
         'youla', 'cian', 'domofond', 'irr.ru', 'farpost', 'moyareklama'
     }
 
-    # Country codes for Russian/CIS regions
-    RUSSIAN_COUNTRY_CODES = {'RU', 'UA', 'BY', 'KZ', 'UZ', 'AM', 'AZ', 'GE', 'MD', 'KG', 'TJ', 'TM'}
 
     def __init__(self):
         """Initialize Snoop search service."""
         self.snoop_dir = SNOOP_DIR
         self.snoop_script = SNOOP_SCRIPT
         self._available = None
-        self._last_search_time = 0
 
     @property
     def available(self) -> bool:
@@ -430,7 +427,7 @@ class SnoopSearchService:
             country = r.get('country', '').upper()
 
             # Check by country code
-            if country in self.RUSSIAN_COUNTRY_CODES:
+            if country in CIS_COUNTRY_CODES:
                 russian_results.append(r)
                 continue
 
@@ -455,7 +452,7 @@ class SnoopSearchService:
             url = r.get('url', '').lower()
             country = r.get('country', '').upper()
 
-            if country in self.RUSSIAN_COUNTRY_CODES:
+            if country in CIS_COUNTRY_CODES:
                 is_russian = True
             else:
                 for kw in self.RUSSIAN_PLATFORMS:
@@ -470,22 +467,3 @@ class SnoopSearchService:
             )
 
         return sorted(results, key=sort_key)
-
-
-# Singleton instance
-snoop_search = SnoopSearchService()
-
-
-def search_username_snoop(username: str, russian_only: bool = False) -> List[Dict]:
-    """
-    Convenience function to search username via Snoop.
-
-    Args:
-        username: Username to search
-        russian_only: Only return Russian/CIS platforms
-
-    Returns:
-        List of found profile dicts
-    """
-    results = snoop_search.search_username(username, russian_only=russian_only)
-    return snoop_search.get_found_profiles(results)

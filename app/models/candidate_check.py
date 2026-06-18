@@ -79,9 +79,6 @@ class CandidateCheck(db.Model):
     # --- User ownership ---
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
 
-    # --- Investigation Link ---
-    investigation_id = db.Column(db.String(36), nullable=True)
-
     # --- Stage 3: Profile Confirmation ---
     _confirmed_profiles = db.Column('confirmed_profiles', db.Text, default='[]')
 
@@ -114,7 +111,6 @@ class CandidateCheck(db.Model):
 
     # --- Stage 8: Report ---
     report_generated = db.Column(db.Boolean, default=False)
-    report_path = db.Column(db.String(500), nullable=True)
 
     # Risk
     risk_level = db.Column(db.String(20))  # low/medium/high/critical
@@ -128,7 +124,6 @@ class CandidateCheck(db.Model):
     task_message = db.Column(db.String(500), default='')
     _task_log = db.Column('task_log', db.Text, default='[]')
     task_error = db.Column(db.Text, nullable=True)
-    task_started_at = db.Column(db.DateTime, nullable=True)
 
     # Meta
     sources_checked = db.Column(db.Integer, default=0)

@@ -60,7 +60,6 @@ def _make_check_row(app, check_id, task_id):
             inn='500100732259',
             status='pending',
             task_id=task_id,
-            task_started_at=datetime.datetime.utcnow(),
             pd_consent=True,
             pd_consent_at=datetime.datetime.utcnow(),
         )
