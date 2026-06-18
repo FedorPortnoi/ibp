@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 from urllib.parse import quote
 import requests
+from app.services.shared.court_utils import detect_company_type
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
@@ -793,14 +794,6 @@ def _normalize_status(raw: str) -> str:
     if 'недостовер' in raw_lower:
         return 'Недостоверные сведения'
     return 'Действующее'
-
-
-def _detect_company_type(name: str) -> str:
-    n = name.upper()
-    for t in ('ПАО', 'ОАО', 'ЗАО', 'АО', 'ООО', 'НКО', 'ГУП', 'МУП', 'ИП'):
-        if t in n:
-            return t
-    return ''
 
 
 # ─────────────────────────────────────────

@@ -22,6 +22,8 @@ import os
 import time
 from typing import Dict, Optional
 
+from app.services.shared.money_utils import fmt_rub
+
 import requests
 
 logger = logging.getLogger(__name__)
@@ -59,17 +61,6 @@ _IP_STATUS_RU = {
     'BANKRUPT':      'Банкротство',
 }
 
-
-def _fmt_rub(value: Optional[float]) -> str:
-    if not value or value <= 0:
-        return ''
-    if value >= 1_000_000_000_000:
-        return f'{value / 1_000_000_000_000:.1f} трлн ₽'
-    if value >= 1_000_000_000:
-        return f'{value / 1_000_000_000:.1f} млрд ₽'
-    if value >= 1_000_000:
-        return f'{value / 1_000_000:.1f} млн ₽'
-    return f'{value:,.0f} ₽'.replace(',', ' ')
 
 
 _CACHE_TTL = 3600  # seconds — reuse dadata result for same INN within 1 hour
@@ -216,7 +207,7 @@ class FinancialService:
                 is_loss = profit < 0
 
             profit_fmt = (
-                ('-' if is_loss else '+') + _fmt_rub(abs(profit))
+                ('-' if is_loss else '+') + fmt_rub(abs(profit))
                 if profit is not None else ''
             )
             result = {
@@ -227,13 +218,13 @@ class FinancialService:
                 'expense': expense,
                 'profit': profit,
                 'is_loss': is_loss,
-                'income_fmt': _fmt_rub(income),
-                'expense_fmt': _fmt_rub(expense),
+                'income_fmt': fmt_rub(income),
+                'expense_fmt': fmt_rub(expense),
                 'profit_fmt': profit_fmt,
                 'year': year,
                 'tax_system': _TAX_SYSTEM_RU.get(tax_sys, tax_sys),
                 'debts': debts,
-                'debts_fmt': _fmt_rub(debts) if debts else '',
+                'debts_fmt': fmt_rub(debts) if debts else '',
                 'employee_count': employees,
                 'source': 'dadata.ru',
                 **identity,
@@ -244,7 +235,7 @@ class FinancialService:
                 result['history'] = [{
                     'year': year,
                     'revenue': income,
-                    'revenue_fmt': _fmt_rub(income) if income else '',
+                    'revenue_fmt': fmt_rub(income) if income else '',
                     'net_profit': profit,
                     'net_profit_fmt': profit_fmt,
                     'cost_of_sales': None, 'cost_of_sales_fmt': '',
@@ -261,7 +252,7 @@ class FinancialService:
             if result['found']:
                 logger.info(
                     "dadata.ru: INN %s → income=%s expense=%s year=%s employees=%s party_status=%s",
-                    inn, _fmt_rub(income), _fmt_rub(expense), year, employees,
+                    inn, fmt_rub(income), fmt_rub(expense), year, employees,
                     identity['party_status'],
                 )
                 self._cache[inn] = (result, time.time() + _CACHE_TTL)

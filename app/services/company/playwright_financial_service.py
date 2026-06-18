@@ -21,6 +21,8 @@ import logging
 import re
 from typing import Dict, List, Optional
 
+from app.services.shared.money_utils import parse_accounting_cell
+
 logger = logging.getLogger(__name__)
 
 # Accounting line numbers — Отчёт о фин. результатах + Бухгалтерский баланс
@@ -47,18 +49,6 @@ _NUMERIC_FIELDS = (
 
 _DEFAULT_TIMEOUT_SEC = 45
 
-
-def _parse_amount(text: str) -> Optional[int]:
-    """Parse accounting cell: may be in thousands (тыс. руб.)."""
-    if not text or text.strip() in ('-', '—', ''):
-        return None
-    cleaned = re.sub(r'[^\d\-]', '', text.replace('(', '-').replace(')', ''))
-    try:
-        val = int(cleaned)
-        # bo.nalog.ru shows values in thousands of RUB — convert to RUB
-        return val * 1000
-    except (ValueError, OverflowError):
-        return None
 
 
 def _enrich_item(item: Dict) -> Dict:
@@ -396,7 +386,7 @@ class PlaywrightFinancialService:
             # Extract amounts from cells that look like numbers
             amounts = []
             for cell in row:
-                val = _parse_amount(cell)
+                val = parse_accounting_cell(cell)
                 if val is not None:
                     amounts.append(val)
 
@@ -436,77 +426,77 @@ class PlaywrightFinancialService:
             # Revenue / Выручка (2110)
             m = re.search(r'(?:Выручка|2110)[^\d\-]*(-?[\d\s]+)', section, re.I)
             if m:
-                val = _parse_amount(m.group(1))
+                val = parse_accounting_cell(m.group(1))
                 if val:
                     data['revenue'] = val
 
             # Cost of sales / Себестоимость продаж (2120)
             m = re.search(r'(?:Себестоимость продаж|Себестоимость|2120)[^\d\-]*(-?[\d\s]+)', section, re.I)
             if m:
-                val = _parse_amount(m.group(1))
+                val = parse_accounting_cell(m.group(1))
                 if val is not None:
                     data['cost_of_sales'] = val
 
             # Gross profit / Валовая прибыль (2100)
             m = re.search(r'(?:Валовая прибыль|2100)[^\d\-]*(-?[\d\s]+)', section, re.I)
             if m:
-                val = _parse_amount(m.group(1))
+                val = parse_accounting_cell(m.group(1))
                 if val is not None:
                     data['gross_profit'] = val
 
             # Operating profit / Прибыль от продаж (2200)
             m = re.search(r'(?:Прибыль.*?от продаж|2200)[^\d\-]*(-?[\d\s]+)', section, re.I)
             if m:
-                val = _parse_amount(m.group(1))
+                val = parse_accounting_cell(m.group(1))
                 if val is not None:
                     data['operating_profit'] = val
 
             # Pre-tax profit / Прибыль до налогообложения (2300)
             m = re.search(r'(?:Прибыль до налог|2300)[^\d\-]*(-?[\d\s]+)', section, re.I)
             if m:
-                val = _parse_amount(m.group(1))
+                val = parse_accounting_cell(m.group(1))
                 if val is not None:
                     data['pretax_profit'] = val
 
             # Income tax / Налог на прибыль (2410)
             m = re.search(r'(?:Налог на прибыль|2410)[^\d\-]*(-?[\d\s]+)', section, re.I)
             if m:
-                val = _parse_amount(m.group(1))
+                val = parse_accounting_cell(m.group(1))
                 if val is not None:
                     data['income_tax'] = val
 
             # Net profit / Чистая прибыль (2400)
             m = re.search(r'(?:Чистая прибыль|убыток|2400)[^\d\-]*(-?[\d\s]+)', section, re.I)
             if m:
-                val = _parse_amount(m.group(1))
+                val = parse_accounting_cell(m.group(1))
                 if val is not None:
                     data['net_profit'] = val
 
             # Total assets / Баланс (1600)
             m = re.search(r'(?:Баланс|Активы|1600)[^\d\-]*(-?[\d\s]+)', section, re.I)
             if m:
-                val = _parse_amount(m.group(1))
+                val = parse_accounting_cell(m.group(1))
                 if val:
                     data['assets'] = val
 
             # Equity / Капитал и резервы (1300)
             m = re.search(r'(?:Капитал и резервы|1300)[^\d\-]*(-?[\d\s]+)', section, re.I)
             if m:
-                val = _parse_amount(m.group(1))
+                val = parse_accounting_cell(m.group(1))
                 if val is not None:
                     data['equity'] = val
 
             # LT liabilities / Долгосрочные обязательства (1400)
             m = re.search(r'(?:Долгосрочные обязательства|1400)[^\d\-]*(-?[\d\s]+)', section, re.I)
             if m:
-                val = _parse_amount(m.group(1))
+                val = parse_accounting_cell(m.group(1))
                 if val is not None:
                     data['lt_liabilities'] = val
 
             # ST liabilities / Краткосрочные обязательства (1500)
             m = re.search(r'(?:Краткосрочные обязательства|1500)[^\d\-]*(-?[\d\s]+)', section, re.I)
             if m:
-                val = _parse_amount(m.group(1))
+                val = parse_accounting_cell(m.group(1))
                 if val is not None:
                     data['st_liabilities'] = val
 

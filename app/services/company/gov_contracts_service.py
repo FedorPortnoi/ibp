@@ -21,6 +21,10 @@ import logging
 import re
 from typing import Dict, List
 
+from app.services.shared.money_utils import parse_rub_amount
+
+from app.services.shared.money_utils import parse_rub_amount
+
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import quote
@@ -38,17 +42,6 @@ _HEADERS = {
     'Referer': 'https://zakupki.gov.ru/',
 }
 
-
-def _parse_amount(text: str) -> float:
-    """Parse Russian money string like '1 234 567,89' → 1234567.89"""
-    if not text:
-        return 0.0
-    cleaned = re.sub(r'[^\d,.]', '', text.replace(' ', '').replace('\xa0', ''))
-    cleaned = cleaned.replace(',', '.')
-    try:
-        return float(cleaned)
-    except ValueError:
-        return 0.0
 
 
 def _fmt_amount(value: float) -> str:
@@ -171,7 +164,7 @@ class GovContractsService:
         if total_el:
             m = re.search(r'[\d\s,]+', total_el.find_parent().get_text())
             if m:
-                total_amount = _parse_amount(m.group())
+                total_amount = parse_rub_amount(m.group()) or 0.0
 
         # ── Contract rows ──────────────────────────────────────────────────
         # Strategy 1: registry-entry__form containers (modern ЕИС layout)
@@ -225,7 +218,7 @@ class GovContractsService:
         amount_m = re.search(
             r'([\d\s]+[,.]?\d*)\s*(?:руб|₽|rub)', text, re.IGNORECASE
         )
-        amount = _parse_amount(amount_m.group(1)) if amount_m else 0.0
+        amount = parse_rub_amount(amount_m.group(1)) or 0.0 if amount_m else 0.0
 
         # Date — DD.MM.YYYY
         date_m = re.search(r'\d{2}\.\d{2}\.\d{4}', text)

@@ -184,8 +184,9 @@ class BusinessRegistrySearch:
         """Parse egrul.org JSON into BusinessRecord(s)."""
         from app.services.company.egrul_service import (
             _attrs, _as_list, _fio, _parse_address, _parse_okveds,
-            _normalize_status, _detect_company_type,
+            _normalize_status,
         )
+        from app.services.shared.court_utils import detect_company_type
 
         ul_data = data.get('СвЮЛ')
         ip_data = data.get('СвИП')
@@ -213,7 +214,7 @@ class BusinessRegistrySearch:
             nb    = root.get('СвНаимЮЛ', {})
             na    = _attrs(nb)
             name  = na.get('НаимЮЛСокр', '') or na.get('НаимЮЛПолн', '') or a.get('НаимЮЛСокр', '')
-            ctype = _detect_company_type(name)
+            ctype = detect_company_type(name)
             # Determine role: director or founder — left as 'Связан' since
             # role context comes from the candidate's name matching,
             # which happens in the pipeline layer, not here.

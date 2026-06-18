@@ -27,6 +27,8 @@ import re
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
+from app.services.shared.money_utils import parse_rub_amount
+
 import requests
 from bs4 import BeautifulSoup
 
@@ -99,22 +101,6 @@ class CheckoRecord:
             'source': 'checko.ru',
         }
 
-
-def _parse_amount(text: str) -> Optional[float]:
-    """Parse monetary amount from Russian text."""
-    if not text:
-        return None
-    match = re.search(r'(\d[\d\s\xa0]*\d)(?:[,.](\d{1,2}))?', text)
-    if not match:
-        match = re.search(r'(\d+)(?:[,.](\d{1,2}))?', text)
-    if not match:
-        return None
-    integer_part = match.group(1).replace(' ', '').replace('\xa0', '')
-    decimal_part = match.group(2) or '0'
-    try:
-        return float(f"{integer_part}.{decimal_part}")
-    except ValueError:
-        return None
 
 
 class CheckoService:
@@ -240,7 +226,7 @@ class CheckoService:
             end = min(len(text), m.end() + 300)
             ctx = text[start:end]
 
-            amount = _parse_amount(ctx)
+            amount = parse_rub_amount(ctx)
 
             subject = ''
             for pat in [
@@ -294,6 +280,6 @@ class CheckoService:
             person_name=full_name,
             proceedings_number=ip_match.group(1),
             subject=cells[-1].get_text(strip=True) if cells else '',
-            amount=_parse_amount(row_text),
+            amount=parse_rub_amount(row_text),
             is_active=True,
         )

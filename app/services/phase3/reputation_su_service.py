@@ -27,6 +27,7 @@ from urllib.parse import quote
 
 import requests
 from bs4 import BeautifulSoup
+from app.services.shared.court_utils import COURT_CATEGORY_MAP, get_li_value
 
 logger = logging.getLogger(__name__)
 
@@ -84,22 +85,7 @@ def _is_blocked_page(html: str, size_heuristic: bool = True) -> bool:
     return False
 
 # Category label -> case_type
-_CATEGORY_MAP = {
-    'гражданские': 'гражданское',
-    'уголовные': 'уголовное',
-    'административные': 'административное',
-    'арбитражные': 'арбитражное',
-}
 
-
-def _get_li_value(card, label: str) -> str:
-    """Extract the <p> text from a <li> whose <span> matches label."""
-    for li in card.select('li'):
-        span = li.select_one('span')
-        if span and label in span.get_text(strip=True):
-            p = li.select_one('p')
-            return p.get_text(strip=True) if p else ''
-    return ''
 
 
 def _detect_role(card, search_name: str) -> str:
@@ -160,18 +146,18 @@ def _parse_cards(html: str, search_name: str) -> list:
         case_number = m.group(1) if m else case_number_raw
 
         # Category -> case_type
-        category = _get_li_value(card, 'Категория').lower()
-        case_type = _CATEGORY_MAP.get(category, '')
+        category = get_li_value(card, 'Категория').lower()
+        case_type = COURT_CATEGORY_MAP.get(category, '')
 
         # Date from "Регистрация"
-        date_text = _get_li_value(card, 'Регистрация')
+        date_text = get_li_value(card, 'Регистрация')
         date = ''
         date_m = re.search(r'(\d{2}\.\d{2}\.\d{4})', date_text)
         if date_m:
             date = date_m.group(1)
 
         # Status
-        status = _get_li_value(card, 'Статус')
+        status = get_li_value(card, 'Статус')
 
         # Role
         role = _detect_role(card, search_name)
@@ -186,10 +172,10 @@ def _parse_cards(html: str, search_name: str) -> list:
                 break
 
         # Court name — try multiple label strategies
-        court_name = _get_li_value(card, 'Суд')
+        court_name = get_li_value(card, 'Суд')
         if not court_name:
             for label in ('Наименование суда', 'Судебный орган', 'Наименование'):
-                court_name = _get_li_value(card, label)
+                court_name = get_li_value(card, label)
                 if court_name:
                     break
         # Regex fallback from full card text
@@ -208,10 +194,10 @@ def _parse_cards(html: str, search_name: str) -> list:
             court_name = 'Суд не определён'
 
         # Subject (предмет дела) — from "Предмет" label or description block
-        subject = _get_li_value(card, 'Предмет')
+        subject = get_li_value(card, 'Предмет')
         if not subject:
             for label in ('Суть дела', 'Описание', 'Иск о'):
-                subject = _get_li_value(card, label)
+                subject = get_li_value(card, label)
                 if subject:
                     break
         if not subject:

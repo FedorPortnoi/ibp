@@ -22,6 +22,7 @@ from typing import List, Dict
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import quote
+from app.services.shared.court_utils import COURT_CATEGORY_MAP, get_li_value
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +39,6 @@ _HEADERS = {
 _PLAINTIFF_KW = ('истец', 'заявитель', 'взыскатель')
 _DEFENDANT_KW = ('ответчик',)
 
-_CATEGORY_MAP = {
-    'гражданские': 'гражданское',
-    'уголовные': 'уголовное',
-    'административные': 'административное',
-    'арбитражные': 'арбитражное',
-}
 
 
 @dataclass
@@ -502,16 +497,16 @@ class CompanyCourtSearch:
             case_number = m.group(1) if m else raw
 
             # Category → case_type
-            category = self._li_value(card, 'Категория').lower()
-            case_type = _CATEGORY_MAP.get(category, self._normalize_case_type(category))
+            category = get_li_value(card, 'Категория').lower()
+            case_type = COURT_CATEGORY_MAP.get(category, self._normalize_case_type(category))
 
             # Date
-            date_text = self._li_value(card, 'Регистрация')
+            date_text = get_li_value(card, 'Регистрация')
             dm = re.search(r'(\d{2}\.\d{2}\.\d{4})', date_text)
             date = dm.group(1) if dm else ''
 
             # Subject
-            subject = self._li_value(card, 'Предмет') or self._li_value(card, 'Суть дела')
+            subject = get_li_value(card, 'Предмет') or get_li_value(card, 'Суть дела')
             if not subject:
                 desc = card.select_one('p.srch-card__description, p.srch-card__subject')
                 if desc:
@@ -521,7 +516,7 @@ class CompanyCourtSearch:
             role = self._detect_company_role(card, company_name, inn)
 
             # Court
-            court_name = self._li_value(card, 'Суд') or self._li_value(card, 'Наименование суда')
+            court_name = get_li_value(card, 'Суд') or get_li_value(card, 'Наименование суда')
             if not court_name:
                 ct = re.search(
                     r'([А-ЯЁ][а-яёА-ЯЁ\s\-]{3,80}(?:арбитражный суд|районный суд|городской суд|суд)[а-яёА-ЯЁ\s\-]{0,60})',
@@ -545,7 +540,7 @@ class CompanyCourtSearch:
                 date=date,
                 role=role,
                 subject=subject,
-                result=self._li_value(card, 'Статус'),
+                result=get_li_value(card, 'Статус'),
                 url=url,
                 source='reputation.su',
             ))
@@ -657,15 +652,6 @@ class CompanyCourtSearch:
 
     # ── Helpers ─────────────────────────────────────────────────────────────
 
-    @staticmethod
-    def _li_value(card, label: str) -> str:
-        """Extract <p> text from a <li> whose <span> contains label."""
-        for li in card.select('li'):
-            span = li.select_one('span')
-            if span and label in span.get_text(strip=True):
-                p = li.select_one('p')
-                return p.get_text(strip=True) if p else ''
-        return ''
 
     def _detect_company_role(self, card, company_name: str, inn: str) -> str:
         """Detect company's role from a reputation.su card participant lists."""
