@@ -22,6 +22,8 @@ from typing import List, Dict, Optional, Set, Tuple
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
 
+from app.services.phase1.transliteration import transliterate
+
 logger = logging.getLogger(__name__)
 
 
@@ -231,8 +233,8 @@ class EmailDiscoveryService:
         candidates = set()
 
         # Transliterate Russian names to Latin
-        fname = self._transliterate(first_name.lower().strip())
-        lname = self._transliterate(last_name.lower().strip())
+        fname = transliterate(first_name.lower().strip())
+        lname = transliterate(last_name.lower().strip())
 
         # Name-based patterns
         patterns = [
@@ -263,20 +265,6 @@ class EmailDiscoveryService:
                     candidates.add(email.lower())
 
         return list(candidates)[:self.max_candidates]
-
-    def _transliterate(self, text: str) -> str:
-        """Transliterate Russian text to Latin."""
-        translit_map = {
-            'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e',
-            'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
-            'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
-            'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch',
-            'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
-        }
-        result = ""
-        for char in text.lower():
-            result += translit_map.get(char, char)
-        return result
 
     def _clean_username(self, username: str) -> str:
         """Clean username for email generation."""

@@ -817,7 +817,6 @@ class Phase2CombinedSearch:
         self.logger.info(f"CHECKPOINT after Step 5.7: phones={len(phones)}")
 
         # ===== STEP 5.8: VK API Phone Extraction =====
-        # If we have a confirmed VK profile, try VK API fields for phone
         if self.vk_extractor and self.vk_extractor.access_token:
             self._update_progress("Extracting VK contacts via API...", 83)
             self.logger.info("Step 5.8: VK API phone extraction")
@@ -827,36 +826,20 @@ class Phase2CombinedSearch:
                     vk_id = profile.get('platform_id') or profile.get('username', '')
                     if vk_id:
                         try:
-                            # Try users.get with contacts fields
-                            import requests as _requests
-                            resp = _requests.post(
-                                'https://api.vk.com/method/users.get',
-                                data={
-                                    'user_ids': vk_id,
-                                    'fields': 'contacts,mobile_phone,home_phone,connections',
-                                    'access_token': self.vk_extractor.access_token,
-                                    'v': '5.199',
-                                },
-                                timeout=10,
-                            )
-                            data = resp.json()
-                            users = data.get('response', [])
-                            for user in users:
-                                mobile = user.get('mobile_phone', '').strip()
-                                home = user.get('home_phone', '').strip()
-                                for phone_val, label in [(mobile, 'VK mobile_phone'), (home, 'VK home_phone')]:
-                                    if phone_val and len(phone_val) >= 7:
-                                        phone_info = self.phone_validator.validate(phone_val)
-                                        if phone_info.is_valid:
-                                            number = phone_info.display_format
-                                            if not any(p.number == number for p in phones):
-                                                phones.append(DiscoveredPhone(
-                                                    number=number,
-                                                    source=label,
-                                                    confidence='high',
-                                                ))
-                                                masked = number[-4:] if len(number) >= 4 else '****'
-                                                self.logger.info(f"VK API phone: ***{masked} from {label}")
+                            contact = self.vk_extractor.extract_from_id(vk_id)
+                            for phone_val in contact.phones:
+                                if phone_val and len(phone_val) >= 7:
+                                    phone_info = self.phone_validator.validate(phone_val)
+                                    if phone_info.is_valid:
+                                        number = phone_info.display_format
+                                        if not any(p.number == number for p in phones):
+                                            phones.append(DiscoveredPhone(
+                                                number=number,
+                                                source='VK contacts',
+                                                confidence='high',
+                                            ))
+                                            masked = number[-4:] if len(number) >= 4 else '****'
+                                            self.logger.info(f"VK API phone: ***{masked}")
                         except Exception as e:
                             self.logger.debug(f"VK API phone extraction error: {e}")
 

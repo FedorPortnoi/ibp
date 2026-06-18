@@ -414,30 +414,18 @@ class SnoopSearchService:
         """Filter results to only found profiles."""
         return [r for r in results if r.get('status') == 'found']
 
+    def _is_russian_profile(self, r: Dict) -> bool:
+        """Return True if the result belongs to a Russian/CIS platform."""
+        country = r.get('country', '').upper()
+        if country in CIS_COUNTRY_CODES:
+            return True
+        platform = r.get('platform', '').lower()
+        url = r.get('url', '').lower()
+        return any(kw in platform or kw in url for kw in self.RUSSIAN_PLATFORMS)
+
     def get_russian_profiles(self, results: List[Dict]) -> List[Dict]:
         """Filter results to Russian/CIS platforms only."""
-        russian_results = []
-
-        for r in results:
-            if r.get('status') != 'found':
-                continue
-
-            platform = r.get('platform', '').lower()
-            url = r.get('url', '').lower()
-            country = r.get('country', '').upper()
-
-            # Check by country code
-            if country in CIS_COUNTRY_CODES:
-                russian_results.append(r)
-                continue
-
-            # Check by platform name or URL
-            for kw in self.RUSSIAN_PLATFORMS:
-                if kw in platform or kw in url:
-                    russian_results.append(r)
-                    break
-
-        return russian_results
+        return [r for r in results if r.get('status') == 'found' and self._is_russian_profile(r)]
 
     def sort_results(
         self,
@@ -447,21 +435,8 @@ class SnoopSearchService:
         """Sort results with Russian platforms first, then by confidence."""
 
         def sort_key(r):
-            is_russian = False
-            platform = r.get('platform', '').lower()
-            url = r.get('url', '').lower()
-            country = r.get('country', '').upper()
-
-            if country in CIS_COUNTRY_CODES:
-                is_russian = True
-            else:
-                for kw in self.RUSSIAN_PLATFORMS:
-                    if kw in platform or kw in url:
-                        is_russian = True
-                        break
-
             return (
-                0 if (russian_first and is_russian) else 1,
+                0 if (russian_first and self._is_russian_profile(r)) else 1,
                 -r.get('confidence', 0),
                 r.get('platform', '')
             )
