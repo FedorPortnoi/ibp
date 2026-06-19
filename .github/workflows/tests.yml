@@ -1,1 +1,38 @@
-bmFtZTogVGVzdHMKCm9uOgogIHB1c2g6CiAgICBicmFuY2hlczogW21haW4sIGNsZWFudXBdCiAgcHVsbF9yZXF1ZXN0OgogICAgYnJhbmNoZXM6IFttYWluXQogIHdvcmtmbG93X2Rpc3BhdGNoOgoKam9iczoKICB0ZXN0OgogICAgcnVucy1vbjogdWJ1bnR1LWxhdGVzdAoKICAgIHN0ZXBzOgogICAgICAtIHVzZXM6IGFjdGlvbnMvY2hlY2tvdXRAdjQKCiAgICAgIC0gbmFtZTogU2V0IHVwIFB5dGhvbgogICAgICAgIHVzZXM6IGFjdGlvbnMvc2V0dXAtcHl0aG9uQHY1CiAgICAgICAgd2l0aDoKICAgICAgICAgIHB5dGhvbi12ZXJzaW9uOiAnMy4xMicKCiAgICAgIC0gbmFtZTogSW5zdGFsbCBkZXBlbmRlbmNpZXMKICAgICAgICBydW46IHwKICAgICAgICAgIHB5dGhvbiAtbSBwaXAgaW5zdGFsbCAtLXVwZ3JhZGUgcGlwCiAgICAgICAgICBwaXAgaW5zdGFsbCAtciByZXF1aXJlbWVudHMudHh0CgogICAgICAtIG5hbWU6IFNldCB0ZXN0IGVudmlyb25tZW50IHZhcmlhYmxlcwogICAgICAgIHJ1bjogfAogICAgICAgICAgZWNobyAiU0VDUkVUX0tFWT10ZXN0LXNlY3JldC1rZXktZm9yLWNpIiA+PiAkR0lUSFVCX0VOVgogICAgICAgICAgZWNobyAiRkxBU0tfRU5WPXRlc3RpbmciID4+ICRHSVRIVE9CX0VOVgoKICAgICAgLSBuYW1lOiBDb21waWxlIFB5dGhvbiBzb3VyY2VzCiAgICAgICAgcnVuOiB8CiAgICAgICAgICBweXRob24gLW0gY29tcGlsZWFsbCAtcSBhcHAgY2FuZGlkYXRlX2NoZWNrIHBlb3BsZV9zZWFyY2ggc2NyaXB0cyB0ZXN0cwoKICAgICAgLSBuYW1lOiBSdW4gZGV0ZXJtaW5pc3RpYyB0ZXN0cwogICAgICAgIHJ1bjogfAogICAgICAgICAgcHl0aG9uIC1tIHB5dGVzdCAtcCBubzpmYXVsdGhhbmRsZXIgdGVzdHMvdW5pdCB0ZXN0cy90ZXN0X2V4dGVybmFsX3NlcnZpY2VfaW50ZWdyYXRpb25zLnB5IC1xCg==
+name: Tests
+
+on:
+  push:
+    branches: [main, cleanup]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Set test environment variables
+        run: |
+          echo "SECRET_KEY=test-secret-key-for-ci" >> $GITHUB_ENV
+          echo "FLASK_ENV=testing" >> $GITHUB_ENV
+
+      - name: Compile Python sources
+        run: |
+          python -m compileall -q app candidate_check people_search scripts tests
+
+      - name: Run deterministic tests
+        run: |
+          python -m pytest -p no:faulthandler tests/unit tests/test_external_service_integrations.py -q
