@@ -489,7 +489,13 @@
         </div>
         {% endfor %}
         {% else %}
-        <div class="empty-state">Учредители не определены</div>
+        <div class="empty-state">
+            {% if check.company_type and 'ПАО' in check.company_type %}
+            Для ПАО акционеры не хранятся в ЕГРЮЛ — они ведутся в реестре акционеров.
+            {% else %}
+            Учредители не определены
+            {% endif %}
+        </div>
         {% endif %}
     </div>
 
