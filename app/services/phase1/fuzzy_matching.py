@@ -1,17 +1,15 @@
 """
 Fuzzy Surname Matching for Russian Names
 ==========================================
-Compares and generates surname variants accounting for:
+Compares surname variants accounting for:
 - Gender suffixes (-ов/-ова, -ин/-ина, -ский/-ская)
 - Common typos and transliteration errors
 - Levenshtein / SequenceMatcher similarity
 
 Usage:
-    from app.services.phase1.fuzzy_matching import surname_similarity, generate_similar_surnames
+    from app.services.phase1.fuzzy_matching import surname_similarity
 
     score = surname_similarity("Портной", "Портнов")  # ~0.8
-    variants = generate_similar_surnames("Портной")
-    # Returns: ["Портнов", "Портнова", "Портновский", ...]
 """
 
 from difflib import SequenceMatcher

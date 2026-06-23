@@ -11,8 +11,7 @@ import difflib
 import json
 import logging
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 

@@ -282,6 +282,7 @@ class BreachChecker:
 
         return breaches
 
+
 def check_email_breaches(email: str, hibp_key: Optional[str] = None) -> BreachCheckResult:
     """Convenience function to check single email."""
     checker = BreachChecker(hibp_api_key=hibp_key)

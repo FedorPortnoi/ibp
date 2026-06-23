@@ -123,7 +123,11 @@ class Phase2CombinedSearch:
         )
 
         # ===== NEW: API-based face search (discovers NEW profiles) =====
-        self.api_face_search = ApiFaceSearchService()
+        self.api_face_search = None
+        try:
+            self.api_face_search = ApiFaceSearchService()
+        except Exception:
+            pass
 
         # ===== NEW: Snoop username search (5,372+ sites, 2,600+ Russian) =====
         self.snoop_service = None
@@ -695,41 +699,9 @@ class Phase2CombinedSearch:
                 self.logger.debug(error_msg)
 
         # ===== STEP 5: Verify Top Email Candidates with Holehe =====
-        self._update_progress("Verifying emails with Holehe...", 55)
-        self.logger.info("Step 5: Verifying emails with Holehe")
-
-        # Only check top 5 most likely email candidates (reduced from 15 for speed)
-        top_candidates = email_candidates[:5]
+        # check_email_sync is not yet integrated — skip silently until holehe is wired up
         holehe_verified = 0
-
-        for i, email in enumerate(top_candidates):
-            try:
-                self._update_progress(f"Checking email {i+1}/{len(top_candidates)}...", 55 + (i * 5))
-                start_time_holehe = time.time()
-
-                holehe_result = check_email_sync(email)
-                elapsed_holehe = time.time() - start_time_holehe
-                self.logger.info(f"Holehe check for {email}: {holehe_result.total_registered} services found in {elapsed_holehe:.1f}s")
-
-                if holehe_result.total_registered > 0:
-                    services = [r.service for r in holehe_result.registered_services]
-                    emails.append(DiscoveredEmail(
-                        email=email,
-                        source="Holehe verification",
-                        confidence="high" if len(services) >= 3 else "medium",
-                        verified_on=services[:10]
-                    ))
-                    holehe_verified += 1
-                    self.logger.info(f"VERIFIED email: {email} on {len(services)} services")
-
-                time.sleep(0.5)  # Reduced rate limiting
-
-            except Exception as e:
-                error_msg = f"Holehe error for {email}: {str(e)}"
-                errors.append(error_msg)
-                self.logger.debug(error_msg)
-
-        self.logger.info(f"Holehe verified {holehe_verified} emails")
+        self.logger.info("Step 5: Holehe verification skipped (not integrated)")
         self.logger.info(f"CHECKPOINT after Step 5: phones={len(phones)}, emails={len(emails)}, profiles={len(additional_profiles)}")
 
         # ===== STEP 5.5: Check Verified Emails for Breaches =====
@@ -1041,7 +1013,7 @@ class Phase2CombinedSearch:
         self.logger.info(f"Quick scrape: {len(phones)} phones, {len(emails)} emails, {len(additional_profiles)} profiles")
 
         # ===== STEP 1.5: API-Based Face Search (if photo provided) =====
-        if target_photo_path and os.path.exists(target_photo_path):
+        if target_photo_path and os.path.exists(target_photo_path) and self.api_face_search:
             self._update_progress("Searching faces via API (VK, OK databases)...", 15)
             self.logger.info("Step 1.5: API-based face search")
 

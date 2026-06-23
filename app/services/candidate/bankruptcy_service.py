@@ -367,33 +367,6 @@ class BankruptcyService:
 
         return records
 
-
-    def _parse_html_regex(self, html: str) -> List[BankruptcyRecord]:
-        """Last-resort regex parser for bankruptcy data in raw HTML."""
-        records = []
-
-        # Find arbitration case numbers
-        for m in re.finditer(r'(А\d{2}-\d+/\d{4})', html):
-            start = max(0, m.start() - 500)
-            end = min(len(html), m.end() + 500)
-            ctx = html[start:end]
-
-            name_m = re.search(
-                r'([А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)?)',
-                ctx,
-            )
-            inn_m = re.search(r'\b(\d{12})\b', ctx)
-
-            records.append(BankruptcyRecord(
-                debtor_name=name_m.group(1) if name_m else '',
-                debtor_inn=inn_m.group(1) if inn_m else None,
-                case_number=m.group(1),
-                is_active=True,
-                source='bankrot.fedresurs.ru',
-            ))
-
-        return records
-
     # ── Manual fallback ────────────────────────────────────────────
 
     def _manual_fallback(self, full_name: str) -> List[BankruptcyRecord]:

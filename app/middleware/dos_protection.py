@@ -147,9 +147,11 @@ _dos = DosProtection()
 def init_dos_protection(app):
     """Register DoS protection middleware with Flask app."""
 
-    # Disable in testing mode (same as Flask-Limiter RATELIMIT_ENABLED=False)
-    if app.config.get('TESTING'):
-        logger.info("DoS protection skipped (testing mode)")
+    # Disable in testing and debug (development) mode.
+    # Loopback traffic from tests or local dev would immediately trip the
+    # >10 req/s threshold and auto-ban 127.0.0.1 for an hour.
+    if app.config.get('TESTING') or app.config.get('DEBUG'):
+        logger.info("DoS protection skipped (testing/development mode)")
         return
 
     import os as _os

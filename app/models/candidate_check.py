@@ -428,16 +428,6 @@ class CandidateCheck(db.Model):
             'critical': 'КРИТИЧЕСКИЙ РИСК',
         }.get(self.risk_level, '')
 
-    @property
-    def name_parts(self):
-        """Split full_name into last, first, patronymic."""
-        parts = self.full_name.strip().split()
-        return {
-            'last': parts[0] if len(parts) > 0 else '',
-            'first': parts[1] if len(parts) > 1 else '',
-            'patronymic': parts[2] if len(parts) > 2 else '',
-        }
-
     def task_status_dict(self):
         """Build progress status dict from DB fields (cross-worker fallback)."""
         if self.task_error:

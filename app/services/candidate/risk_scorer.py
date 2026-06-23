@@ -5,10 +5,11 @@ Numeric 0-100 risk scoring with fact/suspicion distinction.
 Each flag has: type, code, description, evidence, severity, recommendation.
 """
 
+import json
 import logging
 import re
 from collections import Counter
-from datetime import date
+from datetime import date, datetime
 
 logger = logging.getLogger(__name__)
 

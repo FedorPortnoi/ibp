@@ -32,11 +32,10 @@ def _get_check_or_404(check_id: str):
         abort(404)
     from app.routes.auth import get_current_user
     user = get_current_user()
-    from app.permissions import can_access_check as _can_access
-    if not _can_access(user, check):
+    from app.permissions import can_access_check
+    if not can_access_check(user, check):
         abort(403)
     return check
-
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────

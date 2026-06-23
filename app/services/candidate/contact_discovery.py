@@ -41,6 +41,7 @@ PHONE_PATTERN = re.compile(
 EMAIL_PATTERN = re.compile(
     r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
 )
+TELEGRAM_PATTERN = re.compile(r'(?:t\.me/|@)([a-zA-Z][a-zA-Z0-9_]{4,31})')
 
 # Domains for email guessing
 GUESS_DOMAINS = [
@@ -54,7 +55,7 @@ NAME_GUESS_DOMAINS = ['gmail.com', 'mail.ru', 'yandex.ru']
 MAX_HOLEHE_EMAILS = 20
 
 # VK API version
-VK_API_VERSION = '5.131'
+VK_API_VERSION = '5.199'
 
 # ── Confidence Scores ─────────────────────────────────────────────
 # Numeric confidence scores by source (Phase 5 overhaul)
@@ -488,7 +489,6 @@ class ContactDiscoveryService:
                                 ))
 
                 # Telegram handles in text fields
-                TELEGRAM_PATTERN = re.compile(r'(?:t\.me/|@)([a-zA-Z][a-zA-Z0-9_]{4,31})')
                 for text_field in ('about', 'status', 'site'):
                     text = (user.get(text_field) or '').strip()
                     if text:

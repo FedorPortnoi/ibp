@@ -62,7 +62,6 @@ _IP_STATUS_RU = {
 }
 
 
-
 _CACHE_TTL = 3600  # seconds — reuse dadata result for same INN within 1 hour
 
 

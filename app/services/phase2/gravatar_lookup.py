@@ -90,5 +90,3 @@ def check_gravatar(email: str) -> GravatarProfile:
         logger.warning(f"Gravatar parse error for {email}: {e}")
 
     return GravatarProfile(exists=False, email=email)
-
-

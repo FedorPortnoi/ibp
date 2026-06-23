@@ -169,6 +169,7 @@ class DevelopmentConfig(Config):
     DEBUG = True
     TESTING = False
     SESSION_COOKIE_SECURE = False  # HTTP is fine in local dev; Secure is enforced in production
+    RATELIMIT_ENABLED = False       # All Locust/dev traffic comes from 127.0.0.1 — rate limits kill load tests
 
 
 class ProductionConfig(Config):

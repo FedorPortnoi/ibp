@@ -329,5 +329,3 @@ def discover_emails_for_username(username: str, verify: bool = True) -> EmailDis
     """Convenience function for single username lookup."""
     service = MailcatEmailDiscovery()
     return service.discover_emails(username, verify=verify)
-
-

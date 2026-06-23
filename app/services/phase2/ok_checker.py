@@ -294,5 +294,3 @@ def check_ok_account(query: str) -> OKAccountInfo:
     """Convenience function to check single account."""
     checker = OKChecker()
     return checker.check_account(query)
-
-

@@ -6,8 +6,9 @@ Root URL routing, investigations list, VK token management
 
 import logging
 import os
-from flask import Blueprint, redirect, url_for, render_template, jsonify, request
-from app.routes.auth import admin_required
+from flask import Blueprint, redirect, url_for, render_template, jsonify, request, session
+from app.permissions import is_admin
+from app.routes.auth import admin_required, get_current_user
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger('ibp.routes.main')
@@ -60,8 +61,6 @@ def health_check():
     Returns minimal status for unauthenticated requests (load balancer / uptime monitor).
     Returns detailed service status only for authenticated users.
     """
-    from flask import session
-
     authenticated = bool(session.get('user_id'))
 
     # Unauthenticated: minimal liveness response for load balancers / uptime monitors.
@@ -71,8 +70,6 @@ def health_check():
     db_ok = _probe_database()
 
     # Detailed service status only for admins — prevents infrastructure enumeration.
-    from app.permissions import is_admin
-    from app.routes.auth import get_current_user
     if not is_admin(get_current_user()):
         return jsonify({'status': 'ok' if db_ok else 'degraded'}), 200 if db_ok else 503
 

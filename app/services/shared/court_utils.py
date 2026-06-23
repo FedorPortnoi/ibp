@@ -1,12 +1,6 @@
 """
 Shared utilities for court and company services.
 """
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
 
 # ---------------------------------------------------------------------------
 # Court category normalisation

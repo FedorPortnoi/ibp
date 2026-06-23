@@ -57,16 +57,14 @@ class ManualVKLookupError(Exception):
 
 
 def _check_owner_or_admin(check):
-    """Verify current user can access this CandidateCheck. Returns (user, error_response)."""
+    """Abort 403 if the current user cannot access this CandidateCheck."""
     from app.routes.auth import get_current_user
-    user = get_current_user()
-    if not can_access_check(user, check):
-        return None, abort(403)
-    return user, None
+    if not can_access_check(get_current_user(), check):
+        abort(403)
 
 
 def _check_owner_or_admin_by_task(task_id):
-    """Look up CandidateCheck by task_id and verify ownership. Returns (check, error_response)."""
+    """Look up CandidateCheck by task_id and verify ownership. Returns check or None."""
     from app.routes.auth import get_current_user
     user = get_current_user()
     if not user:
@@ -81,11 +79,11 @@ def _check_owner_or_admin_by_task(task_id):
     if not check:
         check = CandidateCheck.query.filter_by(task_id=task_id).first()
     if not check:
-        return None, None  # Let caller handle 404
+        return None  # Let caller handle 404
 
     if not can_access_check(user, check):
         abort(403)
-    return check, None
+    return check
 
 
 def _safe_filename(name_slug: str) -> str:
@@ -471,7 +469,7 @@ def start_check():
 def progress_page(task_id):
     """Render progress page — polls /candidate/progress/<task_id>/status via JS."""
     # Ownership check
-    check, _ = _check_owner_or_admin_by_task(task_id)
+    check = _check_owner_or_admin_by_task(task_id)
 
     # Try in-memory first (same worker)
     with _tasks_lock:
@@ -613,8 +611,7 @@ def retry_expanded_search(check_id):
         vk_age_from = None
         vk_age_to = None
         if check.date_of_birth:
-            from datetime import date as _date
-            today = _date.today()
+            today = date.today()
             age = today.year - check.date_of_birth.year - (
                 (today.month, today.day) < (check.date_of_birth.month, check.date_of_birth.day)
             )
@@ -709,8 +706,7 @@ def search_by_name(check_id):
         vk_age_from = None
         vk_age_to = None
         if check.date_of_birth:
-            from datetime import date as _date
-            today = _date.today()
+            today = date.today()
             age = today.year - check.date_of_birth.year - (
                 (today.month, today.day) < (check.date_of_birth.month, check.date_of_birth.day)
             )
@@ -933,14 +929,17 @@ def dossier_page(check_id):
 
 @candidate_bp.route('/history')
 def history():
-    """List past candidate checks for regular users; admins pick a user first."""
+    """List past candidate checks. Admins see all checks; regular users see their own."""
     from app.routes.auth import get_current_user
     user = get_current_user()
     if is_admin(user):
-        return redirect(url_for('admin_users.list_users'))
-    checks = CandidateCheck.query.filter_by(user_id=user.id).order_by(
-        CandidateCheck.created_at.desc()
-    ).all()
+        checks = CandidateCheck.query.order_by(
+            CandidateCheck.created_at.desc()
+        ).limit(200).all()
+    else:
+        checks = CandidateCheck.query.filter_by(user_id=user.id).order_by(
+            CandidateCheck.created_at.desc()
+        ).all()
     return render_template('candidate_history.html', checks=checks)
 
 
@@ -1118,8 +1117,5 @@ def export_pdf(check_id):
 
 
 def _error(message: str, status_code: int):
-    """Return error as JSON or redirect back with flash."""
-    if request.is_json:
-        return jsonify({'error': message}), status_code
-    # For form POST, return JSON so the frontend JS can handle it
+    """Return error as JSON (form POST and AJAX both expect JSON)."""
     return jsonify({'error': message}), status_code

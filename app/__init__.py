@@ -92,6 +92,11 @@ def create_app(config_name=None):
         app.config['WTF_CSRF_ENABLED'] = False
         app.config['RATELIMIT_ENABLED'] = False
 
+    # Development overrides — all Locust/dev traffic originates from 127.0.0.1
+    # so per-IP rate limits would immediately cap every developer action.
+    if config_name == 'development':
+        app.config['RATELIMIT_ENABLED'] = False
+
     # Initialize extensions with app
     db.init_app(app)
     migrate.init_app(app, db)
@@ -289,5 +294,39 @@ def create_app(config_name=None):
     with app.app_context():
         db.create_all()
         logger.info("Database tables created successfully")
+        _recover_orphaned_tasks()
 
     return app
+
+
+def _recover_orphaned_tasks():
+    """Reset checks stuck in 'running'/'pending' from a previous server process.
+
+    In-memory tasks are lost on restart, so any check that was mid-pipeline
+    will never advance. Mark them 'error' so the user can resubmit.
+    """
+    try:
+        from app.models.candidate_check import CandidateCheck
+        from app.models.company_check import CompanyCheck
+
+        orphaned_candidates = CandidateCheck.query.filter(
+            CandidateCheck.status.in_(['running', 'pending'])
+        ).all()
+        orphaned_companies = CompanyCheck.query.filter(
+            CompanyCheck.status.in_(['running', 'pending'])
+        ).all()
+
+        total = len(orphaned_candidates) + len(orphaned_companies)
+        if total:
+            for c in orphaned_candidates:
+                c.status = 'error'
+                c.task_error = 'Server restarted while check was running — resubmit to retry'
+            for c in orphaned_companies:
+                c.status = 'error'
+                c.task_error = 'Server restarted while check was running — resubmit to retry'
+            db.session.commit()
+            logger.warning(f"Startup recovery: reset {total} orphaned task(s) to 'error'")
+        else:
+            logger.info("Startup recovery: no orphaned tasks found")
+    except Exception as e:
+        logger.warning(f"Startup recovery failed: {e}")

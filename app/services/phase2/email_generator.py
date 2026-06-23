@@ -326,8 +326,6 @@ def get_diminutives(first_name: str) -> List[str]:
     return RUSSIAN_DIMINUTIVES.get(name_latin, [])
 
 
-
-
 def smtp_verify_email(email: str, timeout: int = 8) -> Optional[bool]:
     """
     Verify email exists via SMTP RCPT TO command.
@@ -392,9 +390,5 @@ def smtp_verify_email(email: str, timeout: int = 8) -> Optional[bool]:
     except Exception as e:
         logger.debug(f"SMTP verification error for {email}: {e}")
         return None
-
-
-
-
 
 

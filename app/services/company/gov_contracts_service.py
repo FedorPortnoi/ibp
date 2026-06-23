@@ -23,8 +23,6 @@ from typing import Dict, List
 
 from app.services.shared.money_utils import parse_rub_amount
 
-from app.services.shared.money_utils import parse_rub_amount
-
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import quote

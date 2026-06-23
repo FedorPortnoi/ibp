@@ -15,22 +15,26 @@ Helper: get_vk_token(method_type) returns the right token for each use case.
 
 import os
 import re
+import time
+import threading
 import logging
 import requests
 from app.utils.logger import mask_token
 
 logger = logging.getLogger('ibp.vk_token')
 
+# Cache for get_token_status().  The /api/vk/token-status endpoint is polled
+# by every open admin browser tab on page load and then every 5 minutes.
+# Without the cache each call makes a live round-trip to api.vk.com (~800ms).
+# TTL is short enough that a newly-invalidated token is detected within 30s.
+_CACHE_TTL = 30  # seconds
+_cache_lock = threading.Lock()
+_cached_status: dict | None = None
+_cache_expires: float = 0.0
 
-def get_token_status():
-    """Get current VK token status.
 
-    Returns dict with:
-        valid: bool
-        expires_in_seconds: int or None
-        error: str or None
-        token_set: bool
-    """
+def _fetch_token_status() -> dict:
+    """Make the live VK API call and return a status dict.  No caching here."""
     token = os.environ.get('VK_SERVICE_TOKEN') or os.environ.get('VK_TOKEN')
     if not token:
         return {
@@ -39,17 +43,16 @@ def get_token_status():
             'error': 'No VK token configured',
             'token_set': False,
         }
-
     try:
         resp = requests.get(
             'https://api.vk.com/method/users.get',
             params={'user_ids': '1', 'access_token': token, 'v': '5.199'},
-            timeout=5
+            timeout=5,
         )
         data = resp.json()
         if 'error' in data:
             error_code = data['error'].get('error_code', 0)
-            error_msg = data['error'].get('error_msg', 'Unknown')
+            error_msg  = data['error'].get('error_msg', 'Unknown')
             return {
                 'valid': False,
                 'expires_in_seconds': 0,
@@ -58,7 +61,7 @@ def get_token_status():
             }
         return {
             'valid': True,
-            'expires_in_seconds': None,  # User tokens don't report expiry
+            'expires_in_seconds': None,  # user tokens don't report expiry
             'error': None,
             'token_set': True,
         }
@@ -78,6 +81,38 @@ def get_token_status():
         }
 
 
+def get_token_status() -> dict:
+    """Get current VK token status, served from a short-lived cache.
+
+    Returns dict with:
+        valid: bool | None  (None = timeout / unknown)
+        expires_in_seconds: int | None
+        error: str | None
+        token_set: bool
+
+    Cache is invalidated by save_token() so a freshly-saved token is always
+    verified against VK before being reported as valid.
+    """
+    global _cached_status, _cache_expires
+
+    # Fast path: check under lock so we never read a half-written pair.
+    with _cache_lock:
+        if _cached_status is not None and time.time() < _cache_expires:
+            return _cached_status
+
+    # Cache miss — call VK API WITHOUT holding the lock so we don't block
+    # other threads for ~800ms.  In the worst case a handful of concurrent
+    # callers all reach here simultaneously (thundering herd), but this
+    # endpoint is admin-only so at most a few tabs ever call it at once.
+    result = _fetch_token_status()
+
+    with _cache_lock:
+        _cached_status = result
+        _cache_expires = time.time() + _CACHE_TTL
+
+    return result
+
+
 def _sanitize_token(raw: str) -> str:
     """Sanitize and validate a raw VK token string.
 
@@ -92,6 +127,8 @@ def _sanitize_token(raw: str) -> str:
 
 def save_token(token):
     """Save token to .env file (update VK_TOKEN line, keep other lines)."""
+    global _cached_status, _cache_expires
+
     token = _sanitize_token(token)
     if not token:
         logger.warning("Rejected VK token with unexpected characters")
@@ -121,6 +158,14 @@ def save_token(token):
     # Update environment variable in current process
     os.environ['VK_TOKEN'] = token
     os.environ['VK_SERVICE_TOKEN'] = token
+
+    # Invalidate the status cache.  The caller (vk_save_token route) calls
+    # get_token_status() immediately after this to verify the new token, so
+    # the next call must hit VK API with the updated token, not the old cache.
+    with _cache_lock:
+        _cached_status = None
+        _cache_expires = 0.0
+
     logger.info(f"VK token saved: {mask_token(token)}")
 
 

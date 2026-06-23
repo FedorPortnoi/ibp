@@ -53,13 +53,13 @@ def _record_login_failure(username: str) -> None:
 def _clear_login_failures(username: str) -> None:
     from app.models.login_attempt import LoginAttempt
     try:
-        cutoff = datetime.utcnow() - datetime.timedelta(seconds=_LOCKOUT_DURATION_SECS)
+        cutoff = datetime.datetime.utcnow() - datetime.timedelta(seconds=_LOCKOUT_DURATION_SECS)
         LoginAttempt.query.filter(
             LoginAttempt.username_lower == username.lower(),
             LoginAttempt.attempted_at >= cutoff,
         ).delete()
         # Prune old records opportunistically
-        old_cutoff = datetime.utcnow() - datetime.timedelta(seconds=_LOCKOUT_DURATION_SECS * 4)
+        old_cutoff = datetime.datetime.utcnow() - datetime.timedelta(seconds=_LOCKOUT_DURATION_SECS * 4)
         LoginAttempt.query.filter(LoginAttempt.attempted_at < old_cutoff).delete()
         db.session.commit()
     except Exception:
@@ -69,7 +69,7 @@ def _clear_login_failures(username: str) -> None:
 def _is_locked_out(username: str) -> bool:
     from app.models.login_attempt import LoginAttempt
     try:
-        now = datetime.utcnow()
+        now = datetime.datetime.utcnow()
         window_start = now - datetime.timedelta(seconds=_LOCKOUT_WINDOW_SECS)
         recent = LoginAttempt.query.filter(
             LoginAttempt.username_lower == username.lower(),

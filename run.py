@@ -7,10 +7,9 @@ Run the Flask development server.
 import os
 from dotenv import load_dotenv
 
-# Load .env BEFORE reading FLASK_ENV so the env file value takes effect.
-# Without this, os.environ.get('FLASK_ENV') sees the system environment only,
-# which is typically unset in development and always returns 'development'.
-load_dotenv()
+# override=True so .env values win over any stale system env vars
+# (e.g. FLASK_ENV=production set in a previous shell session).
+load_dotenv(override=True)
 
 from app import create_app
 

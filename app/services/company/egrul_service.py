@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 from urllib.parse import quote
 import requests
-from app.services.shared.court_utils import detect_company_type
+from app.services.shared.court_utils import detect_company_type as _detect_company_type
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
@@ -794,9 +794,4 @@ def _normalize_status(raw: str) -> str:
     if 'недостовер' in raw_lower:
         return 'Недостоверные сведения'
     return 'Действующее'
-
-
-# ─────────────────────────────────────────
-# Validation helpers
-# ─────────────────────────────────────────
 

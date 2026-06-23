@@ -60,10 +60,10 @@ def check_database():
         try:
             import sqlite3
             conn = sqlite3.connect(db_path)
-            cursor = conn.execute("SELECT COUNT(*) FROM investigations")
+            cursor = conn.execute("SELECT COUNT(*) FROM candidate_checks")
             count = cursor.fetchone()[0]
             conn.close()
-            return 'ok', f'Database: ibp.db ({size_kb:.0f} KB, {count} investigations)'
+            return 'ok', f'Database: ibp.db ({size_kb:.0f} KB, {count} candidate checks)'
         except Exception as e:
             return 'warn', f'Database: ibp.db exists ({size_kb:.0f} KB) but query failed -- {e}'
     return 'warn', 'Database: ibp.db not found (will be created on first run)'
