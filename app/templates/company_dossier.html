@@ -181,6 +181,31 @@
                 {% else %}—{% endif %}
             </span>
         </a>
+        <a href="#fssp" class="nav-pill">
+            ФССП
+            <span class="badge
+                {%- if fssp and fssp.get('found') %} badge-count
+                {%- elif fssp and fssp.get('unavailable') %} badge-empty
+                {%- else %} badge-empty{%- endif %}">
+                {% if fssp and fssp.get('found') %}{{ fssp.get('active_count', 0) }}акт.
+                {% elif fssp and fssp.get('unavailable') %}?
+                {% else %}—{% endif %}
+            </span>
+        </a>
+        <a href="#adverse-media" class="nav-pill">
+            Репутация
+            <span class="badge
+                {%- if adverse_media and adverse_media.get('hit_count') %} badge-count
+                {%- elif adverse_media and adverse_media.get('status') == 'empty' %} badge-empty
+                {%- else %} badge-empty{%- endif %}">
+                {{ adverse_media.hit_count if adverse_media and adverse_media.get('hit_count') else '—' }}
+            </span>
+        </a>
+        {% if check.ai_summary %}
+        <a href="#ai-summary" class="nav-pill">
+            AI-резюме <span class="badge badge-count">✓</span>
+        </a>
+        {% endif %}
         {% if flags %}
         <a href="#flags" class="nav-pill">
             Флаги риска <span class="badge badge-count">{{ flags|length }}</span>
@@ -852,6 +877,130 @@
         {% endif %}
     </div>
 
+    <!-- ── ФССП Enforcement ── -->
+    <div id="fssp" class="dossier-card">
+        <div class="section-header">
+            <div class="section-title">ФССП — Исполнительные производства</div>
+            {% if fssp and fssp.get('source') %}<span class="text-xs text-gray-600">{{ fssp.source }}</span>{% endif %}
+        </div>
+        {% if fssp and fssp.get('found') %}
+        <div class="mb-3 flex gap-6 text-sm">
+            <div><span class="text-gray-500">Всего:</span> <strong class="text-white">{{ fssp.total_count }}</strong></div>
+            <div><span class="text-gray-500">Активных:</span>
+                <strong class="{% if fssp.active_count %}text-red-400{% else %}text-green-400{% endif %}">{{ fssp.active_count }}</strong>
+            </div>
+        </div>
+        {% for proc in (fssp.proceedings or [])[:20] %}
+        <div class="court-row">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div class="flex-1 min-w-0">
+                    {% if proc.number %}
+                    <div class="font-mono text-xs text-gray-500 mb-1">{{ proc.number }}</div>
+                    {% endif %}
+                    {% if proc.subject %}
+                    <div class="text-sm text-white">{{ proc.subject }}</div>
+                    {% endif %}
+                    {% if proc.department %}
+                    <div class="text-xs text-gray-500 mt-1">{{ proc.department }}</div>
+                    {% endif %}
+                </div>
+                <div class="text-right flex-shrink-0">
+                    {% if proc.amount %}
+                    <div class="text-sm font-mono text-amber-400">{{ '{:,.0f}'.format(proc.amount).replace(',', ' ') }} ₽</div>
+                    {% endif %}
+                    <div class="status-badge mt-1 {% if proc.is_active %}badge-red{% else %}badge-gray{% endif %}">
+                        {{ 'Активное' if proc.is_active else 'Завершено' }}
+                    </div>
+                    {% if proc.end_date %}
+                    <div class="text-xs text-gray-600 mt-1">Оконч. {{ proc.end_date }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        <div class="mt-3 text-center">
+            <a href="https://fssp.gov.ru/iss/ip/?searchString={{ check.inn }}" target="_blank" rel="noopener"
+               class="nav-pill text-xs">↗ Проверить на fssp.gov.ru</a>
+        </div>
+        {% elif fssp and fssp.get('unavailable') %}
+        <div class="empty-state" style="color:rgba(245,158,11,0.6);">ФССП сервис недоступен</div>
+        <div class="mt-3 text-center">
+            <a href="https://fssp.gov.ru/iss/ip/?searchString={{ check.inn }}" target="_blank" rel="noopener"
+               class="nav-pill text-xs">↗ Проверить вручную на fssp.gov.ru</a>
+        </div>
+        {% else %}
+        <div class="empty-state good">Исполнительных производств не найдено</div>
+        <div class="mt-3 text-center">
+            <a href="https://fssp.gov.ru/iss/ip/?searchString={{ check.inn }}" target="_blank" rel="noopener"
+               class="nav-pill text-xs">↗ Проверить на fssp.gov.ru</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ── Adverse Media ── -->
+    <div id="adverse-media" class="dossier-card">
+        <div class="section-header">
+            <div class="section-title">Репутация и упоминания в СМИ</div>
+            {% if adverse_media %}
+            <span class="text-xs text-gray-600">
+                {% if adverse_media.status == 'ok' %}найдено {{ adverse_media.hit_count }}
+                {% elif adverse_media.status == 'empty' %}проверено, чисто
+                {% elif adverse_media.status == 'unavailable' %}ключ не настроен
+                {% else %}{{ adverse_media.status }}{% endif %}
+            </span>
+            {% endif %}
+        </div>
+        {% if adverse_media and adverse_media.get('hits') %}
+        {% for hit in adverse_media.hits %}
+        <div class="court-row">
+            <div class="flex items-start justify-between gap-3 flex-wrap">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="status-badge {% if hit.severity == 'criminal' %}badge-red{% else %}badge-yellow{% endif %}">
+                            {{ 'Криминал' if hit.severity == 'criminal' else 'Репутация' }}
+                        </span>
+                        <span class="status-badge {% if hit.confidence == 'confirmed' %}badge-red{% else %}badge-yellow{% endif %}">
+                            {{ 'Подтверждено' if hit.confidence == 'confirmed' else 'Возможно' }}
+                        </span>
+                        <span class="text-xs text-gray-600">{{ hit.source_domain }}</span>
+                    </div>
+                    <div class="text-sm text-white mb-1">
+                        <a href="{{ hit.url }}" target="_blank" rel="noopener" class="hover:text-amber-400 transition">{{ hit.title }}</a>
+                    </div>
+                    {% if hit.snippet %}
+                    <div class="text-xs text-gray-400">{{ hit.snippet[:300] }}</div>
+                    {% endif %}
+                    {% if hit.matched_terms %}
+                    <div class="mt-1 flex flex-wrap gap-1">
+                        {% for term in hit.matched_terms[:5] %}
+                        <span class="text-xs px-2 py-0.5" style="background:rgba(239,68,68,0.1);color:#f87171;">{{ term }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% elif adverse_media and adverse_media.get('status') == 'empty' %}
+        <div class="empty-state good">Негативных упоминаний в открытых источниках не найдено</div>
+        {% elif adverse_media and adverse_media.get('status') == 'unavailable' %}
+        <div class="empty-state">Поиск по СМИ не настроен (нужен YANDEX_XML_KEY)</div>
+        {% else %}
+        <div class="empty-state">Данные недоступны</div>
+        {% endif %}
+    </div>
+
+    <!-- ── AI Summary ── -->
+    {% if check.ai_summary %}
+    <div id="ai-summary" class="dossier-card">
+        <div class="section-header">
+            <div class="section-title">AI-резюме</div>
+            <span class="text-xs text-gray-600">claude-haiku</span>
+        </div>
+        <div class="text-sm leading-relaxed" style="color:var(--text-secondary);">{{ check.ai_summary }}</div>
+    </div>
+    {% endif %}
+
     <!-- ── Risk flags ── -->
     {% if flags %}
     <div id="flags" class="dossier-card">
@@ -875,7 +1024,11 @@
             {% if check.check_duration_seconds %}· {{ check.check_duration_seconds }}s{% endif %}
             · ИНН {{ check.inn }}
         </div>
-        <div class="flex gap-3">
+        <div class="flex gap-3 flex-wrap">
+            <a href="{{ url_for('company.export_json', check_id=check.id) }}"
+               class="nav-pill text-xs">↓ JSON</a>
+            <a href="{{ url_for('company.export_pdf', check_id=check.id) }}"
+               class="nav-pill text-xs">↓ PDF</a>
             <a href="/company/new" class="text-accent/70 hover:text-accent transition">+ Новое расследование</a>
             <a href="/company/history" class="hover:text-gray-400 transition">История</a>
             <a href="/dashboard" class="hover:text-gray-400 transition">← Назад</a>

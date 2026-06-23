@@ -222,6 +222,71 @@ def generate_executive_summary(check_data):
     return _call_claude(system, user, max_tokens=384)
 
 
+def generate_company_summary(check_data: dict) -> str | None:
+    """Generate a 1-paragraph executive summary for a company dossier.
+
+    check_data keys: company_name, inn, risk_level, risk_score, risk_flags (list),
+    court_count, defendant_count, sanctions_count, bankruptcy (dict), financial (dict),
+    rnp_found (bool), fssp_count (int), adverse_media_count (int).
+    Returns: str or None.
+    """
+    parts = []
+    name = check_data.get('company_name') or check_data.get('inn') or 'компания'
+    parts.append(f"Company: {name}")
+    parts.append(f"INN: {check_data.get('inn', '')}")
+    parts.append(f"Risk level: {check_data.get('risk_level', 'unknown')} ({check_data.get('risk_score', 0)}/100)")
+
+    status = check_data.get('company_status', '')
+    if status:
+        parts.append(f"Legal status: {status}")
+
+    fin = check_data.get('financial') or {}
+    if fin.get('found'):
+        yr = fin.get('year', '')
+        income = fin.get('income_fmt', '')
+        profit = fin.get('profit_fmt', '')
+        parts.append(f"Financial ({yr}): revenue {income}, profit {profit}")
+    history = fin.get('history') or []
+    if len(history) > 1:
+        years_str = ', '.join(str(h.get('year', '')) for h in history[:3])
+        parts.append(f"Multi-year data available: {years_str}")
+
+    court_count = check_data.get('court_count', 0)
+    defendant_count = check_data.get('defendant_count', 0)
+    if court_count:
+        parts.append(f"Court cases: {court_count} total, {defendant_count} as defendant")
+
+    if check_data.get('bankruptcy', {}).get('found'):
+        stage = check_data['bankruptcy'].get('stage', '')
+        parts.append(f"BANKRUPTCY: {stage or 'active proceeding'}")
+
+    if check_data.get('sanctions_count', 0):
+        parts.append(f"SANCTIONS MATCH: {check_data['sanctions_count']} hit(s)")
+
+    if check_data.get('rnp_found'):
+        parts.append("INCLUDED IN RNP (dishonest supplier registry)")
+
+    if check_data.get('fssp_count', 0):
+        parts.append(f"FSSP enforcement proceedings: {check_data['fssp_count']}")
+
+    if check_data.get('adverse_media_count', 0):
+        parts.append(f"Adverse media hits: {check_data['adverse_media_count']}")
+
+    flags = check_data.get('risk_flags') or []
+    if flags:
+        flags_str = "; ".join(f.get('text', '') for f in flags[:5] if f.get('text'))
+        parts.append(f"Key risk flags: {flags_str}")
+
+    system = (
+        "You are a senior due-diligence analyst writing a Russian-language executive summary "
+        "for a company background check. Write exactly 1 paragraph (4-6 sentences) in professional Russian. "
+        "Cover: company identity and legal status, key financial indicators, most significant risk findings, "
+        "and an overall risk verdict. Use factual tone. Refer to the company by name, not 'the company'."
+    )
+    user = "\n".join(parts) + "\n\nНапишите резюме на русском языке."
+    return _call_claude(system, user, max_tokens=512)
+
+
 def summarize_court_cases(court_records):
     """
     For each court case, generate a plain-language summary.

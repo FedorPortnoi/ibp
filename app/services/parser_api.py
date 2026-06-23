@@ -197,3 +197,29 @@ def fssp_search_fiz(
     return [], 'empty'
 
 
+def fssp_search_ur(inn: str) -> Tuple[List[dict], str]:
+    """Search ФССП enforcement proceedings for a legal entity by INN.
+
+    Uses the search_ur_by_inn endpoint (юридические лица / ИП by INN).
+
+    Returns:
+        (proceedings, status). status as in fssp_search_fiz.
+    """
+    inn = (inn or '').strip()
+    if not inn:
+        return [], 'skipped'
+
+    data, err = _request(FSSP_SEARCH_UR_INN_URL, {'inn': inn})
+    if err:
+        return [], err
+
+    if data.get('done') == 1:
+        result = data.get('result') or []
+        return result, ('ok' if result else 'empty')
+    result = data.get('result') or []
+    if result:
+        return result, 'ok'
+    logger.info('parser-api fssp ur: done=%s error=%s inn=%s', data.get('done'), data.get('error'), inn)
+    return [], 'empty'
+
+

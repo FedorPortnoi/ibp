@@ -21,7 +21,7 @@ import logging
 import re
 from typing import Dict, List, Optional
 
-from app.services.shared.money_utils import parse_accounting_cell
+from app.services.shared.money_utils import fmt_rub, parse_accounting_cell
 
 logger = logging.getLogger(__name__)
 
@@ -56,20 +56,8 @@ def _enrich_item(item: Dict) -> Dict:
     enriched = dict(item)
     for key in _NUMERIC_FIELDS:
         val = item.get(key)
-        enriched[f'{key}_fmt'] = _fmt(val) if val is not None else ''
+        enriched[f'{key}_fmt'] = fmt_rub(val) if val is not None else ''
     return enriched
-
-
-def _fmt(value: Optional[int]) -> str:
-    if value is None:
-        return ''
-    if abs(value) >= 1_000_000_000_000:
-        return f'{value / 1_000_000_000_000:.1f} трлн ₽'
-    if abs(value) >= 1_000_000_000:
-        return f'{value / 1_000_000_000:.1f} млрд ₽'
-    if abs(value) >= 1_000_000:
-        return f'{value / 1_000_000:.1f} млн ₽'
-    return f'{value:,} ₽'.replace(',', ' ')
 
 
 class PlaywrightFinancialService:

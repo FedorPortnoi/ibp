@@ -21,7 +21,7 @@ import logging
 import re
 from typing import Dict, List
 
-from app.services.shared.money_utils import parse_rub_amount
+from app.services.shared.money_utils import fmt_rub, parse_rub_amount
 
 import requests
 from bs4 import BeautifulSoup
@@ -41,15 +41,6 @@ _HEADERS = {
 }
 
 
-
-def _fmt_amount(value: float) -> str:
-    if value <= 0:
-        return ''
-    if value >= 1_000_000_000:
-        return f'{value / 1_000_000_000:.1f} млрд ₽'
-    if value >= 1_000_000:
-        return f'{value / 1_000_000:.1f} млн ₽'
-    return f'{value:,.0f} ₽'.replace(',', ' ')
 
 
 class GovContractsService:
@@ -118,7 +109,7 @@ class GovContractsService:
                 'unavailable': False,
                 'total_count': total_count,
                 'total_amount': total_amount,
-                'total_amount_fmt': _fmt_amount(total_amount),
+                'total_amount_fmt': fmt_rub(total_amount),
                 'contracts': contracts,
                 'source_url': search_url,
             }
@@ -248,7 +239,7 @@ class GovContractsService:
             'subject': subject,
             'customer_name': customer,
             'amount': amount,
-            'amount_fmt': _fmt_amount(amount),
+            'amount_fmt': fmt_rub(amount),
             'date': date,
             'status': status,
             'url': contract_url,

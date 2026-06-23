@@ -3,16 +3,15 @@ Company Investigation Pipeline
 ===============================
 3-wave parallel pipeline for company/ИП background checks.
 
-  Wave 0: ЕГРЮЛ lookup (egrul_service)              [0-35%]
-  Wave 1: Courts + Sanctions in parallel             [35-75%]
-  Wave 2: Risk scoring                               [75-100%]
+  Wave 0: ЕГРЮЛ lookup (egrul_service)                         [0-35%]
+  Wave 1: Courts + Sanctions + FSSP + Adverse media (parallel)  [35-75%]
+  Wave 2: Risk scoring + AI summary                             [75-100%]
 """
 
 import logging
 import threading
 import time
-import uuid
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -130,6 +129,124 @@ def _run_rnp(inn: str) -> dict:
         return {'found': False, 'unavailable': True}
 
 
+def _run_fssp_company(inn: str, egrul: dict) -> dict:
+    """Stage 2g — FSSP enforcement proceedings for legal entity by INN.
+
+    Primary: parser-api.com search_ur_by_inn.
+    Fallback: DataNewton enforcement endpoint.
+    """
+    empty = {'found': False, 'unavailable': False, 'proceedings': [], 'active_count': 0, 'total_count': 0, 'source': ''}
+
+    if not inn:
+        return empty
+
+    # Primary: parser-api.com
+    try:
+        from app.services import parser_api
+        if parser_api.is_available():
+            raw, status = parser_api.fssp_search_ur(inn)
+            if status in ('ok', 'empty'):
+                proceedings = []
+                for item in (raw or []):
+                    stop_date = item.get('stop_date') or ''
+                    is_active = not stop_date
+                    proceedings.append({
+                        'number': item.get('process_title') or item.get('document_num') or '',
+                        'subject': (item.get('subjects') or [{}])[0].get('title', '') if item.get('subjects') else item.get('process_title', ''),
+                        'amount': _parse_fssp_amount(item),
+                        'department': item.get('department_title') or '',
+                        'start_date': item.get('start_date') or '',
+                        'end_date': stop_date,
+                        'end_reason': item.get('stop_reason') or '',
+                        'is_active': is_active,
+                    })
+                active = sum(1 for p in proceedings if p['is_active'])
+                return {
+                    'found': bool(proceedings),
+                    'unavailable': False,
+                    'proceedings': proceedings,
+                    'active_count': active,
+                    'total_count': len(proceedings),
+                    'source': 'parser-api.com',
+                }
+            if status not in ('not_configured', 'timeout', 'error'):
+                return {**empty, 'unavailable': True, 'source': 'parser-api.com'}
+    except Exception as exc:
+        logger.warning("[%s] FSSP (parser-api) failed: %s", inn, exc)
+
+    # Fallback: DataNewton
+    try:
+        from app.services.company.datanewton_service import lookup_fssp
+        result = lookup_fssp(inn)
+        if not result.get('unavailable'):
+            return result
+    except Exception as exc:
+        logger.warning("[%s] FSSP (DataNewton) failed: %s", inn, exc)
+
+    return {**empty, 'unavailable': True}
+
+
+def _parse_fssp_amount(item: dict):
+    """Extract numeric amount from a parser-api FSSP result dict."""
+    import re
+    subjects = item.get('subjects') or []
+    raw = ''
+    if subjects and isinstance(subjects[0], dict):
+        raw = subjects[0].get('sum', '') or ''
+    if not raw:
+        raw = item.get('process_total', '') or ''
+    if not raw:
+        return None
+    m = re.search(r'(\d[\d\s\xa0]*)(?:[,.](\d{1,2}))?', raw)
+    if not m:
+        return None
+    try:
+        intpart = m.group(1).replace(' ', '').replace('\xa0', '')
+        dec = m.group(2) or '0'
+        return float(f'{intpart}.{dec}')
+    except (ValueError, TypeError):
+        return None
+
+
+def _run_adverse_media_company(company_name: str, inn: str, egrul: dict) -> dict:
+    """Stage 2h — adverse media search for a company."""
+    empty = {'hits': [], 'status': 'unavailable', 'hit_count': 0}
+    if not company_name:
+        return empty
+    try:
+        from app.services.candidate.adverse_media_service import search_adverse_media, is_available
+        if not is_available():
+            return empty
+        region = egrul.get('region') or egrul.get('address') or ''
+        context = {
+            'inns': [inn] if inn else [],
+            'companies': [company_name],
+            'birth_year': None,
+            'city': region,
+        }
+        hits, status = search_adverse_media(company_name, context=context)
+        return {
+            'hits': [h.to_dict() for h in hits],
+            'status': status,
+            'hit_count': len(hits),
+        }
+    except Exception as exc:
+        logger.warning("[%s] Adverse media failed: %s", inn, exc)
+        return empty
+
+
+def _run_playwright_financials(inn: str) -> list:
+    """Stage 2i — Playwright bo.nalog.ru financial scraper for multi-year history."""
+    try:
+        from app.services.company.playwright_financial_service import PlaywrightFinancialService
+        svc = PlaywrightFinancialService(timeout_sec=45)
+        result = svc.lookup(inn)
+        return result.get('history') or []
+    except Exception as exc:
+        logger.warning("[%s] Playwright financials failed: %s", inn, exc)
+        return []
+
+
 def _run_sanctions(inn: str, query_name: str, egrul: dict) -> dict:
     """
     Stage 2b — check local sanctions database (OFAC + UN SC).
@@ -156,7 +273,7 @@ def _run_sanctions(inn: str, query_name: str, egrul: dict) -> dict:
         return {**empty, 'unavailable': True}
 
 
-def _score_risk(egrul: dict, courts: list, sanctions: list, bankruptcy: dict, financial: dict = None, rnp: dict = None) -> tuple:
+def _score_risk(egrul: dict, courts: list, sanctions: list, bankruptcy: dict, financial: dict = None, rnp: dict = None, fssp: dict = None) -> tuple:
     """
     Risk scoring for companies.
 
@@ -242,6 +359,23 @@ def _score_risk(egrul: dict, courts: list, sanctions: list, bankruptcy: dict, fi
             'text': f'Найдено в санкционных списках ({len(sanctions)} совпадений)',
         })
 
+    # FSSP enforcement proceedings
+    if fssp and fssp.get('found'):
+        active = fssp.get('active_count', 0)
+        total = fssp.get('total_count', 0)
+        if active:
+            score += min(active * 10, 30)
+            flags.append({
+                'severity': 'high',
+                'text': f'ФССП: {active} активных исполнительных производств (всего {total})',
+            })
+        elif total:
+            score += 10
+            flags.append({
+                'severity': 'medium',
+                'text': f'ФССП: {total} завершённых исполнительных производств',
+            })
+
     score = min(score, 100)
 
     if score <= 20:
@@ -297,23 +431,27 @@ def run_company_pipeline(check_id: str, app) -> None:
 
             _set_progress(check, 35, 'egrul', 'ЕГРЮЛ получен')
 
-            # ── Wave 1: Courts + Sanctions + Bankruptcy (parallel) ─────────
-            _set_progress(check, 40, 'courts', 'Поиск судебных дел и банкротства...')
-            _log(check, 'Проверка судов, санкций и банкротства')
+            # ── Wave 1: Courts + Sanctions + Bankruptcy + FSSP + Adverse media (parallel) ──
+            _set_progress(check, 40, 'courts', 'Поиск судебных дел, ФССП и банкротства...')
+            _log(check, 'Проверка судов, санкций, ФССП, банкротства и репутации')
 
             # Extract plain values before spawning threads — ORM objects
             # cannot be used outside the main thread's app context.
             _inn = check.inn
             _query_name = check.query_name or ''
+            _company_name = check.company_name or egrul.get('short_name') or egrul.get('name') or _query_name or ''
 
-            executor = ThreadPoolExecutor(max_workers=6, thread_name_prefix='co_pipeline')
+            executor = ThreadPoolExecutor(max_workers=9, thread_name_prefix='co_pipeline')
             try:
-                court_future      = executor.submit(_run_courts,        _inn, _query_name, egrul)
-                sanctions_future  = executor.submit(_run_sanctions,     _inn, _query_name, egrul)
-                bankruptcy_future = executor.submit(_run_bankruptcy,    _inn, _query_name, egrul)
-                contracts_future  = executor.submit(_run_gov_contracts, _inn, _query_name, egrul)
-                financial_future  = executor.submit(_run_financial,     _inn, _query_name, egrul)
-                rnp_future        = executor.submit(_run_rnp,           _inn)
+                court_future        = executor.submit(_run_courts,               _inn, _query_name, egrul)
+                sanctions_future    = executor.submit(_run_sanctions,            _inn, _query_name, egrul)
+                bankruptcy_future   = executor.submit(_run_bankruptcy,           _inn, _query_name, egrul)
+                contracts_future    = executor.submit(_run_gov_contracts,        _inn, _query_name, egrul)
+                financial_future    = executor.submit(_run_financial,            _inn, _query_name, egrul)
+                rnp_future          = executor.submit(_run_rnp,                  _inn)
+                fssp_future         = executor.submit(_run_fssp_company,         _inn, egrul)
+                adverse_future      = executor.submit(_run_adverse_media_company, _company_name, _inn, egrul)
+                playwright_future   = executor.submit(_run_playwright_financials, _inn)
 
                 courts = []
                 sanctions_wrap = {'results': [], 'no_key': False, 'unavailable': False}
@@ -325,6 +463,9 @@ def run_company_pipeline(check_id: str, app) -> None:
                             'profit_fmt': '', 'year': None, 'tax_system': '',
                             'debts': None, 'debts_fmt': '', 'employee_count': ''}
                 rnp = {'found': False, 'unavailable': False}
+                fssp = {'found': False, 'unavailable': False, 'proceedings': [], 'active_count': 0, 'total_count': 0}
+                adverse_media = {'hits': [], 'status': 'unavailable', 'hit_count': 0}
+                playwright_history = []
 
                 try:
                     courts = court_future.result(timeout=65)
@@ -357,8 +498,36 @@ def run_company_pipeline(check_id: str, app) -> None:
                 except Exception as exc:
                     logger.warning("[%s] РНП future failed: %s", check.inn, exc)
 
+                try:
+                    fssp = fssp_future.result(timeout=30)
+                except Exception as exc:
+                    logger.warning("[%s] FSSP future failed: %s", check.inn, exc)
+
+                try:
+                    adverse_media = adverse_future.result(timeout=30)
+                except Exception as exc:
+                    logger.warning("[%s] Adverse media future failed: %s", check.inn, exc)
+
+                try:
+                    playwright_history = playwright_future.result(timeout=60)
+                except Exception as exc:
+                    logger.warning("[%s] Playwright financials future failed: %s", check.inn, exc)
+
             finally:
                 executor.shutdown(wait=False, cancel_futures=True)
+
+            # ── Merge multi-year financial history ─────────────────────────
+            # dadata returns 1 year; Playwright/bo.nalog.ru returns 2-4 years.
+            # If dadata already triggered its internal Playwright fallback
+            # (source == 'bo.nalog.ru'), we have multi-year data already — skip.
+            existing_history = financial.get('history') or []
+            if playwright_history and len(existing_history) < 2:
+                existing_years = {h.get('year') for h in existing_history}
+                extra_years = [h for h in playwright_history if h.get('year') not in existing_years]
+                merged_history = list(existing_history) + extra_years
+                merged_history.sort(key=lambda x: x.get('year') or 0, reverse=True)
+                source_suffix = ' + bo.nalog.ru' if extra_years else ''
+                financial = {**financial, 'history': merged_history[:4], 'source': (financial.get('source') or 'dadata.ru') + source_suffix}
 
             sanctions = sanctions_wrap.get('results', [])
             check.court_records = courts
@@ -371,6 +540,8 @@ def run_company_pipeline(check_id: str, app) -> None:
             check.gov_contracts_data = gov_contracts
             check.financial_data = financial
             check.rnp_data = rnp
+            check.fssp_data = fssp
+            check.adverse_media = adverse_media
 
             if courts:
                 sources_found += 1
@@ -411,6 +582,24 @@ def run_company_pipeline(check_id: str, app) -> None:
             else:
                 _log(check, 'РНП: не найдено')
 
+            if fssp.get('found'):
+                sources_found += 1
+                _log(check, f'ФССП: {fssp["total_count"]} производств ({fssp["active_count"]} активных) [{fssp.get("source", "")}]')
+            elif fssp.get('unavailable'):
+                _log(check, 'ФССП: сервис недоступен')
+            else:
+                _log(check, 'ФССП: производств не найдено')
+
+            am_status = adverse_media.get('status', 'unavailable')
+            am_count = adverse_media.get('hit_count', 0)
+            if am_status in ('ok',) and am_count:
+                sources_found += 1
+                _log(check, f'Adverse media: {am_count} упоминаний')
+            elif am_status == 'empty':
+                _log(check, 'Adverse media: негативных упоминаний не найдено')
+            else:
+                _log(check, f'Adverse media: {am_status}')
+
             _set_progress(check, 75, 'courts', f'Суды: {len(courts)} дел')
 
             # ── ИП identity patch from dadata ──────────────────────────────
@@ -434,11 +623,40 @@ def run_company_pipeline(check_id: str, app) -> None:
                     check.egrul_data = _egrul
 
             # ── Wave 2: Risk scoring ────────────────────────────────────────
-            _set_progress(check, 85, 'risk', 'Оценка рисков...')
-            score, level, flags = _score_risk(egrul, courts, sanctions, bankruptcy, financial, rnp)
+            _set_progress(check, 80, 'risk', 'Оценка рисков...')
+            score, level, flags = _score_risk(egrul, courts, sanctions, bankruptcy, financial, rnp, fssp)
             check.risk_score = score
             check.risk_level = level
             check.risk_flags = flags
+
+            # ── AI executive summary ───────────────────────────────────────
+            _set_progress(check, 90, 'ai', 'Генерация AI-резюме...')
+            try:
+                from app.services.ai.claude_integration import generate_company_summary, is_available as ai_available
+                if ai_available():
+                    defendant_count = sum(1 for c in courts if c.get('role') in ('ответчик', 'должник'))
+                    summary_data = {
+                        'company_name': check.company_name or '',
+                        'inn': check.inn,
+                        'company_status': check.company_status or '',
+                        'risk_level': level,
+                        'risk_score': score,
+                        'risk_flags': flags,
+                        'court_count': len(courts),
+                        'defendant_count': defendant_count,
+                        'sanctions_count': len(sanctions),
+                        'bankruptcy': bankruptcy,
+                        'financial': financial,
+                        'rnp_found': rnp.get('found', False),
+                        'fssp_count': fssp.get('total_count', 0),
+                        'adverse_media_count': adverse_media.get('hit_count', 0),
+                    }
+                    ai_text = generate_company_summary(summary_data)
+                    if ai_text:
+                        check.ai_summary = ai_text
+                        _log(check, 'AI-резюме сгенерировано')
+            except Exception as exc:
+                logger.warning("[%s] AI summary failed: %s", check.inn, exc)
 
             # ── Finalize ────────────────────────────────────────────────────
             check.sources_checked = sources_found

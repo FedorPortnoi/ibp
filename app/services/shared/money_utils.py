@@ -30,22 +30,27 @@ def parse_rub_amount(text: str) -> Optional[float]:
 def fmt_rub(value: Optional[float]) -> str:
     """Format a float/int as a human-readable Russian ruble string.
 
+    Handles negative values (e.g. losses). Returns '' for None or zero.
+
     Examples:
-        1_500_000_000_000 -> '1.5 трлн ₽'
-        2_300_000_000     -> '2.3 млрд ₽'
-        5_700_000         -> '5.7 млн ₽'
-        123_456           -> '123 456 ₽'
-        None / 0 / negative -> ''
+        1_500_000_000_000  -> '1.5 трлн ₽'
+        2_300_000_000      -> '2.3 млрд ₽'
+        5_700_000          -> '5.7 млн ₽'
+        123_456            -> '123 456 ₽'
+        -5_700_000         -> '-5.7 млн ₽'
+        None / 0           -> ''
     """
-    if not value or value <= 0:
+    if value is None or value == 0:
         return ''
-    if value >= 1_000_000_000_000:
-        return f'{value / 1_000_000_000_000:.1f} трлн ₽'
-    if value >= 1_000_000_000:
-        return f'{value / 1_000_000_000:.1f} млрд ₽'
-    if value >= 1_000_000:
-        return f'{value / 1_000_000:.1f} млн ₽'
-    return f'{value:,.0f} ₽'.replace(',', ' ')
+    sign = '-' if value < 0 else ''
+    v = abs(value)
+    if v >= 1_000_000_000_000:
+        return f'{sign}{v / 1_000_000_000_000:.1f} трлн ₽'
+    if v >= 1_000_000_000:
+        return f'{sign}{v / 1_000_000_000:.1f} млрд ₽'
+    if v >= 1_000_000:
+        return f'{sign}{v / 1_000_000:.1f} млн ₽'
+    return f'{sign}{v:,.0f} ₽'.replace(',', ' ')
 
 
 def parse_accounting_cell(text: str) -> Optional[int]:

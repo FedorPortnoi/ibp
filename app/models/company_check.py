@@ -40,6 +40,9 @@ class CompanyCheck(db.Model):
     _financial_data = db.Column('financial_data', db.Text, nullable=True)
     _rnp_data = db.Column('rnp_data', db.Text, nullable=True)
     _risk_flags = db.Column('risk_flags', db.Text, default='[]')
+    _adverse_media = db.Column('adverse_media', db.Text, nullable=True)
+    _fssp_data = db.Column('fssp_data', db.Text, nullable=True)
+    ai_summary = db.Column(db.Text, nullable=True)
 
     # ── Risk ──
     risk_score = db.Column(db.Integer, nullable=True)    # 0-100
@@ -155,6 +158,22 @@ class CompanyCheck(db.Model):
     @risk_flags.setter
     def risk_flags(self, value):
         self._risk_flags = self._dump(value)
+
+    @property
+    def adverse_media(self):
+        return self._load(self._adverse_media, {'hits': [], 'status': 'unavailable'})
+
+    @adverse_media.setter
+    def adverse_media(self, value):
+        self._adverse_media = self._dump(value)
+
+    @property
+    def fssp_data(self):
+        return self._load(self._fssp_data, {'found': False, 'unavailable': False, 'proceedings': []})
+
+    @fssp_data.setter
+    def fssp_data(self, value):
+        self._fssp_data = self._dump(value)
 
     @property
     def task_log(self):
