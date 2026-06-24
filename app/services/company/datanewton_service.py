@@ -63,8 +63,11 @@ def _get(endpoint: str, params: dict, timeout: int = _TIMEOUT) -> tuple:
     if resp.status_code == 429:
         logger.warning('DataNewton: quota exhausted (429)')
         return None, 'rate_limited'
-    if resp.status_code in (401, 403):
-        logger.warning('DataNewton: auth failed (%d)', resp.status_code)
+    if resp.status_code == 401:
+        logger.warning('DataNewton: auth failed (401) — check DATANEWTON_API_KEY')
+        return None, 'blocked'
+    if resp.status_code == 403:
+        logger.info('DataNewton: 403 on %s — paid tier or insufficient permissions', endpoint)
         return None, 'blocked'
     if resp.status_code == 404:
         return None, 'not_found'
