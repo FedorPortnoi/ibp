@@ -140,17 +140,44 @@ def _run_rnp(inn: str) -> dict:
 
 
 def _run_fssp_company(inn: str, egrul: dict) -> dict:
-    """Stage 2g — FSSP: official api.fssp.gov.ru (free, needs token) → DataNewton fallback."""
+    """Stage 2g — FSSP: parser-api.com search_ur_by_inn (PARSER_API_KEY) → DataNewton fallback."""
     empty = {'found': False, 'unavailable': False, 'proceedings': [], 'active_count': 0, 'total_count': 0, 'source': ''}
     if not inn:
         return empty
     try:
-        from app.services.company.free_gov_service import fetch_fssp_company
-        result = fetch_fssp_company(inn)
-        if not result.get('unavailable'):
-            return result
+        from app.services.parser_api import fssp_search_ur, is_available
+        if is_available():
+            items, status = fssp_search_ur(inn)
+            if status in ('ok', 'empty'):
+                if not items:
+                    return {**empty, 'source': 'parser-api.com (ФССП)'}
+                proceedings = []
+                active_count = 0
+                for item in items:
+                    end_date = item.get('stop_date') or ''
+                    is_active = not end_date
+                    if is_active:
+                        active_count += 1
+                    proceedings.append({
+                        'number':     item.get('id') or item.get('process_id') or '',
+                        'subject':    item.get('process_title') or item.get('subjects', [{}])[0].get('name', '') if item.get('subjects') else (item.get('process_title') or ''),
+                        'amount':     _parse_fssp_amount(item),
+                        'department': item.get('department_title') or '',
+                        'start_date': item.get('process_date') or '',
+                        'end_date':   end_date,
+                        'end_reason': item.get('stop_reason') or '',
+                        'is_active':  is_active,
+                    })
+                logger.info("[%s] parser-api FSSP → %d proceedings (%d active)", inn, len(proceedings), active_count)
+                return {
+                    'found': True, 'unavailable': False,
+                    'proceedings': proceedings,
+                    'active_count': active_count,
+                    'total_count': len(proceedings),
+                    'source': 'parser-api.com (ФССП)',
+                }
     except Exception as exc:
-        logger.warning("[%s] fssp.gov.ru failed: %s", inn, exc)
+        logger.warning("[%s] parser-api FSSP failed: %s", inn, exc)
     try:
         from app.services.company.datanewton_service import lookup_fssp_company
         return lookup_fssp_company(inn)

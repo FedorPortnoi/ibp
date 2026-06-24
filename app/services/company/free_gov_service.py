@@ -13,7 +13,6 @@ Sources:
 """
 
 import logging
-import os
 import re
 
 import requests
@@ -317,81 +316,4 @@ def fetch_inspections(inn: str) -> dict:
         return {**empty, 'unavailable': True}
     except Exception as exc:
         logger.warning("proverki.gov.ru: error for INN %s: %s", inn, exc)
-        return {**empty, 'unavailable': True}
-
-
-# ── FSSP — api.fssp.gov.ru ────────────────────────────────────────────────────
-
-def fetch_fssp_company(inn: str) -> dict:
-    """
-    Fetch FSSP enforcement proceedings via the official api.fssp.gov.ru API.
-    Requires FSSP_API_TOKEN env var (free registration at fssp.gov.ru/api/).
-    Falls back gracefully if token not configured.
-    """
-    empty = {
-        'found': False, 'unavailable': False,
-        'proceedings': [], 'active_count': 0, 'total_count': 0,
-        'source': 'fssp.gov.ru',
-    }
-    if not inn:
-        return empty
-
-    token = (os.environ.get('FSSP_API_TOKEN') or '').strip()
-    if not token:
-        return {**empty, 'unavailable': True}
-
-    try:
-        resp = requests.get(
-            'https://api.fssp.gov.ru/api/v1.0/search/ip',
-            params={'token': token, 'inn': inn},
-            headers=_HEADERS,
-            timeout=_TIMEOUT,
-        )
-        if resp.status_code == 401:
-            logger.warning("fssp.gov.ru: invalid token")
-            return {**empty, 'unavailable': True}
-        if resp.status_code != 200:
-            logger.warning("fssp.gov.ru: HTTP %d for INN %s", resp.status_code, inn)
-            return {**empty, 'unavailable': True}
-
-        data = resp.json()
-        items = (
-            data.get('response', {}).get('Item') or
-            data.get('items') or data.get('data') or
-            (data if isinstance(data, list) else [])
-        )
-        if not items:
-            return empty
-
-        proceedings = []
-        active_count = 0
-        for item in items:
-            is_active = not item.get('ip_end') and not item.get('end_date')
-            if is_active:
-                active_count += 1
-            proceedings.append({
-                'number':     item.get('ip_id') or item.get('number') or '',
-                'subject':    item.get('subject') or item.get('exe_production') or '',
-                'amount':     item.get('sum') or item.get('amount') or 0,
-                'department': item.get('department') or item.get('bailiff_name') or '',
-                'start_date': item.get('ip_date') or item.get('start_date') or '',
-                'end_date':   item.get('ip_end') or item.get('end_date') or '',
-                'end_reason': item.get('end_reason') or '',
-                'is_active':  is_active,
-            })
-
-        logger.info("fssp.gov.ru: INN %s → %d proceedings (%d active)", inn, len(proceedings), active_count)
-        return {
-            'found': True, 'unavailable': False,
-            'proceedings': proceedings,
-            'active_count': active_count,
-            'total_count': len(proceedings),
-            'source': 'fssp.gov.ru',
-        }
-
-    except requests.Timeout:
-        logger.warning("fssp.gov.ru: timeout for INN %s", inn)
-        return {**empty, 'unavailable': True}
-    except Exception as exc:
-        logger.warning("fssp.gov.ru: error for INN %s: %s", inn, exc)
         return {**empty, 'unavailable': True}
