@@ -553,17 +553,12 @@
         {% if sanctions %}
         {% for s in sanctions %}
         <div class="person-card mb-2">
+            <div class="text-xs text-gray-600 mb-0.5">Наименование в реестре</div>
             <div class="text-sm text-red-400 font-medium">{{ s.get('name') or s.get('caption') or 'Совпадение' }}</div>
-            {% if s.get('source_name') %}<div class="text-xs text-gray-500 mt-0.5">{{ s.source_name }}</div>{% endif %}
-            {% if s.get('datasets') %}
-            <div class="flex flex-wrap gap-1 mt-1">
-                {% for ds in s.datasets[:5] %}
-                <span class="text-xs px-2 py-0.5 bg-red-900/20 text-red-400 border border-red-500/20">{{ ds }}</span>
-                {% endfor %}
-            </div>
+            {% if s.get('source_name') %}
+            <div class="text-xs mt-1" style="color:rgba(245,158,11,0.75);">{{ s.source_name }}</div>
             {% endif %}
             {% if s.get('match_details') %}<div class="text-xs text-gray-500 mt-1">{{ s.match_details }}</div>{% endif %}
-            {% if s.get('score') %}<div class="text-xs text-gray-600 mt-1">Совпадение: {{ '%.0f%%'|format(s.score * 100) }}</div>{% endif %}
             {% if s.get('url') %}
             <a href="{{ s.url }}" target="_blank" rel="noopener" class="text-xs text-accent/70 hover:text-accent mt-1 inline-block">↗ OpenSanctions</a>
             {% endif %}
@@ -582,7 +577,7 @@
         <div class="empty-state good">Не найдено в санкционных списках</div>
         {% if sanctions_meta %}
         <div class="text-xs text-center mt-1" style="color:rgba(232,224,212,0.15);">
-            Проверено: US OFAC SDN · UN Security Council
+            Проверено: OFAC SDN (Минфин США) · Совет Безопасности ООН
         </div>
         {% endif %}
         {% endif %}

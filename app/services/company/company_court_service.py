@@ -144,13 +144,14 @@ class CompanyCourtSearch:
             except Exception as exc:
                 logger.warning("Company courts DataNewton СОЮ failed: %s", exc)
 
-        # Source 2: reputation.su (supplementary, globally accessible)
-        try:
-            rep = self._search_reputation_su(company_name, inn)
-            results.extend(rep)
-            logger.info("Company courts reputation.su → %d cases", len(rep))
-        except Exception as exc:
-            logger.warning("Company courts reputation.su failed: %s", exc)
+        # Source 2: reputation.su (supplementary — skip if parser-api already has enough)
+        if len(results) < 20:
+            try:
+                rep = self._search_reputation_su(company_name, inn)
+                results.extend(rep)
+                logger.info("Company courts reputation.su → %d cases", len(rep))
+            except Exception as exc:
+                logger.warning("Company courts reputation.su failed: %s", exc)
 
         # Deduplicate
         seen: set = set()

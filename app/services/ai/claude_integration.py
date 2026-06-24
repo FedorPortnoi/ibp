@@ -74,7 +74,11 @@ def _call_claude(system_prompt, user_content, max_tokens=_MAX_TOKENS):
         )
         return response.content[0].text.strip()
     except Exception as e:
-        logger.warning(f"Claude API call failed: {e}")
+        err_str = str(e)
+        if '403' in err_str or 'forbidden' in err_str.lower():
+            logger.info("Claude API: 403 forbidden — key lacks permissions for %s (AI summary skipped)", _MODEL)
+        else:
+            logger.warning(f"Claude API call failed: {e}")
         return None
 
 

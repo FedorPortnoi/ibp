@@ -44,6 +44,7 @@ INDEX_FILE        = 'sanctions_index.pkl'
 SOURCES = {
     'ofac_sdn': {
         'display': 'US OFAC SDN',
+        'display_ru': 'OFAC SDN (Минфин США)',
         'url': 'https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML',
         'fallback_url': 'https://www.treasury.gov/ofac/downloads/sdn.xml',
         'filename': 'ofac_sdn.xml',
@@ -51,6 +52,7 @@ SOURCES = {
     },
     'un_sc': {
         'display': 'UN Security Council',
+        'display_ru': 'Совет Безопасности ООН',
         'url': 'https://scsanctions.un.org/resources/xml/en/consolidated.xml',
         'fallback_url': 'https://scsanctions.un.org/resources/xml/en/name/consolidated.xml',
         'filename': 'un_sc.xml',
@@ -146,19 +148,20 @@ class SanctionsLocalService:
         def _add(entry: _Entry, match_type: str, score: float, matched_term: str) -> None:
             if entry.uid not in seen_uids:
                 seen_uids.add(entry.uid)
+                src = SOURCES[entry.source]
                 matches.append({
                     'name': entry.names[0] if entry.names else matched_term,
-                    'source_name': SOURCES[entry.source]['display'],
+                    'source_name': src['display_ru'],
                     'list_code': entry.source,
                     'match_type': match_type,
                     'score': round(score, 3),
                     'entity_type': entry.entity_type,
                     'programs': entry.programs,
                     'url': entry.search_url,
-                    'datasets': [SOURCES[entry.source]['display']],
+                    'datasets': [src['display_ru']],
                     'match_details': (
                         f"Совпадение ({score:.0%}): {entry.names[0] if entry.names else ''}. "
-                        f"Список: {SOURCES[entry.source]['display']}"
+                        f"Список: {src['display_ru']}"
                     ),
                 })
 
