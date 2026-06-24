@@ -1,9 +1,0 @@
-{
-  "issues": [
-    {
-      "screen": "chat",
-      "problem": "Chat redirected to http://127.0.0.1:5000/chat/"
-    }
-  ],
-  "screenshots": "C:\\Users\\fedor\\ibp\\scripts\\e2e_screenshots"
-}
