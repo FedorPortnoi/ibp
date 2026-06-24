@@ -95,36 +95,22 @@ def _run_financial(inn: str, query_name: str, egrul: dict) -> dict:
 
 
 def _run_gov_contracts(inn: str, query_name: str, egrul: dict) -> dict:
-    """Stage 2d — government contracts: zakupki.gov.ru (free) → DataNewton fallback."""
-    try:
-        from app.services.company.free_gov_service import fetch_gov_contracts
-        result = fetch_gov_contracts(inn)
-        if not result.get('unavailable'):
-            return result
-    except Exception as exc:
-        logger.warning("[%s] zakupki.gov.ru contracts failed: %s", inn, exc)
+    """Stage 2d — government contracts via DataNewton (ЕИС data)."""
     try:
         from app.services.company.datanewton_service import lookup_gov_contracts
         return lookup_gov_contracts(inn)
     except Exception as exc:
-        logger.warning("[%s] Gov contracts fallback failed: %s", inn, exc)
+        logger.warning("[%s] Gov contracts failed: %s", inn, exc)
         return {'found': False, 'unavailable': True}
 
 
 def _run_bankruptcy(inn: str, query_name: str, egrul: dict) -> dict:
-    """Stage 2c — bankruptcy: bankrot.fedresurs.ru (free) → DataNewton fallback."""
-    try:
-        from app.services.company.free_gov_service import fetch_bankruptcy
-        result = fetch_bankruptcy(inn)
-        if not result.get('unavailable'):
-            return result
-    except Exception as exc:
-        logger.warning("[%s] fedresurs bankruptcy failed: %s", inn, exc)
+    """Stage 2c — bankruptcy via DataNewton (ЕФРСБ data)."""
     try:
         from app.services.company.datanewton_service import lookup_bankruptcy
         return lookup_bankruptcy(inn)
     except Exception as exc:
-        logger.warning("[%s] Bankruptcy fallback failed: %s", inn, exc)
+        logger.warning("[%s] Bankruptcy failed: %s", inn, exc)
         return {'found': False}
 
 
@@ -207,36 +193,22 @@ def _run_tax_info(inn: str) -> dict:
 
 
 def _run_blocked_accounts(inn: str) -> dict:
-    """Stage 2l — FNS blocked accounts: service.nalog.ru (free) → DataNewton fallback."""
-    try:
-        from app.services.company.free_gov_service import fetch_blocked_accounts
-        result = fetch_blocked_accounts(inn)
-        if not result.get('unavailable'):
-            return result
-    except Exception as exc:
-        logger.warning("[%s] nalog.ru blocked accounts failed: %s", inn, exc)
+    """Stage 2l — FNS blocked bank accounts via DataNewton."""
     try:
         from app.services.company.datanewton_service import lookup_blocked_accounts
         return lookup_blocked_accounts(inn)
     except Exception as exc:
-        logger.warning("[%s] Blocked accounts fallback failed: %s", inn, exc)
+        logger.warning("[%s] Blocked accounts failed: %s", inn, exc)
         return {'found': False, 'blocks': []}
 
 
 def _run_inspections(inn: str) -> dict:
-    """Stage 2m — inspections: proverki.gov.ru (free) → DataNewton fallback."""
-    try:
-        from app.services.company.free_gov_service import fetch_inspections
-        result = fetch_inspections(inn)
-        if not result.get('unavailable'):
-            return result
-    except Exception as exc:
-        logger.warning("[%s] proverki.gov.ru failed: %s", inn, exc)
+    """Stage 2m — government inspections via DataNewton."""
     try:
         from app.services.company.datanewton_service import lookup_inspections
         return lookup_inspections(inn)
     except Exception as exc:
-        logger.warning("[%s] Inspections fallback failed: %s", inn, exc)
+        logger.warning("[%s] Inspections failed: %s", inn, exc)
         return {'found': False, 'inspections': []}
 
 
