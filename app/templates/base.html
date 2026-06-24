@@ -116,8 +116,8 @@
                         Поиск
                     </a>
                     {% endif %}
-                    <a href="{{ url_for('candidate.history') }}" class="text-xs tracking-widest uppercase transition-colors {% if request.endpoint == 'candidate.history' %}text-[#C4955A]{% else %}text-[#E8E0D4]/40 hover:text-[#E8E0D4]{% endif %}" style="font-family:'JetBrains Mono',monospace;text-decoration:none;">
-                        Проверки
+                    <a href="{{ url_for('main.investigations_list') }}" class="text-xs tracking-widest uppercase transition-colors {% if request.endpoint in ('main.investigations_list', 'candidate.history', 'company.history') %}text-[#C4955A]{% else %}text-[#E8E0D4]/40 hover:text-[#E8E0D4]{% endif %}" style="font-family:'JetBrains Mono',monospace;text-decoration:none;">
+                        Мои проверки
                     </a>
                     {% if current_user and current_user.is_admin %}
                     <a href="{{ url_for('admin_users.list_users') }}" class="text-xs tracking-widest uppercase transition-colors {% if request.endpoint and request.endpoint.startswith('admin_users.') %}text-[#C4955A]{% else %}text-[#E8E0D4]/40 hover:text-[#E8E0D4]{% endif %}" style="font-family:'JetBrains Mono',monospace;text-decoration:none;">
@@ -132,10 +132,6 @@
 
                 <!-- Right side -->
                 <div class="flex items-center gap-4">
-                    <!-- VK Status -->
-                    <span id="vk-status" class="text-xs cursor-pointer" style="font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,0.4);" title="VK API status">
-                        <span class="inline-block w-1.5 h-1.5 rounded-full mr-1" style="background:rgba(232,224,212,0.2);"></span>VK
-                    </span>
                     {% if session.get('user_id') %}
                     <!-- Subscription / free tier status -->
                     {% if current_user and not current_user.is_admin and user_subscription %}
@@ -156,18 +152,50 @@
                             {% endif %}
                         {% endif %}
                     {% endif %}
-                    <span class="text-xs" style="font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,0.4);letter-spacing:0.1em;">
-                        {{ session.get('username', '') }}
-                        {% if session.get('role') == 'admin' %}
-                        <span class="text-[9px] ml-1" style="color:#C4955A;">ADMIN</span>
-                        {% endif %}
-                    </span>
-                    <form method="POST" action="/logout" style="display:inline;margin:0">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="text-xs uppercase tracking-widest transition-colors" style="font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,0.4);text-decoration:none;border:1px solid rgba(232,224,212,0.15);padding:4px 12px;background:none;cursor:pointer;" title="Выход">
-                            Выход
+                    <!-- Profile dropdown -->
+                    <div class="relative" id="profile-menu-wrapper">
+                        <button id="profile-toggle" type="button"
+                                style="font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,0.4);letter-spacing:0.1em;background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px;"
+                                class="text-xs hover:text-[#E8E0D4] transition-colors">
+                            {{ session.get('username', '') }}
+                            {% if session.get('role') == 'admin' %}
+                            <span class="text-[9px]" style="color:#C4955A;">ADMIN</span>
+                            {% endif %}
+                            <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style="opacity:0.4;margin-left:2px;"><path d="M0 2l4 4 4-4z"/></svg>
                         </button>
-                    </form>
+
+                        <div id="profile-dropdown" class="hidden absolute right-0 z-50"
+                             style="top:calc(100% + 10px);width:220px;background:#111;border:1px solid rgba(232,224,212,0.08);">
+                            <div style="padding:16px;border-bottom:1px solid rgba(232,224,212,0.06);">
+                                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(232,224,212,0.3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:12px;">Аккаунт</div>
+                                <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                                    <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(232,224,212,0.3);">ID</span>
+                                    <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(232,224,212,0.6);">{{ current_user.id if current_user else '—' }}</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;">
+                                    <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(232,224,212,0.3);">Email</span>
+                                    <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(232,224,212,0.6);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ current_user.email if current_user and current_user.email else '—' }}</span>
+                                </div>
+                            </div>
+                            <div style="padding:6px;">
+                                <a href="{{ url_for('profile.profile') }}"
+                                   style="display:block;font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(232,224,212,0.5);padding:8px 10px;text-decoration:none;letter-spacing:0.05em;"
+                                   onmouseover="this.style.color='#E8E0D4';this.style.background='rgba(232,224,212,0.04)'"
+                                   onmouseout="this.style.color='rgba(232,224,212,0.5)';this.style.background='none'">
+                                    Сменить пароль
+                                </a>
+                                <form method="POST" action="/logout" style="margin:0">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit"
+                                            style="width:100%;text-align:left;font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(232,224,212,0.5);padding:8px 10px;background:none;border:none;cursor:pointer;letter-spacing:0.05em;"
+                                            onmouseover="this.style.color='#E8E0D4';this.style.background='rgba(232,224,212,0.04)'"
+                                            onmouseout="this.style.color='rgba(232,224,212,0.5)';this.style.background='none'">
+                                        Выход
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                     {% endif %}
                     <!-- Mobile menu toggle -->
                     <button id="menu-toggle" class="md:hidden px-3 py-2" style="color:rgba(232,224,212,0.4);background:none;border:1px solid rgba(232,224,212,0.15);">
@@ -189,7 +217,7 @@
             {% if config.get('ENABLE_PEOPLE_SEARCH') %}
             <a href="{{ url_for('phase1.new_investigation') }}" class="text-2xl text-[#E8E0D4] hover:text-[#C4955A] transition-colors" style="font-family:'Bebas Neue',sans-serif;letter-spacing:3px;text-decoration:none;">Поиск</a>
             {% endif %}
-            <a href="{{ url_for('candidate.history') }}" class="text-2xl text-[#E8E0D4] hover:text-[#C4955A] transition-colors" style="font-family:'Bebas Neue',sans-serif;letter-spacing:3px;text-decoration:none;">Проверки</a>
+            <a href="{{ url_for('main.investigations_list') }}" class="text-2xl text-[#E8E0D4] hover:text-[#C4955A] transition-colors" style="font-family:'Bebas Neue',sans-serif;letter-spacing:3px;text-decoration:none;">Мои проверки</a>
             {% if current_user and current_user.is_admin %}
             <a href="{{ url_for('admin_users.list_users') }}" class="text-2xl text-[#E8E0D4] hover:text-[#C4955A] transition-colors" style="font-family:'Bebas Neue',sans-serif;letter-spacing:3px;text-decoration:none;">Пользователи</a>
             {% endif %}
@@ -227,6 +255,23 @@
 
     <!-- Scripts -->
     <script>
+    // Profile dropdown
+    (function() {
+        var btn = document.getElementById('profile-toggle');
+        var dropdown = document.getElementById('profile-dropdown');
+        if (!btn || !dropdown) return;
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            dropdown.classList.toggle('hidden');
+        });
+        document.addEventListener('click', function() {
+            dropdown.classList.add('hidden');
+        });
+        dropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    })();
+
     // Mobile menu
     (function() {
         var toggle = document.getElementById('menu-toggle');

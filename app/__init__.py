@@ -132,11 +132,13 @@ def create_app(config_name=None):
     from app.routes.main import main_bp
     from app.routes.subscribe import subscribe_bp
     from app.routes.chat import chat_bp
+    from app.routes.profile import profile_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_users_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(subscribe_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(profile_bp)
 
     # Investigation blueprints — isolated: failure of one does NOT crash the other
     try:

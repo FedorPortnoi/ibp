@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Мои проверки — СЛЕД{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto" style="padding: 0 var(--padding-x);">
+    <div class="mb-8">
+        <div class="mono-label mb-1">Расследования</div>
+        <h1 class="text-xl font-normal text-white tracking-tight">Мои проверки</h1>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Тип 01: Физическое лицо -->
+        <div class="flex flex-col gap-3">
+            <div class="bg-bg-panel border border-white/[0.06] p-6">
+                <div class="mono-label text-accent mb-3">Тип 01</div>
+                <div class="text-lg text-white font-light tracking-tight mb-3">Физическое лицо</div>
+                <p class="text-sm text-gray-500 leading-relaxed mb-5">Полная проверка по государственным реестрам, судам, ФССП, санкционным спискам и социальным сетям. Поведенческий анализ и оценка рисков.</p>
+                <div class="flex flex-wrap gap-1.5 mb-5">
+                    {% for tag in ['ЕГРЮЛ', 'Суды', 'ФССП', 'Санкции', 'ВКонтакте', 'Telegram'] %}
+                    <span class="text-[10px] font-mono tracking-wider px-2 py-1 border border-white/[0.08] text-gray-600 uppercase">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+                <a href="/candidate/new" class="btn btn-primary">Начать проверку</a>
+            </div>
+
+            {% if candidate_checks %}
+            <div class="space-y-1">
+                {% for c in candidate_checks %}
+                <a href="/candidate/dossier/{{ c.id }}"
+                   class="flex items-center justify-between p-3 bg-bg-panel border border-white/[0.06] hover:border-accent/30 transition"
+                   style="text-decoration:none;">
+                    <div class="min-w-0 mr-3">
+                        <div class="text-sm text-white truncate">{{ c.full_name }}</div>
+                        <div class="font-mono text-[10px] text-gray-600 mt-0.5">{{ c.created_at.strftime('%d.%m.%Y') if c.created_at else '' }}</div>
+                    </div>
+                    <div class="flex-shrink-0">
+                        {% if c.risk_level %}
+                        <span class="text-xs font-medium
+                            {% if c.risk_level == 'critical' %}text-red-400
+                            {% elif c.risk_level == 'high' %}text-orange-400
+                            {% elif c.risk_level == 'medium' %}text-yellow-400
+                            {% else %}text-green-400{% endif %}">
+                            {{ c.risk_level_display }}
+                        </span>
+                        {% elif c.status == 'running' %}
+                        <span class="text-xs text-accent">В процессе</span>
+                        {% elif c.status == 'error' %}
+                        <span class="text-xs text-red-500">Ошибка</span>
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="py-8 text-center text-xs text-gray-600 uppercase tracking-widest font-mono">Проверок ещё нет</div>
+            {% endif %}
+        </div>
+
+        <!-- Тип 02: Юридическое лицо / ИП -->
+        <div class="flex flex-col gap-3">
+            <div class="bg-bg-panel border border-white/[0.06] p-6">
+                <div class="mono-label text-accent mb-3">Тип 02</div>
+                <div class="text-lg text-white font-light tracking-tight mb-3">Юридическое лицо / ИП</div>
+                <p class="text-sm text-gray-500 leading-relaxed mb-5">Комплексная проверка организации: юридический статус, арбитражные дела, задолженности ФССП, санкционные списки, финансовая отчётность и факторы риска.</p>
+                <div class="flex flex-wrap gap-1.5 mb-5">
+                    {% for tag in ['ЕГРЮЛ', 'Суды', 'ФССП', 'Санкции', 'Госконтракты', 'Банкротство'] %}
+                    <span class="text-[10px] font-mono tracking-wider px-2 py-1 border border-white/[0.08] text-gray-600 uppercase">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+                <a href="/company/new" class="btn btn-primary">Начать проверку</a>
+            </div>
+
+            {% if company_checks %}
+            <div class="space-y-1">
+                {% for c in company_checks %}
+                <a href="/company/check/{{ c.id }}"
+                   class="flex items-center justify-between p-3 bg-bg-panel border border-white/[0.06] hover:border-accent/30 transition"
+                   style="text-decoration:none;">
+                    <div class="min-w-0 mr-3">
+                        <div class="text-sm text-white truncate">{{ c.company_short_name or c.company_name or c.inn }}</div>
+                        <div class="flex gap-2 mt-0.5">
+                            <span class="font-mono text-[10px] text-gray-600">{{ c.inn }}</span>
+                            <span class="font-mono text-[10px] text-gray-600">{{ c.created_at.strftime('%d.%m.%Y') if c.created_at else '' }}</span>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0">
+                        {% if c.risk_level %}
+                        <span class="text-xs font-medium
+                            {% if c.risk_level == 'critical' %}text-red-400
+                            {% elif c.risk_level == 'high' %}text-orange-400
+                            {% elif c.risk_level == 'medium' %}text-yellow-400
+                            {% else %}text-green-400{% endif %}">
+                            {{ c.risk_level_display }}
+                        </span>
+                        {% elif c.status == 'running' %}
+                        <span class="text-xs text-accent">В процессе</span>
+                        {% elif c.status == 'error' %}
+                        <span class="text-xs text-red-500">Ошибка</span>
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="py-8 text-center text-xs text-gray-600 uppercase tracking-widest font-mono">Проверок ещё нет</div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}

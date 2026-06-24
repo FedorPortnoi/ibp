@@ -8,7 +8,7 @@ import logging
 import os
 from flask import Blueprint, redirect, url_for, render_template, jsonify, request, session
 from app.permissions import is_admin
-from app.routes.auth import admin_required, get_current_user
+from app.routes.auth import admin_required, get_current_user, login_required
 
 main_bp = Blueprint('main', __name__)
 logger = logging.getLogger('ibp.routes.main')
@@ -131,8 +131,14 @@ def dashboard():
 
 
 @main_bp.route('/investigations')
+@login_required
 def investigations_list():
-    return redirect(url_for('candidate.history'))
+    from app.models.candidate_check import CandidateCheck
+    from app.models.company_check import CompanyCheck
+    user = get_current_user()
+    candidate_checks = CandidateCheck.query.filter_by(user_id=user.id).order_by(CandidateCheck.created_at.desc()).limit(50).all()
+    company_checks = CompanyCheck.query.filter_by(user_id=user.id).order_by(CompanyCheck.created_at.desc()).limit(50).all()
+    return render_template('investigations.html', candidate_checks=candidate_checks, company_checks=company_checks)
 
 
 # ============================================

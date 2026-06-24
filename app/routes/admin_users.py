@@ -1,6 +1,6 @@
 """Admin-only user investigation views."""
 
-from flask import Blueprint, render_template, abort
+from flask import Blueprint, render_template, abort, session
 from sqlalchemy import func
 
 from app import db
@@ -26,9 +26,11 @@ def list_users():
         .subquery()
     )
 
+    current_user_id = session.get('user_id')
     rows = (
         db.session.query(User, stats.c.check_count, stats.c.last_check_at)
         .outerjoin(stats, stats.c.user_id == User.id)
+        .filter(User.id != current_user_id)
         .order_by(User.role.asc(), User.created_at.desc())
         .all()
     )

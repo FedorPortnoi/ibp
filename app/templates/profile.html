@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Профиль — СЛЕД{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto" style="padding: 0 var(--padding-x);">
+    <div class="mb-8">
+        <div class="mono-label mb-1">Аккаунт</div>
+        <h1 class="text-xl font-normal text-white tracking-tight">Профиль</h1>
+    </div>
+
+    <!-- Account info -->
+    <div class="bg-bg-panel border border-white/[0.06] p-6 mb-6">
+        <div class="text-[10px] font-mono text-gray-600 uppercase tracking-widest mb-4">Данные аккаунта</div>
+        <div class="space-y-3">
+            <div class="flex justify-between items-center">
+                <span class="text-xs font-mono text-gray-600">ID</span>
+                <span class="text-xs font-mono text-white/60">{{ user.id }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-xs font-mono text-gray-600">Имя пользователя</span>
+                <span class="text-xs font-mono text-white/60">{{ user.username }}</span>
+            </div>
+            {% if user.email %}
+            <div class="flex justify-between items-center">
+                <span class="text-xs font-mono text-gray-600">Email</span>
+                <span class="text-xs font-mono text-white/60">{{ user.email }}</span>
+            </div>
+            {% endif %}
+            <div class="flex justify-between items-center">
+                <span class="text-xs font-mono text-gray-600">Роль</span>
+                <span class="text-xs font-mono" style="color:#C4955A;">{{ user.role.upper() }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change password -->
+    <div class="bg-bg-panel border border-white/[0.06] p-6">
+        <div class="text-[10px] font-mono text-gray-600 uppercase tracking-widest mb-4">Сменить пароль</div>
+
+        {% if error %}
+        <div class="mb-4 p-3 border border-red-500/30 text-xs font-mono text-red-400">{{ error }}</div>
+        {% endif %}
+        {% if success %}
+        <div class="mb-4 p-3 border border-green-500/30 text-xs font-mono text-green-400">{{ success }}</div>
+        {% endif %}
+
+        <form method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div>
+                <label class="block text-[10px] font-mono text-gray-600 uppercase tracking-wider mb-1.5">Текущий пароль</label>
+                <input type="password" name="current_password" required
+                       class="w-full bg-transparent border border-white/[0.08] px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-accent/50"
+                       autocomplete="current-password">
+            </div>
+            <div>
+                <label class="block text-[10px] font-mono text-gray-600 uppercase tracking-wider mb-1.5">Новый пароль</label>
+                <input type="password" name="new_password" required minlength="8"
+                       class="w-full bg-transparent border border-white/[0.08] px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-accent/50"
+                       autocomplete="new-password">
+            </div>
+            <div>
+                <label class="block text-[10px] font-mono text-gray-600 uppercase tracking-wider mb-1.5">Подтвердите пароль</label>
+                <input type="password" name="confirm_password" required minlength="8"
+                       class="w-full bg-transparent border border-white/[0.08] px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-accent/50"
+                       autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn btn-primary w-full">Сохранить</button>
+        </form>
+    </div>
+
+    <div class="mt-6 text-center">
+        <a href="{{ url_for('main.investigations_list') }}" class="text-xs font-mono text-gray-600 hover:text-accent transition">← Назад</a>
+    </div>
+</div>
+{% endblock %}
