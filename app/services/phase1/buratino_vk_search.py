@@ -50,6 +50,8 @@ class VKProfileResult:
     faculty: Optional[str] = None
     graduation: Optional[int] = None
     career: Optional[List[Dict]] = None
+    about: Optional[str] = None
+    home_town: Optional[str] = None
     is_closed: bool = False
     can_access_closed: bool = True
     profile_url: str = ""
@@ -101,8 +103,8 @@ class BuratinoVKSearch:
     # Profile fields to request
     PROFILE_FIELDS = [
         "photo_max_orig", "photo_400_orig", "photo_200", "photo_100",
-        "city", "country", "bdate", "domain", "screen_name",
-        "education", "universities", "schools", "career",
+        "city", "country", "home_town", "bdate", "domain", "screen_name",
+        "education", "universities", "schools", "career", "about",
         "is_closed", "can_access_closed"
     ]
 
@@ -401,6 +403,8 @@ class BuratinoVKSearch:
             faculty=data.get("faculty_name"),
             graduation=data.get("graduation"),
             career=data.get("career") or None,
+            about=data.get("about") or None,
+            home_town=data.get("home_town") or None,
             is_closed=data.get("is_closed", False),
             can_access_closed=data.get("can_access_closed", True)
         )

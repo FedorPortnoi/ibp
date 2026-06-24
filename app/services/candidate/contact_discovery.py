@@ -21,6 +21,7 @@ Discovery chain (order matters — each step feeds the next):
 """
 
 import logging
+import os
 import re
 import time
 from dataclasses import dataclass, field, asdict
@@ -221,7 +222,7 @@ class ContactDiscoveryService:
 
         return results
 
-    def discover(self, check) -> dict:
+    def discover(self, check, pending_vk_profiles=None) -> dict:
         """
         Main entry point. Runs discovery steps in parallel waves.
         Overall 60s time budget — waves are skipped when time runs out.
@@ -287,6 +288,13 @@ class ContactDiscoveryService:
         ]
         self._run_wave('Wave 1 (independent sources)', wave1_tasks, max_workers=6)
 
+        # ── Signal 4: phone region check for pending VK profiles ─────
+        newly_confirmed_vk = []
+        if pending_vk_profiles and self._has_time():
+            newly_confirmed_vk = self._check_phone_region_for_pending(
+                pending_vk_profiles, check
+            )
+
         # ── Wave 2: Needs emails/phones from Wave 1 ─────────────────
         if self._has_time():
             wave2_tasks = [
@@ -326,6 +334,9 @@ class ContactDiscoveryService:
             'phones': [p.to_dict() for p in self.found_phones],
             'emails': [e.to_dict() for e in self.found_emails],
         }
+
+        if newly_confirmed_vk:
+            result['newly_confirmed_vk'] = newly_confirmed_vk
 
         # Include enrichment hints from deep VK wall mining
         if getattr(self, '_telegram_hints', None):
@@ -547,6 +558,124 @@ class ContactDiscoveryService:
         except Exception as e:
             logger.warning(f"VK API request failed for {vk_id}: {e}")
             return None
+
+    # ── Signal 4: Phone region check for pending VK profiles ────────
+
+    def _check_phone_region_for_pending(self, pending_profiles: list, check) -> list:
+        """
+        For each 1-2-signal pending VK profile, extract their wall phones and
+        call DaData clean/phone to determine the phone's Russian region.
+        If the region matches the INN registration region → Signal 4 fires.
+        Profiles reaching 3+ total signals are returned as newly confirmed.
+        """
+        if not pending_profiles:
+            return []
+
+        inn = getattr(check, 'inn', None)
+        if not inn:
+            return []
+
+        dadata_key = os.environ.get('DADATA_API_KEY')
+        dadata_secret = os.environ.get('DADATA_SECRET')
+        if not dadata_key or not dadata_secret:
+            logger.debug("DaData credentials missing — skipping phone region check")
+            return []
+
+        wall_token = self.vk_user_token or self.vk_token
+        if not wall_token:
+            logger.debug("No VK token — skipping phone region check for pending profiles")
+            return []
+
+        try:
+            from app.services.vk_identity_signals import phone_region_matches_inn
+            from app.services.phase2.vk_wall_extractor import VKWallExtractor
+        except ImportError as e:
+            logger.debug(f"Signal 4 deps missing: {e}")
+            return []
+        extractor = VKWallExtractor(access_token=wall_token)
+        confirmed = []
+
+        for profile in pending_profiles:
+            url = profile.get('profile_url') or profile.get('url')
+            if not url:
+                continue
+            try:
+                wall_result = extractor.extract_from_profile(url, max_posts=100)
+            except Exception as e:
+                logger.debug(f"Wall extraction for pending profile {url}: {e}")
+                continue
+
+            raw_phones = [pc.value for pc in wall_result.phones]
+            if not raw_phones:
+                continue
+
+            # Batch DaData call — one request for all phones from this profile
+            try:
+                resp = requests.post(
+                    'https://cleaner.dadata.ru/api/v1/clean/phone',
+                    json=raw_phones[:20],
+                    headers={
+                        'Authorization': f'Token {dadata_key}',
+                        'X-Secret': dadata_secret,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    timeout=10,
+                )
+                if resp.status_code != 200:
+                    logger.debug(f"DaData clean/phone HTTP {resp.status_code}")
+                    continue
+                phone_data = resp.json()
+            except Exception as e:
+                logger.debug(f"DaData clean/phone error: {e}")
+                continue
+
+            signal4 = any(
+                phone_region_matches_inn(entry.get('region', ''), inn)
+                for entry in phone_data
+                if isinstance(entry, dict)
+            )
+            if not signal4:
+                continue
+
+            total = profile.get('_signal_count', 0) + 1
+            sig_list = list(profile.get('_signals', [])) + ['phone_region']
+            logger.info(
+                f"Signal 4 fired for VK id{profile.get('vk_id')} "
+                f"({total} total signals: {sig_list})"
+            )
+            if total >= 3:
+                confirmed.append({
+                    'platform': 'vk',
+                    'platform_id': profile.get('vk_id'),
+                    'display_name': profile.get('full_name', ''),
+                    'username': profile.get('screen_name', ''),
+                    'url': profile.get('profile_url', ''),
+                    'avatar_url': profile.get('photo_url'),
+                    'photo_url': profile.get('photo_url'),
+                    'confidence': 'высокая',
+                    'confidence_score': 0.94,
+                    'dob_match': 'dob' in sig_list,
+                    'source_method': 'VK People Search',
+                    'city': profile.get('city', ''),
+                    'verification_status': 'Подтверждён',
+                    'signals': sig_list,
+                })
+                # Also import newly found phones into the contact pool
+                for pc in wall_result.phones:
+                    normalized = normalize_phone(pc.value)
+                    if normalized:
+                        self.found_phones.append(DiscoveredPhone(
+                            number=normalized,
+                            source='vk_wall_by_subject',
+                            confidence='высокая',
+                            profile_name=profile.get('full_name', ''),
+                            raw_value=pc.value,
+                            confidence_score=_get_score('vk_wall_by_subject'),
+                            sources=['vk_wall_by_subject'],
+                        ))
+
+        return confirmed
 
     # ── Step 1b: Deep VK Wall Mining ────────────────────────────────
 

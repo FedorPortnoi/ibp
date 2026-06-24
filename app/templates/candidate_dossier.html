@@ -1265,6 +1265,9 @@
                     {% elif conf in ('средняя', 'medium') %}
                         <span class="status-badge badge-yellow">средняя</span>
                     {% endif %}
+                    {% if profile.get('verification_status') == 'Подтверждён' %}
+                        <span class="status-badge badge-green" title="Подтверждено {{ profile.get('signals', [])|join(', ') }}">&#x2713; Подтверждён</span>
+                    {% endif %}
                     {% if profile.get('url') %}
                         <a href="{{ profile.url }}" target="_blank" rel="noopener"
                            class="text-xs text-accent hover:text-accent-bright transition">Открыть &#x2197;</a>

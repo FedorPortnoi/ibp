@@ -1356,6 +1356,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
 
             social_profiles = []
             vk_screen_names = []
+            _pending_vk: list = []  # profiles with 1-2 signals, evaluated again in Stage 4
 
             # Capture values needed by workers (no DB/task access inside workers)
             _tg_birth_year = check.date_of_birth.year if check.date_of_birth else None
@@ -1378,8 +1379,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 age = today.year - check.date_of_birth.year - (
                     (today.month, today.day) < (check.date_of_birth.month, check.date_of_birth.day)
                 )
-                vk_age_from = max(age - 3, 16)
-                vk_age_to = age + 3
+                vk_age_from = max(age - 1, 16)
+                vk_age_to = age + 1
 
             def _vk_search_worker():
                 """VK People Search — returns list of VKProfileResult."""
@@ -1475,56 +1476,72 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     )
 
                 if vk_profiles:
+                    from app.services.vk_identity_signals import count_signals as _count_vk_signals
+                    _egrul_names = []
+                    for _br in (check.business_records or []):
+                        _cn = _br.get('company_name') if isinstance(_br, dict) else getattr(_br, 'company_name', None)
+                        if _cn:
+                            _egrul_names.append(_cn)
+
                     for p in vk_profiles[:10]:
                         d = p.to_dict() if hasattr(p, 'to_dict') else p
                         sim = d.get('name_similarity', 0)
-
-                        if sim >= 75:
-                            confidence = 'высокая'
-                        elif sim >= 50:
-                            confidence = 'средняя'
-                        else:
+                        if sim < 50:
                             continue
 
-                        dob_match = False
-                        conf_score = round(sim / 100, 2)
-                        vk_bdate = d.get('birth_date', '')
-                        if vk_bdate and check.date_of_birth:
-                            bdate_parts = vk_bdate.split('.')
-                            if len(bdate_parts) == 3:
-                                try:
-                                    bd, bm, by = int(bdate_parts[0]), int(bdate_parts[1]), int(bdate_parts[2])
-                                    if (bd == check.date_of_birth.day
-                                            and bm == check.date_of_birth.month
-                                            and by == check.date_of_birth.year):
-                                        dob_match = True
-                                        conf_score = min(0.98, max(conf_score, 0.95))
-                                        confidence = 'высокая'
-                                except (ValueError, IndexError) as e:
-                                    logger.warning(f"Non-critical error parsing VK birth date: {e}")
+                        sig_count, sig_list = _count_vk_signals(
+                            d,
+                            inn=check.inn,
+                            full_name=effective_name,
+                            date_of_birth=check.date_of_birth,
+                            egrul_names=_egrul_names,
+                        )
+                        logger.info(
+                            f"  VK signal check: id{d.get('vk_id')} {d.get('full_name')!r} "
+                            f"sim={sim:.0f}% signals={sig_count} {sig_list}"
+                        )
 
-                        social_profiles.append({
-                            'platform': 'vk',
-                            'platform_id': d.get('vk_id'),
-                            'display_name': d.get('full_name', ''),
-                            'username': d.get('screen_name', ''),
-                            'url': d.get('profile_url', ''),
-                            'avatar_url': d.get('photo_url'),
-                            'photo_url': d.get('photo_url'),
-                            'confidence': confidence,
-                            'confidence_score': conf_score,
-                            'dob_match': dob_match,
-                            'source_method': 'VK People Search',
-                            'city': d.get('city', ''),
-                        })
-
-                        sn = d.get('screen_name', '')
-                        if sn and not (sn.startswith('id') and sn[2:].isdigit()):
-                            vk_screen_names.append(sn)
+                        if sig_count >= 3:
+                            entry = {
+                                'platform': 'vk',
+                                'platform_id': d.get('vk_id'),
+                                'display_name': d.get('full_name', ''),
+                                'username': d.get('screen_name', ''),
+                                'url': d.get('profile_url', ''),
+                                'avatar_url': d.get('photo_url'),
+                                'photo_url': d.get('photo_url'),
+                                'confidence': 'высокая',
+                                'confidence_score': 0.97,
+                                'dob_match': 'dob' in sig_list,
+                                'source_method': 'VK People Search',
+                                'city': d.get('city', ''),
+                                'verification_status': 'Подтверждён',
+                                'signals': sig_list,
+                            }
+                            social_profiles.append(entry)
+                            sn = d.get('screen_name', '')
+                            if sn and not (sn.startswith('id') and sn[2:].isdigit()):
+                                vk_screen_names.append(sn)
+                        elif sig_count >= 1:
+                            # Keep for Signal 4 (phone region) check in Stage 4
+                            d['_signal_count'] = sig_count
+                            d['_signals'] = sig_list
+                            _pending_vk.append(d)
+                            logger.info(
+                                f"  VK profile id{d.get('vk_id')} queued as pending "
+                                f"({sig_count} signals, needs phone region check)"
+                            )
 
                     vk_count = sum(1 for p in social_profiles if p['platform'] == 'vk')
-                    task.add_message(f'VK: найдено {vk_count} профилей', 'success')
-                    sources_with_results += 1
+                    if vk_count:
+                        task.add_message(f'VK: подтверждено {vk_count} профилей', 'success')
+                        sources_with_results += 1
+                    elif _pending_vk:
+                        task.add_message(
+                            f'VK: {len(_pending_vk)} профилей на проверке телефона', 'info'
+                        )
+                    else:
+                        task.add_message('VK: профили не прошли верификацию', 'info')
                 else:
                     task.add_message('VK: профили не найдены', 'info')
                 sources_checked += 1
@@ -1737,7 +1754,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             def _run_contact_discovery():
                 """Worker; caller enforces timeout via stage4_future.result(timeout=60)."""
                 discovery = ContactDiscoveryService()
-                return discovery.discover(check)
+                return discovery.discover(check, pending_vk_profiles=_pending_vk)
 
             def _run_social_analysis():
                 return run_social_analysis(check)
@@ -1751,6 +1768,26 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             contacts = input_contacts
             try:
                 contacts = stage4_future.result(timeout=60)
+
+                # Promote VK profiles that gained Signal 4 (phone region) in Stage 4
+                newly_confirmed_vk = contacts.pop('newly_confirmed_vk', [])
+                if newly_confirmed_vk:
+                    social_profiles.extend(newly_confirmed_vk)
+                    check.social_media_profiles = social_profiles
+                    try:
+                        db.session.commit()
+                    except Exception as e:
+                        db.session.rollback()
+                        logger.error(f"DB commit failed (newly confirmed VK): {e}")
+                    task.add_message(
+                        f'VK: +{len(newly_confirmed_vk)} профилей подтверждено по телефону',
+                        'success',
+                    )
+                    for p in newly_confirmed_vk:
+                        sn = p.get('username', '')
+                        if sn and not (sn.startswith('id') and sn[2:].isdigit()):
+                            vk_screen_names.append(sn)
+
                 phones = contacts.get('phones', [])
                 emails = contacts.get('emails', [])
                 if phones or emails:
