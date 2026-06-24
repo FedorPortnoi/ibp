@@ -138,37 +138,46 @@ class PlaywrightFinancialService:
     def _scrape(self, page, inn: str) -> Dict:
         from playwright.sync_api import TimeoutError as PWTimeout
 
-        # Step 1: load main page
+        # Step 1: load main page and immediately dismiss cookie/terms modal
         page.goto('https://bo.nalog.ru/', wait_until='domcontentloaded',
                   timeout=self.timeout_ms)
         page.wait_for_timeout(2000)
+        self._dismiss_modals(page)
 
         # Step 2: find search input and type INN
         search_input = self._find_search_input(page)
         if not search_input:
             raise RuntimeError("bo.nalog.ru: search input not found")
 
-        search_input.click()
+        self._js_click(page, search_input)
         search_input.fill(inn)
         page.keyboard.press('Enter')
 
-        # Step 3: wait for results and click first match
+        # Step 3: wait for results and click first match via JS to bypass overlays
         company_link = self._wait_for_first_result(page)
         if not company_link:
             logger.info("bo.nalog.ru: no results for INN %s", inn)
             return {'found': False}
 
-        company_link.click()
+        self._dismiss_modals(page)
+        self._js_click(page, company_link)
         page.wait_for_load_state('domcontentloaded', timeout=self.timeout_ms)
         page.wait_for_timeout(2000)
 
-        # Step 4: dismiss any modal overlay, then navigate to accounting/financial tab
+        # Step 4: dismiss any remaining modal, then navigate to accounting tab
         self._dismiss_modals(page)
         self._open_accounting_tab(page)
         page.wait_for_timeout(2000)
 
         # Step 5: extract data
         return self._extract(page, inn)
+
+    def _js_click(self, page, element):
+        """Click via JavaScript to bypass overlay intercept checks."""
+        try:
+            page.evaluate('el => el.click()', element)
+        except Exception:
+            element.click()
 
     def _find_search_input(self, page):
         """Try multiple selector strategies to find the search box."""
