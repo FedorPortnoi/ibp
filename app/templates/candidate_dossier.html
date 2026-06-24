@@ -893,13 +893,16 @@
         {% else %}
             {% for br in bankruptcy_records %}
                 {% if br.get('source') == 'manual' %}
-                <div class="dossier-card" style="border-color: rgba(245, 158, 11, 0.3);">
-                    <div class="text-sm text-yellow-400 mb-2">&#x26A0;&#xFE0F; Автоматическая проверка недоступна</div>
-                    <div class="text-xs text-gray-400 mb-3">{{ br.get('stage', 'Проверьте вручную на сайте ЕФРСБ') }}</div>
-                    <a href="{{ br.get('url', 'https://bankrot.fedresurs.ru/DebtorsSearch.aspx') }}" target="_blank" rel="noopener"
-                       class="text-sm text-accent hover:text-accent-bright transition">
-                        &#x1F50D; Проверить вручную на bankrot.fedresurs.ru &#x2197;
-                    </a>
+                <div style="background:var(--bg-panel);border:1px dashed rgba(232,224,212,0.12);padding:20px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                        <span style="font-size:0.8125rem;font-weight:600;color:rgba(232,224,212,0.35);text-transform:uppercase;letter-spacing:.04em;">ЕФРСБ — Банкротство</span>
+                        <span style="font-size:0.6875rem;background:rgba(245,158,11,0.12);color:rgba(245,158,11,0.6);padding:2px 8px;border:1px solid rgba(245,158,11,0.2);">Скоро</span>
+                    </div>
+                    <div style="color:rgba(232,224,212,0.22);font-size:0.75rem;line-height:1.7;">
+                        Проверка в ЕФРСБ по физическим лицам временно недоступна с зарубежных IP.
+                        <a href="https://bankrot.fedresurs.ru/DebtorsSearch.aspx" target="_blank" rel="noopener"
+                           style="color:rgba(232,224,212,0.35);text-decoration:underline;">Проверить вручную &#x2197;</a>
+                    </div>
                 </div>
                 {% else %}
                 <div class="dossier-card">
@@ -994,18 +997,20 @@
         {% else %}
             {% set pledge_status = (source_statuses or {}).get('reestr-zalogov.ru', '') %}
             {% if pledge_status not in ('ok', 'empty', '') %}
-                <div class="empty-state stub" style="border-color: rgba(234,179,8,0.3);">
-                    &#x26A0;&#xFE0F; Реестр не проверен (reCAPTCHA) — отсутствие залогов не подтверждено.
+                <div style="background:var(--bg-panel);border:1px dashed rgba(232,224,212,0.12);padding:20px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                        <span style="font-size:0.8125rem;font-weight:600;color:rgba(232,224,212,0.35);text-transform:uppercase;letter-spacing:.04em;">ФНП — Залоговый реестр</span>
+                        <span style="font-size:0.6875rem;background:rgba(245,158,11,0.12);color:rgba(245,158,11,0.6);padding:2px 8px;border:1px solid rgba(245,158,11,0.2);">Скоро</span>
+                    </div>
+                    <div style="color:rgba(232,224,212,0.22);font-size:0.75rem;line-height:1.7;">
+                        Автоматическая проверка заблокирована reCAPTCHA.
+                        <a href="https://www.reestr-zalogov.ru/search/index" target="_blank" rel="noopener"
+                           style="color:rgba(232,224,212,0.35);text-decoration:underline;">Проверить вручную &#x2197;</a>
+                    </div>
                 </div>
             {% else %}
                 <div class="empty-state good">Нет</div>
             {% endif %}
-            <div class="text-xs text-gray-500 mt-2">
-                <a href="https://www.reestr-zalogov.ru/search/index" target="_blank" rel="noopener"
-                   class="text-accent hover:text-accent-bright transition">
-                    &#x1F50D; Проверить вручную на reestr-zalogov.ru &#x2197;
-                </a>
-            </div>
         {% endif %}
     </section>
 
@@ -1035,6 +1040,8 @@
                         </div>
                     {% elif result.get('checked') and not result.get('found') %}
                         <span class="text-sm text-green-400">&#x2705; Не найден</span>
+                    {% elif result.get('error') == 'coming_soon' %}
+                        <span style="font-size:0.6875rem;background:rgba(245,158,11,0.12);color:rgba(245,158,11,0.6);padding:2px 8px;border:1px solid rgba(245,158,11,0.2);">Скоро</span>
                     {% else %}
                         <div class="text-right">
                             <span class="text-xs text-gray-600">&#x23F3; Не удалось проверить</span>

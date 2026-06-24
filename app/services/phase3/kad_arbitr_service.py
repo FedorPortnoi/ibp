@@ -402,18 +402,17 @@ def search_kad_arbitr_person(
         return [], 'skipped'
 
     # Primary: parser-api.com proxy (any IP) when configured.
+    # When configured, always return its result — never fall through to direct
+    # kad.arbitr.ru, which gets HTTP 451 from datacenter IPs.
     try:
         from app.services import parser_api
         if parser_api.is_available():
             records, status = _search_via_parser_api(name, inn, coparty_sink=coparty_sink)
-            if status == 'ok' or records:
-                logger.info("kad.arbitr.ru (parser-api): %d cases (status=%s)", len(records), status)
-                return records, status
-            # parser-api returned empty/failed — fall through to direct kad,
-            # which may still work from a Russian IP.
-            logger.info("kad.arbitr.ru: parser-api status=%s, trying direct", status)
+            logger.info("kad.arbitr.ru (parser-api): %d cases (status=%s)", len(records), status)
+            return records, status
     except Exception as exc:
         logger.warning("kad.arbitr.ru: parser-api path error: %s", exc)
+        return [], 'error'
 
     queries: List[Tuple[str, dict]] = []
     if use_inn:

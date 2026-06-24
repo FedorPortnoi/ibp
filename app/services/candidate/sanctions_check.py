@@ -221,6 +221,19 @@ class SanctionsService:
         # prefer the more detailed result but keep both source names
         results = self._deduplicate_results(results)
 
+        # OpenSanctions covers the ru_fedsfm_terror dataset (Росфинмониторинг).
+        # When it ran successfully, upgrade any failed Росфинмониторинг scraper
+        # result to checked=True so the dossier shows "Не найден" not "⏳".
+        opensanctions_ok = any(
+            r.source_name == 'OpenSanctions' and r.checked
+            for r in results
+        )
+        if opensanctions_ok:
+            for r in results:
+                if r.source_name == 'Росфинмониторинг' and not r.checked:
+                    r.checked = True
+                    r.error = None
+
         # Ensure we always return at least the 4 expected source slots
         expected = {
             'Росфинмониторинг': False,
@@ -237,14 +250,10 @@ class SanctionsService:
                 expected['Росфинмониторинг'] = True
 
         # Fill missing slots with "checked but not found" if we checked OpenSanctions
-        opensanctions_checked = any(
-            'OpenSanctions' in r.source_name or 'Росфинмониторинг' in r.source_name
-            for r in results if r.checked
-        )
         for name, found in expected.items():
             if not found:
                 # If OpenSanctions was checked, we can vouch for Rosfinmonitoring
-                checked = opensanctions_checked if name == 'Росфинмониторинг' else False
+                checked = opensanctions_ok if name == 'Росфинмониторинг' else False
                 results.append(SanctionsResult(
                     source_name=name,
                     checked=checked,
@@ -360,7 +369,7 @@ class SanctionsService:
                     source_name='МВД — розыск',
                     checked=False,
                     found=False,
-                    error='Локальная база МВД не загружена',
+                    error='coming_soon',
                     url='https://xn--b1aew.xn--p1ai/wanted',
                 )
 
@@ -405,7 +414,7 @@ class SanctionsService:
                     source_name='Перечень экстремистов',
                     checked=False,
                     found=False,
-                    error='Локальная база экстремистов не загружена',
+                    error='coming_soon',
                     url='https://minjust.gov.ru/ru/extremist-materials/',
                 )
 
