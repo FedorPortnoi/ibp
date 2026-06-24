@@ -257,20 +257,76 @@ class FinancialService:
                 self._cache[inn] = (result, time.time() + _CACHE_TTL)
                 return result
 
-            # dadata returned no financial data (large PAO, or not in FNS open data).
-            # Try Playwright fallback for financials, but keep identity fields from dadata.
-            logger.info("dadata.ru: no financial data for %s — trying bo.nalog.ru", inn)
+            # dadata returned no financial data — try DataNewton (FNS/Rosstat) next
+            logger.info("dadata.ru: no financial data for %s — trying DataNewton", inn)
+            dn_result = self._datanewton_fallback(inn, identity)
+            if dn_result.get('found'):
+                self._cache[inn] = (dn_result, time.time() + _CACHE_TTL)
+                return dn_result
+
+            # Last resort: Playwright scrape of bo.nalog.ru
+            logger.info("DataNewton: no financial data for %s — trying bo.nalog.ru", inn)
             playwright_result = self._playwright_fallback(inn)
             merged = {**playwright_result, **identity}
             self._cache[inn] = (merged, time.time() + _CACHE_TTL)
             return merged
 
         except requests.Timeout:
-            logger.warning("dadata.ru: timeout for INN %s — trying bo.nalog.ru", inn)
-            return self._playwright_fallback(inn)
+            logger.warning("dadata.ru: timeout for INN %s — trying DataNewton", inn)
+            return self._datanewton_fallback(inn, {})
         except Exception as exc:
             logger.warning("dadata.ru: error for INN %s: %s", inn, exc)
-            return self._playwright_fallback(inn)
+            return self._datanewton_fallback(inn, {})
+
+    def _datanewton_fallback(self, inn: str, identity: Dict) -> Dict:
+        """Try DataNewton v1/finance/ (FNS/Rosstat) for multi-year financial data."""
+        empty = {
+            'found': False, 'no_key': False, 'unavailable': False,
+            'income': None, 'expense': None, 'profit': None,
+            'is_loss': False, 'income_fmt': '', 'expense_fmt': '',
+            'profit_fmt': '', 'year': None, 'tax_system': '',
+            'debts': None, 'debts_fmt': '', 'employee_count': '',
+            'party_name': '', 'party_short_name': '',
+            'party_status': '', 'party_liquidation_date': '',
+        }
+        try:
+            from app.services.company.datanewton_service import lookup_financials
+            history = lookup_financials(inn)
+            if not history:
+                return {**empty, **identity}
+            from app.services.company.playwright_financial_service import _enrich_item
+            history = [_enrich_item(yr) for yr in history]
+            latest = history[0]
+            revenue = latest.get('revenue')
+            net_profit = latest.get('net_profit')
+            profit_fmt = (
+                ('-' if net_profit < 0 else '+') + fmt_rub(abs(net_profit))
+                if net_profit is not None else ''
+            )
+            return {
+                **empty, **identity,
+                'found': True,
+                'source': 'datanewton (FNS)',
+                'year': latest.get('year'),
+                'income': revenue,
+                'income_fmt': fmt_rub(revenue) if revenue is not None else '',
+                'expense': None, 'expense_fmt': '',
+                'profit': net_profit,
+                'profit_fmt': profit_fmt,
+                'is_loss': (net_profit is not None and net_profit < 0),
+                'revenue': revenue,
+                'revenue_fmt': latest.get('revenue_fmt', ''),
+                'net_profit': net_profit,
+                'net_profit_fmt': latest.get('net_profit_fmt', ''),
+                'assets': latest.get('assets'),
+                'assets_fmt': latest.get('assets_fmt', ''),
+                'equity': latest.get('equity'),
+                'equity_fmt': latest.get('equity_fmt', ''),
+                'history': history,
+            }
+        except Exception as exc:
+            logger.warning("DataNewton fallback failed for %s: %s", inn, exc)
+            return {**empty, **identity}
 
     def _playwright_fallback(self, inn: str) -> Dict:
         """Fall back to bo.nalog.ru via Playwright when dadata has no data."""
