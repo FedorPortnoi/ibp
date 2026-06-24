@@ -143,6 +143,29 @@ my_pic.jpg
 svetlana axtinas.jpg
 tikhon portnoi.jpg
 
+# === SQLite WAL / SHM files ===
+*.db-shm
+*.db-wal
+*.db.bak-*
+
+# === Runtime PID / error files ===
+*.pid
+.server.pid
+server.err
+
+# === Load test artifacts ===
+locust_*.csv
+scripts/locust_*.csv
+
+# === E2E test screenshots and reports ===
+scripts/e2e_screenshots/
+scripts/inspect_shots/
+scripts/e2e_report.json
+scripts/inspect_report.json
+
+# === Cost analysis docs ===
+COST_ANALYSIS_*.md
+
 # === Scratch / dev artifacts ===
 testsserver_log.txt
 forgot_pw_oracle_check.session
