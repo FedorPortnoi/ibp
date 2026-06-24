@@ -820,13 +820,13 @@ class VKWebSearch:
                 if self._try_vk_login(login_value, vk_password):
                     logger.info("VKWebSearch: auto-login successful, session saved")
                     return True
-                logger.warning(f"VKWebSearch: login with {masked} did not succeed")
+                logger.info(f"VKWebSearch: login with {masked} did not succeed")
             except Exception as e:
-                logger.warning(f"VKWebSearch: login with {masked} error: {e}")
+                logger.info(f"VKWebSearch: login with {masked} error: {e}")
 
         # Mark failure so subsequent searches skip Playwright entirely
         VKWebSearch._login_failed = True
-        logger.warning("VKWebSearch: all login attempts failed, marking for skip")
+        logger.info("VKWebSearch: all login attempts failed, marking for skip")
         return False
 
     def _try_vk_login(self, login: str, password: str) -> bool:
@@ -881,7 +881,7 @@ class VKWebSearch:
                 # ── Step 5: Fill password ──
                 pw_filled = self._fill_password_field(page, password)
                 if not pw_filled:
-                    logger.warning("VKWebSearch: could not find password field")
+                    logger.info("VKWebSearch: could not find password field")
                     browser.close()
                     return False
 

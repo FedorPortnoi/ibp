@@ -568,7 +568,9 @@ class ContactDiscoveryService:
         wall_token = self.vk_user_token or self.vk_token
         extractor = VKWallExtractor(access_token=wall_token)
 
-        for profile in vk_profiles[:2]:  # max 2 profiles to limit API calls
+        for i, profile in enumerate(vk_profiles[:2]):  # max 2 profiles to limit API calls
+            if i > 0:
+                time.sleep(1)  # let VK rate limit (3 req/s) reset between profiles
             url = profile.get('url', '')
             if not url:
                 continue

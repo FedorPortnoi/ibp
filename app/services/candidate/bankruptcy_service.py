@@ -211,13 +211,13 @@ class BankruptcyService:
             return None
 
         if r.status_code != 200:
-            logger.warning(f"ЕФРСБ fedresurs API status {r.status_code}")
+            logger.info(f"ЕФРСБ fedresurs API status {r.status_code} — likely geo-blocked")
             return None
 
         content_type = r.headers.get('Content-Type', '')
         if 'json' not in content_type and 'javascript' not in content_type:
             if '<html' in r.text[:500].lower():
-                logger.warning("ЕФРСБ fedresurs API returned HTML instead of JSON")
+                logger.info("ЕФРСБ fedresurs API returned HTML instead of JSON — geo-blocked")
                 return None
 
         try:
