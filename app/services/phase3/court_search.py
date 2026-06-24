@@ -535,7 +535,7 @@ class CourtRecordSearch:
 
         return results
 
-    def _search_sudact_playwright(self, name: str, limit: int, max_retries: int = 2) -> List[CourtCase]:
+    def _search_sudact_playwright(self, name: str, limit: int, max_retries: int = 1) -> List[CourtCase]:
         """Search sudact.ru using Playwright for JS rendering."""
         results = []
 
@@ -579,7 +579,7 @@ class CourtRecordSearch:
                         found_selector = None
                         for sel in result_selectors:
                             try:
-                                page.wait_for_selector(sel, timeout=8000)
+                                page.wait_for_selector(sel, timeout=3000)
                                 found_selector = sel
                                 logger.debug(f"Sudact Playwright: matched selector '{sel}' on attempt {attempt}")
                                 break
@@ -588,9 +588,8 @@ class CourtRecordSearch:
                                 continue
 
                         if not found_selector:
-                            # No selector matched — wait a bit for late-loading JS content
-                            logger.debug(f"Sudact Playwright: no result selector matched on attempt {attempt}, waiting 5s for JS")
-                            page.wait_for_timeout(5000)
+                            logger.debug(f"Sudact Playwright: no result selector matched on attempt {attempt}, waiting 2s for JS")
+                            page.wait_for_timeout(2000)
 
                         # Get rendered HTML
                         html = page.content()

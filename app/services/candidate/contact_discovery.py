@@ -926,7 +926,11 @@ class ContactDiscoveryService:
         if not full_name:
             return
 
-        from app.services.phase2.sources.leak_sources import LeakDB
+        try:
+            from app.services.phase2.sources.leak_sources import LeakDB
+        except ImportError:
+            logger.debug("LeakDB not installed, skipping name lookup")
+            return
 
         db = LeakDB.get_instance()
         records = db.query_name(full_name)
@@ -1119,7 +1123,11 @@ class ContactDiscoveryService:
 
     def _cross_lookup_leakdb(self):
         """Cross-reference discovered contacts against LeakDB for snowball discovery."""
-        from app.services.phase2.sources.leak_sources import LeakDB
+        try:
+            from app.services.phase2.sources.leak_sources import LeakDB
+        except ImportError:
+            logger.debug("LeakDB not installed, skipping cross-reference")
+            return
 
         db = LeakDB.get_instance()
         new_emails = 0
@@ -1449,7 +1457,10 @@ class ContactDiscoveryService:
         self, check, pattern: re.Pattern, merged_phone: str,
     ) -> Optional[str]:
         """Query LeakDB by subject's known emails; filter linked phones by pattern."""
-        from app.services.phase2.sources.leak_sources import LeakDB
+        try:
+            from app.services.phase2.sources.leak_sources import LeakDB
+        except ImportError:
+            return None
 
         db = LeakDB.get_instance()
 

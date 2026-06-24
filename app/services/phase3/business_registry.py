@@ -94,7 +94,8 @@ class BusinessRegistrySearch:
         full_name: str,
         search_directors: bool = True,
         search_founders: bool = True,
-        limit: int = 50
+        limit: int = 50,
+        egrul_cache: dict = None,
     ) -> List[BusinessRecord]:
         """
         Search for companies where person is director or founder.
@@ -120,7 +121,8 @@ class BusinessRegistrySearch:
 
         # Enrich nalog.ru results via egrul.org (fills capital, OKVED, full address).
         # Raw JSON is cached by company INN for the role resolution pass below.
-        egrul_cache: dict = {}
+        if egrul_cache is None:
+            egrul_cache = {}
         if results:
             for record in results[:10]:  # cap at 10 to stay within 100/day limit
                 try:

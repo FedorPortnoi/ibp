@@ -324,15 +324,17 @@ def _search_via_playwright(image_data: bytes, filename: str, database: str, max_
                 logger.info("Search4Faces Playwright: uploading image...")
                 file_input.set_input_files(temp_path)
 
-                # Wait for upload processing
-                time.sleep(2)
+                # Wait for upload processing — site may auto-submit or enable the button
+                time.sleep(3)
 
-                # Click the search/submit button
+                # Click the search/submit button (force=True bypasses disabled state)
                 search_btn = page.query_selector('button[type="submit"], input[type="submit"], .search-btn, #search, button:has-text("Search"), button:has-text("Поиск")')
                 if search_btn:
-                    search_btn.click()
+                    try:
+                        search_btn.click(force=True, timeout=5000)
+                    except Exception:
+                        page.keyboard.press('Enter')
                 else:
-                    # Try pressing Enter as fallback
                     page.keyboard.press('Enter')
 
                 # Wait for results to load
