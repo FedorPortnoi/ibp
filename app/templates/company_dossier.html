@@ -201,6 +201,30 @@
                 {{ adverse_media.hit_count if adverse_media and adverse_media.get('hit_count') else '—' }}
             </span>
         </a>
+        <a href="#risks" class="nav-pill">
+            Риски ДН
+            <span class="badge {{ 'badge-count' if risks and risks.get('found') else 'badge-empty' }}">
+                {{ risks.risks|length if risks and risks.get('found') and risks.get('risks') else '—' }}
+            </span>
+        </a>
+        <a href="#tax-info" class="nav-pill">
+            Налоги / ФНС
+            <span class="badge {{ 'badge-count' if tax_info and tax_info.get('found') else 'badge-empty' }}">
+                {{ '!' if tax_info and tax_info.get('found') and (tax_info.get('has_debt') or tax_info.get('violations_count')) else ('✓' if tax_info and tax_info.get('found') else '—') }}
+            </span>
+        </a>
+        <a href="#blocked-accounts" class="nav-pill">
+            Блок. счета
+            <span class="badge {{ 'badge-count' if blocked_accounts and blocked_accounts.get('found') else 'badge-empty' }}">
+                {{ blocked_accounts.blocks|length if blocked_accounts and blocked_accounts.get('found') and blocked_accounts.get('blocks') else '—' }}
+            </span>
+        </a>
+        <a href="#inspections" class="nav-pill">
+            Проверки
+            <span class="badge {{ 'badge-count' if inspections and inspections.get('found') else 'badge-empty' }}">
+                {{ inspections.inspections|length if inspections and inspections.get('found') and inspections.get('inspections') else '—' }}
+            </span>
+        </a>
         {% if check.ai_summary %}
         <a href="#ai-summary" class="nav-pill">
             AI-резюме <span class="badge badge-count">✓</span>
@@ -993,6 +1017,165 @@
         <div class="empty-state">Поиск по СМИ не настроен (нужен YANDEX_XML_KEY)</div>
         {% else %}
         <div class="empty-state">Данные недоступны</div>
+        {% endif %}
+    </div>
+
+    <!-- ── DataNewton Risks ── -->
+    <div id="risks" class="dossier-card">
+        <div class="section-header">
+            <div class="section-title">Факторы риска</div>
+            <span class="text-xs text-gray-600">DataNewton</span>
+        </div>
+        {% if risks and risks.get('found') and risks.get('risks') %}
+        {% for r in risks.risks %}
+        <div class="flag-item flag-{{ r.get('severity', 'medium') }}">
+            <span>{% if r.get('severity') == 'critical' %}⛔{% elif r.get('severity') == 'high' %}🔴{% elif r.get('severity') == 'medium' %}🟡{% else %}🔵{% endif %}</span>
+            <span>{{ r.get('description') or r.get('text') or r }}</span>
+        </div>
+        {% endfor %}
+        {% elif risks and risks.get('found') %}
+        <div class="empty-state good">Факторов риска не обнаружено</div>
+        {% else %}
+        <div class="empty-state">Данные недоступны</div>
+        {% endif %}
+    </div>
+
+    <!-- ── Tax Info ── -->
+    <div id="tax-info" class="dossier-card">
+        <div class="section-header">
+            <div class="section-title">Налоговая информация (ФНС)</div>
+            <span class="text-xs text-gray-600">DataNewton</span>
+        </div>
+        {% if tax_info and tax_info.get('found') %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% if tax_info.get('tax_system') %}
+            <div>
+                <div class="field-label">Налоговый режим</div>
+                <div class="field-value">{{ tax_info.tax_system }}</div>
+            </div>
+            {% endif %}
+            {% if tax_info.get('debt_amount') is not none %}
+            <div>
+                <div class="field-label">Налоговый долг</div>
+                <div class="field-value {% if tax_info.get('debt_amount') and tax_info.debt_amount > 0 %}text-red-400{% else %}text-green-400{% endif %}">
+                    {% if tax_info.debt_amount %}{{ '{:,.0f}'.format(tax_info.debt_amount).replace(',', ' ') }} ₽{% else %}Нет{% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% if tax_info.get('violations_count') is not none %}
+            <div>
+                <div class="field-label">Нарушений ФНС</div>
+                <div class="field-value {% if tax_info.violations_count %}text-red-400{% else %}text-green-400{% endif %}">{{ tax_info.violations_count }}</div>
+            </div>
+            {% endif %}
+            {% if tax_info.get('last_report_year') %}
+            <div>
+                <div class="field-label">Последняя отчётность</div>
+                <div class="field-value font-mono">{{ tax_info.last_report_year }}</div>
+            </div>
+            {% endif %}
+            {% if tax_info.get('employee_count') %}
+            <div>
+                <div class="field-label">Среднесписочная численность</div>
+                <div class="field-value">{{ tax_info.employee_count }} чел.</div>
+            </div>
+            {% endif %}
+            {% if tax_info.get('special_tax_regime') %}
+            <div class="md:col-span-2">
+                <div class="field-label">Спецрежим</div>
+                <div class="field-value">{{ tax_info.special_tax_regime }}</div>
+            </div>
+            {% endif %}
+        </div>
+        {% if tax_info.get('violations') %}
+        <div class="mt-4">
+            <div class="field-label mb-2">Нарушения</div>
+            {% for v in tax_info.violations[:10] %}
+            <div class="court-row text-sm text-gray-300">{{ v.get('description') or v }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% elif tax_info and tax_info.get('unavailable') %}
+        <div class="empty-state" style="color:rgba(245,158,11,0.5);">Налоговые данные недоступны</div>
+        {% else %}
+        <div class="empty-state good">Задолженностей и нарушений не найдено</div>
+        {% endif %}
+    </div>
+
+    <!-- ── Blocked Bank Accounts ── -->
+    <div id="blocked-accounts" class="dossier-card">
+        <div class="section-header">
+            <div class="section-title">Блокировки счетов (ФНС)</div>
+            <span class="text-xs text-gray-600">DataNewton</span>
+        </div>
+        {% if blocked_accounts and blocked_accounts.get('found') and blocked_accounts.get('blocks') %}
+        <div class="border border-white/[0.06]">
+            {% for b in blocked_accounts.blocks %}
+            <div class="court-row">
+                <div class="flex items-start justify-between gap-3 flex-wrap">
+                    <div class="flex-1 min-w-0">
+                        {% if b.get('bank_name') %}<div class="text-sm text-white">{{ b.bank_name }}</div>{% endif %}
+                        {% if b.get('account_number') %}<div class="font-mono text-xs text-gray-500 mt-0.5">{{ b.account_number }}</div>{% endif %}
+                        {% if b.get('reason') %}<div class="text-xs text-gray-500 mt-1">{{ b.reason }}</div>{% endif %}
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        {% if b.get('amount') %}<div class="text-sm text-red-400 font-mono">{{ '{:,.0f}'.format(b.amount).replace(',', ' ') }} ₽</div>{% endif %}
+                        {% if b.get('date') %}<div class="text-xs text-gray-600 mt-1">{{ b.date }}</div>{% endif %}
+                        <span class="status-badge badge-red mt-1">Заблокирован</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% elif blocked_accounts and blocked_accounts.get('found') %}
+        <div class="empty-state good">Блокировок счетов не найдено</div>
+        {% else %}
+        <div class="empty-state good">Блокировок счетов не найдено</div>
+        {% endif %}
+    </div>
+
+    <!-- ── Inspections ── -->
+    <div id="inspections" class="dossier-card">
+        <div class="section-header">
+            <div class="section-title">Государственные проверки</div>
+            <span class="text-xs text-gray-600">DataNewton · Генпрокуратура</span>
+        </div>
+        {% if inspections and inspections.get('found') and inspections.get('inspections') %}
+        <div class="mb-3 text-xs text-gray-600">Найдено: {{ inspections.inspections|length }}</div>
+        <div class="border border-white/[0.06]">
+            {% for insp in inspections.inspections[:20] %}
+            <div class="court-row">
+                <div class="flex items-start justify-between gap-3 flex-wrap">
+                    <div class="flex-1 min-w-0">
+                        {% if insp.get('authority') %}<div class="text-sm text-white">{{ insp.authority }}</div>{% endif %}
+                        {% if insp.get('type') %}<div class="text-xs text-gray-500 mt-0.5">{{ insp.type }}</div>{% endif %}
+                        {% if insp.get('result') %}
+                        <div class="mt-1 text-xs {% if insp.get('violations_found') %}text-red-400{% else %}text-green-400{% endif %}">
+                            {{ insp.result }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        {% if insp.get('date') %}<div class="text-xs text-gray-600">{{ insp.date }}</div>{% endif %}
+                        {% if insp.get('status') %}
+                        <span class="status-badge mt-1 {% if insp.get('violations_found') %}badge-red{% else %}badge-gray{% endif %}">
+                            {{ insp.status }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% if inspections.inspections|length > 20 %}
+            <div class="court-row text-xs text-gray-600 text-center py-3">
+                Показано 20 из {{ inspections.inspections|length }} проверок
+            </div>
+            {% endif %}
+        </div>
+        {% elif inspections and inspections.get('found') %}
+        <div class="empty-state good">Государственных проверок не найдено</div>
+        {% else %}
+        <div class="empty-state good">Государственных проверок не найдено</div>
         {% endif %}
     </div>
 

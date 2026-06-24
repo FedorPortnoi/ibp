@@ -149,6 +149,10 @@ def dossier(check_id: str):
     flags = check.risk_flags
     fssp = check.fssp_data
     adverse_media = check.adverse_media
+    risks = check.risks_data
+    tax_info = check.tax_info_data
+    blocked_accounts = check.blocked_accounts_data
+    inspections = check.inspections_data
 
     # Manual search URLs for the investigator
     from app.services.company.company_court_service import CompanyCourtSearch
@@ -172,6 +176,10 @@ def dossier(check_id: str):
         manual_urls=manual_urls,
         fssp=fssp,
         adverse_media=adverse_media,
+        risks=risks,
+        tax_info=tax_info,
+        blocked_accounts=blocked_accounts,
+        inspections=inspections,
     )
 
 
@@ -213,6 +221,10 @@ def export_json(check_id: str):
         'financial_data': check.financial_data,
         'rnp_data': check.rnp_data,
         'adverse_media': check.adverse_media,
+        'risks_data': check.risks_data,
+        'tax_info_data': check.tax_info_data,
+        'blocked_accounts_data': check.blocked_accounts_data,
+        'inspections_data': check.inspections_data,
         'ai_summary': check.ai_summary,
     }
     json_str = json.dumps(dossier, ensure_ascii=False, indent=2, default=str)
@@ -264,6 +276,10 @@ def export_pdf(check_id: str):
         manual_urls=manual_urls,
         fssp=fssp,
         adverse_media=adverse_media,
+        risks=check.risks_data,
+        tax_info=check.tax_info_data,
+        blocked_accounts=check.blocked_accounts_data,
+        inspections=check.inspections_data,
         pdf_mode=True,
     )
 
