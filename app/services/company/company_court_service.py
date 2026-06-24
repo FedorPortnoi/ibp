@@ -101,23 +101,34 @@ class CompanyCourtSearch:
         """
         results: List[CompanyCourtCase] = []
 
-        # Source 0: kad.arbitr.ru — official arbitration database (Russian IP required)
-        # Falls back to DataNewton if geo-blocked (returns []).
-        try:
-            arb = self._search_kad_arbitr(company_name, inn)
-            results.extend(arb)
-            logger.info("Company courts kad.arbitr.ru → %d cases", len(arb))
-        except Exception as exc:
-            logger.warning("Company courts kad.arbitr.ru failed: %s", exc)
-            arb = []
+        # Source 0: parser-api.com (kad.arbitr.ru proxy — works from any IP, no 451)
+        arb: List[CompanyCourtCase] = []
+        if inn:
+            try:
+                pa = self._search_parser_api_arbitr(inn, company_name)
+                results.extend(pa)
+                arb = pa
+                logger.info("Company courts parser-api (kad.arbitr) → %d cases", len(pa))
+            except Exception as exc:
+                logger.warning("Company courts parser-api arbitr failed: %s", exc)
+
+        # Source 0b: direct kad.arbitr.ru (Russian residential IP only, fallback)
+        if not arb:
+            try:
+                kad = self._search_kad_arbitr(company_name, inn)
+                results.extend(kad)
+                arb = kad
+                logger.info("Company courts kad.arbitr.ru → %d cases", len(kad))
+            except Exception as exc:
+                logger.warning("Company courts kad.arbitr.ru failed: %s", exc)
 
         if not arb and inn:
-            # Geo-blocked or error — fall back to DataNewton arbitration
+            # Both arbitr sources failed — fall back to DataNewton arbitration
             try:
                 from app.services.company.datanewton_service import lookup_arbitration_cases
                 dn_arb = lookup_arbitration_cases(inn, limit=limit)
                 for c in dn_arb:
-                    results.append(CompanyCourtCase(**{k: c[k] for k in CompanyCourtCase.__dataclass_fields__}))
+                    results.append(CompanyCourtCase(**{k: c.get(k, '') for k in CompanyCourtCase.__dataclass_fields__}))
                 logger.info("Company courts DataNewton arbitration (fallback) → %d cases", len(dn_arb))
             except Exception as exc:
                 logger.warning("Company courts DataNewton arbitration fallback failed: %s", exc)
@@ -273,6 +284,65 @@ class CompanyCourtSearch:
             if len(result) == 3:
                 break
         return result
+
+    def _search_parser_api_arbitr(
+        self, inn: str, company_name: str
+    ) -> List[CompanyCourtCase]:
+        """Search kad.arbitr.ru via parser-api.com proxy (works from any IP)."""
+        from app.services.parser_api import arbitr_search, is_available
+        if not is_available():
+            return []
+
+        cases, status = arbitr_search(inn, max_pages=3)
+        if status not in ('ok',) or not cases:
+            return []
+
+        inn_lower = inn.lower()
+        name_lower = company_name.lower()
+        records: List[CompanyCourtCase] = []
+
+        for item in cases:
+            case_number = item.get('CaseNumber') or ''
+
+            # Role: match INN or name against Plaintiffs/Respondents
+            role = ''
+            for p in (item.get('Plaintiffs') or []):
+                if (p.get('Inn') or '').lower() == inn_lower or name_lower in (p.get('Name') or '').lower():
+                    role = 'истец'
+                    break
+            if not role:
+                for p in (item.get('Respondents') or []):
+                    if (p.get('Inn') or '').lower() == inn_lower or name_lower in (p.get('Name') or '').lower():
+                        role = 'ответчик'
+                        break
+
+            # Date: "2023-11-15T00:00:00" → "15.11.2023"
+            raw_date = item.get('StartDate') or ''
+            date = ''
+            if len(raw_date) >= 10:
+                parts = raw_date[:10].split('-')
+                if len(parts) == 3:
+                    date = f"{parts[2]}.{parts[1]}.{parts[0]}"
+
+            subj = item.get('Subject') or ''
+            case_type_raw = (item.get('CaseType') or '').lower()
+            case_type = 'банкротное' if 'банкрот' in case_type_raw or 'банкрот' in subj.lower() else 'арбитражное'
+
+            case_id = item.get('CaseId') or ''
+            url = f'https://kad.arbitr.ru/Card/{case_id}' if case_id else ''
+
+            records.append(CompanyCourtCase(
+                case_number=case_number,
+                court_name=item.get('Court') or '',
+                case_type=case_type,
+                date=date,
+                role=role,
+                subject=subj,
+                url=url,
+                source='parser-api.com (kad.arbitr.ru)',
+            ))
+
+        return records
 
     def _search_kad_arbitr(
         self, company_name: str, inn: str = ""
