@@ -138,12 +138,6 @@
         <a href="#egrul" class="nav-pill">
             ЕГРЮЛ <span class="badge {{ 'badge-count' if egrul else 'badge-empty' }}">{{ '✓' if egrul else '—' }}</span>
         </a>
-        <a href="#financials" class="nav-pill">
-            Финансы
-            <span class="badge {{ 'badge-count' if financial and financial.get('found') else 'badge-empty' }}">
-                {% if financial and financial.get('found') and financial.get('year') %}{{ financial.year }}{% elif financial and financial.get('blocked') %}скоро{% else %}—{% endif %}
-            </span>
-        </a>
         <a href="#directors" class="nav-pill">
             Руководители <span class="badge {{ 'badge-count' if egrul.get('directors') else 'badge-empty' }}">{{ egrul.get('directors')|length if egrul.get('directors') else 0 }}</span>
         </a>
@@ -199,12 +193,6 @@
                 {%- elif adverse_media and adverse_media.get('status') == 'empty' %} badge-empty
                 {%- else %} badge-empty{%- endif %}">
                 {{ adverse_media.hit_count if adverse_media and adverse_media.get('hit_count') else '—' }}
-            </span>
-        </a>
-        <a href="#risks" class="nav-pill">
-            Риски ДН
-            <span class="badge {{ 'badge-count' if risks and risks.get('found') else 'badge-empty' }}">
-                {{ risks.risks|length if risks and risks.get('found') and risks.get('risks') else '—' }}
             </span>
         </a>
         <a href="#tax-info" class="nav-pill">
@@ -303,161 +291,6 @@
         {% endif %}
         {% else %}
         <div class="empty-state">Данные ЕГРЮЛ не найдены</div>
-        {% endif %}
-    </div>
-
-    <!-- ── Financials ── -->
-    <div id="financials" class="dossier-card">
-        <div class="section-header">
-            <div class="section-title">Финансовые показатели</div>
-            <span class="text-xs text-gray-600">
-                {% if financial and financial.get('year') %}{{ financial.year }} · {% endif %}{{ financial.get('source', 'ФНС') if financial else 'ФНС' }}
-            </span>
-        </div>
-
-        {% if financial and financial.get('found') %}
-        {% set is_bnalog = financial.get('source') == 'bo.nalog.ru' %}
-
-        <!-- Key metrics -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-            {% set rev = financial.get('revenue_fmt') or financial.get('income_fmt') %}
-            {% if rev %}
-            <div class="p-3 bg-bg-dark border border-white/[0.04]">
-                <div class="field-label">Выручка</div>
-                <div class="text-lg font-display text-white mt-1">{{ rev }}</div>
-            </div>
-            {% endif %}
-
-            {% set np = financial.get('net_profit_fmt') or financial.get('profit_fmt') %}
-            {% if np %}
-            <div class="p-3 bg-bg-dark border {{ 'border-red-500/20' if financial.get('is_loss') else 'border-green-500/20' }}">
-                <div class="field-label">Чистая прибыль</div>
-                <div class="text-lg font-display mt-1 {{ 'text-red-400' if financial.get('is_loss') else 'text-green-400' }}">
-                    {{ np }}
-                </div>
-            </div>
-            {% endif %}
-
-            {% if financial.get('assets_fmt') %}
-            <div class="p-3 bg-bg-dark border border-white/[0.04]">
-                <div class="field-label">Активы</div>
-                <div class="text-lg font-display text-white mt-1">{{ financial.assets_fmt }}</div>
-            </div>
-            {% endif %}
-
-            {% if financial.get('employee_count') %}
-            <div class="p-3 bg-bg-dark border border-white/[0.04]">
-                <div class="field-label">Сотрудников</div>
-                <div class="text-lg font-display text-white mt-1">{{ financial.employee_count }}</div>
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- Full P&L + Balance sheet waterfall (up to 3 years) -->
-        {% set h_years = financial.history[:3] if financial.get('history') else [] %}
-        {% if h_years %}
-        {% set col_count = h_years|length %}
-        <div class="border border-white/[0.06] mb-4">
-
-            <!-- Year header -->
-            <div class="grid text-xs font-mono px-3 py-2 border-b border-white/[0.06]"
-                 style="grid-template-columns: 160px repeat({{ col_count }}, 1fr); background:rgba(255,255,255,0.015)">
-                <span class="text-gray-600" style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em">Показатель</span>
-                {% for yr in h_years %}<span class="text-right text-gray-400 font-semibold">{{ yr.year }}</span>{% endfor %}
-            </div>
-
-            <!-- P&L section -->
-            <div class="px-3 py-1 border-b border-white/[0.04]" style="background:rgba(255,255,255,0.01)">
-                <span style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.06em;color:rgba(232,224,212,0.25)">Отчёт о финансовых результатах</span>
-            </div>
-            {% for label, key in [
-                ('Выручка', 'revenue'),
-                ('Себестоимость', 'cost_of_sales'),
-                ('Валовая прибыль', 'gross_profit'),
-                ('Прибыль от продаж', 'operating_profit'),
-                ('Прибыль до налогов', 'pretax_profit'),
-                ('Чистая прибыль', 'net_profit'),
-            ] %}
-            {% if h_years | selectattr(key) | list %}
-            {% set is_profit_key = key in ('gross_profit', 'operating_profit', 'pretax_profit', 'net_profit') %}
-            {% set is_highlight = key == 'net_profit' %}
-            <div class="grid text-xs px-3 py-2 border-b border-white/[0.02] hover:bg-white/[0.02]"
-                 style="grid-template-columns: 160px repeat({{ col_count }}, 1fr)">
-                <span class="{{ 'text-gray-300 font-semibold' if is_highlight else 'text-gray-500' }}">{{ label }}</span>
-                {% for yr in h_years %}
-                {% set val = yr.get(key) %}
-                {% set fval = yr.get(key ~ '_fmt') %}
-                <span class="text-right {{ 'font-semibold' if is_highlight else '' }} {{ 'text-red-400' if val and val < 0 else ('text-green-400' if is_profit_key and val and val > 0 else 'text-gray-300') }}">
-                    {{ fval if fval else '—' }}
-                </span>
-                {% endfor %}
-            </div>
-            {% endif %}
-            {% endfor %}
-
-            <!-- Balance sheet section -->
-            {% if h_years | selectattr('assets') | list or h_years | selectattr('equity') | list or h_years | selectattr('lt_liabilities') | list %}
-            <div class="px-3 py-1 border-b border-white/[0.04] mt-1" style="background:rgba(255,255,255,0.01)">
-                <span style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.06em;color:rgba(232,224,212,0.25)">Бухгалтерский баланс</span>
-            </div>
-            {% for label, key in [
-                ('Активы (баланс)', 'assets'),
-                ('Капитал и резервы', 'equity'),
-                ('Долг. обязательства', 'lt_liabilities'),
-                ('Кратк. обязательства', 'st_liabilities'),
-            ] %}
-            {% if h_years | selectattr(key) | list %}
-            <div class="grid text-xs px-3 py-2 border-b border-white/[0.02] hover:bg-white/[0.02]"
-                 style="grid-template-columns: 160px repeat({{ col_count }}, 1fr)">
-                <span class="text-gray-500">{{ label }}</span>
-                {% for yr in h_years %}
-                {% set val = yr.get(key) %}
-                {% set fval = yr.get(key ~ '_fmt') %}
-                <span class="text-right {{ 'text-red-400' if val and val < 0 else 'text-gray-300' }}">
-                    {{ fval if fval else '—' }}
-                </span>
-                {% endfor %}
-            </div>
-            {% endif %}
-            {% endfor %}
-            {% endif %}
-
-        </div>
-        {% endif %}
-
-        <!-- Footer meta -->
-        <div class="flex flex-wrap gap-4 text-xs text-gray-600">
-            {% if financial.get('tax_system') %}
-            <span>Налоговый режим: <span class="text-gray-400">{{ financial.tax_system }}</span></span>
-            {% endif %}
-            {% if financial.get('debts_fmt') %}
-            <span class="text-red-400">Налоговый долг: {{ financial.debts_fmt }}</span>
-            {% endif %}
-            <span>Данные за {{ financial.year }} год · {{ financial.get('source', 'ФНС') }}</span>
-        </div>
-
-        {% elif financial and financial.get('blocked') %}
-        <div class="flex flex-col items-center gap-3 py-8">
-            <div style="font-size:2rem;opacity:0.35;">📊</div>
-            <div class="text-sm font-semibold" style="color:rgba(245,158,11,0.7);">Финансовые показатели — в разработке</div>
-            <div class="text-xs text-center max-w-xs" style="color:rgba(232,224,212,0.35); line-height:1.6;">
-                Данные бухгалтерской отчётности (выручка, прибыль, активы за 3 года)
-                будут доступны после подключения платного плана DataNewton API.
-            </div>
-            <div class="text-xs mt-1" style="color:rgba(232,224,212,0.2);">Источник: datanewton.ru · Требуется оплата тарифа</div>
-        </div>
-
-        {% elif financial and financial.get('no_key') %}
-        <div class="empty-state" style="color:rgba(245,158,11,0.5);">DADATA_API_KEY не настроен</div>
-        <div class="text-xs text-center mt-1" style="color:rgba(232,224,212,0.2);">
-            Зарегистрируйтесь на dadata.ru и добавьте DADATA_API_KEY в .env
-        </div>
-
-        {% elif financial and financial.get('unavailable') %}
-        <div class="empty-state" style="color:rgba(245,158,11,0.5);">Финансовые данные недоступны</div>
-
-        {% else %}
-        <div class="empty-state">Финансовые данные не найдены</div>
         {% endif %}
     </div>
 
@@ -1031,25 +864,7 @@
         {% endif %}
     </div>
 
-    <!-- ── DataNewton Risks ── -->
-    <div id="risks" class="dossier-card">
-        <div class="section-header">
-            <div class="section-title">Факторы риска</div>
-            <span class="text-xs text-gray-600">DataNewton</span>
-        </div>
-        {% if risks and risks.get('found') and risks.get('risks') %}
-        {% for r in risks.risks %}
-        <div class="flag-item flag-{{ r.get('severity', 'medium') }}">
-            <span>{% if r.get('severity') == 'critical' %}⛔{% elif r.get('severity') == 'high' %}🔴{% elif r.get('severity') == 'medium' %}🟡{% else %}🔵{% endif %}</span>
-            <span>{{ r.get('description') or r.get('text') or r }}</span>
-        </div>
-        {% endfor %}
-        {% elif risks and risks.get('found') %}
-        <div class="empty-state good">Факторов риска не обнаружено</div>
-        {% else %}
-        <div class="empty-state">Данные недоступны</div>
-        {% endif %}
-    </div>
+    <!-- #risks removed — coming soon block at bottom -->
 
     <!-- ── Tax Info ── -->
     <div id="tax-info" class="dossier-card">
@@ -1216,6 +1031,40 @@
         {% endfor %}
     </div>
     {% endif %}
+
+    <!-- ── Coming Soon ── -->
+    <div class="mt-6 mb-2">
+        <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(232,224,212,0.18);">В разработке</div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+
+        <!-- Финансовые показатели -->
+        <div style="background:var(--bg-panel);border:1px dashed rgba(232,224,212,0.12);padding:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <span style="font-size:0.8125rem;font-weight:600;color:rgba(232,224,212,0.35);text-transform:uppercase;letter-spacing:.04em;">Финансовые показатели</span>
+                <span style="font-size:0.6875rem;background:rgba(245,158,11,0.12);color:rgba(245,158,11,0.6);padding:2px 8px;border:1px solid rgba(245,158,11,0.2);">Скоро</span>
+            </div>
+            <div style="color:rgba(232,224,212,0.22);font-size:0.75rem;line-height:1.7;">
+                Выручка · Чистая прибыль · Активы<br>
+                Отчёт за 3 года (БФО / Росстат)<br>
+                <span style="color:rgba(232,224,212,0.14);font-size:0.7rem;">Источник: DataNewton — требуется платный план</span>
+            </div>
+        </div>
+
+        <!-- Факторы риска -->
+        <div style="background:var(--bg-panel);border:1px dashed rgba(232,224,212,0.12);padding:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <span style="font-size:0.8125rem;font-weight:600;color:rgba(232,224,212,0.35);text-transform:uppercase;letter-spacing:.04em;">Факторы риска</span>
+                <span style="font-size:0.6875rem;background:rgba(245,158,11,0.12);color:rgba(245,158,11,0.6);padding:2px 8px;border:1px solid rgba(245,158,11,0.2);">Скоро</span>
+            </div>
+            <div style="color:rgba(232,224,212,0.22);font-size:0.75rem;line-height:1.7;">
+                Агрегированные факторы риска<br>
+                Классификация по уровням (критический / высокий / средний)<br>
+                <span style="color:rgba(232,224,212,0.14);font-size:0.7rem;">Источник: DataNewton — требуется платный план</span>
+            </div>
+        </div>
+
+    </div>
 
     <!-- ── Footer ── -->
     <div class="mt-6 flex items-center justify-between gap-4 flex-wrap text-xs text-gray-600">
