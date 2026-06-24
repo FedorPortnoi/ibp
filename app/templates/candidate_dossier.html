@@ -411,7 +411,8 @@
                 <span class="badge {% if fssp_records %}badge-count{% else %}badge-empty{% endif %}">{{ fssp_records|length if fssp_records else '—' }}</span>
             </a>
             <a href="#sec-bankruptcy" class="nav-pill">&#x1F3E6; Банкротство
-                <span class="badge {% if bankruptcy_records %}badge-count{% else %}badge-empty{% endif %}">{{ bankruptcy_records|length if bankruptcy_records else '—' }}</span>
+                {% set _bk_real_count = (bankruptcy_records or []) | rejectattr('source', 'equalto', 'manual') | list | length %}
+                <span class="badge {% if _bk_real_count %}badge-count{% else %}badge-empty{% endif %}">{{ _bk_real_count if _bk_real_count else '—' }}</span>
             </a>
             <a href="#sec-pledges" class="nav-pill">&#x1F4CB; Залоги
                 <span class="badge {% if pledge_records %}badge-count{% else %}badge-empty{% endif %}">{{ pledge_records|length if pledge_records else '—' }}</span>
@@ -1020,16 +1021,11 @@
        7. BANKRUPTCY SECTION (moved here — below sanctions)
        ================================================================ #}
     {% set _real_bk = (bankruptcy_records or []) | rejectattr('source', 'equalto', 'manual') | list %}
-    {% set _coming_soon_bk = (bankruptcy_records or []) | selectattr('source', 'equalto', 'manual') | list %}
     <section id="sec-bankruptcy" class="mb-10">
         <div class="section-header">
             <h2>&#x1F3E6; Банкротство (ЕФРСБ)</h2>
-            {% if _real_bk %}
-                <span class="section-count">{{ _real_bk|length }} записей</span>
-            {% elif bankruptcy_records is none %}
-            {% else %}
-                <span class="section-count">—</span>
-            {% endif %}
+            {% if _real_bk %}<span class="section-count">{{ _real_bk|length }} записей</span>
+            {% elif bankruptcy_records %}<span class="section-count">—</span>{% endif %}
         </div>
 
         {% if bankruptcy_records is none %}
@@ -1061,7 +1057,7 @@
                 {% endif %}
             </div>
             {% endfor %}
-        {% elif _coming_soon_bk %}
+        {% elif bankruptcy_records %}
             <div style="background:var(--bg-panel);border:1px dashed rgba(232,224,212,0.12);padding:20px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
                     <span style="font-size:0.8125rem;font-weight:600;color:rgba(232,224,212,0.35);text-transform:uppercase;letter-spacing:.04em;">ЕФРСБ — Банкротство</span>

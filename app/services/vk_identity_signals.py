@@ -228,8 +228,9 @@ def count_signals(
     """
     Count identity confirmation signals for a VK profile dict.
 
-    Returns (count, signal_names).  Signals 1-4 checked here (Signal 4 phone
-    added later in Stage 4 via DaData).
+    Returns (count, signal_names).
+    Checks: dob (exact) | birth_year (from age) | inn_region | career.
+    Signal 4 (phone region via DaData) is added later in Stage 4.
     """
     signals: list[str] = []
     region = _get_inn_region(inn)
