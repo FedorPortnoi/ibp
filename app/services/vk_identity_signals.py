@@ -15,6 +15,7 @@ Threshold: 3+ signals → profile is "Подтверждён"; otherwise it is d
 """
 
 from __future__ import annotations
+import datetime
 import logging
 import re
 from typing import Optional
@@ -205,6 +206,18 @@ def _career_matches_business(
     return False
 
 
+def _birth_year_matches(profile: dict, date_of_birth) -> bool:
+    """True if the VK profile's age implies the same birth year as target DOB."""
+    if date_of_birth is None:
+        return False
+    age = profile.get('age')
+    if age is None:
+        return False
+    current_year = datetime.date.today().year
+    # VK age = floor(years since last birthday), so birth year is one of two values
+    return date_of_birth.year in (current_year - age, current_year - age - 1)
+
+
 def count_signals(
     profile: dict,
     inn: Optional[str],
@@ -215,13 +228,17 @@ def count_signals(
     """
     Count identity confirmation signals for a VK profile dict.
 
-    Returns (count, signal_names).  Signals 1-3 only (Signal 4 added later).
+    Returns (count, signal_names).  Signals 1-4 checked here (Signal 4 phone
+    added later in Stage 4 via DaData).
     """
     signals: list[str] = []
     region = _get_inn_region(inn)
 
     if _dob_matches(profile.get('birth_date'), date_of_birth):
         signals.append('dob')
+    elif _birth_year_matches(profile, date_of_birth):
+        # Weaker than exact DOB but still meaningful — VK age implies correct birth year
+        signals.append('birth_year')
 
     if region and _city_in_region(
         profile.get('city') or profile.get('home_town'), region

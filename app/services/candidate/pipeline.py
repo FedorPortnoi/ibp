@@ -1496,12 +1496,22 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             date_of_birth=check.date_of_birth,
                             egrul_names=_egrul_names,
                         )
+                        # Threshold scales with name similarity:
+                        # 100% exact match → 1 signal (uncommon Russian name + age already narrows)
+                        # 80–99% →  2 signals
+                        # <80%   →  3 signals
+                        if sim >= 100:
+                            _threshold = 1
+                        elif sim >= 80:
+                            _threshold = 2
+                        else:
+                            _threshold = 3
                         logger.info(
                             f"  VK signal check: id{d.get('vk_id')} {d.get('full_name')!r} "
-                            f"sim={sim:.0f}% signals={sig_count} {sig_list}"
+                            f"sim={sim:.0f}% signals={sig_count} {sig_list} threshold={_threshold}"
                         )
 
-                        if sig_count >= 3:
+                        if sig_count >= _threshold:
                             entry = {
                                 'platform': 'vk',
                                 'platform_id': d.get('vk_id'),
