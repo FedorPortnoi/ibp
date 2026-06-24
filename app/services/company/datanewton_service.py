@@ -249,3 +249,281 @@ def lookup_financials(inn: str, years: int = 3) -> List[Dict]:
     history.sort(key=lambda x: x.get('year') or 0, reverse=True)
     logger.info('DataNewton financials: INN %s → %d years', inn, len(history))
     return history
+
+
+# ── Arbitration court cases ───────────────────────────────────────────────────
+
+def lookup_arbitration_cases(inn: str, limit: int = 50) -> List[Dict]:
+    """Get arbitration court cases (kad.arbitr.ru data) for a company."""
+    data, err = _get('v1/arbitration-cases', {'inn': inn, 'limit': limit})
+    if err:
+        logger.info('DataNewton arbitration: %s for INN %s', err, inn)
+        return []
+    items = data if isinstance(data, list) else (
+        data.get('results') or data.get('data') or data.get('cases') or []
+    )
+    cases = []
+    for item in items:
+        subject = item.get('subject') or item.get('description') or item.get('category') or ''
+        case_type = 'банкротное' if 'банкрот' in subject.lower() else 'арбитражное'
+        cases.append({
+            'case_number': item.get('case_number') or item.get('caseNumber') or item.get('number') or '',
+            'court_name':  item.get('court_name') or item.get('courtName') or item.get('court') or '',
+            'case_type':   case_type,
+            'date':        item.get('date') or item.get('start_date') or item.get('registration_date') or '',
+            'role':        item.get('role') or '',
+            'subject':     subject,
+            'result':      item.get('result') or item.get('status') or '',
+            'url':         item.get('url') or item.get('link') or '',
+            'source':      'datanewton (арбитраж)',
+        })
+    logger.info('DataNewton arbitration: INN %s → %d cases', inn, len(cases))
+    return cases
+
+
+# ── General jurisdiction court cases ─────────────────────────────────────────
+
+def lookup_court_cases(inn: str, limit: int = 50) -> List[Dict]:
+    """Get general jurisdiction court cases (СОЮ) for a company."""
+    data, err = _get('v1/courtCases', {'inn': inn, 'limit': limit})
+    if err:
+        logger.info('DataNewton courtCases: %s for INN %s', err, inn)
+        return []
+    items = data if isinstance(data, list) else (
+        data.get('results') or data.get('data') or data.get('cases') or []
+    )
+    cases = []
+    for item in items:
+        cases.append({
+            'case_number': item.get('case_number') or item.get('caseNumber') or item.get('number') or '',
+            'court_name':  item.get('court_name') or item.get('courtName') or item.get('court') or '',
+            'case_type':   item.get('case_type') or item.get('category') or 'гражданское',
+            'date':        item.get('date') or item.get('start_date') or item.get('registration_date') or '',
+            'role':        item.get('role') or '',
+            'subject':     item.get('subject') or item.get('description') or '',
+            'result':      item.get('result') or item.get('status') or '',
+            'url':         item.get('url') or item.get('link') or '',
+            'source':      'datanewton (СОЮ)',
+        })
+    logger.info('DataNewton courtCases: INN %s → %d cases', inn, len(cases))
+    return cases
+
+
+# ── Risk flags ────────────────────────────────────────────────────────────────
+
+def lookup_risks(inn: str) -> Dict:
+    """Get pre-computed risk flags: shell company signs, negative info, bankruptcy signals."""
+    empty = {'found': False, 'unavailable': False, 'risks': [], 'source': 'datanewton'}
+    data, err = _get('v1/risks', {'inn': inn})
+    if err:
+        return {**empty, 'unavailable': True}
+    items = data if isinstance(data, list) else (
+        data.get('risks') or data.get('data') or data.get('results') or []
+    )
+    if not items:
+        return empty
+    risks = []
+    for item in items:
+        risks.append({
+            'code':     item.get('code') or '',
+            'name':     item.get('name') or item.get('title') or item.get('description') or '',
+            'severity': item.get('severity') or item.get('level') or 'medium',
+        })
+    logger.info('DataNewton risks: INN %s → %d risks', inn, len(risks))
+    return {'found': True, 'unavailable': False, 'risks': risks, 'source': 'datanewton'}
+
+
+# ── Tax info (debts, violations, fines) ──────────────────────────────────────
+
+def lookup_tax_info(inn: str) -> Dict:
+    """Get tax debts, violations, and fines from FNS via DataNewton."""
+    empty = {
+        'found': False, 'unavailable': False,
+        'tax_debt': None, 'tax_debt_fmt': '',
+        'violations': [], 'fines': [],
+        'source': 'datanewton (ФНС)',
+    }
+    data, err = _get('v1/taxInfo', {'inn': inn})
+    if err:
+        return {**empty, 'unavailable': True}
+    if not data:
+        return empty
+    from app.services.shared.money_utils import fmt_rub
+    payload = data if isinstance(data, dict) else (data[0] if data else {})
+    debt = payload.get('tax_debt') or payload.get('debt') or payload.get('sum') or None
+    violations = payload.get('violations') or []
+    fines = payload.get('fines') or payload.get('penalties') or []
+    found = bool(debt or violations or fines)
+    if not found:
+        return empty
+    logger.info('DataNewton taxInfo: INN %s → debt=%s violations=%d', inn, debt, len(violations))
+    return {
+        'found': found,
+        'unavailable': False,
+        'tax_debt': debt,
+        'tax_debt_fmt': fmt_rub(debt) if debt else '',
+        'violations': violations,
+        'fines': fines,
+        'source': 'datanewton (ФНС)',
+    }
+
+
+# ── Blocked bank accounts ─────────────────────────────────────────────────────
+
+def lookup_blocked_accounts(inn: str) -> Dict:
+    """Get FNS bank account suspension decisions."""
+    empty = {'found': False, 'unavailable': False, 'blocks': [], 'source': 'datanewton (ФНС)'}
+    data, err = _get('v1/blockedBankAccounts', {'inn': inn})
+    if err:
+        return {**empty, 'unavailable': True}
+    items = data if isinstance(data, list) else (data.get('results') or data.get('data') or [])
+    if not items:
+        return empty
+    blocks = []
+    for item in items:
+        blocks.append({
+            'date':    item.get('date') or item.get('decision_date') or '',
+            'bank':    item.get('bank') or item.get('bank_name') or '',
+            'account': item.get('account') or item.get('account_number') or '',
+            'reason':  item.get('reason') or item.get('description') or '',
+            'amount':  item.get('amount') or None,
+        })
+    logger.info('DataNewton blocked accounts: INN %s → %d blocks', inn, len(blocks))
+    return {'found': True, 'unavailable': False, 'blocks': blocks, 'source': 'datanewton (ФНС)'}
+
+
+# ── Government inspections ────────────────────────────────────────────────────
+
+def lookup_inspections(inn: str) -> Dict:
+    """Get government inspection records for a company."""
+    empty = {'found': False, 'unavailable': False, 'inspections': [], 'total': 0, 'source': 'datanewton'}
+    data, err = _get('v1/inspections', {'inn': inn})
+    if err:
+        return {**empty, 'unavailable': True}
+    items = data if isinstance(data, list) else (
+        data.get('results') or data.get('data') or data.get('inspections') or []
+    )
+    if not items:
+        return empty
+    inspections = []
+    for item in items[:20]:
+        inspections.append({
+            'date':       item.get('date') or item.get('start_date') or '',
+            'end_date':   item.get('end_date') or '',
+            'authority':  item.get('authority') or item.get('inspector') or item.get('organ') or '',
+            'result':     item.get('result') or item.get('status') or '',
+            'violations': item.get('violations') or item.get('violations_count') or 0,
+        })
+    logger.info('DataNewton inspections: INN %s → %d', inn, len(items))
+    return {'found': True, 'unavailable': False, 'inspections': inspections, 'total': len(items), 'source': 'datanewton'}
+
+
+# ── Government contracts ──────────────────────────────────────────────────────
+
+def lookup_gov_contracts(inn: str) -> Dict:
+    """Get government contracts for a company from DataNewton (ЕИС)."""
+    empty = {
+        'found': False, 'unavailable': False,
+        'contracts': [], 'total_count': 0,
+        'total_amount': None, 'total_amount_fmt': '',
+        'source': 'datanewton (ЕИС)',
+    }
+    data, err = _get('v1/governmentContracts', {'inn': inn, 'limit': 10})
+    if err:
+        return {**empty, 'unavailable': True}
+    items = data if isinstance(data, list) else (
+        data.get('results') or data.get('data') or data.get('contracts') or []
+    )
+    if not items:
+        return empty
+    from app.services.shared.money_utils import fmt_rub
+    total_amount = 0.0
+    contracts = []
+    for item in items[:10]:
+        amount = item.get('price') or item.get('amount') or item.get('sum') or 0
+        try:
+            total_amount += float(amount)
+        except (TypeError, ValueError):
+            pass
+        contracts.append({
+            'number':   item.get('number') or item.get('contract_number') or item.get('reg_number') or '',
+            'subject':  item.get('subject') or item.get('name') or item.get('description') or '',
+            'amount':   amount,
+            'date':     item.get('date') or item.get('conclusion_date') or item.get('sign_date') or '',
+            'customer': item.get('customer') or item.get('customer_name') or '',
+            'url':      item.get('url') or item.get('link') or '',
+        })
+    logger.info('DataNewton gov contracts: INN %s → %d contracts', inn, len(items))
+    return {
+        'found': True, 'unavailable': False,
+        'contracts': contracts,
+        'total_count': len(items),
+        'total_amount': total_amount,
+        'total_amount_fmt': fmt_rub(total_amount) if total_amount else '',
+        'source': 'datanewton (ЕИС)',
+    }
+
+
+# ── Bankruptcy ────────────────────────────────────────────────────────────────
+
+def lookup_bankruptcy(inn: str) -> Dict:
+    """Get bankruptcy signs and procedure stage from DataNewton (ЕФРСБ)."""
+    empty = {'found': False, 'unavailable': False, 'active': False, 'stage': '', 'source': 'datanewton (ЕФРСБ)'}
+    data, err = _get('v1/bankruptcy', {'inn': inn})
+    if err:
+        return {**empty, 'unavailable': True}
+    if not data:
+        return empty
+    payload = data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data else {})
+    if not payload:
+        return empty
+    stage = payload.get('stage') or payload.get('status') or payload.get('procedure') or ''
+    active = bool(
+        payload.get('active') or payload.get('is_active') or
+        (stage and 'завершен' not in stage.lower() and 'прекращ' not in stage.lower())
+    )
+    if not stage and not active:
+        return empty
+    logger.info('DataNewton bankruptcy: INN %s → active=%s stage=%s', inn, active, stage)
+    return {'found': True, 'unavailable': False, 'active': active, 'stage': stage, 'source': 'datanewton (ЕФРСБ)'}
+
+
+# ── FSSP enforcement ──────────────────────────────────────────────────────────
+
+def lookup_fssp_company(inn: str) -> Dict:
+    """Get FSSP enforcement proceedings for a legal entity via DataNewton."""
+    empty = {
+        'found': False, 'unavailable': False,
+        'proceedings': [], 'active_count': 0, 'total_count': 0,
+        'source': 'datanewton (ФССП)',
+    }
+    data, err = _get('v1/fssp', {'inn': inn})
+    if err:
+        return {**empty, 'unavailable': True}
+    items = data if isinstance(data, list) else (data.get('results') or data.get('data') or [])
+    if not items:
+        return empty
+    proceedings = []
+    active_count = 0
+    for item in items:
+        is_active = not item.get('end_date') and not item.get('stop_date')
+        if is_active:
+            active_count += 1
+        proceedings.append({
+            'number':     item.get('number') or item.get('id') or '',
+            'subject':    item.get('subject') or item.get('description') or '',
+            'amount':     item.get('amount') or item.get('sum') or 0,
+            'department': item.get('department') or item.get('bailiff_dept') or '',
+            'start_date': item.get('start_date') or item.get('date') or '',
+            'end_date':   item.get('end_date') or item.get('stop_date') or '',
+            'end_reason': item.get('end_reason') or item.get('stop_reason') or '',
+            'is_active':  is_active,
+        })
+    logger.info('DataNewton FSSP: INN %s → %d proceedings (%d active)', inn, len(proceedings), active_count)
+    return {
+        'found': True, 'unavailable': False,
+        'proceedings': proceedings,
+        'active_count': active_count,
+        'total_count': len(proceedings),
+        'source': 'datanewton (ФССП)',
+    }

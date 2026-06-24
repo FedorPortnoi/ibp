@@ -42,6 +42,10 @@ class CompanyCheck(db.Model):
     _risk_flags = db.Column('risk_flags', db.Text, default='[]')
     _adverse_media = db.Column('adverse_media', db.Text, nullable=True)
     _fssp_data = db.Column('fssp_data', db.Text, nullable=True)
+    _risks_data = db.Column('risks_data', db.Text, nullable=True)
+    _tax_info_data = db.Column('tax_info_data', db.Text, nullable=True)
+    _blocked_accounts_data = db.Column('blocked_accounts_data', db.Text, nullable=True)
+    _inspections_data = db.Column('inspections_data', db.Text, nullable=True)
     ai_summary = db.Column(db.Text, nullable=True)
 
     # ── Risk ──
@@ -174,6 +178,38 @@ class CompanyCheck(db.Model):
     @fssp_data.setter
     def fssp_data(self, value):
         self._fssp_data = self._dump(value)
+
+    @property
+    def risks_data(self):
+        return self._load(self._risks_data, {'found': False, 'risks': []})
+
+    @risks_data.setter
+    def risks_data(self, value):
+        self._risks_data = self._dump(value)
+
+    @property
+    def tax_info_data(self):
+        return self._load(self._tax_info_data, {'found': False})
+
+    @tax_info_data.setter
+    def tax_info_data(self, value):
+        self._tax_info_data = self._dump(value)
+
+    @property
+    def blocked_accounts_data(self):
+        return self._load(self._blocked_accounts_data, {'found': False, 'blocks': []})
+
+    @blocked_accounts_data.setter
+    def blocked_accounts_data(self, value):
+        self._blocked_accounts_data = self._dump(value)
+
+    @property
+    def inspections_data(self):
+        return self._load(self._inspections_data, {'found': False, 'inspections': []})
+
+    @inspections_data.setter
+    def inspections_data(self, value):
+        self._inspections_data = self._dump(value)
 
     @property
     def task_log(self):

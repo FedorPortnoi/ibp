@@ -95,26 +95,22 @@ def _run_financial(inn: str, query_name: str, egrul: dict) -> dict:
 
 
 def _run_gov_contracts(inn: str, query_name: str, egrul: dict) -> dict:
-    """Stage 2d — search ЕИС Закупки for government contracts. Plain values only."""
-    from app.services.company.gov_contracts_service import GovContractsService
-    company_name = egrul.get('short_name') or egrul.get('name') or query_name or ''
+    """Stage 2d — government contracts via DataNewton (ЕИС data)."""
     try:
-        svc = GovContractsService(timeout=20)
-        return svc.lookup(inn=inn, company_name=company_name)
+        from app.services.company.datanewton_service import lookup_gov_contracts
+        return lookup_gov_contracts(inn)
     except Exception as exc:
-        logger.warning("[%s] ЕИС Закупки failed: %s", inn, exc)
+        logger.warning("[%s] Gov contracts failed: %s", inn, exc)
         return {'found': False, 'unavailable': True}
 
 
 def _run_bankruptcy(inn: str, query_name: str, egrul: dict) -> dict:
-    """Stage 2c — check ЕФРСБ bankruptcy registry. Plain values only."""
-    from app.services.company.fedresurs_service import FedresursService
-    company_name = egrul.get('short_name') or egrul.get('name') or query_name or ''
+    """Stage 2c — check bankruptcy via DataNewton (ЕФРСБ data)."""
     try:
-        svc = FedresursService(timeout=20)
-        return svc.lookup(inn=inn, company_name=company_name)
+        from app.services.company.datanewton_service import lookup_bankruptcy
+        return lookup_bankruptcy(inn)
     except Exception as exc:
-        logger.warning("[%s] ЕФРСБ failed: %s", inn, exc)
+        logger.warning("[%s] Bankruptcy failed: %s", inn, exc)
         return {'found': False}
 
 
@@ -130,60 +126,56 @@ def _run_rnp(inn: str) -> dict:
 
 
 def _run_fssp_company(inn: str, egrul: dict) -> dict:
-    """Stage 2g — FSSP enforcement proceedings for legal entity by INN.
-
-    Primary: parser-api.com search_ur_by_inn.
-    Fallback: DataNewton enforcement endpoint.
-    """
+    """Stage 2g — FSSP enforcement proceedings via DataNewton."""
     empty = {'found': False, 'unavailable': False, 'proceedings': [], 'active_count': 0, 'total_count': 0, 'source': ''}
-
     if not inn:
         return empty
-
-    # Primary: parser-api.com
     try:
-        from app.services import parser_api
-        if parser_api.is_available():
-            raw, status = parser_api.fssp_search_ur(inn)
-            if status in ('ok', 'empty'):
-                proceedings = []
-                for item in (raw or []):
-                    stop_date = item.get('stop_date') or ''
-                    is_active = not stop_date
-                    proceedings.append({
-                        'number': item.get('process_title') or item.get('document_num') or '',
-                        'subject': (item.get('subjects') or [{}])[0].get('title', '') if item.get('subjects') else item.get('process_title', ''),
-                        'amount': _parse_fssp_amount(item),
-                        'department': item.get('department_title') or '',
-                        'start_date': item.get('start_date') or '',
-                        'end_date': stop_date,
-                        'end_reason': item.get('stop_reason') or '',
-                        'is_active': is_active,
-                    })
-                active = sum(1 for p in proceedings if p['is_active'])
-                return {
-                    'found': bool(proceedings),
-                    'unavailable': False,
-                    'proceedings': proceedings,
-                    'active_count': active,
-                    'total_count': len(proceedings),
-                    'source': 'parser-api.com',
-                }
-            if status not in ('not_configured', 'timeout', 'error'):
-                return {**empty, 'unavailable': True, 'source': 'parser-api.com'}
+        from app.services.company.datanewton_service import lookup_fssp_company
+        return lookup_fssp_company(inn)
     except Exception as exc:
-        logger.warning("[%s] FSSP (parser-api) failed: %s", inn, exc)
+        logger.warning("[%s] FSSP failed: %s", inn, exc)
+        return {**empty, 'unavailable': True}
 
-    # Fallback: DataNewton
+
+def _run_risks(inn: str) -> dict:
+    """Stage 2j — DataNewton pre-computed risk flags."""
     try:
-        from app.services.company.datanewton_service import lookup_fssp
-        result = lookup_fssp(inn)
-        if not result.get('unavailable'):
-            return result
+        from app.services.company.datanewton_service import lookup_risks
+        return lookup_risks(inn)
     except Exception as exc:
-        logger.warning("[%s] FSSP (DataNewton) failed: %s", inn, exc)
+        logger.warning("[%s] Risks failed: %s", inn, exc)
+        return {'found': False, 'risks': []}
 
-    return {**empty, 'unavailable': True}
+
+def _run_tax_info(inn: str) -> dict:
+    """Stage 2k — DataNewton tax debts and violations."""
+    try:
+        from app.services.company.datanewton_service import lookup_tax_info
+        return lookup_tax_info(inn)
+    except Exception as exc:
+        logger.warning("[%s] Tax info failed: %s", inn, exc)
+        return {'found': False}
+
+
+def _run_blocked_accounts(inn: str) -> dict:
+    """Stage 2l — DataNewton FNS blocked bank accounts."""
+    try:
+        from app.services.company.datanewton_service import lookup_blocked_accounts
+        return lookup_blocked_accounts(inn)
+    except Exception as exc:
+        logger.warning("[%s] Blocked accounts failed: %s", inn, exc)
+        return {'found': False, 'blocks': []}
+
+
+def _run_inspections(inn: str) -> dict:
+    """Stage 2m — DataNewton government inspections."""
+    try:
+        from app.services.company.datanewton_service import lookup_inspections
+        return lookup_inspections(inn)
+    except Exception as exc:
+        logger.warning("[%s] Inspections failed: %s", inn, exc)
+        return {'found': False, 'inspections': []}
 
 
 def _parse_fssp_amount(item: dict):
@@ -235,17 +227,6 @@ def _run_adverse_media_company(company_name: str, inn: str, egrul: dict) -> dict
         return empty
 
 
-def _run_playwright_financials(inn: str) -> list:
-    """Stage 2i — Playwright bo.nalog.ru financial scraper for multi-year history."""
-    try:
-        from app.services.company.playwright_financial_service import PlaywrightFinancialService
-        svc = PlaywrightFinancialService(timeout_sec=45)
-        result = svc.lookup(inn)
-        return result.get('history') or []
-    except Exception as exc:
-        logger.warning("[%s] Playwright financials failed: %s", inn, exc)
-        return []
-
 
 def _run_sanctions(inn: str, query_name: str, egrul: dict) -> dict:
     """
@@ -273,7 +254,7 @@ def _run_sanctions(inn: str, query_name: str, egrul: dict) -> dict:
         return {**empty, 'unavailable': True}
 
 
-def _score_risk(egrul: dict, courts: list, sanctions: list, bankruptcy: dict, financial: dict = None, rnp: dict = None, fssp: dict = None) -> tuple:
+def _score_risk(egrul: dict, courts: list, sanctions: list, bankruptcy: dict, financial: dict = None, rnp: dict = None, fssp: dict = None, risks: dict = None, tax_info: dict = None, blocked_accounts: dict = None) -> tuple:
     """
     Risk scoring for companies.
 
@@ -376,6 +357,39 @@ def _score_risk(egrul: dict, courts: list, sanctions: list, bankruptcy: dict, fi
                 'text': f'ФССП: {total} завершённых исполнительных производств',
             })
 
+    # DataNewton pre-computed risk flags
+    if risks and risks.get('found'):
+        for risk in risks.get('risks', []):
+            sev = risk.get('severity', 'medium')
+            pts = {'critical': 30, 'high': 20, 'medium': 10, 'low': 5}.get(sev, 10)
+            score += pts
+            flags.append({'severity': sev, 'text': risk.get('name', '')})
+
+    # Tax debts and violations
+    if tax_info and tax_info.get('found'):
+        debt = tax_info.get('tax_debt')
+        if debt and float(debt) > 0:
+            score += 25
+            flags.append({
+                'severity': 'high',
+                'text': f'Налоговая задолженность (ФНС): {tax_info.get("tax_debt_fmt", "")}',
+            })
+        if tax_info.get('violations'):
+            score += 15
+            flags.append({
+                'severity': 'high',
+                'text': f'Налоговые нарушения: {len(tax_info["violations"])}',
+            })
+
+    # Blocked bank accounts
+    if blocked_accounts and blocked_accounts.get('found'):
+        n = len(blocked_accounts.get('blocks', []))
+        score += min(n * 15, 40)
+        flags.append({
+            'severity': 'critical',
+            'text': f'ФНС: заблокированы банковские счета ({n})',
+        })
+
     score = min(score, 100)
 
     if score <= 20:
@@ -441,17 +455,20 @@ def run_company_pipeline(check_id: str, app) -> None:
             _query_name = check.query_name or ''
             _company_name = check.company_name or egrul.get('short_name') or egrul.get('name') or _query_name or ''
 
-            executor = ThreadPoolExecutor(max_workers=9, thread_name_prefix='co_pipeline')
+            executor = ThreadPoolExecutor(max_workers=13, thread_name_prefix='co_pipeline')
             try:
-                court_future        = executor.submit(_run_courts,               _inn, _query_name, egrul)
-                sanctions_future    = executor.submit(_run_sanctions,            _inn, _query_name, egrul)
-                bankruptcy_future   = executor.submit(_run_bankruptcy,           _inn, _query_name, egrul)
-                contracts_future    = executor.submit(_run_gov_contracts,        _inn, _query_name, egrul)
-                financial_future    = executor.submit(_run_financial,            _inn, _query_name, egrul)
-                rnp_future          = executor.submit(_run_rnp,                  _inn)
-                fssp_future         = executor.submit(_run_fssp_company,         _inn, egrul)
-                adverse_future      = executor.submit(_run_adverse_media_company, _company_name, _inn, egrul)
-                playwright_future   = executor.submit(_run_playwright_financials, _inn)
+                court_future           = executor.submit(_run_courts,               _inn, _query_name, egrul)
+                sanctions_future       = executor.submit(_run_sanctions,            _inn, _query_name, egrul)
+                bankruptcy_future      = executor.submit(_run_bankruptcy,           _inn, _query_name, egrul)
+                contracts_future       = executor.submit(_run_gov_contracts,        _inn, _query_name, egrul)
+                financial_future       = executor.submit(_run_financial,            _inn, _query_name, egrul)
+                rnp_future             = executor.submit(_run_rnp,                  _inn)
+                fssp_future            = executor.submit(_run_fssp_company,         _inn, egrul)
+                adverse_future         = executor.submit(_run_adverse_media_company, _company_name, _inn, egrul)
+                risks_future           = executor.submit(_run_risks,                _inn)
+                tax_info_future        = executor.submit(_run_tax_info,             _inn)
+                blocked_future         = executor.submit(_run_blocked_accounts,     _inn)
+                inspections_future     = executor.submit(_run_inspections,          _inn)
 
                 courts = []
                 sanctions_wrap = {'results': [], 'no_key': False, 'unavailable': False}
@@ -465,10 +482,13 @@ def run_company_pipeline(check_id: str, app) -> None:
                 rnp = {'found': False, 'unavailable': False}
                 fssp = {'found': False, 'unavailable': False, 'proceedings': [], 'active_count': 0, 'total_count': 0}
                 adverse_media = {'hits': [], 'status': 'unavailable', 'hit_count': 0}
-                playwright_history = []
+                risks = {'found': False, 'risks': []}
+                tax_info = {'found': False}
+                blocked_accounts = {'found': False, 'blocks': []}
+                inspections = {'found': False, 'inspections': []}
 
                 try:
-                    courts = court_future.result(timeout=65)
+                    courts = court_future.result(timeout=30)
                 except Exception as exc:
                     logger.warning("[%s] Courts future failed: %s", check.inn, exc)
 
@@ -478,28 +498,27 @@ def run_company_pipeline(check_id: str, app) -> None:
                     logger.warning("[%s] Sanctions future failed: %s", check.inn, exc)
 
                 try:
-                    bankruptcy = bankruptcy_future.result(timeout=25)
+                    bankruptcy = bankruptcy_future.result(timeout=20)
                 except Exception as exc:
                     logger.warning("[%s] Bankruptcy future failed: %s", check.inn, exc)
 
                 try:
-                    gov_contracts = contracts_future.result(timeout=25)
+                    gov_contracts = contracts_future.result(timeout=20)
                 except Exception as exc:
                     logger.warning("[%s] Gov contracts future failed: %s", check.inn, exc)
 
                 try:
-                    # 55s: allows Playwright 45s geo-block timeout + margin
-                    financial = financial_future.result(timeout=55)
+                    financial = financial_future.result(timeout=30)
                 except Exception as exc:
                     logger.warning("[%s] Financial future failed: %s", check.inn, exc)
 
                 try:
-                    rnp = rnp_future.result(timeout=25)
+                    rnp = rnp_future.result(timeout=20)
                 except Exception as exc:
                     logger.warning("[%s] РНП future failed: %s", check.inn, exc)
 
                 try:
-                    fssp = fssp_future.result(timeout=30)
+                    fssp = fssp_future.result(timeout=20)
                 except Exception as exc:
                     logger.warning("[%s] FSSP future failed: %s", check.inn, exc)
 
@@ -509,25 +528,27 @@ def run_company_pipeline(check_id: str, app) -> None:
                     logger.warning("[%s] Adverse media future failed: %s", check.inn, exc)
 
                 try:
-                    playwright_history = playwright_future.result(timeout=60)
+                    risks = risks_future.result(timeout=20)
                 except Exception as exc:
-                    logger.warning("[%s] Playwright financials future failed: %s", check.inn, exc)
+                    logger.warning("[%s] Risks future failed: %s", check.inn, exc)
+
+                try:
+                    tax_info = tax_info_future.result(timeout=20)
+                except Exception as exc:
+                    logger.warning("[%s] Tax info future failed: %s", check.inn, exc)
+
+                try:
+                    blocked_accounts = blocked_future.result(timeout=20)
+                except Exception as exc:
+                    logger.warning("[%s] Blocked accounts future failed: %s", check.inn, exc)
+
+                try:
+                    inspections = inspections_future.result(timeout=20)
+                except Exception as exc:
+                    logger.warning("[%s] Inspections future failed: %s", check.inn, exc)
 
             finally:
                 executor.shutdown(wait=False, cancel_futures=True)
-
-            # ── Merge multi-year financial history ─────────────────────────
-            # dadata returns 1 year; Playwright/bo.nalog.ru returns 2-4 years.
-            # If dadata already triggered its internal Playwright fallback
-            # (source == 'bo.nalog.ru'), we have multi-year data already — skip.
-            existing_history = financial.get('history') or []
-            if playwright_history and len(existing_history) < 2:
-                existing_years = {h.get('year') for h in existing_history}
-                extra_years = [h for h in playwright_history if h.get('year') not in existing_years]
-                merged_history = list(existing_history) + extra_years
-                merged_history.sort(key=lambda x: x.get('year') or 0, reverse=True)
-                source_suffix = ' + bo.nalog.ru' if extra_years else ''
-                financial = {**financial, 'history': merged_history[:4], 'source': (financial.get('source') or 'dadata.ru') + source_suffix}
 
             sanctions = sanctions_wrap.get('results', [])
             check.court_records = courts
@@ -542,6 +563,10 @@ def run_company_pipeline(check_id: str, app) -> None:
             check.rnp_data = rnp
             check.fssp_data = fssp
             check.adverse_media = adverse_media
+            check.risks_data = risks
+            check.tax_info_data = tax_info
+            check.blocked_accounts_data = blocked_accounts
+            check.inspections_data = inspections
 
             if courts:
                 sources_found += 1
@@ -600,6 +625,20 @@ def run_company_pipeline(check_id: str, app) -> None:
             else:
                 _log(check, f'Adverse media: {am_status}')
 
+            if risks.get('found'):
+                sources_found += 1
+                _log(check, f'Риски (DataNewton): {len(risks.get("risks", []))} флагов')
+            if tax_info.get('found'):
+                sources_found += 1
+                debt_str = tax_info.get('tax_debt_fmt', '')
+                _log(check, f'Налоги (ФНС): задолженность {debt_str}' if debt_str else 'Налоги (ФНС): данные получены')
+            if blocked_accounts.get('found'):
+                sources_found += 1
+                _log(check, f'Блокировки счетов (ФНС): {len(blocked_accounts.get("blocks", []))}')
+            if inspections.get('found'):
+                sources_found += 1
+                _log(check, f'Проверки: {inspections.get("total", 0)}')
+
             _set_progress(check, 75, 'courts', f'Суды: {len(courts)} дел')
 
             # ── ИП identity patch from dadata ──────────────────────────────
@@ -624,7 +663,7 @@ def run_company_pipeline(check_id: str, app) -> None:
 
             # ── Wave 2: Risk scoring ────────────────────────────────────────
             _set_progress(check, 80, 'risk', 'Оценка рисков...')
-            score, level, flags = _score_risk(egrul, courts, sanctions, bankruptcy, financial, rnp, fssp)
+            score, level, flags = _score_risk(egrul, courts, sanctions, bankruptcy, financial, rnp, fssp, risks, tax_info, blocked_accounts)
             check.risk_score = score
             check.risk_level = level
             check.risk_flags = flags

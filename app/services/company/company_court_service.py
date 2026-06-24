@@ -93,38 +93,43 @@ class CompanyCourtSearch:
         """
         Search court records for a company.
 
-        Sources (in priority order):
-          0. kad.arbitr.ru    — official arbitration DB, Russian IPs only (Yandex Cloud)
-          1. reputation.su    — general jurisdiction, globally accessible
-          2. судебныерешения.рф — general jurisdiction, Russian IPs only
+        Sources:
+          0. DataNewton /v1/arbitration-cases — arbitration courts (replaces kad.arbitr.ru)
+          1. DataNewton /v1/courtCases        — general jurisdiction courts (replaces судебныерешения.рф)
+          2. reputation.su                    — supplementary, globally accessible
         Deduplicates by case number across sources.
         """
         results: List[CompanyCourtCase] = []
 
-        # Source 0: kad.arbitr.ru — THE primary source for company courts
-        # Works from Russian IPs (Yandex Cloud VM); returns HTTP 451 from abroad.
-        try:
-            kad = self._search_kad_arbitr(company_name, inn)
-            results.extend(kad)
-            logger.info("Company courts kad.arbitr.ru → %d cases", len(kad))
-        except Exception as exc:
-            logger.warning("Company courts kad.arbitr.ru failed: %s", exc)
+        # Source 0: DataNewton arbitration cases
+        if inn:
+            try:
+                from app.services.company.datanewton_service import lookup_arbitration_cases
+                arb = lookup_arbitration_cases(inn, limit=limit)
+                for c in arb:
+                    results.append(CompanyCourtCase(**{k: c[k] for k in CompanyCourtCase.__dataclass_fields__}))
+                logger.info("Company courts DataNewton arbitration → %d cases", len(arb))
+            except Exception as exc:
+                logger.warning("Company courts DataNewton arbitration failed: %s", exc)
 
-        # Source 1: reputation.su (globally accessible)
+        # Source 1: DataNewton general jurisdiction courts
+        if inn:
+            try:
+                from app.services.company.datanewton_service import lookup_court_cases
+                sou = lookup_court_cases(inn, limit=limit)
+                for c in sou:
+                    results.append(CompanyCourtCase(**{k: c[k] for k in CompanyCourtCase.__dataclass_fields__}))
+                logger.info("Company courts DataNewton СОЮ → %d cases", len(sou))
+            except Exception as exc:
+                logger.warning("Company courts DataNewton СОЮ failed: %s", exc)
+
+        # Source 2: reputation.su (supplementary, globally accessible)
         try:
             rep = self._search_reputation_su(company_name, inn)
             results.extend(rep)
             logger.info("Company courts reputation.su → %d cases", len(rep))
         except Exception as exc:
             logger.warning("Company courts reputation.su failed: %s", exc)
-
-        # Source 2: судебныерешения.рф (general jurisdiction)
-        try:
-            sr = self._search_sudebnye_resheniya(company_name)
-            results.extend(sr)
-            logger.info("Company courts судебныерешения.рф → %d cases", len(sr))
-        except Exception as exc:
-            logger.warning("Company courts судебныерешения.рф failed: %s", exc)
 
         # Deduplicate
         seen: set = set()
