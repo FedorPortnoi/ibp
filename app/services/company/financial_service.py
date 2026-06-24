@@ -204,7 +204,7 @@ class FinancialService:
     def _datanewton_financials(self, inn: str, identity: Dict) -> Dict:
         """Fetch financial data from DataNewton (FNS/Rosstat) — primary financial source."""
         empty = {
-            'found': False, 'no_key': False, 'unavailable': False,
+            'found': False, 'no_key': False, 'unavailable': False, 'blocked': False,
             'income': None, 'expense': None, 'profit': None,
             'is_loss': False, 'income_fmt': '', 'expense_fmt': '',
             'profit_fmt': '', 'year': None, 'tax_system': '',
@@ -213,8 +213,52 @@ class FinancialService:
             'party_status': '', 'party_liquidation_date': '',
         }
         try:
-            from app.services.company.datanewton_service import lookup_financials
-            history = lookup_financials(inn)
+            from app.services.company.datanewton_service import _get, _get_key
+            if not _get_key():
+                return {**empty, **identity, 'no_key': True}
+            _raw, _err = _get('v1/finance/', {'inn': inn, 'years': 3})
+            if _err == 'blocked':
+                logger.info("DataNewton finance: paid tier required for INN %s — purchase needed", inn)
+                return {**empty, **identity, 'blocked': True, 'source': 'DataNewton'}
+            if _err or not _raw:
+                return {**empty, **identity}
+
+            # Parse response directly — avoids a second HTTP request
+            def _pv(v):
+                if v is None:
+                    return None
+                try:
+                    return int(float(str(v).replace(' ', '').replace(',', '.')))
+                except (ValueError, TypeError):
+                    return None
+            fin_results = _raw.get('fin_results') or {}
+            balances    = _raw.get('balances') or {}
+            all_years   = set(fin_results.keys()) | set(balances.keys())
+            if not all_years:
+                return {**empty, **identity}
+            history_raw = []
+            for yk in sorted(all_years, reverse=True):
+                try:
+                    yi = int(str(yk)[:4])
+                except (ValueError, TypeError):
+                    continue
+                fr = fin_results.get(yk) or {}
+                bl = balances.get(yk) or {}
+                history_raw.append({
+                    'year':             yi,
+                    'revenue':          _pv(fr.get('revenue') or fr.get('income') or fr.get('выручка')),
+                    'cost_of_sales':    _pv(fr.get('cost_of_sales') or fr.get('costs')),
+                    'gross_profit':     _pv(fr.get('gross_profit')),
+                    'operating_profit': _pv(fr.get('operating_profit')),
+                    'pretax_profit':    _pv(fr.get('pretax_profit') or fr.get('profit_before_tax')),
+                    'income_tax':       _pv(fr.get('income_tax') or fr.get('tax')),
+                    'net_profit':       _pv(fr.get('net_profit') or fr.get('profit')),
+                    'assets':           _pv(bl.get('assets') or bl.get('total_assets')),
+                    'equity':           _pv(bl.get('equity') or bl.get('capital')),
+                    'lt_liabilities':   _pv(bl.get('lt_liabilities') or bl.get('long_term_liabilities')),
+                    'st_liabilities':   _pv(bl.get('st_liabilities') or bl.get('short_term_liabilities')),
+                })
+            history = history_raw
             if not history:
                 return {**empty, **identity}
             from app.services.company.playwright_financial_service import _enrich_item

@@ -141,7 +141,7 @@
         <a href="#financials" class="nav-pill">
             Финансы
             <span class="badge {{ 'badge-count' if financial and financial.get('found') else 'badge-empty' }}">
-                {{ financial.year if financial and financial.get('found') and financial.get('year') else '—' }}
+                {% if financial and financial.get('found') and financial.get('year') %}{{ financial.year }}{% elif financial and financial.get('blocked') %}скоро{% else %}—{% endif %}
             </span>
         </a>
         <a href="#directors" class="nav-pill">
@@ -434,6 +434,17 @@
             <span class="text-red-400">Налоговый долг: {{ financial.debts_fmt }}</span>
             {% endif %}
             <span>Данные за {{ financial.year }} год · {{ financial.get('source', 'ФНС') }}</span>
+        </div>
+
+        {% elif financial and financial.get('blocked') %}
+        <div class="flex flex-col items-center gap-3 py-8">
+            <div style="font-size:2rem;opacity:0.35;">📊</div>
+            <div class="text-sm font-semibold" style="color:rgba(245,158,11,0.7);">Финансовые показатели — в разработке</div>
+            <div class="text-xs text-center max-w-xs" style="color:rgba(232,224,212,0.35); line-height:1.6;">
+                Данные бухгалтерской отчётности (выручка, прибыль, активы за 3 года)
+                будут доступны после подключения платного плана DataNewton API.
+            </div>
+            <div class="text-xs mt-1" style="color:rgba(232,224,212,0.2);">Источник: datanewton.ru · Требуется оплата тарифа</div>
         </div>
 
         {% elif financial and financial.get('no_key') %}
