@@ -8,10 +8,8 @@ enforcement (FSSP), courts, government contracts, and more.
 Free tier: 200 requests/month after registration.
 Requires DATANEWTON_API_KEY in .env. Use test key mi76aFMdgvml for dev.
 
-Endpoint base: https://datanewton.ru/api/
-
-NOTE: Verify endpoint paths from datanewton.ru/docs/api — the paths below
-follow their documented REST pattern. Authentication is via ?key= param.
+Endpoint base: https://api.datanewton.ru
+Authentication: ?key= query param (demo key: mi76aFMdgvml)
 """
 
 import logging
@@ -22,7 +20,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-_BASE = 'https://datanewton.ru/api'
+_BASE = 'https://api.datanewton.ru'
 _TIMEOUT = 20
 
 _HEADERS = {
@@ -207,44 +205,46 @@ def lookup_financials(inn: str, years: int = 3) -> List[Dict]:
         logger.info('DataNewton financials: %s for INN %s', err, inn)
         return []
 
-    rows = data if isinstance(data, list) else (data.get('results') or data.get('data') or [])
-    if not rows:
+    def _parse_val(v):
+        if v is None:
+            return None
+        try:
+            return int(float(str(v).replace(' ', '').replace(',', '.')))
+        except (ValueError, TypeError):
+            return None
+
+    # Response shape: {fin_results: {year: {fields}}, balances: {year: {fields}}, ...}
+    fin_results = data.get('fin_results') or {}
+    balances    = data.get('balances') or {}
+
+    all_years = set(fin_results.keys()) | set(balances.keys())
+    if not all_years:
         return []
 
     history = []
-    for row in rows:
-        year_val = row.get('year') or row.get('period')
+    for year_key in all_years:
         try:
-            year_int = int(str(year_val)[:4]) if year_val else None
+            year_int = int(str(year_key)[:4])
         except (ValueError, TypeError):
-            year_int = None
+            continue
 
-        def _parse(key, alt=None):
-            v = row.get(key)
-            if v is None and alt:
-                v = row.get(alt)
-            if v is None:
-                return None
-            try:
-                return int(float(str(v).replace(' ', '').replace(',', '.')))
-            except (ValueError, TypeError):
-                return None
+        fr = fin_results.get(year_key) or {}
+        bl = balances.get(year_key) or {}
 
-        item = {
-            'year': year_int,
-            'revenue': _parse('revenue', 'income'),
-            'cost_of_sales': _parse('cost_of_sales', 'costs'),
-            'gross_profit': _parse('gross_profit'),
-            'operating_profit': _parse('operating_profit'),
-            'pretax_profit': _parse('pretax_profit', 'profit_before_tax'),
-            'income_tax': _parse('income_tax', 'tax'),
-            'net_profit': _parse('net_profit', 'profit'),
-            'assets': _parse('assets', 'total_assets'),
-            'equity': _parse('equity', 'capital'),
-            'lt_liabilities': _parse('lt_liabilities', 'long_term_liabilities'),
-            'st_liabilities': _parse('st_liabilities', 'short_term_liabilities'),
-        }
-        history.append(item)
+        history.append({
+            'year':             year_int,
+            'revenue':          _parse_val(fr.get('revenue') or fr.get('income') or fr.get('выручка')),
+            'cost_of_sales':    _parse_val(fr.get('cost_of_sales') or fr.get('costs')),
+            'gross_profit':     _parse_val(fr.get('gross_profit')),
+            'operating_profit': _parse_val(fr.get('operating_profit')),
+            'pretax_profit':    _parse_val(fr.get('pretax_profit') or fr.get('profit_before_tax')),
+            'income_tax':       _parse_val(fr.get('income_tax') or fr.get('tax')),
+            'net_profit':       _parse_val(fr.get('net_profit') or fr.get('profit')),
+            'assets':           _parse_val(bl.get('assets') or bl.get('total_assets')),
+            'equity':           _parse_val(bl.get('equity') or bl.get('capital')),
+            'lt_liabilities':   _parse_val(bl.get('lt_liabilities') or bl.get('long_term_liabilities')),
+            'st_liabilities':   _parse_val(bl.get('st_liabilities') or bl.get('short_term_liabilities')),
+        })
 
     history.sort(key=lambda x: x.get('year') or 0, reverse=True)
     logger.info('DataNewton financials: INN %s → %d years', inn, len(history))
