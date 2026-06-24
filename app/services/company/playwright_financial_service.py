@@ -162,7 +162,8 @@ class PlaywrightFinancialService:
         page.wait_for_load_state('domcontentloaded', timeout=self.timeout_ms)
         page.wait_for_timeout(2000)
 
-        # Step 4: navigate to accounting/financial tab
+        # Step 4: dismiss any modal overlay, then navigate to accounting/financial tab
+        self._dismiss_modals(page)
         self._open_accounting_tab(page)
         page.wait_for_timeout(2000)
 
@@ -221,6 +222,25 @@ class PlaywrightFinancialService:
         except Exception:
             pass
         return None
+
+    def _dismiss_modals(self, page):
+        """Dismiss any modal or overlay blocking interactions."""
+        try:
+            page.keyboard.press('Escape')
+            page.wait_for_timeout(300)
+        except Exception:
+            pass
+        try:
+            page.evaluate("""
+                () => {
+                    document.querySelectorAll('.modal-overlay, .modal-backdrop, [class*="overlay"]')
+                        .forEach(el => el.remove());
+                    const modal = document.getElementById('modal');
+                    if (modal) modal.style.display = 'none';
+                }
+            """)
+        except Exception:
+            pass
 
     def _open_accounting_tab(self, page):
         """Find and click the financial statements tab."""
