@@ -305,6 +305,16 @@ class CompanyCourtSearch:
         records: List[CompanyCourtCase] = []
         seen_numbers: set = set()
 
+        # Establish session cookies — kad.arbitr.ru rejects AJAX without them
+        try:
+            init = self.session.get(f'{_KAD_BASE}/', timeout=10)
+            if init.status_code == 451:
+                logger.info("kad.arbitr.ru: HTTP 451 on init — not a Russian IP")
+                return []
+        except Exception as exc:
+            logger.warning("kad.arbitr.ru: session init failed: %s", exc)
+            return []
+
         def _fetch_pages(side_dict: dict) -> bool:
             """
             Fetch up to 3 pages for one search query.
