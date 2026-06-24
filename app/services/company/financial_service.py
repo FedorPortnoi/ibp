@@ -189,97 +189,20 @@ class FinancialService:
                 'party_liquidation_date': liq_date,
             }
 
-            # ── Financial fields ──
-            fin = company.get('finance') or {}
-
-            income  = fin.get('income')
-            expense = fin.get('expense')
-            year    = fin.get('year')
-            debts   = fin.get('debts')
-            tax_sys = fin.get('tax_system') or ''
-            employees = company.get('employee_count') or ''
-
-            profit = None
-            is_loss = False
-            if income is not None and expense is not None:
-                profit = income - expense
-                is_loss = profit < 0
-
-            profit_fmt = (
-                ('-' if is_loss else '+') + fmt_rub(abs(profit))
-                if profit is not None else ''
-            )
-            result = {
-                'found': income is not None or expense is not None,
-                'no_key': False,
-                'unavailable': False,
-                'income': income,
-                'expense': expense,
-                'profit': profit,
-                'is_loss': is_loss,
-                'income_fmt': fmt_rub(income),
-                'expense_fmt': fmt_rub(expense),
-                'profit_fmt': profit_fmt,
-                'year': year,
-                'tax_system': _TAX_SYSTEM_RU.get(tax_sys, tax_sys),
-                'debts': debts,
-                'debts_fmt': fmt_rub(debts) if debts else '',
-                'employee_count': employees,
-                'source': 'dadata.ru',
-                **identity,
-            }
-
-            # Single-year history for unified template rendering
-            if result['found']:
-                result['history'] = [{
-                    'year': year,
-                    'revenue': income,
-                    'revenue_fmt': fmt_rub(income) if income else '',
-                    'net_profit': profit,
-                    'net_profit_fmt': profit_fmt,
-                    'cost_of_sales': None, 'cost_of_sales_fmt': '',
-                    'gross_profit': None, 'gross_profit_fmt': '',
-                    'operating_profit': None, 'operating_profit_fmt': '',
-                    'pretax_profit': None, 'pretax_profit_fmt': '',
-                    'income_tax': None, 'income_tax_fmt': '',
-                    'assets': None, 'assets_fmt': '',
-                    'equity': None, 'equity_fmt': '',
-                    'lt_liabilities': None, 'lt_liabilities_fmt': '',
-                    'st_liabilities': None, 'st_liabilities_fmt': '',
-                }]
-
-            if result['found']:
-                logger.info(
-                    "dadata.ru: INN %s → income=%s expense=%s year=%s employees=%s party_status=%s",
-                    inn, fmt_rub(income), fmt_rub(expense), year, employees,
-                    identity['party_status'],
-                )
-                self._cache[inn] = (result, time.time() + _CACHE_TTL)
-                return result
-
-            # dadata returned no financial data — try DataNewton (FNS/Rosstat) next
-            logger.info("dadata.ru: no financial data for %s — trying DataNewton", inn)
-            dn_result = self._datanewton_fallback(inn, identity)
-            if dn_result.get('found'):
-                self._cache[inn] = (dn_result, time.time() + _CACHE_TTL)
-                return dn_result
-
-            # Last resort: Playwright scrape of bo.nalog.ru
-            logger.info("DataNewton: no financial data for %s — trying bo.nalog.ru", inn)
-            playwright_result = self._playwright_fallback(inn)
-            merged = {**playwright_result, **identity}
-            self._cache[inn] = (merged, time.time() + _CACHE_TTL)
-            return merged
+            # ── Financial fields: always from DataNewton (FNS/Rosstat) ──
+            dn_result = self._datanewton_financials(inn, identity)
+            self._cache[inn] = (dn_result, time.time() + _CACHE_TTL)
+            return dn_result
 
         except requests.Timeout:
-            logger.warning("dadata.ru: timeout for INN %s — trying DataNewton", inn)
-            return self._datanewton_fallback(inn, {})
+            logger.warning("dadata.ru: timeout for INN %s", inn)
+            return self._datanewton_financials(inn, {})
         except Exception as exc:
             logger.warning("dadata.ru: error for INN %s: %s", inn, exc)
-            return self._datanewton_fallback(inn, {})
+            return self._datanewton_financials(inn, {})
 
-    def _datanewton_fallback(self, inn: str, identity: Dict) -> Dict:
-        """Try DataNewton v1/finance/ (FNS/Rosstat) for multi-year financial data."""
+    def _datanewton_financials(self, inn: str, identity: Dict) -> Dict:
+        """Fetch financial data from DataNewton (FNS/Rosstat) — primary financial source."""
         empty = {
             'found': False, 'no_key': False, 'unavailable': False,
             'income': None, 'expense': None, 'profit': None,
