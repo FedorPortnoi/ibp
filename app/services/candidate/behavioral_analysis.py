@@ -9,6 +9,7 @@ import hashlib
 import logging
 import os
 import random
+import re
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
@@ -163,37 +164,57 @@ def analyze_last_seen_patterns(vk_profiles: List[Dict], vk_token: str) -> Dict[s
 
 # ── VK Group Intelligence ──
 
+# Keywords may end with '*' to indicate a prefix match (e.g. 'блатн*' matches
+# 'блатной', 'блатных'). Single-word keywords (no spaces, no '*') are matched
+# as whole words to prevent false positives from common Russian substrings
+# (e.g. bare 'зона' would hit any "зона отдыха"; bare 'аук' hits 'наука').
 GROUP_CATEGORIES = {
     'political_opposition': [
         'навальный', 'navalny', 'оппозиция', 'протест', 'митинг',
         'фбк', 'fbk', 'антикоррупция', 'свободу', 'долой',
-        'несогласные', 'либертарианц',
+        'несогласные', 'либертарианц*',
     ],
     'political_progovernment': [
         'единая россия', 'молодая гвардия', 'юнармия', 'нод',
         'антимайдан', 'ночные волки', 'народный фронт',
     ],
     'religious_extremist': [
-        'свидетели иеговы', 'хизб', 'таблиги', 'ваххаб',
-        'салаф', 'исламское государство', 'игил',
+        'свидетели иеговы', 'хизб*', 'таблиги', 'ваххаб*',
+        'салаф*', 'исламское государство', 'игил',
     ],
     'criminal': [
-        'аук', 'арестантский', 'вор в законе', 'криминал',
-        'зк ', 'тюрьма', 'зона', 'урка', 'блатн',
+        'арестантский', 'вор в законе', 'криминал*',
+        'зк', 'тюрьма', 'урка', 'блатн*',
     ],
     'gambling': [
-        'казино', 'ставки', 'букмекер', 'покер', 'слоты',
-        'ставка', 'выигрыш', 'беттинг',
+        'казино', 'ставки на спорт', 'букмекер*', 'покер', 'слоты',
+        'беттинг',
     ],
     'drugs': [
-        'наркотик', 'закладк', 'соль ', 'скорость ', 'марихуан',
+        'наркотик*', 'закладк*', 'марихуан*',
         'гашиш', 'спайс', 'мефедрон',
     ],
     'security_interest': [
-        'взлом', 'хакер', 'hack', 'exploit', 'уязвимост',
+        'взлом', 'хакер*', 'hack', 'exploit', 'уязвимост*',
         'darknet', 'даркнет', 'анонимность',
     ],
 }
+
+# Negative lookbehind/lookahead for Cyrillic+Latin word chars
+_WB_BEFORE = r'(?<![а-яёa-z0-9])'
+_WB_AFTER = r'(?![а-яёa-z0-9])'
+
+
+def _kw_in_text(kw: str, text: str) -> bool:
+    """Match keyword against lowercased group text with word-boundary awareness."""
+    if kw.endswith('*'):
+        # Prefix match: stem must start a word
+        return bool(re.search(_WB_BEFORE + re.escape(kw[:-1]), text))
+    if ' ' in kw:
+        # Phrase match: exact substring (phrase already has enough context)
+        return kw in text
+    # Full-word match: must not be embedded inside another word
+    return bool(re.search(_WB_BEFORE + re.escape(kw) + _WB_AFTER, text))
 
 
 def _categorize_group(group: dict) -> list:
@@ -206,7 +227,7 @@ def _categorize_group(group: dict) -> list:
 
     categories = []
     for category, keywords in GROUP_CATEGORIES.items():
-        if any(kw in text for kw in keywords):
+        if any(_kw_in_text(kw, text) for kw in keywords):
             categories.append(category)
     return categories
 
