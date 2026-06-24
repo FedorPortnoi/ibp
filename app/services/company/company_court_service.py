@@ -101,18 +101,28 @@ class CompanyCourtSearch:
         """
         results: List[CompanyCourtCase] = []
 
-        # Source 0: DataNewton arbitration cases
-        if inn:
+        # Source 0: kad.arbitr.ru — official arbitration database (Russian IP required)
+        # Falls back to DataNewton if geo-blocked (returns []).
+        try:
+            arb = self._search_kad_arbitr(company_name, inn)
+            results.extend(arb)
+            logger.info("Company courts kad.arbitr.ru → %d cases", len(arb))
+        except Exception as exc:
+            logger.warning("Company courts kad.arbitr.ru failed: %s", exc)
+            arb = []
+
+        if not arb and inn:
+            # Geo-blocked or error — fall back to DataNewton arbitration
             try:
                 from app.services.company.datanewton_service import lookup_arbitration_cases
-                arb = lookup_arbitration_cases(inn, limit=limit)
-                for c in arb:
+                dn_arb = lookup_arbitration_cases(inn, limit=limit)
+                for c in dn_arb:
                     results.append(CompanyCourtCase(**{k: c[k] for k in CompanyCourtCase.__dataclass_fields__}))
-                logger.info("Company courts DataNewton arbitration → %d cases", len(arb))
+                logger.info("Company courts DataNewton arbitration (fallback) → %d cases", len(dn_arb))
             except Exception as exc:
-                logger.warning("Company courts DataNewton arbitration failed: %s", exc)
+                logger.warning("Company courts DataNewton arbitration fallback failed: %s", exc)
 
-        # Source 1: DataNewton general jurisdiction courts
+        # Source 1: DataNewton general jurisdiction courts (СОЮ) — no free alternative
         if inn:
             try:
                 from app.services.company.datanewton_service import lookup_court_cases
