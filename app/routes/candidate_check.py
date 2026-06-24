@@ -929,17 +929,13 @@ def dossier_page(check_id):
 
 @candidate_bp.route('/history')
 def history():
-    """List past candidate checks. Admins see all checks; regular users see their own."""
     from app.routes.auth import get_current_user
     user = get_current_user()
     if is_admin(user):
-        checks = CandidateCheck.query.order_by(
-            CandidateCheck.created_at.desc()
-        ).limit(200).all()
-    else:
-        checks = CandidateCheck.query.filter_by(user_id=user.id).order_by(
-            CandidateCheck.created_at.desc()
-        ).all()
+        return redirect(url_for('admin_users.list_users'))
+    checks = CandidateCheck.query.filter_by(user_id=user.id).order_by(
+        CandidateCheck.created_at.desc()
+    ).all()
     return render_template('candidate_history.html', checks=checks)
 
 
