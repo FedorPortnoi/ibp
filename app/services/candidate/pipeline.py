@@ -1354,16 +1354,16 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             # ══════════════════════════════════════════════
             _zakupki_phones: list = []
             _zakupki_emails: list = []
-            if confirmed_inn:
+            if check.inn:
                 try:
                     from app.services.phase3.zakupki_service import lookup_contacts_by_inn
-                    _zk = lookup_contacts_by_inn(confirmed_inn)
+                    _zk = lookup_contacts_by_inn(check.inn)
                     _zakupki_phones = _zk.get('phones', [])
                     _zakupki_emails = _zk.get('emails', [])
                     if _zakupki_phones or _zakupki_emails:
                         logger.info(
                             'Госзакупки: INN %s → %d phones, %d emails',
-                            confirmed_inn, len(_zakupki_phones), len(_zakupki_emails),
+                            check.inn, len(_zakupki_phones), len(_zakupki_emails),
                         )
                         task.add_message(
                             f'Госзакупки: найдено {len(_zakupki_phones)} тел., '
@@ -1371,7 +1371,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             'success',
                         )
                     else:
-                        logger.info('Госзакупки: INN %s — контракты не найдены', confirmed_inn)
+                        logger.info('Госзакупки: INN %s — контракты не найдены', check.inn)
                 except Exception as _zk_err:
                     logger.warning('Госзакупки lookup failed: %s', _zk_err)
 
