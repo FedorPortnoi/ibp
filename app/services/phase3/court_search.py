@@ -397,16 +397,184 @@ class CourtRecordSearch:
     def _search_sudebnye_resheniya(
         self, name: str, limit: int = 20, status_out: Optional[dict] = None,
     ) -> List[CourtCase]:
-        """Search судебныерешения.рф (xn--90afdbaav0bd1afy6eub5d.xn--p1ai).
+        """Dispatch to Playwright (primary) or requests (fallback).
+
+        Playwright bypasses DDoS-Guard by executing the JS challenge in a
+        real browser. Falls back to the plain-requests path when Playwright
+        is not installed.
+        """
+        if PLAYWRIGHT_AVAILABLE:
+            return self._search_sudebnye_resheniya_playwright(name, limit, status_out)
+        return self._search_sudebnye_resheniya_requests(name, limit, status_out)
+
+    def _search_sudebnye_resheniya_playwright(
+        self, name: str, limit: int = 20, status_out: Optional[dict] = None,
+    ) -> List[CourtCase]:
+        """Search судебныерешения.рф using Playwright to bypass DDoS-Guard.
+
+        DDoS-Guard serves a JS challenge that plain requests cannot solve.
+        Playwright executes it like a real browser, sets the session cookie,
+        then interacts with the search form directly.
+        """
+        base = 'https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai'
+        results = []
+
+        def _set_status(value: str) -> None:
+            if status_out is not None:
+                status_out['судебныерешения.рф'] = value
+
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                # Hard backstop: kill browser if the whole flow exceeds 90s
+                _close_timer = threading.Timer(
+                    90, lambda b=browser: _force_close(b),
+                )
+                _close_timer.start()
+                try:
+                    context = browser.new_context(
+                        user_agent=(
+                            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                            'AppleWebKit/537.36 (KHTML, like Gecko) '
+                            'Chrome/122.0.0.0 Safari/537.36'
+                        ),
+                        locale='ru-RU',
+                        timezone_id='Europe/Moscow',
+                    )
+                    page = context.new_page()
+
+                    # domcontentloaded is reliable; networkidle times out because
+                    # DDoS-Guard keeps a connection open during the JS challenge.
+                    logger.info('судебныерешения.рф (PW): loading homepage')
+                    try:
+                        page.goto(
+                            base + '/',
+                            wait_until='domcontentloaded',
+                            timeout=60000,
+                        )
+                    except Exception as e:
+                        logger.warning('судебныерешения.рф (PW): goto failed: %s', e)
+                        _set_status('timeout')
+                        return results
+
+                    # If the search form is visible, DDoS-Guard cleared
+                    input_sel = 'input[name="simpleSearch[person_info][0][person]"]'
+                    try:
+                        page.wait_for_selector(input_sel, timeout=15000)
+                    except Exception:
+                        logger.warning(
+                            'судебныерешения.рф (PW): form not found — DDoS-Guard not cleared'
+                        )
+                        _set_status('blocked')
+                        return results
+
+                    # Fill and submit
+                    logger.info('судебныерешения.рф (PW): submitting for %r', name)
+                    page.fill(input_sel, name)
+                    time.sleep(0.5)
+                    page.press(input_sel, 'Enter')
+
+                    # Wait for results page
+                    try:
+                        page.wait_for_load_state('domcontentloaded', timeout=30000)
+                    except Exception:
+                        pass
+                    try:
+                        page.wait_for_selector('#list, div.count', timeout=15000)
+                    except Exception:
+                        pass
+
+                    html = page.content()
+                finally:
+                    _close_timer.cancel()
+                    browser.close()
+
+            # Parse results — same HTML structure as the requests-based parser
+            soup = BeautifulSoup(html, 'lxml')
+
+            count_el = soup.select_one('div.count')
+            if count_el:
+                logger.info('судебныерешения.рф (PW): %s', count_el.get_text(strip=True))
+
+            list_div = soup.select_one('#list')
+            if not list_div:
+                page_text = soup.get_text().lower()
+                if 'не найдено' in page_text or 'ничего не найдено' in page_text:
+                    logger.info('судебныерешения.рф (PW): no results for %r', name)
+                else:
+                    logger.debug('судебныерешения.рф (PW): #list not found')
+                _set_status('empty')
+                return results
+
+            tables = list_div.select('table.table-bordered')
+            if not tables:
+                logger.debug('судебныерешения.рф (PW): no result tables in #list')
+                _set_status('empty')
+                return results
+
+            for table in tables[:limit]:
+                try:
+                    rows = table.select('tr')
+                    if len(rows) < 2:
+                        continue
+                    row1, row2 = rows[0], rows[1]
+                    tds1 = row1.select('td')
+                    if len(tds1) < 2:
+                        continue
+                    court_name = tds1[0].get_text(strip=True)
+                    link = tds1[1].select_one('a')
+                    if not link:
+                        continue
+                    case_number_text = link.get_text(strip=True)
+                    href = link.get('href', '')
+                    url = f"{base}{href}" if href.startswith('/') else href
+                    case_match = re.search(
+                        r'(\d{1,2}[А-Яа-я]{0,3}-\d+/\d{4})', case_number_text
+                    )
+                    case_number = case_match.group(1) if case_match else case_number_text
+                    date = ''
+                    role = ''
+                    tds2 = row2.select('td')
+                    if tds2:
+                        date_match = re.search(
+                            r'(\d{2}\.\d{2}\.\d{4})', tds2[0].get_text(strip=True)
+                        )
+                        if date_match:
+                            date = date_match.group(1)
+                    if len(tds2) > 1:
+                        role = self._detect_role(tds2[1].get_text(), name)
+                    case_type = self._detect_case_type(case_number_text + ' ' + court_name)
+                    results.append(CourtCase(
+                        case_number=case_number,
+                        court_name=court_name,
+                        case_type=case_type,
+                        date=date,
+                        role=role,
+                        url=url,
+                        source='судебныерешения.рф',
+                        confidence='high',
+                    ))
+                except Exception as e:
+                    logger.debug('судебныерешения.рф (PW): parse table error: %s', e)
+
+            logger.info('судебныерешения.рф (PW): %d cases for %r', len(results), name)
+            _set_status('ok' if results else 'empty')
+
+        except Exception as e:
+            _set_status('error')
+            logger.error('судебныерешения.рф (PW): unexpected error: %s', e)
+
+        return results
+
+    def _search_sudebnye_resheniya_requests(
+        self, name: str, limit: int = 20, status_out: Optional[dict] = None,
+    ) -> List[CourtCase]:
+        """Requests-based fallback for судебныерешения.рф (used when Playwright unavailable).
 
         Two-step session flow:
         1. GET form page -> extract CSRF _token
         2. POST /simple_filter with person name -> follow redirect to /search
         3. Parse HTML table results
-
-        When ``status_out`` is given, failure modes are recorded under the
-        'судебныерешения.рф' key ('blocked'/'timeout'/'http_error'/'error')
-        so the caller can distinguish "source unreadable" from "no cases".
         """
         base = 'https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai'
         # DDoS-Guard needs longer than 30s to issue its session cookie and
