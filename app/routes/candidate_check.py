@@ -896,6 +896,56 @@ def dossier_page(check_id):
 
     duration_display = _format_duration(check.check_duration_seconds)
 
+    # Build connection graph nodes/links for D3
+    import json as _json
+    from app.services.candidate.connection_graph import build_from_check, RELATION_LABELS
+    _RELATION_TYPE_MAP = {
+        'owns': 'business', 'directs': 'business', 'co_owner': 'business',
+        'co_director': 'business', 'affiliated': 'business', 'shared_business': 'business',
+        'co_litigant': 'court', 'flagged_friend': 'court',
+        'co_registered': 'address',
+        'shared_contact': 'contact',
+    }
+    _connections = build_from_check(check)
+    _graph_nodes = []
+    _graph_links = []
+    for conn in _connections:
+        node_id = f'inn_{conn.inn}' if conn.inn else f'name_{conn.name}'
+        _graph_nodes.append({
+            'id': node_id,
+            'full': conn.name,
+            'sub': conn.inn or conn.ogrn or '',
+            'typeLabel': 'ЮР. ЛИЦО' if conn.kind == 'company' else 'ФИЗ. ЛИЦО',
+            'type': conn.kind,
+            'group': next(
+                (_RELATION_TYPE_MAP[r['relation']] for r in conn.relations if r['relation'] in _RELATION_TYPE_MAP),
+                'business'
+            ),
+            'meta': {
+                **(({'ИНН': conn.inn} if conn.inn else {})),
+                **(({'ОГРН': conn.ogrn} if conn.ogrn else {})),
+                **({'Тип': 'Юр. лицо'} if conn.kind == 'company' else {'Тип': 'Физ. лицо'}),
+            },
+            'confidence': conn.confidence,
+        })
+        for rel in conn.relations:
+            link_type = _RELATION_TYPE_MAP.get(rel['relation'], 'business')
+            _graph_links.append({
+                'source': 'target',
+                'target': node_id,
+                'type': link_type,
+                'label': rel['label'] + (f' ({rel["via"]})' if rel.get('via') else ''),
+            })
+    _graph_data = _json.dumps({
+        'target': {
+            'full': check.full_name,
+            'inn': check.inn or '',
+            'dob': check.dob or '',
+        },
+        'nodes': _graph_nodes,
+        'links': _graph_links,
+    })
+
     return render_template(
         'candidate_dossier.html',
         check=check,
@@ -935,7 +985,9 @@ def dossier_page(check_id):
             'group_analysis': check.group_analysis or {},
             'activity_patterns': check.activity_patterns or {},
         },
-        connection_graph={},
+        connection_graph={'confirmed': [c.to_dict() for c in _connections if c.confidence == 'strong'],
+                          'possible':  [c.to_dict() for c in _connections if c.confidence != 'strong']},
+        connection_graph_json=_graph_data,
     )
 
 

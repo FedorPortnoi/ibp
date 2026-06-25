@@ -1895,9 +1895,55 @@
   </div>
 </div>{# /dp-social #}
 
-<div class="doss-panel" id="dp-graph">
-  <div class="dp-close"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
-  <div class="dp-inner">
+<div class="doss-panel" id="dp-graph" style="display:flex;flex-direction:column;padding:0;overflow:hidden">
+  <div class="dp-close" style="position:absolute;top:12px;right:16px;z-index:10"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
+
+  {# ── Connection graph header ── #}
+  <div style="padding:12px 20px;border-bottom:1px solid rgba(232,224,212,0.06);background:rgba(6,6,8,.97);display:flex;align-items:center;gap:14px;flex-shrink:0">
+    <span style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:#C4955A;letter-spacing:.1em">СЛЕД · ГРАФ СВЯЗЕЙ</span>
+    <span style="font-size:.75rem;color:rgba(232,224,212,.45)"><strong style="color:#E8E0D4">{{ check.full_name }}</strong></span>
+    <span id="cg-link-count" style="font-size:.62rem;padding:2px 8px;border:1px solid rgba(196,149,90,.35);color:rgba(196,149,90,.8);font-family:'JetBrains Mono',monospace"></span>
+    <div style="margin-left:auto;display:flex;gap:12px;align-items:center">
+      {% for grp,col in [('business','#5C7FA3'),('court','#EF4444'),('zakupki','#4ADE80'),('address','#C4955A'),('contact','#A855F7')] %}
+      <div style="display:flex;align-items:center;gap:5px;font-size:.67rem;color:rgba(232,224,212,.35)">
+        <div style="width:7px;height:7px;background:{{col}}"></div>
+        {% if grp=='business' %}Бизнес{% elif grp=='court' %}Суды{% elif grp=='zakupki' %}Госзакупки{% elif grp=='address' %}Адрес{% else %}Контакты{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── Filter chips ── #}
+  <div id="cg-filters" style="padding:7px 18px;border-bottom:1px solid rgba(232,224,212,.05);display:flex;gap:6px;background:rgba(6,6,8,.95);flex-shrink:0"></div>
+
+  {# ── Graph + sidebar ── #}
+  <div style="display:flex;flex:1;overflow:hidden">
+    <div id="cg-canvas" style="flex:1;position:relative;overflow:hidden;background:radial-gradient(ellipse 70% 55% at 50% 50%,rgba(196,149,90,.04) 0%,transparent 70%)">
+      <svg id="cg-svg" style="width:100%;height:100%"></svg>
+      <div style="position:absolute;bottom:14px;left:14px;display:flex;gap:4px;z-index:10">
+        <div class="cg-cb" id="cg-zi">+</div>
+        <div class="cg-cb" id="cg-zo">−</div>
+        <div class="cg-cb" id="cg-zr">⌂</div>
+      </div>
+    </div>
+    <div style="width:270px;background:rgba(6,6,8,.97);border-left:1px solid rgba(232,224,212,.05);display:flex;flex-direction:column;flex-shrink:0">
+      <div style="padding:11px 15px;border-bottom:1px solid rgba(232,224,212,.05);font-size:.58rem;letter-spacing:.14em;color:rgba(232,224,212,.25);text-transform:uppercase;font-family:'JetBrains Mono',monospace">// NODE_DETAIL</div>
+      <div style="padding:15px;flex:1;overflow-y:auto" id="cg-sb-body">
+        <div id="cg-sb-empty" style="color:rgba(232,224,212,.2);font-size:.72rem;line-height:1.8;font-family:'JetBrains Mono',monospace">_ нажмите на карточку<br>&nbsp;&nbsp;чтобы увидеть детали</div>
+        <div id="cg-nc" style="display:none">
+          <div id="cg-nc-name" style="font-size:.92rem;font-weight:700;margin-bottom:2px;line-height:1.3;color:#E8E0D4"></div>
+          <span id="cg-nc-badge" style="display:inline-block;font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;padding:2px 7px;border:1px solid;margin-bottom:14px;margin-top:4px;font-family:'JetBrains Mono',monospace"></span>
+          <div style="font-size:.57rem;color:rgba(232,224,212,.25);text-transform:uppercase;letter-spacing:.12em;margin-bottom:7px;padding-bottom:4px;border-bottom:1px solid rgba(232,224,212,.04);font-family:'JetBrains Mono',monospace">// СВЕДЕНИЯ</div>
+          <div id="cg-nc-meta"></div>
+          <div style="font-size:.57rem;color:rgba(232,224,212,.25);text-transform:uppercase;letter-spacing:.12em;margin:12px 0 7px;padding-bottom:4px;border-bottom:1px solid rgba(232,224,212,.04);font-family:'JetBrains Mono',monospace">// СВЯЗИ</div>
+          <div id="cg-nc-edges"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# kept below for VK social graph if present #}
+  <div class="dp-inner" style="display:none" id="dp-graph-legacy">
     {# ================================================================
        12. SOCIAL GRAPH (Stage 5)
        ================================================================ #}
@@ -1976,6 +2022,7 @@
     {% endif %}
 
   </div>
+  </div>{# /dp-graph-legacy #}
 </div>{# /dp-graph #}
 
 <div class="doss-panel" id="dp-geo">
@@ -2735,6 +2782,296 @@
     });
     current = null;
   };
+})();
+</script>
+
+{# ── Connection Graph (D3 card-style) ── #}
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+.cg-cb{width:28px;height:28px;background:rgba(6,6,8,.9);border:1px solid rgba(232,224,212,.1);color:rgba(232,224,212,.45);display:flex;align-items:center;justify-content:center;font-size:.8rem;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all 120ms;user-select:none}
+.cg-cb:hover{background:rgba(20,20,22,.95);color:#E8E0D4;border-color:rgba(232,224,212,.25)}
+.cg-filter-chip{padding:3px 11px;font-size:.67rem;border:1px solid rgba(232,224,212,.1);background:transparent;color:rgba(232,224,212,.35);cursor:pointer;letter-spacing:.05em;transition:all 150ms;font-family:'Mulish',sans-serif}
+.cg-filter-chip.active{background:rgba(196,149,90,.09);border-color:rgba(196,149,90,.45);color:#C4955A}
+.cg-filter-chip:hover:not(.active){border-color:rgba(232,224,212,.2);color:rgba(232,224,212,.6)}
+.cg-mrow{display:flex;flex-direction:column;margin-bottom:8px;gap:2px}
+.cg-mlabel{font-size:.58rem;color:rgba(232,224,212,.3);text-transform:uppercase;letter-spacing:.06em}
+.cg-mval{font-size:.71rem;font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,.85);word-break:break-word;white-space:pre-wrap;line-height:1.45}
+.cg-more-btn{margin-top:4px;background:none;border:none;color:rgba(232,224,212,.3);font-size:.6rem;font-family:'JetBrains Mono',monospace;cursor:pointer;padding:0;letter-spacing:.06em;transition:color 120ms}
+.cg-more-btn:hover{color:rgba(232,224,212,.7)}
+.cg-hidden{display:none}.cg-hidden.open{display:block}
+.cg-eitem{padding:8px 10px;border-left:2px solid;margin-bottom:5px;background:rgba(255,255,255,.015)}
+.cg-etype{font-size:.56rem;text-transform:uppercase;letter-spacing:.1em;opacity:.55;margin-bottom:2px;font-family:'JetBrains Mono',monospace}
+.cg-edesc{font-size:.71rem;color:rgba(232,224,212,.7);line-height:1.4}
+#cg-tooltip{position:fixed;background:rgba(6,6,8,.98);border:1px solid rgba(232,224,212,.12);padding:7px 11px;font-size:.7rem;pointer-events:none;opacity:0;transition:opacity 80ms;z-index:9999;line-height:1.5;font-family:'Mulish',sans-serif}
+</style>
+<div id="cg-tooltip"></div>
+<script>
+(function(){
+  const RAW = {{ connection_graph_json | safe }};
+  const C={target:'#C4955A',business:'#5C7FA3',court:'#EF4444',zakupki:'#4ADE80',address:'#C4955A',contact:'#A855F7'};
+  const TL={business:'BUSINESS',court:'COURT',zakupki:'GOV_CONTRACT',address:'ADDRESS',contact:'CONTACT'};
+  const SHOW_LIMIT=3;
+  const CW=116,CH=50,TW=140,TH=60;
+
+  // Build nodes/links arrays with target prepended
+  const targetNode={
+    id:'target',full:RAW.target.full,sub:RAW.target.inn||RAW.target.dob||'',
+    typeLabel:'СУБЪЕКТ',type:'target',group:'target',
+    meta:Object.assign({},RAW.target.inn?{ИНН:RAW.target.inn}:{},RAW.target.dob?{ДР:RAW.target.dob}:{})
+  };
+  const nodes=[targetNode,...RAW.nodes];
+  const links=RAW.links;
+
+  // Update header badge
+  const linkCount=links.length;
+  const badge=document.getElementById('cg-link-count');
+  if(badge) badge.textContent=linkCount+' СВЯЗЕЙ';
+
+  // Build filter chips
+  const filterBar=document.getElementById('cg-filters');
+  const types=[...new Set(links.map(l=>l.type))];
+  const typeLabels={business:'Бизнес',court:'Суды',zakupki:'Госзакупки',address:'Адрес',contact:'Контакты'};
+  const typeCounts={};
+  links.forEach(l=>{typeCounts[l.type]=(typeCounts[l.type]||0)+1;});
+  let activeFilter='all';
+
+  function makeChip(type,label){
+    const btn=document.createElement('button');
+    btn.className='cg-filter-chip'+(type==='all'?' active':'');
+    btn.textContent=label;
+    btn.dataset.type=type;
+    btn.onclick=()=>{
+      document.querySelectorAll('.cg-filter-chip').forEach(c=>c.classList.remove('active'));
+      btn.classList.add('active');
+      activeFilter=type;
+      applyFilter(type);
+    };
+    return btn;
+  }
+  filterBar.appendChild(makeChip('all','Все ('+linkCount+')'));
+  types.forEach(t=>{
+    if(typeCounts[t]) filterBar.appendChild(makeChip(t,(typeLabels[t]||t)+' ('+typeCounts[t]+')'));
+  });
+
+  // Init D3 only when panel opens
+  let graphInited=false;
+  let linkSel,particleSel,nodeSel,svgSel,zoomBehavior;
+
+  function initGraph(){
+    if(graphInited)return;
+    graphInited=true;
+
+    const svgEl=document.getElementById('cg-svg');
+    if(!svgEl)return;
+    svgSel=d3.select(svgEl);
+    const g=svgSel.append('g');
+    const W=()=>document.getElementById('cg-canvas').offsetWidth;
+    const H=()=>document.getElementById('cg-canvas').offsetHeight;
+
+    zoomBehavior=d3.zoom().scaleExtent([.15,4]).on('zoom',e=>g.attr('transform',e.transform));
+    svgSel.call(zoomBehavior);
+
+    const defs=svgSel.append('defs');
+    // Glow filters
+    Object.keys(C).forEach(t=>{
+      const f=defs.append('filter').attr('id','cg-glow-'+t).attr('x','-80%').attr('y','-80%').attr('width','260%').attr('height','260%');
+      f.append('feGaussianBlur').attr('stdDeviation',t==='target'?'12':'5').attr('result','b');
+      const m=f.append('feMerge');
+      m.append('feMergeNode').attr('in','b');
+      m.append('feMergeNode').attr('in','SourceGraphic');
+    });
+    // Radial gradient for target
+    const rg=defs.append('radialGradient').attr('id','cg-tgrad').attr('cx','50%').attr('cy','50%').attr('r','50%');
+    rg.append('stop').attr('offset','0%').attr('stop-color','rgba(196,149,90,.2)');
+    rg.append('stop').attr('offset','100%').attr('stop-color','rgba(196,149,90,.01)');
+
+    const sim=d3.forceSimulation(nodes)
+      .force('link',d3.forceLink(links).id(d=>d.id).distance(d=>{
+        return(d.source.id==='target'||d.target.id==='target')?230:170;
+      }).strength(.45))
+      .force('charge',d3.forceManyBody().strength(-1000))
+      .force('center',d3.forceCenter(0,0))
+      .force('collision',d3.forceCollide(85));
+
+    // Links
+    linkSel=g.append('g').selectAll('path').data(links).enter().append('path')
+      .attr('fill','none').attr('stroke',d=>C[d.type]).attr('stroke-width',1.2).attr('stroke-opacity',.22);
+
+    // Particles
+    particleSel=g.append('g').selectAll('circle').data(links).enter().append('circle')
+      .attr('r',2).attr('fill',d=>C[d.type]).attr('opacity',.7).attr('pointer-events','none');
+    links.forEach((l,i)=>{l._phase=(i/links.length)*2200;});
+
+    function animateParticles(){
+      const now=performance.now();
+      particleSel.each(function(d){
+        const t=((now+d._phase)%2200)/2200;
+        const p=getBezierPoint(d,t);
+        d3.select(this).attr('cx',p.x).attr('cy',p.y);
+      });
+      requestAnimationFrame(animateParticles);
+    }
+
+    // Card nodes
+    nodeSel=g.append('g').selectAll('g').data(nodes).enter().append('g')
+      .attr('cursor','pointer')
+      .call(d3.drag()
+        .on('start',(e,d)=>{if(!e.active)sim.alphaTarget(.3).restart();d.fx=d.x;d.fy=d.y;})
+        .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;})
+        .on('end',(e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;})
+      )
+      .on('click',onNodeClick)
+      .on('mouseenter',onHover)
+      .on('mouseleave',onLeave);
+
+    // Target glow bg
+    nodeSel.filter(d=>d.id==='target').append('ellipse')
+      .attr('rx',TW*.75).attr('ry',TH*.9).attr('fill','url(#cg-tgrad)').attr('filter','url(#cg-glow-target)');
+
+    // Accent bar
+    nodeSel.append('rect')
+      .attr('x',d=>d.id==='target'?-TW/2:-CW/2).attr('y',d=>d.id==='target'?-TH/2:-CH/2)
+      .attr('width',3).attr('height',d=>d.id==='target'?TH:CH)
+      .attr('fill',d=>C[d.group]).attr('filter',d=>'url(#cg-glow-'+d.group+')');
+
+    // Card body
+    nodeSel.append('rect').attr('class','cg-card-bg')
+      .attr('x',d=>d.id==='target'?-TW/2+3:-CW/2+3).attr('y',d=>d.id==='target'?-TH/2:-CH/2)
+      .attr('width',d=>d.id==='target'?TW-3:CW-3).attr('height',d=>d.id==='target'?TH:CH)
+      .attr('fill',d=>d.id==='target'?'rgba(196,149,90,.07)':'rgba(8,8,10,.96)')
+      .attr('stroke',d=>C[d.group]).attr('stroke-width',.5).attr('stroke-opacity',.35);
+
+    // Type label
+    nodeSel.append('text')
+      .attr('x',d=>d.id==='target'?-TW/2+11:-CW/2+11).attr('y',d=>d.id==='target'?-TH/2+14:-CH/2+13)
+      .attr('font-size','6.5px').attr('font-family','JetBrains Mono,monospace')
+      .attr('fill',d=>C[d.group]).attr('opacity',.55).attr('letter-spacing','.1em').attr('pointer-events','none')
+      .text(d=>d.typeLabel||'');
+
+    // Name
+    nodeSel.append('text')
+      .attr('x',d=>d.id==='target'?-TW/2+11:-CW/2+11).attr('y',d=>d.id==='target'?-TH/2+30:-CH/2+28)
+      .attr('font-size',d=>d.id==='target'?'11px':'9px').attr('font-family','Mulish,sans-serif').attr('font-weight','600')
+      .attr('fill',d=>d.id==='target'?'#C4955A':'#E8E0D4').attr('pointer-events','none')
+      .text(d=>d.full);
+
+    // Sub
+    nodeSel.append('text')
+      .attr('x',d=>d.id==='target'?-TW/2+11:-CW/2+11).attr('y',d=>d.id==='target'?-TH/2+44:-CH/2+41)
+      .attr('font-size','7px').attr('font-family','JetBrains Mono,monospace')
+      .attr('fill','rgba(232,224,212,.3)').attr('pointer-events','none')
+      .text(d=>d.sub||'');
+
+    sim.on('tick',()=>{
+      linkSel.attr('d',bezierPath);
+      nodeSel.attr('transform',d=>`translate(${d.x},${d.y})`);
+    });
+
+    setTimeout(()=>{
+      svgSel.call(zoomBehavior.transform,d3.zoomIdentity.translate(W()/2,H()/2).scale(.78));
+      animateParticles();
+    },120);
+
+    document.getElementById('cg-zi').onclick=()=>svgSel.transition().duration(200).call(zoomBehavior.scaleBy,1.4);
+    document.getElementById('cg-zo').onclick=()=>svgSel.transition().duration(200).call(zoomBehavior.scaleBy,.7);
+    document.getElementById('cg-zr').onclick=()=>svgSel.transition().duration(250).call(zoomBehavior.transform,d3.zoomIdentity.translate(W()/2,H()/2).scale(.78));
+
+    svgSel.on('click',resetAll);
+  }
+
+  function getBezierPoint(d,t){
+    const sx=d.source.x,sy=d.source.y,tx=d.target.x,ty=d.target.y;
+    const mx=(sx+tx)/2,my=(sy+ty)/2,dx=tx-sx,dy=ty-sy,len=Math.sqrt(dx*dx+dy*dy)||1,bend=len*.18;
+    const cx1=mx-dy/len*bend,cy1=my+dx/len*bend;
+    return{x:(1-t)*(1-t)*sx+2*(1-t)*t*cx1+t*t*tx,y:(1-t)*(1-t)*sy+2*(1-t)*t*cy1+t*t*ty};
+  }
+  function bezierPath(d){
+    const sx=d.source.x,sy=d.source.y,tx=d.target.x,ty=d.target.y;
+    const mx=(sx+tx)/2,my=(sy+ty)/2,dx=tx-sx,dy=ty-sy,len=Math.sqrt(dx*dx+dy*dy)||1,bend=len*.18;
+    const cx1=mx-dy/len*bend,cy1=my+dx/len*bend;
+    return`M${sx},${sy} Q${cx1},${cy1} ${tx},${ty}`;
+  }
+
+  function applyFilter(type){
+    if(!linkSel)return;
+    linkSel.attr('display',l=>type==='all'||l.type===type?null:'none');
+    particleSel.attr('display',l=>type==='all'||l.type===type?null:'none');
+    nodeSel.attr('display',d=>{if(type==='all'||d.id==='target')return null;return d.group===type?null:'none';});
+    resetHighlight();
+  }
+
+  function highlight(id){
+    linkSel.attr('stroke-opacity',l=>(l.source.id===id||l.target.id===id)?.85:.04).attr('stroke-width',l=>(l.source.id===id||l.target.id===id)?2:1.2);
+    particleSel.attr('opacity',l=>(l.source.id===id||l.target.id===id)?1:.04);
+    nodeSel.select('.cg-card-bg').attr('stroke-opacity',n=>n.id===id?1:.15).attr('fill',n=>n.id===id?(n.id==='target'?'rgba(196,149,90,.14)':'rgba(14,14,18,.99)'):(n.id==='target'?'rgba(196,149,90,.07)':'rgba(8,8,10,.96)'));
+  }
+  function resetHighlight(){
+    if(!linkSel)return;
+    linkSel.attr('stroke-opacity',.22).attr('stroke-width',1.2);
+    particleSel.attr('opacity',.7);
+    nodeSel.select('.cg-card-bg').attr('stroke-opacity',.35).attr('fill',d=>d.id==='target'?'rgba(196,149,90,.07)':'rgba(8,8,10,.96)');
+  }
+  function resetAll(){
+    document.getElementById('cg-sb-empty').style.display='';
+    document.getElementById('cg-nc').style.display='none';
+    resetHighlight();
+  }
+
+  function renderMeta(container,meta){
+    const entries=Object.entries(meta);
+    container.innerHTML='';
+    entries.forEach(([k,v],i)=>{
+      const div=document.createElement('div');
+      div.className='cg-mrow'+(i>=SHOW_LIMIT?' cg-hidden':'');
+      div.innerHTML=`<span class="cg-mlabel">${k}</span><span class="cg-mval">${v}</span>`;
+      container.appendChild(div);
+    });
+    if(entries.length>SHOW_LIMIT){
+      const remaining=entries.length-SHOW_LIMIT;
+      const btn=document.createElement('button');
+      btn.className='cg-more-btn';btn.textContent='▼ ещё '+remaining;
+      btn.onclick=()=>{
+        const hidden=container.querySelectorAll('.cg-hidden');
+        const isOpen=btn.dataset.open==='1';
+        hidden.forEach(el=>el.classList.toggle('open',!isOpen));
+        btn.textContent=isOpen?'▼ ещё '+remaining:'▲ свернуть';
+        btn.dataset.open=isOpen?'0':'1';
+      };
+      container.appendChild(btn);
+    }
+  }
+
+  function onNodeClick(e,d){
+    e.stopPropagation();
+    document.getElementById('cg-sb-empty').style.display='none';
+    document.getElementById('cg-nc').style.display='block';
+    document.getElementById('cg-nc-name').textContent=d.full;
+    const b=document.getElementById('cg-nc-badge');
+    b.textContent=d.group==='target'?'TARGET':d.type==='company'?'LEGAL_ENTITY':'INDIVIDUAL';
+    b.style.color=C[d.group];b.style.borderColor=C[d.group];
+    renderMeta(document.getElementById('cg-nc-meta'),d.meta||{});
+    const ee=document.getElementById('cg-nc-edges');ee.innerHTML='';
+    links.filter(l=>(l.source.id||l.source)===d.id||(l.target.id||l.target)===d.id).forEach(l=>{
+      ee.innerHTML+=`<div class="cg-eitem" style="border-color:${C[l.type]}"><div class="cg-etype" style="color:${C[l.type]}">${TL[l.type]||l.type}</div><div class="cg-edesc">${l.label}</div></div>`;
+    });
+    if(linkSel)highlight(d.id);
+  }
+
+  const tip=document.getElementById('cg-tooltip');
+  function onHover(e,d){tip.innerHTML=`<strong style="color:${C[d.group]||'#E8E0D4'}">${d.full}</strong><br><span style="color:rgba(232,224,212,.35)">${d.sub||''}</span>`;tip.style.opacity='1';posT(e);}
+  function onLeave(){tip.style.opacity='0';}
+  document.getElementById('cg-svg').addEventListener('mousemove',posT);
+  function posT(e){if(!e)return;tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY-8)+'px';}
+
+  // Lazy-init: only run D3 when the panel is actually opened
+  const observer=new MutationObserver(()=>{
+    const panel=document.getElementById('dp-graph');
+    if(panel&&panel.style.display!=='none'&&panel.classList.contains('active'))initGraph();
+  });
+  const panel=document.getElementById('dp-graph');
+  if(panel)observer.observe(panel,{attributes:true,attributeFilter:['class','style']});
+  // Also try immediately in case panel is already open
+  setTimeout(()=>{if(panel&&(panel.style.display!=='none'||panel.classList.contains('active')))initGraph();},300);
 })();
 </script>
 {% endblock %}
