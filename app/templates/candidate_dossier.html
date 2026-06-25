@@ -898,6 +898,22 @@
         {% endif %}
     </section>
 
+    {% set zk_count = (contacts or {}).get('zakupki_contracts_found', 0) %}
+    {% if zk_count %}
+    <section class="mb-6">
+        <div class="section-header">
+            <h2>&#x2696;&#xFE0F; Госзакупки</h2>
+            <span class="section-count">{{ zk_count }} контрактов</span>
+        </div>
+        <div class="dossier-card">
+            <div class="flag-item flag-info">
+                <span>&#x1F4C4;</span>
+                <div>Найдено <strong>{{ zk_count }}</strong> контрактов поставщика по ИНН {{ check.inn }} на zakupki.gov.ru. Контактные данные из карточек контрактов не извлечены автоматически — проверьте вручную.</div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
   </div>
 </div>{# /dp-business #}
 
@@ -2824,6 +2840,8 @@
   };
   const nodes=[targetNode,...RAW.nodes];
   const links=RAW.links;
+  // Pre-assign bend multiplier so parallel links between the same pair fan out
+  (()=>{const pc={};links.forEach(l=>{const k=l.source+'→'+l.target;pc[k]=(pc[k]||0)+1;});const pi={};links.forEach(l=>{const k=l.source+'→'+l.target;const idx=pi[k]||0;pi[k]=idx+1;const n=pc[k];l._bendMul=n>1?(idx%2===0?0.26:-0.06):0.18;});})();
 
   // Update header badge
   const linkCount=links.length;
@@ -2999,22 +3017,24 @@
 
   function getBezierPoint(d,t){
     const sx=d.source.x,sy=d.source.y,tx=d.target.x,ty=d.target.y;
-    const mx=(sx+tx)/2,my=(sy+ty)/2,dx=tx-sx,dy=ty-sy,len=Math.sqrt(dx*dx+dy*dy)||1,bend=len*.18;
+    const mx=(sx+tx)/2,my=(sy+ty)/2,dx=tx-sx,dy=ty-sy,len=Math.sqrt(dx*dx+dy*dy)||1,bend=len*(d._bendMul||.18);
     const cx1=mx-dy/len*bend,cy1=my+dx/len*bend;
     return{x:(1-t)*(1-t)*sx+2*(1-t)*t*cx1+t*t*tx,y:(1-t)*(1-t)*sy+2*(1-t)*t*cy1+t*t*ty};
   }
   function bezierPath(d){
     const sx=d.source.x,sy=d.source.y,tx=d.target.x,ty=d.target.y;
-    const mx=(sx+tx)/2,my=(sy+ty)/2,dx=tx-sx,dy=ty-sy,len=Math.sqrt(dx*dx+dy*dy)||1,bend=len*.18;
+    const mx=(sx+tx)/2,my=(sy+ty)/2,dx=tx-sx,dy=ty-sy,len=Math.sqrt(dx*dx+dy*dy)||1,bend=len*(d._bendMul||.18);
     const cx1=mx-dy/len*bend,cy1=my+dx/len*bend;
     return`M${sx},${sy} Q${cx1},${cy1} ${tx},${ty}`;
   }
 
   function applyFilter(type){
     if(!linkSel)return;
+    const vis=new Set(['target']);
+    links.forEach(l=>{if(type==='all'||l.type===type){const tid=typeof l.target==='object'?l.target.id:l.target;vis.add(tid);}});
     linkSel.attr('display',l=>type==='all'||l.type===type?null:'none');
     particleSel.attr('display',l=>type==='all'||l.type===type?null:'none');
-    nodeSel.attr('display',d=>{if(type==='all'||d.id==='target')return null;return d.group===type?null:'none';});
+    nodeSel.attr('display',d=>vis.has(d.id)?null:'none');
     resetHighlight();
   }
 

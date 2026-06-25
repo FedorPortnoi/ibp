@@ -1354,12 +1354,14 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             # ══════════════════════════════════════════════
             _zakupki_phones: list = []
             _zakupki_emails: list = []
+            _zakupki_contracts_found: int = 0
             if check.inn:
                 try:
                     from app.services.phase3.zakupki_service import lookup_contacts_by_inn
                     _zk = lookup_contacts_by_inn(check.inn)
                     _zakupki_phones = _zk.get('phones', [])
                     _zakupki_emails = _zk.get('emails', [])
+                    _zakupki_contracts_found = _zk.get('contracts_found', 0)
                     if _zakupki_phones or _zakupki_emails:
                         logger.info(
                             'Госзакупки: INN %s → %d phones, %d emails',
@@ -1370,6 +1372,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                             f'{len(_zakupki_emails)} email из контрактов',
                             'success',
                         )
+                    elif _zakupki_contracts_found:
+                        logger.info('Госзакупки: INN %s — %d контрактов найдено, контакты не извлечены', check.inn, _zakupki_contracts_found)
                     else:
                         logger.info('Госзакупки: INN %s — контракты не найдены', check.inn)
                 except Exception as _zk_err:
@@ -1846,6 +1850,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 except Exception as e:
                     logger.debug(f"INN breach search: {e}")
 
+            if _zakupki_contracts_found:
+                contacts['zakupki_contracts_found'] = _zakupki_contracts_found
             check.contact_discoveries = contacts
             try:
                 db.session.commit()

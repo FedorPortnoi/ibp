@@ -87,7 +87,7 @@ def _get_contract_numbers(inn: str, session: requests.Session) -> List[str]:
                     numbers.append(m.group())
 
         logger.info('zakupki: INN %s → %d contract numbers found', inn, len(numbers))
-        return numbers[:_MAX_CONTRACTS]
+        return numbers
     except Exception as exc:
         logger.warning('zakupki: search error for INN %s: %s', inn, exc)
         return []
@@ -141,9 +141,11 @@ def lookup_contacts_by_inn(inn: str) -> Dict:
     session = requests.Session()
     session.headers.update(_HEADERS)
     try:
-        numbers = _get_contract_numbers(inn, session)
+        all_numbers = _get_contract_numbers(inn, session)
+        total_found = len(all_numbers)
+        numbers = all_numbers[:_MAX_CONTRACTS]
         if not numbers:
-            return empty
+            return {**empty, 'contracts_found': 0}
 
         all_phones: set = set()
         all_emails: set = set()
@@ -164,6 +166,7 @@ def lookup_contacts_by_inn(inn: str) -> Dict:
             'phones': phones,
             'emails': emails,
             'contracts_checked': len(numbers),
+            'contracts_found': total_found,
             'source': 'zakupki.gov.ru',
             'status': 'ok' if (phones or emails) else 'empty',
         }
