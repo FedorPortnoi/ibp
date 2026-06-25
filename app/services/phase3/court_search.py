@@ -260,9 +260,8 @@ class CourtRecordSearch:
         # --- Source 0: sudact.ru (Playwright, conditional) ---
         if PLAYWRIGHT_AVAILABLE:
             try:
-                sudact_results = self._search_sudact_playwright(name, limit)
+                sudact_results = self._search_sudact_playwright(name, limit, status_out=statuses)
                 results.extend(sudact_results)
-                statuses['sudact.ru'] = 'ok' if sudact_results else 'empty'
                 logger.info(f"Court search: sudact.ru returned {len(sudact_results)} cases")
             except Exception as e:
                 statuses['sudact.ru'] = 'error'
@@ -751,9 +750,14 @@ class CourtRecordSearch:
 
         return results
 
-    def _search_sudact_playwright(self, name: str, limit: int, max_retries: int = 2) -> List[CourtCase]:
+    def _search_sudact_playwright(self, name: str, limit: int, max_retries: int = 2,
+                                   status_out: Optional[Dict] = None) -> List[CourtCase]:
         """Search sudact.ru using Playwright for JS rendering."""
         results = []
+
+        def _set_status(value: str) -> None:
+            if status_out is not None:
+                status_out['sudact.ru'] = value
 
         # Build the full search URL with all required parameters
         params = {
@@ -873,6 +877,7 @@ class CourtRecordSearch:
                                 results.append(case)
 
                 if results:
+                    _set_status('ok')
                     logger.info(f"Sudact Playwright: found {len(results)} cases on attempt {attempt}, fetching details")
                     # Second pass: fetch full text — cap at 4 to stay within the 120s outer
                     # timeout (each detail page takes ~25s via Playwright fallback).
@@ -915,11 +920,19 @@ class CourtRecordSearch:
                     time.sleep(3)
 
             except Exception as e:
-                logger.warning(f"Sudact Playwright error (attempt {attempt}/{max_retries}): {e}")
+                err_str = str(e).lower()
+                if 'timeout' in err_str or 'timed out' in err_str:
+                    _set_status('timeout')
+                    logger.warning(f"Sudact Playwright timeout (attempt {attempt}/{max_retries}): {e}")
+                else:
+                    _set_status('error')
+                    logger.warning(f"Sudact Playwright error (attempt {attempt}/{max_retries}): {e}")
                 if attempt < max_retries:
                     time.sleep(3)
 
         logger.info(f"Sudact Playwright: returning {len(results)} results after {max_retries} attempts")
+        if status_out is not None and 'sudact.ru' not in status_out:
+            _set_status('empty')
         return results
 
     def _parse_sudact_list_item(self, item, search_name: str) -> Optional[CourtCase]:
