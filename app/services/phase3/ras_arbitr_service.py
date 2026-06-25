@@ -28,7 +28,7 @@ from app.services.phase3.kad_arbitr_service import (
 logger = logging.getLogger(__name__)
 
 RAS_BASE = 'https://ras.arbitr.ru'
-SEARCH_URL = f'{RAS_BASE}/Appeal/SearchInstances'
+SEARCH_URL = f'{RAS_BASE}/Ras/GetDecisions'
 
 HEADERS = {
     'User-Agent': (
@@ -82,18 +82,15 @@ def _fetch_page(
 ) -> Tuple[Optional[list], int, Optional[str]]:
     """POST one search page. Returns (items, total_count, terminal_status)."""
     payload = {
-        'Sides': [side],
-        'Page': page,
+        'GroupByCase': False,
         'Count': 25,
-        'DateFrom': None,
-        'DateTo': None,
-        'CaseType': 0,
-        'CourtType': -1,
-        'Courts': [],
+        'Page': page,
+        'DateFrom': '2000-01-01T00:00:00',
+        'DateTo': '2030-01-01T23:59:59',
+        'Sides': [side],
         'Judges': [],
-        'CaseNumbers': [],
-        'OrderBy': 'Data',
-        'OrderDirection': 'Desc',
+        'Cases': [],
+        'Text': '',
     }
     try:
         resp = session.post(SEARCH_URL, json=payload, timeout=timeout)
@@ -156,10 +153,8 @@ def search_ras_arbitr_person(
         return [], 'skipped'
 
     queries: List[Tuple[str, dict]] = []
-    if use_inn:
-        queries.append(('inn', {'Inn': inn, 'Name': '', 'Type': -1}))
     if name:
-        queries.append(('name', {'Inn': '', 'Name': name, 'Type': -1}))
+        queries.append(('name', {'Name': name, 'Type': -1, 'ExactMatch': False}))
 
     records: List[Dict] = []
     seen_numbers: set = set()
