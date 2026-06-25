@@ -1349,6 +1349,33 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             _pause()
 
             # ══════════════════════════════════════════════
+            # ГОСЗАКУПКИ PHONE LOOKUP (between Stage 2 and 3)
+            # Quick INN → phone lookup via public contract filings
+            # ══════════════════════════════════════════════
+            _zakupki_phones: list = []
+            _zakupki_emails: list = []
+            if confirmed_inn:
+                try:
+                    from app.services.phase3.zakupki_service import lookup_contacts_by_inn
+                    _zk = lookup_contacts_by_inn(confirmed_inn)
+                    _zakupki_phones = _zk.get('phones', [])
+                    _zakupki_emails = _zk.get('emails', [])
+                    if _zakupki_phones or _zakupki_emails:
+                        logger.info(
+                            'Госзакупки: INN %s → %d phones, %d emails',
+                            confirmed_inn, len(_zakupki_phones), len(_zakupki_emails),
+                        )
+                        task.add_message(
+                            f'Госзакупки: найдено {len(_zakupki_phones)} тел., '
+                            f'{len(_zakupki_emails)} email из контрактов',
+                            'success',
+                        )
+                    else:
+                        logger.info('Госзакупки: INN %s — контракты не найдены', confirmed_inn)
+                except Exception as _zk_err:
+                    logger.warning('Госзакупки lookup failed: %s', _zk_err)
+
+            # ══════════════════════════════════════════════
             # STAGE 3: SOCIAL MEDIA DISCOVERY [27-42%]
             # Social searches run in parallel (VK+TG+Phone)
             # ══════════════════════════════════════════════
@@ -1366,7 +1393,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             _vk_first = effective_parts['first']
             _vk_last = effective_parts['last']
             _tg_city = check.region or ''
-            _phone = check.phone
+            # Merge input phone with госзакупки phones; use first as primary
+            _phone = check.phone or (_zakupki_phones[0] if _zakupki_phones else None)
 
             # Parse DOB into components for VK API
             vk_birth_day = vk_birth_month = vk_birth_year = None
@@ -1384,7 +1412,7 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                 vk_age_to = age + 1
 
             def _vk_search_worker():
-                """VK People Search — returns list of VKProfileResult."""
+                """VK People Search — name search + phone lookup merged."""
                 from app.services.phase1.buratino_vk_search import buratino_vk_search
                 profiles, _ = buratino_vk_search.search(
                     query=effective_name,
@@ -1398,6 +1426,20 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     birth_month=vk_birth_month,
                     birth_year=vk_birth_year,
                 )
+
+                # Phone lookup — finds accounts not visible via name search
+                all_phones = list({p for p in _zakupki_phones + ([check.phone] if check.phone else []) if p})
+                if all_phones:
+                    phone_profiles = buratino_vk_search.lookup_by_phone(all_phones)
+                    existing_ids = {p.vk_id for p in profiles}
+                    new_profiles = [p for p in phone_profiles if p.vk_id not in existing_ids]
+                    if new_profiles:
+                        logger.info(
+                            'VK phone lookup: %d new account(s) found via phone (not in name search)',
+                            len(new_profiles),
+                        )
+                    profiles = profiles + new_profiles
+
                 return profiles
 
             def _tg_search_worker():
