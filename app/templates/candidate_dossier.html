@@ -241,29 +241,61 @@
     .doss-ai-box { background:var(--bg-panel);border:1px solid var(--border-subtle);border-radius:12px;padding:20px 24px;margin-bottom:16px; }
 
     /* Tile grid */
-    .doss-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px; }
-    .doss-tile { background:var(--bg-panel);border:1px solid var(--border-subtle);border-radius:10px;cursor:pointer;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 12px;text-align:center;gap:8px;transition:border-color .15s,background .15s,box-shadow .15s;position:relative;overflow:hidden;user-select:none; }
-    .doss-tile::before { content:'';position:absolute;top:0;left:0;right:0;height:3px; }
-    .doss-tile.tc-green::before { background:rgba(74,222,128,.5); }
-    .doss-tile.tc-amber::before { background:rgba(245,158,11,.5); }
-    .doss-tile.tc-red::before { background:rgba(239,68,68,.5); }
-    .doss-tile.tc-soon::before { background:repeating-linear-gradient(90deg,rgba(245,158,11,.3) 0 6px,transparent 6px 12px); }
-    .doss-tile.tc-dim::before { background:rgba(255,255,255,.07); }
-    .doss-tile:hover { border-color:var(--border-default);background:rgba(255,255,255,.015); }
-    .doss-tile.active { background:var(--bg-dark); }
-    .doss-tile.active.tc-green { border-color:rgba(74,222,128,.4);box-shadow:0 0 18px rgba(74,222,128,.07); }
-    .doss-tile.active.tc-amber { border-color:rgba(245,158,11,.4);box-shadow:0 0 18px rgba(245,158,11,.07); }
-    .doss-tile.active.tc-red { border-color:rgba(239,68,68,.4);box-shadow:0 0 18px rgba(239,68,68,.07); }
-    .dt-icon { font-size:22px;line-height:1; }
-    .dt-label { font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);font-weight:600; }
-    .dt-main { font-size:12.5px;font-weight:600;color:var(--text-primary);line-height:1.3; }
-    .dt-sub { font-size:10.5px;color:var(--text-secondary);line-height:1.3; }
-    .dt-badge { font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:2px 9px;border-radius:100px; }
-    .dtb-green { background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2); }
-    .dtb-amber { background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.2); }
-    .dtb-red { background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2); }
-    .dtb-soon { background:rgba(245,158,11,.05);color:rgba(245,158,11,.5);border:1px dashed rgba(245,158,11,.2); }
-    .dtb-dim { background:rgba(255,255,255,.04);color:var(--text-dim);border:1px solid rgba(255,255,255,.08); }
+    .doss-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px; }
+    .doss-tile {
+      background: linear-gradient(155deg, rgba(255,255,255,.045) 0%, rgba(0,0,0,.18) 100%);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      cursor: pointer;
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 18px 14px;
+      text-align: center;
+      gap: 9px;
+      transition: border-color .2s, transform .2s, box-shadow .2s;
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+      box-shadow: 0 2px 18px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.055);
+    }
+    /* Top stripe — centered fade + glow */
+    .doss-tile::before { content:'';position:absolute;top:0;left:0;right:0;height:4px;border-radius:14px 14px 0 0; }
+    .doss-tile.tc-green::before  { background:linear-gradient(90deg,transparent,rgba(74,222,128,.95),transparent); box-shadow:0 0 14px rgba(74,222,128,.5); }
+    .doss-tile.tc-amber::before  { background:linear-gradient(90deg,transparent,rgba(245,158,11,.95),transparent); box-shadow:0 0 14px rgba(245,158,11,.5); }
+    .doss-tile.tc-red::before    { background:linear-gradient(90deg,transparent,rgba(239,68,68,.95),transparent);  box-shadow:0 0 14px rgba(239,68,68,.5); }
+    .doss-tile.tc-soon::before   { background:repeating-linear-gradient(90deg,rgba(245,158,11,.55) 0 6px,transparent 6px 12px); }
+    .doss-tile.tc-dim::before    { background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent); }
+    /* Radial color wash bleeding down from stripe */
+    .doss-tile::after { content:'';position:absolute;top:0;left:0;right:0;height:55%;pointer-events:none;border-radius:14px 14px 0 0; }
+    .doss-tile.tc-green::after { background:radial-gradient(ellipse at 50% 0%,rgba(74,222,128,.08) 0%,transparent 72%); }
+    .doss-tile.tc-amber::after { background:radial-gradient(ellipse at 50% 0%,rgba(245,158,11,.08) 0%,transparent 72%); }
+    .doss-tile.tc-red::after   { background:radial-gradient(ellipse at 50% 0%,rgba(239,68,68,.08)  0%,transparent 72%); }
+    .doss-tile.tc-dim::after,.doss-tile.tc-soon::after { background:none; }
+    /* Hover — lift */
+    .doss-tile:hover { transform:translateY(-3px); box-shadow:0 10px 36px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.07); }
+    .doss-tile.tc-green:hover { border-color:rgba(74,222,128,.35); }
+    .doss-tile.tc-amber:hover { border-color:rgba(245,158,11,.35); }
+    .doss-tile.tc-red:hover   { border-color:rgba(239,68,68,.35); }
+    .doss-tile.tc-dim:hover,.doss-tile.tc-soon:hover { border-color:var(--border-default); }
+    /* Active — ring glow */
+    .doss-tile.active { transform:translateY(0);background:linear-gradient(155deg,rgba(255,255,255,.025) 0%,rgba(0,0,0,.22) 100%); }
+    .doss-tile.active.tc-green { border-color:rgba(74,222,128,.55); box-shadow:0 0 0 1px rgba(74,222,128,.18),0 6px 28px rgba(74,222,128,.15),inset 0 1px 0 rgba(74,222,128,.1); }
+    .doss-tile.active.tc-amber { border-color:rgba(245,158,11,.55); box-shadow:0 0 0 1px rgba(245,158,11,.18),0 6px 28px rgba(245,158,11,.15),inset 0 1px 0 rgba(245,158,11,.1); }
+    .doss-tile.active.tc-red   { border-color:rgba(239,68,68,.55);  box-shadow:0 0 0 1px rgba(239,68,68,.18), 0 6px 28px rgba(239,68,68,.15), inset 0 1px 0 rgba(239,68,68,.1); }
+    /* Typography */
+    .dt-icon  { font-size:26px;line-height:1;position:relative;z-index:1; }
+    .dt-label { font-size:9px;text-transform:uppercase;letter-spacing:.13em;color:var(--text-dim);font-weight:700;position:relative;z-index:1; }
+    .dt-main  { font-size:13px;font-weight:700;color:var(--text-primary);line-height:1.3;position:relative;z-index:1; }
+    .dt-sub   { font-size:10px;color:var(--text-secondary);line-height:1.3;position:relative;z-index:1; }
+    .dt-badge { font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 11px;border-radius:100px;position:relative;z-index:1; }
+    .dtb-green { background:rgba(74,222,128,.13);color:#4ade80;border:1px solid rgba(74,222,128,.32); }
+    .dtb-amber { background:rgba(245,158,11,.13);color:#f59e0b;border:1px solid rgba(245,158,11,.32); }
+    .dtb-red   { background:rgba(239,68,68,.13);color:#ef4444;border:1px solid rgba(239,68,68,.32); }
+    .dtb-soon  { background:rgba(245,158,11,.06);color:rgba(245,158,11,.6);border:1px dashed rgba(245,158,11,.28); }
+    .dtb-dim   { background:rgba(255,255,255,.05);color:var(--text-dim);border:1px solid rgba(255,255,255,.11); }
 
     /* Panel area */
     .doss-panel { display:none;background:var(--bg-panel);border:1px solid var(--border-subtle);border-radius:12px;overflow:hidden; }
