@@ -192,6 +192,9 @@ def run(name: str):
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print("Usage: python3 test_court_playwright.py \"Фамилия Имя Отчество\"")
-        sys.exit(1)
-    run(' '.join(sys.argv[1:]))
+        # Default test person — run with no arguments to test quickly
+        name = 'Граб Артём Александрович'
+        print(f"No name given — using default: {name}")
+    else:
+        name = ' '.join(sys.argv[1:])
+    run(name)
