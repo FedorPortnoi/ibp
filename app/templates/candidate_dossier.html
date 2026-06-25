@@ -2862,12 +2862,29 @@
     if(graphInited)return;
     graphInited=true;
 
+    const canvas=document.getElementById('cg-canvas');
     const svgEl=document.getElementById('cg-svg');
-    if(!svgEl)return;
+
+    // Diagnostic: show dimensions + data count so we can see what's wrong
+    const dbg=document.createElement('div');
+    dbg.id='cg-dbg';
+    dbg.style.cssText='position:absolute;top:8px;right:8px;font-family:JetBrains Mono,monospace;font-size:10px;color:rgba(196,149,90,.7);z-index:99;text-align:right;pointer-events:none';
+    if(canvas)canvas.appendChild(dbg);
+
+    if(!svgEl){dbg.textContent='ERR: no svg element';return;}
+    if(typeof d3==='undefined'){dbg.textContent='ERR: d3 not loaded';return;}
+
+    const W=()=>canvas?canvas.offsetWidth:0;
+    const H=()=>canvas?canvas.offsetHeight:0;
+
+    // Force min canvas height if flex collapsed it
+    if(canvas&&canvas.offsetHeight<100)canvas.style.minHeight='460px';
+
+    dbg.textContent=`W:${W()} H:${H()} nodes:${nodes.length} links:${links.length}`;
+
+    try {
     svgSel=d3.select(svgEl);
     const g=svgSel.append('g');
-    const W=()=>document.getElementById('cg-canvas').offsetWidth;
-    const H=()=>document.getElementById('cg-canvas').offsetHeight;
 
     zoomBehavior=d3.zoom().scaleExtent([.15,4]).on('zoom',e=>g.attr('transform',e.transform));
     svgSel.call(zoomBehavior);
@@ -2978,6 +2995,10 @@
     document.getElementById('cg-zr').onclick=()=>svgSel.transition().duration(250).call(zoomBehavior.transform,d3.zoomIdentity.translate(W()/2,H()/2).scale(.78));
 
     svgSel.on('click',resetAll);
+    } catch(err){
+      dbg.textContent='ERR: '+err.message;
+      dbg.style.color='#EF4444';
+    }
   }
 
   function getBezierPoint(d,t){
