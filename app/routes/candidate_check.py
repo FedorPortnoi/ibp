@@ -924,6 +924,18 @@ def dossier_page(check_id):
         group_analysis=check.group_analysis or {},
         activity_patterns=check.activity_patterns or {},
         connected_checks=check.connected_checks or [],
+        # Tile aliases — template tile section uses these names
+        confirmed_profiles=check.confirmed_profiles,
+        social_media_profiles=check.social_media_profiles,
+        contact_discoveries=check.contact_discoveries,
+        sanctions_results=check.sanctions_results,
+        adverse_media_results=check.adverse_media,
+        behavioral_analysis={
+            'geo_analysis': check.geo_analysis or {},
+            'group_analysis': check.group_analysis or {},
+            'activity_patterns': check.activity_patterns or {},
+        },
+        connection_graph={},
     )
 
 
