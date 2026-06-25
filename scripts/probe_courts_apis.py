@@ -8,6 +8,13 @@ Usage:
 import os, json, sys
 sys.path.insert(0, '/opt/ibp')
 
+# Load .env so API keys are visible (same as Flask app does)
+try:
+    from dotenv import load_dotenv
+    load_dotenv('/opt/ibp/.env')
+except Exception as e:
+    print(f"[warn] dotenv load failed: {e}")
+
 import requests
 
 INN_INDIVIDUAL = '910811776518'   # Граб Артём Александрович (12 digits = физлицо)
