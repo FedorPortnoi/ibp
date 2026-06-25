@@ -1094,7 +1094,8 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             # Outer timeout prevents an OS-level browser hang from stalling the pipeline.
             _court_pool = ThreadPoolExecutor(max_workers=1)
             _COURT_SOURCES = (
-                'sudact.ru', 'судебныерешения.рф', 'reputation.su', 'kad.arbitr.ru',
+                'sudact.ru', 'судебныерешения.рф', 'reputation.su',
+                'kad.arbitr.ru', 'ras.arbitr.ru',
             )
             _FAILURE_STATUSES = (
                 'blocked', 'timeout', 'http_error', 'rate_limited', 'error',

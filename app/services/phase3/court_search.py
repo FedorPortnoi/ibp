@@ -191,11 +191,12 @@ class CourtRecordSearch:
     1. судебныерешения.рф — PHP site, CSRF session-based (plain requests)
     2. reputation.su — Nuxt 3 SSR aggregator, 58M+ cases (plain requests)
     3. kad.arbitr.ru — official arbitration cardfile, JSON API (INN-first)
+    4. ras.arbitr.ru — appellate arbitration cardfile, JSON API (mirrors kad)
 
     Geo-note: судебныерешения.рф uses DDoS Guard and is intermittently accessible
     from non-Russian IPs. sudact.ru is accessible globally but requires Playwright.
-    kad.arbitr.ru returns HTTP 451 from non-Russian IPs. All work reliably from
-    the Russian production VM.
+    kad.arbitr.ru and ras.arbitr.ru return HTTP 451 from non-Russian IPs. All
+    work reliably from the Russian production VM.
 
     After each search_by_name() call, ``last_source_statuses`` maps source name
     → 'ok'/'empty'/'blocked'/'timeout'/'http_error'/'rate_limited'/'error'/
@@ -241,6 +242,8 @@ class CourtRecordSearch:
         3. kad.arbitr.ru — official arbitration cardfile (INN-first when
            ``inn`` is a 12-digit personal INN; INN-matched cases get
            confidence VERIFIED)
+        4. ras.arbitr.ru — appellate arbitration cardfile (same API as kad,
+           covers second-instance cases at 1 ААС–21 ААС)
 
         Per-source outcomes land in ``self.last_source_statuses``.
         """
@@ -343,6 +346,32 @@ class CourtRecordSearch:
             statuses['kad.arbitr.ru'] = 'error'
             logger.warning(f"Court search: kad.arbitr.ru failed: {e}")
 
+        # --- Source 4: ras.arbitr.ru (appellate arbitration) ---
+        try:
+            from app.services.phase3.ras_arbitr_service import search_ras_arbitr_person
+            ras_cases, ras_status = search_ras_arbitr_person(
+                name, inn=inn, timeout=min(self.timeout, 12),
+            )
+            statuses['ras.arbitr.ru'] = ras_status
+            for rc in ras_cases:
+                case = CourtCase(
+                    case_number=rc.get('case_number', ''),
+                    court_name=rc.get('court_name', ''),
+                    case_type=rc.get('case_type', ''),
+                    date=rc.get('date', ''),
+                    role=rc.get('role', ''),
+                    category=rc.get('subject', ''),
+                    url=rc.get('url', ''),
+                    source='ras.arbitr.ru',
+                    confidence='VERIFIED' if rc.get('matched_by') == 'inn' else 'medium',
+                )
+                if case.case_number:
+                    results.append(case)
+            logger.info(f"Court search: ras.arbitr.ru returned {len(ras_cases)} cases (status={ras_status})")
+        except Exception as e:
+            statuses['ras.arbitr.ru'] = 'error'
+            logger.warning(f"Court search: ras.arbitr.ru failed: {e}")
+
         # Deduplicate by case number. First occurrence wins, EXCEPT a
         # VERIFIED (INN-matched) duplicate replaces a weaker earlier copy —
         # an official INN match must not be downgraded by an aggregator row.
@@ -380,6 +409,9 @@ class CourtRecordSearch:
         so the caller can distinguish "source unreadable" from "no cases".
         """
         base = 'https://xn--90afdbaav0bd1afy6eub5d.xn--p1ai'
+        # DDoS-Guard needs longer than 30s to issue its session cookie and
+        # deliver the real page. Use a dedicated 45s timeout here.
+        _timeout = 45
         results = []
 
         def _set_status(value: str) -> None:
@@ -389,10 +421,11 @@ class CourtRecordSearch:
         try:
             session = requests.Session()
             session.headers.update(self.HEADERS)
+            session.headers.update({'Referer': base + '/'})
 
             # Step 1: GET form page to obtain CSRF token + session cookie
             logger.info(f"судебныерешения.рф: fetching form page")
-            resp = session.get(base + '/', timeout=self.timeout)
+            resp = session.get(base + '/', timeout=_timeout)
             if resp.status_code != 200:
                 _set_status('http_error')
                 logger.warning(f"судебныерешения.рф: form page HTTP {resp.status_code}")
@@ -424,6 +457,10 @@ class CourtRecordSearch:
             token = token_match.group(1)
             logger.debug(f"судебныерешения.рф: got CSRF token ({len(token)} chars)")
 
+            # Brief pause: DDoS-Guard needs time to register the session
+            # cookie before we hit the POST endpoint.
+            time.sleep(3)
+
             # Step 2: POST search with person name
             form_data = {
                 'simpleSearch[person_info][0][person]': name,
@@ -440,7 +477,7 @@ class CourtRecordSearch:
             resp = session.post(
                 base + '/simple_filter',
                 data=form_data,
-                timeout=self.timeout,
+                timeout=_timeout,
                 allow_redirects=True,
             )
 

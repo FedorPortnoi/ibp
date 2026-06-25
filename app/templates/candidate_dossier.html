@@ -923,8 +923,12 @@
             'error': 'ошибка',
         } %}
         {% set failed_court_sources = [] %}
+        {# reputation.su = Cloudflare-blocked from non-RU IPs (expected);
+           судебныерешения.рф = DDoS-Guard flaky (low reliability) — both are
+           informational-only, not blockers for the completeness check. #}
+        {% set _optional_court_sources = ('reputation.su', 'судебныерешения.рф') %}
         {% for src, st in (court_source_statuses or {}).items() %}
-            {% if st in court_status_labels and src != 'reputation.su' %}
+            {% if st in court_status_labels and src not in _optional_court_sources %}
                 {% set _ = failed_court_sources.append(src ~ ' — ' ~ court_status_labels[st]) %}
             {% endif %}
         {% endfor %}
