@@ -17,10 +17,10 @@
     }
 
     /* Risk box variants */
-    .risk-low { background: rgba(212, 162, 127, 0.08); border: 1px solid rgba(212, 162, 127, 0.28); }
-    .risk-medium { background: rgba(204, 120, 92, 0.08); border: 1px solid rgba(204, 120, 92, 0.28); }
-    .risk-high { background: rgba(204, 82, 71, 0.08); border: 1px solid rgba(204, 82, 71, 0.3); }
-    .risk-critical { background: rgba(204, 82, 71, 0.14); border: 1px solid rgba(204, 82, 71, 0.45); }
+    .risk-low      { background: rgba(235, 219, 188, 0.07); border: 1px solid rgba(235, 219, 188, 0.25); }
+    .risk-medium   { background: rgba(212, 162, 127, 0.08); border: 1px solid rgba(212, 162, 127, 0.28); }
+    .risk-high     { background: rgba(204, 120, 92, 0.08); border: 1px solid rgba(204, 120, 92, 0.3); }
+    .risk-critical { background: rgba(204, 82, 71, 0.14);  border: 1px solid rgba(204, 82, 71, 0.45); }
 
     /* Section nav pills */
     .nav-pill {
@@ -53,8 +53,8 @@
         font-size: 0.6875rem;
         font-weight: 600;
     }
-    .badge-count { background: rgba(196, 149, 90, 0.2); color: var(--accent-bright); }
-    .badge-empty { background: rgba(100, 116, 139, 0.15); color: var(--text-dim); }
+    .badge-count { background: rgba(212, 162, 127, 0.2); color: var(--accent-bright); }
+    .badge-empty { background: rgba(102, 102, 99, 0.15); color: var(--text-dim); }
 
     /* Status badges */
     .status-badge {
@@ -65,11 +65,11 @@
         font-size: 0.75rem;
         font-weight: 500;
     }
-    .badge-green { background: rgba(212, 162, 127, 0.15); color: #D4A27F; }
-    .badge-gray { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
-    .badge-red { background: rgba(204, 82, 71, 0.15); color: #CC5247; }
-    .badge-yellow { background: rgba(204, 120, 92, 0.15); color: #CC785C; }
-    .badge-blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+    .badge-green  { background: rgba(235, 219, 188, 0.15); color: #EBDBBC; }
+    .badge-gray   { background: rgba(102, 102, 99, 0.15);  color: #91918D; }
+    .badge-red    { background: rgba(204, 82, 71, 0.15);   color: #CC5247; }
+    .badge-yellow { background: rgba(204, 120, 92, 0.15);  color: #CC785C; }
+    .badge-blue   { background: rgba(97, 170, 242, 0.15);  color: #61AAF2; }
 
     /* Empty state */
     .empty-state {
@@ -78,7 +78,7 @@
         color: var(--text-dim);
         font-size: 0.875rem;
     }
-    .empty-state.good { color: #D4A27F; }
+    .empty-state.good { color: #EBDBBC; }
     .empty-state.stub { color: var(--text-muted); }
 
     /* Red flag list */
@@ -91,7 +91,7 @@
         font-size: 0.875rem;
         margin-bottom: 4px;
     }
-    .flag-info { background: rgba(59, 130, 246, 0.06); color: #60a5fa; }
+    .flag-info { background: rgba(97, 170, 242, 0.06); color: #61AAF2; }
     .flag-warning { background: rgba(204, 120, 92, 0.06); color: #CC785C; }
     .flag-risk { background: rgba(204, 82, 71, 0.06); color: #CC5247; }
     .flag-critical { background: rgba(204, 82, 71, 0.12); color: #CC5247; }
@@ -180,20 +180,20 @@
         font-weight: 600;
         font-family: 'JetBrains Mono', monospace;
     }
-    .conf-high { background: rgba(212, 162, 127, 0.15); color: #D4A27F; }
-    .conf-medium { background: rgba(97, 170, 242, 0.15); color: #61AAF2; }
-    .conf-low { background: rgba(204, 120, 92, 0.15); color: #CC785C; }
-    .conf-hidden { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
+    .conf-high   { background: rgba(97, 170, 242, 0.15);  color: #61AAF2; }
+    .conf-medium { background: rgba(212, 162, 127, 0.15); color: #D4A27F; }
+    .conf-low    { background: rgba(204, 120, 92, 0.15);  color: #CC785C; }
+    .conf-hidden { background: rgba(102, 102, 99, 0.15);  color: #91918D; }
 
     /* INN-verified badge */
-    .inn-verified-badge { background: rgba(212, 162, 127, 0.12); color: #D4A27F; font-size: 0.6875rem; padding: 1px 8px; border-radius: 9999px; }
+    .inn-verified-badge { background: rgba(97, 170, 242, 0.12); color: #61AAF2; font-size: 0.6875rem; padding: 1px 8px; border-radius: 9999px; }
 
     /* Low confidence collapsed section */
     .low-confidence-section summary {
         cursor: pointer;
         padding: 8px 12px;
         border-radius: 8px;
-        background: rgba(100, 116, 139, 0.08);
+        background: rgba(102, 102, 99, 0.08);
         border: 1px dashed var(--border-subtle);
         color: var(--text-dim);
         font-size: 0.8125rem;
@@ -211,10 +211,10 @@
     @media print {
         nav, footer, .nav-pills-wrap, .export-wrap, .back-link { display: none !important; }
         body { background: white !important; color: black !important; }
-        .dossier-card { border: 1px solid #ddd !important; background: #fafafa !important; break-inside: avoid; }
+        .dossier-card { border: 1px solid #E5E5DF !important; background: #FAFAF7 !important; break-inside: avoid; }
         .risk-low, .risk-medium, .risk-high, .risk-critical { border-width: 2px !important; }
         * { color: black !important; }
-        .section-header { border-bottom-color: #ddd !important; }
+        .section-header { border-bottom-color: #E5E5DF !important; }
     }
 
     /* Smooth scroll */
@@ -263,26 +263,26 @@
     }
     /* Top stripe — centered fade + glow */
     .doss-tile::before { content:'';position:absolute;top:0;left:0;right:0;height:4px;border-radius:14px 14px 0 0; }
-    .doss-tile.tc-green::before  { background:linear-gradient(90deg,transparent,rgba(212,162,127,.95),transparent); box-shadow:0 0 10px rgba(212,162,127,.35); }
+    .doss-tile.tc-green::before  { background:linear-gradient(90deg,transparent,rgba(235,219,188,.95),transparent); box-shadow:0 0 10px rgba(235,219,188,.3); }
     .doss-tile.tc-amber::before  { background:linear-gradient(90deg,transparent,rgba(204,120,92,.95),transparent); box-shadow:0 0 10px rgba(204,120,92,.4); }
     .doss-tile.tc-red::before    { background:linear-gradient(90deg,transparent,rgba(204,82,71,.95),transparent);  box-shadow:0 0 10px rgba(204,82,71,.45); }
-    .doss-tile.tc-soon::before   { background:repeating-linear-gradient(90deg,rgba(204,120,92,.45) 0 6px,transparent 6px 12px); }
-    .doss-tile.tc-dim::before    { background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent); }
+    .doss-tile.tc-soon::before   { background:repeating-linear-gradient(90deg,rgba(145,145,141,.45) 0 6px,transparent 6px 12px); }
+    .doss-tile.tc-dim::before    { background:linear-gradient(90deg,transparent,rgba(102,102,99,.5),transparent); }
     /* Radial color wash bleeding down from stripe */
     .doss-tile::after { content:'';position:absolute;top:0;left:0;right:0;height:55%;pointer-events:none;border-radius:14px 14px 0 0; }
-    .doss-tile.tc-green::after { background:radial-gradient(ellipse at 50% 0%,rgba(212,162,127,.07) 0%,transparent 72%); }
+    .doss-tile.tc-green::after { background:radial-gradient(ellipse at 50% 0%,rgba(235,219,188,.07) 0%,transparent 72%); }
     .doss-tile.tc-amber::after { background:radial-gradient(ellipse at 50% 0%,rgba(204,120,92,.08) 0%,transparent 72%); }
     .doss-tile.tc-red::after   { background:radial-gradient(ellipse at 50% 0%,rgba(204,82,71,.09)  0%,transparent 72%); }
     .doss-tile.tc-dim::after,.doss-tile.tc-soon::after { background:none; }
     /* Hover — lift */
     .doss-tile:hover { transform:translateY(-3px); box-shadow:0 10px 36px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.07); }
-    .doss-tile.tc-green:hover { border-color:rgba(212,162,127,.4); }
+    .doss-tile.tc-green:hover { border-color:rgba(235,219,188,.4); }
     .doss-tile.tc-amber:hover { border-color:rgba(204,120,92,.4); }
     .doss-tile.tc-red:hover   { border-color:rgba(204,82,71,.4); }
     .doss-tile.tc-dim:hover,.doss-tile.tc-soon:hover { border-color:var(--border-default); }
     /* Active — ring glow */
     .doss-tile.active { transform:translateY(0);background:linear-gradient(155deg,rgba(255,255,255,.025) 0%,rgba(0,0,0,.22) 100%); }
-    .doss-tile.active.tc-green { border-color:rgba(212,162,127,.55); box-shadow:0 0 0 1px rgba(212,162,127,.18),0 6px 28px rgba(212,162,127,.12),inset 0 1px 0 rgba(212,162,127,.08); }
+    .doss-tile.active.tc-green { border-color:rgba(235,219,188,.55); box-shadow:0 0 0 1px rgba(235,219,188,.18),0 6px 28px rgba(235,219,188,.1),inset 0 1px 0 rgba(235,219,188,.07); }
     .doss-tile.active.tc-amber { border-color:rgba(204,120,92,.55); box-shadow:0 0 0 1px rgba(204,120,92,.18),0 6px 28px rgba(204,120,92,.14),inset 0 1px 0 rgba(204,120,92,.08); }
     .doss-tile.active.tc-red   { border-color:rgba(204,82,71,.6);   box-shadow:0 0 0 1px rgba(204,82,71,.22), 0 6px 28px rgba(204,82,71,.18), inset 0 1px 0 rgba(204,82,71,.1); }
     /* Typography */
@@ -291,11 +291,11 @@
     .dt-main  { font-size:13px;font-weight:700;color:var(--text-primary);line-height:1.3;position:relative;z-index:1; }
     .dt-sub   { font-size:10px;color:var(--text-secondary);line-height:1.3;position:relative;z-index:1; }
     .dt-badge { font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 11px;border-radius:100px;position:relative;z-index:1; }
-    .dtb-green { background:rgba(212,162,127,.12);color:#D4A27F;border:1px solid rgba(212,162,127,.3); }
-    .dtb-amber { background:rgba(204,120,92,.12);color:#CC785C;border:1px solid rgba(204,120,92,.32); }
-    .dtb-red   { background:rgba(204,82,71,.12);color:#CC5247;border:1px solid rgba(204,82,71,.35); }
-    .dtb-soon  { background:rgba(204,120,92,.06);color:rgba(204,120,92,.6);border:1px dashed rgba(204,120,92,.28); }
-    .dtb-dim   { background:rgba(255,255,255,.05);color:var(--text-dim);border:1px solid rgba(255,255,255,.11); }
+    .dtb-green { background:rgba(235,219,188,.1); color:#EBDBBC; border:1px solid rgba(235,219,188,.28); }
+    .dtb-amber { background:rgba(204,120,92,.12); color:#CC785C; border:1px solid rgba(204,120,92,.32); }
+    .dtb-red   { background:rgba(204,82,71,.12);  color:#CC5247; border:1px solid rgba(204,82,71,.35); }
+    .dtb-soon  { background:rgba(145,145,141,.06);color:rgba(145,145,141,.7);border:1px dashed rgba(145,145,141,.3); }
+    .dtb-dim   { background:rgba(102,102,99,.1);  color:#666663; border:1px solid rgba(102,102,99,.25); }
 
     /* Panel area */
     .doss-panel { display:none;background:var(--bg-panel);border:1px solid var(--border-subtle);border-radius:12px;overflow:hidden; }
@@ -500,11 +500,11 @@
 
 {# Risk score color #}
 {% if check.risk_score is not none %}
-  {% if check.risk_score < 30 %}{% set risk_color = '#D4A27F' %}
-  {% elif check.risk_score < 60 %}{% set risk_color = '#CC785C' %}
-  {% elif check.risk_score < 80 %}{% set risk_color = '#CC5247' %}
+  {% if check.risk_score < 30 %}{% set risk_color = '#EBDBBC' %}
+  {% elif check.risk_score < 60 %}{% set risk_color = '#D4A27F' %}
+  {% elif check.risk_score < 80 %}{% set risk_color = '#CC785C' %}
   {% else %}{% set risk_color = '#CC5247' %}{% endif %}
-{% else %}{% set risk_color = '#94a3b8' %}{% endif %}
+{% else %}{% set risk_color = '#91918D' %}{% endif %}
 
 {# ══════════════════════════════════════════
    IDENTITY BAR
@@ -558,7 +558,7 @@
       <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">{{ rc.desc }}</div>
       {% if check.risk_score is not none %}
       <div style="width:220px;height:5px;background:var(--bg-dark);border-radius:3px;margin-top:10px;overflow:hidden;">
-        <div style="height:100%;width:{{ check.risk_score }}%;background:linear-gradient(90deg,#D4A27F,#CC785C,#CC5247);border-radius:3px;"></div>
+        <div style="height:100%;width:{{ check.risk_score }}%;background:linear-gradient(90deg,#EBDBBC,#D4A27F,#CC785C,#CC5247);border-radius:3px;"></div>
       </div>
       <div style="display:flex;justify-content:space-between;width:220px;font-size:9px;color:var(--text-dim);margin-top:2px;"><span>Низкий</span><span>Средний</span><span>Высокий</span></div>
       {% endif %}
@@ -573,7 +573,7 @@
 
   {# Risk narrative (AI analysis) #}
   {% if check.risk_narrative %}
-  <div style="background:rgba(196,149,90,0.06);border:1px solid rgba(196,149,90,0.15);border-radius:8px;padding:12px 16px;margin-bottom:14px;">
+  <div style="background:rgba(212,162,127,0.06);border:1px solid rgba(212,162,127,0.15);border-radius:8px;padding:12px 16px;margin-bottom:14px;">
     <div style="font-size:10px;font-weight:600;color:var(--accent-bright);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">AI-анализ рисков</div>
     <p style="font-size:12.5px;color:var(--text-secondary);line-height:1.7;margin:0;">{{ check.risk_narrative }}</p>
   </div>
@@ -596,7 +596,7 @@
         <div style="flex:1;min-width:0;">
           <span style="font-size:12.5px;">{{ flag.get('description', flag.text) }}</span>
           {% if flag.get('evidence') %}<div style="font-size:11px;opacity:.6;margin-top:2px;">{{ flag.evidence }}</div>{% endif %}
-          {% if flag.get('recommendation') %}<div style="font-size:11px;color:#60a5fa;margin-top:2px;">{{ flag.recommendation }}</div>{% endif %}
+          {% if flag.get('recommendation') %}<div style="font-size:11px;color:#61AAF2;margin-top:2px;">{{ flag.recommendation }}</div>{% endif %}
         </div>
         <span style="font-size:10px;opacity:.45;margin-left:auto;white-space:nowrap;">{{ flag.get('category','') }}</span>
       </div>
@@ -613,7 +613,7 @@
         <div style="flex:1;min-width:0;">
           <span style="font-size:12.5px;">{{ flag.get('description', flag.text) }}</span>
           {% if flag.get('evidence') %}<div style="font-size:11px;opacity:.6;margin-top:2px;">{{ flag.evidence }}</div>{% endif %}
-          {% if flag.get('recommendation') %}<div style="font-size:11px;color:#60a5fa;margin-top:2px;">{{ flag.recommendation }}</div>{% endif %}
+          {% if flag.get('recommendation') %}<div style="font-size:11px;color:#61AAF2;margin-top:2px;">{{ flag.recommendation }}</div>{% endif %}
         </div>
         <span style="font-size:10px;opacity:.45;margin-left:auto;white-space:nowrap;">{{ flag.get('category','') }}</span>
       </div>
@@ -621,7 +621,7 @@
     </div>
     {% endif %}
   {% else %}
-    <div style="font-size:13px;color:#D4A27F;padding:8px 0;">✅ Красных флагов не обнаружено</div>
+    <div style="font-size:13px;color:#EBDBBC;padding:8px 0;">✅ Красных флагов не обнаружено</div>
   {% endif %}
 
   {# Executive summary (Claude text) #}
@@ -933,7 +933,7 @@
             <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
         {% elif court_records|length == 0 %}
             {% if failed_court_sources %}
-                <div class="empty-state stub" style="border-color: rgba(234,179,8,0.3);">
+                <div class="empty-state stub" style="border-color: rgba(204,120,92,0.3);">
                     &#x26A0;&#xFE0F; Дела не найдены, но проверка неполная &mdash; недоступны источники:
                     {{ failed_court_sources|join(', ') }}.
                     Отсутствие записей не подтверждено.
@@ -943,7 +943,7 @@
             {% endif %}
         {% else %}
             {% if failed_court_sources %}
-            <div class="mb-3 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+            <div class="mb-3 p-2.5 rounded text-xs leading-relaxed" style="color:#CC785C;background: rgba(204,120,92,0.07); border: 1px solid rgba(204,120,92,0.18);">
                 Часть источников недоступна: {{ failed_court_sources|join(', ') }} &mdash; список дел может быть неполным.
             </div>
             {% endif %}
@@ -972,7 +972,7 @@
             </div>
 
             {% if unverified_count > 0 %}
-            <div class="mb-3 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+            <div class="mb-3 p-2.5 rounded text-xs leading-relaxed" style="color:#CC785C;background: rgba(204,120,92,0.07); border: 1px solid rgba(204,120,92,0.18);">
                 {{ unverified_count }} {{ 'дело найдено' if unverified_count == 1 else 'дел найдено' }} только по имени — {{ 'может принадлежать' if unverified_count == 1 else 'могут принадлежать' }} однофамильцам.
                 Требуется ручная проверка.
             </div>
@@ -981,10 +981,10 @@
 
             {% for case in court_records %}
             <div class="dossier-card {% if case.get('confidence') == 'VERIFIED' %}border-l-2{% elif case.get('confidence') == 'LIKELY' %}border-l-2{% elif case.get('confidence') == 'POSSIBLE' %}border-l-2{% elif case.get('confidence') == 'UNVERIFIED' %}border-l-2 opacity-70{% endif %}"
-                 {% if case.get('confidence') == 'VERIFIED' %}style="border-left-color: #4ADE80;"
-                 {% elif case.get('confidence') == 'LIKELY' %}style="border-left-color: #eab308;"
-                 {% elif case.get('confidence') == 'POSSIBLE' %}style="border-left-color: #f97316;"
-                 {% elif case.get('confidence') == 'UNVERIFIED' %}style="border-left-color: #6b7280;"
+                 {% if case.get('confidence') == 'VERIFIED' %}style="border-left-color: #61AAF2;"
+                 {% elif case.get('confidence') == 'LIKELY' %}style="border-left-color: #D4A27F;"
+                 {% elif case.get('confidence') == 'POSSIBLE' %}style="border-left-color: #CC785C;"
+                 {% elif case.get('confidence') == 'UNVERIFIED' %}style="border-left-color: #666663;"
                  {% endif %}>
                 <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
                     <div class="font-semibold text-white text-sm">
@@ -1055,7 +1055,7 @@
                     {% endif %}
                 </div>
                 {% if case.get('ai_summary') %}
-                    <div class="mt-2 p-2 rounded text-xs text-gray-300 leading-relaxed" style="background: rgba(196, 149, 90, 0.05); border: 1px solid var(--accent-subtle);">
+                    <div class="mt-2 p-2 rounded text-xs text-gray-300 leading-relaxed" style="background: rgba(212, 162, 127, 0.05); border: 1px solid var(--accent-subtle);">
                         <span class="text-accent-bright font-medium">AI:</span> {{ case.ai_summary }}
                     </div>
                 {% endif %}
@@ -1101,7 +1101,7 @@
             <div class="empty-state stub">&#x23F3; Источник ещё не подключён</div>
         {% elif fssp_records|length == 0 %}
             {% if fssp_status in fssp_failed_labels %}
-                <div class="empty-state stub" style="border-color: rgba(234,179,8,0.3);">
+                <div class="empty-state stub" style="border-color: rgba(204,120,92,0.3);">
                     &#x26A0;&#xFE0F; Проверка неполная — {{ fssp_failed_labels[fssp_status] }}.
                     Отсутствие производств не подтверждено, требуется ручная проверка на
                     <a href="https://fssp.gov.ru/iss/ip/" target="_blank" rel="noopener" class="text-accent">fssp.gov.ru</a>.
@@ -1112,7 +1112,7 @@
         {% else %}
             {% for proc in fssp_records %}
                 {% if proc.get('source') == 'manual' %}
-                <div class="dossier-card" style="border-color: rgba(245, 158, 11, 0.3);">
+                <div class="dossier-card" style="border-color: rgba(204,120,92,0.3);">
                     <div class="text-sm text-yellow-400 mb-2">&#x26A0;&#xFE0F; Автоматическая проверка заблокирована CAPTCHA</div>
                     <div class="text-xs text-gray-400 mb-3">{{ proc.get('subject', '') }}</div>
                     <a href="https://fssp.gov.ru/iss/ip/" target="_blank" rel="noopener"
@@ -1209,15 +1209,15 @@
         {% else %}
             {% set pledge_status = (source_statuses or {}).get('reestr-zalogov.ru', '') %}
             {% if pledge_status not in ('ok', 'empty', '') %}
-                <div style="background:var(--bg-panel);border:1px dashed rgba(232,224,212,0.12);padding:20px;">
+                <div style="background:var(--bg-panel);border:1px dashed rgba(229,229,223,0.12);padding:20px;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-                        <span style="font-size:0.8125rem;font-weight:600;color:rgba(232,224,212,0.35);text-transform:uppercase;letter-spacing:.04em;">ФНП — Залоговый реестр</span>
+                        <span style="font-size:0.8125rem;font-weight:600;color:rgba(229,229,223,0.35);text-transform:uppercase;letter-spacing:.04em;">ФНП — Залоговый реестр</span>
                         <span style="font-size:0.6875rem;background:rgba(204,120,92,0.12);color:rgba(204,120,92,0.6);padding:2px 8px;border:1px solid rgba(204,120,92,0.2);">Скоро</span>
                     </div>
-                    <div style="color:rgba(232,224,212,0.22);font-size:0.75rem;line-height:1.7;">
+                    <div style="color:rgba(229,229,223,0.22);font-size:0.75rem;line-height:1.7;">
                         Автоматическая проверка заблокирована reCAPTCHA.
                         <a href="https://www.reestr-zalogov.ru/search/index" target="_blank" rel="noopener"
-                           style="color:rgba(232,224,212,0.35);text-decoration:underline;">Проверить вручную &#x2197;</a>
+                           style="color:rgba(229,229,223,0.35);text-decoration:underline;">Проверить вручную &#x2197;</a>
                     </div>
                 </div>
             {% else %}
@@ -1347,15 +1347,15 @@
             </div>
             {% endfor %}
         {% elif bankruptcy_records %}
-            <div style="background:var(--bg-panel);border:1px dashed rgba(232,224,212,0.12);padding:20px;">
+            <div style="background:var(--bg-panel);border:1px dashed rgba(229,229,223,0.12);padding:20px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-                    <span style="font-size:0.8125rem;font-weight:600;color:rgba(232,224,212,0.35);text-transform:uppercase;letter-spacing:.04em;">ЕФРСБ — Банкротство</span>
+                    <span style="font-size:0.8125rem;font-weight:600;color:rgba(229,229,223,0.35);text-transform:uppercase;letter-spacing:.04em;">ЕФРСБ — Банкротство</span>
                     <span style="font-size:0.6875rem;background:rgba(204,120,92,0.12);color:rgba(204,120,92,0.6);padding:2px 8px;border:1px solid rgba(204,120,92,0.2);">Скоро</span>
                 </div>
-                <div style="color:rgba(232,224,212,0.22);font-size:0.75rem;line-height:1.7;">
+                <div style="color:rgba(229,229,223,0.22);font-size:0.75rem;line-height:1.7;">
                     Проверка в ЕФРСБ по физическим лицам временно недоступна с зарубежных IP.
                     <a href="https://bankrot.fedresurs.ru/DebtorsSearch.aspx" target="_blank" rel="noopener"
-                       style="color:rgba(232,224,212,0.35);text-decoration:underline;">Проверить вручную &#x2197;</a>
+                       style="color:rgba(229,229,223,0.35);text-decoration:underline;">Проверить вручную &#x2197;</a>
                 </div>
             </div>
         {% else %}
@@ -1391,7 +1391,7 @@
         </div>
 
         {% if am_status in am_failed_labels %}
-        <div class="mb-4 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+        <div class="mb-4 p-2.5 rounded text-xs leading-relaxed" style="color:#CC785C;background: rgba(204,120,92,0.07); border: 1px solid rgba(204,120,92,0.18);">
             &#x26A0;&#xFE0F; Проверка негативных упоминаний не выполнена ({{ am_failed_labels[am_status] }}) — отсутствие компромата не подтверждено.
         </div>
         {% endif %}
@@ -1420,7 +1420,7 @@
             <summary class="text-sm font-semibold text-gray-400 cursor-pointer">Возможные ({{ am_possible|length }}) — личность не подтверждена, возможны однофамильцы</summary>
             <div class="mt-2">
             {% for h in am_possible %}
-            <div class="dossier-card mb-2" style="border-left: 3px solid rgba(156,163,175,0.4);">
+            <div class="dossier-card mb-2" style="border-left: 3px solid rgba(145,145,141,0.4);">
                 <div class="flex items-center gap-2 mb-1">
                     <span class="text-xs px-2 py-0.5 rounded-full bg-gray-500/10 text-gray-300">{{ 'криминал' if h.severity == 'criminal' else 'репутация' }}</span>
                     <span class="text-xs text-gray-500">{{ h.source_domain }}</span>
@@ -1454,7 +1454,7 @@
         <p class="text-xs text-gray-500 mb-3">Все обнаруженные связи цели. «Подтверждённые» — личность совпадает по ИНН или общей компании; «возможные» — совпадение по имени, требуют ручной проверки.</p>
 
         {% macro conn_card(c, strong) %}
-        <div class="dossier-card mb-2" style="border-left: 3px solid {{ 'rgba(16,185,129,0.6)' if strong else 'rgba(156,163,175,0.4)' }};">
+        <div class="dossier-card mb-2" style="border-left: 3px solid {{ 'rgba(97,170,242,0.6)' if strong else 'rgba(145,145,141,0.4)' }};">
             <div class="flex items-center gap-2 mb-1 flex-wrap">
                 <span class="text-sm font-semibold text-gray-100">{{ c.name }}</span>
                 <span class="text-xs px-2 py-0.5 rounded-full bg-gray-500/10 text-gray-300">{{ 'компания' if c.kind == 'company' else 'физлицо' }}</span>
@@ -1735,7 +1735,7 @@
         </div>
         <div class="dossier-card">
             {% if bi.get('sources_failed') %}
-            <div class="mb-4 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+            <div class="mb-4 p-2.5 rounded text-xs leading-relaxed" style="color:#CC785C;background: rgba(204,120,92,0.07); border: 1px solid rgba(204,120,92,0.18);">
                 &#x26A0;&#xFE0F; Проверка утечек неполная — недоступны источники: {{ bi.get('sources_failed', [])|join(', ') }}.
                 {% if bi.get('breach_count', 0) == 0 %}Отсутствие утечек не подтверждено.{% else %}Список может быть неполным.{% endif %}
             </div>
@@ -1824,13 +1824,13 @@
         </div>
 
         {% if not face_matches and face_status in face_failed_labels %}
-        <div class="mb-4 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+        <div class="mb-4 p-2.5 rounded text-xs leading-relaxed" style="color:#CC785C;background: rgba(204,120,92,0.07); border: 1px solid rgba(204,120,92,0.18);">
             &#x26A0;&#xFE0F; Поиск по фото не выполнен ({{ face_failed_labels[face_status] }}) — отсутствие совпадений по лицу не подтверждено.
         </div>
         {% endif %}
 
         {% if not username_accounts and username_search_status in username_failed_labels %}
-        <div class="mb-4 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+        <div class="mb-4 p-2.5 rounded text-xs leading-relaxed" style="color:#CC785C;background: rgba(204,120,92,0.07); border: 1px solid rgba(204,120,92,0.18);">
             &#x26A0;&#xFE0F; Поиск аккаунтов по нику не выполнен ({{ username_failed_labels[username_search_status] }}) — отсутствие аккаунтов не подтверждено.
         </div>
         {% endif %}
@@ -2000,10 +2000,10 @@
 
         {# Map legend #}
         <div class="flex flex-wrap gap-4 mt-2 mb-4 text-xs text-gray-400 px-1">
-            <span><span style="color: #EF4444;">&#x25CF;</span> ЕГРЮЛ / Анкета</span>
-            <span><span style="color: #eab308;">&#x25CF;</span> VK профиль</span>
-            <span><span style="color: #4ADE80;">&#x25CF;</span> VK геотег</span>
-            <span><span style="color: #3b82f6;">&#x25CF;</span> Telegram</span>
+            <span><span style="color: #CC5247;">&#x25CF;</span> ЕГРЮЛ / Анкета</span>
+            <span><span style="color: #CC785C;">&#x25CF;</span> VK профиль</span>
+            <span><span style="color: #EBDBBC;">&#x25CF;</span> VK геотег</span>
+            <span><span style="color: #61AAF2;">&#x25CF;</span> Telegram</span>
         </div>
 
         {% if gi_summary.get('primary_city') %}
@@ -2026,13 +2026,13 @@
                     <div class="text-[10px] text-gray-500 mb-1">{{ day.day_label }}</div>
                     <div class="flex flex-col gap-[2px]">
                         {# Night #}
-                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(196, 149, 90, 0.7)' if day.slots.night else 'rgba(255,255,255,0.04)' }};"></div>
+                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(212, 162, 127, 0.7)' if day.slots.night else 'rgba(255,255,255,0.04)' }};"></div>
                         {# Evening #}
-                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(196, 149, 90, 0.7)' if day.slots.evening else 'rgba(255,255,255,0.04)' }};"></div>
+                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(212, 162, 127, 0.7)' if day.slots.evening else 'rgba(255,255,255,0.04)' }};"></div>
                         {# Afternoon #}
-                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(196, 149, 90, 0.7)' if day.slots.afternoon else 'rgba(255,255,255,0.04)' }};"></div>
+                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(212, 162, 127, 0.7)' if day.slots.afternoon else 'rgba(255,255,255,0.04)' }};"></div>
                         {# Morning #}
-                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(196, 149, 90, 0.7)' if day.slots.morning else 'rgba(255,255,255,0.04)' }};"></div>
+                        <div style="height: 8px; border-radius: 2px; background: {{ 'rgba(212, 162, 127, 0.7)' if day.slots.morning else 'rgba(255,255,255,0.04)' }};"></div>
                     </div>
                     <div class="text-[10px] text-gray-600 mt-1">{{ day.date[-5:] }}</div>
                     {% if day.platform %}
@@ -2043,7 +2043,7 @@
             </div>
             <div class="flex gap-4 mt-2 text-[10px] text-gray-500 justify-end">
                 <span>&#x2B06; Утро &middot; День &middot; Вечер &middot; Ночь &#x2B07;</span>
-                <span><span style="color: #C4955A;">&#x25A0;</span> Активен</span>
+                <span><span style="color: #D4A27F;">&#x25A0;</span> Активен</span>
                 <span style="color: rgba(255,255,255,0.15);">&#x25A0; Неактивен</span>
             </div>
         </div>
@@ -2134,7 +2134,7 @@
     } %}
     {% if not text_analysis and vk_wall_status in vk_wall_failed_labels %}
     <section class="mb-10">
-        <div class="mb-4 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
+        <div class="mb-4 p-2.5 rounded text-xs leading-relaxed" style="color:#CC785C;background: rgba(204,120,92,0.07); border: 1px solid rgba(204,120,92,0.18);">
             &#x26A0;&#xFE0F; Поведенческий анализ не выполнен ({{ vk_wall_failed_labels[vk_wall_status] }}) — отсутствие активности не подтверждено.
         </div>
     </section>
@@ -2147,7 +2147,7 @@
         </div>
 
         {% if check.behavioral_summary %}
-        <div class="dossier-card mb-3" style="border-left: 3px solid rgba(196, 149, 90, 0.6);">
+        <div class="dossier-card mb-3" style="border-left: 3px solid rgba(212, 162, 127, 0.6);">
             <div class="flex items-center gap-2 mb-2">
                 <span class="text-sm font-semibold text-accent-bright">AI Behavioral Profile</span>
                 <span class="text-xs px-2 py-0.5 rounded-full bg-accent/[0.1] text-accent-bright border border-accent/[0.2]">Claude</span>
@@ -2528,7 +2528,7 @@
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data.nodes || data.nodes.length === 0) {
-                container.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Нет данных для графа</div>';
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:#666663;">Нет данных для графа</div>';
                 return;
             }
             var nodes = new vis.DataSet(data.nodes.map(function(n) {
@@ -2546,11 +2546,11 @@
                 return {
                     from: e.from,
                     to: e.to,
-                    color: {color: 'rgba(196, 149, 90,0.3)', highlight: 'var(--accent)'},
+                    color: {color: 'rgba(212,162,127,0.3)', highlight: 'var(--accent)'},
                 };
             }));
             var options = {
-                nodes: {font: {color: '#e5e7eb', size: 11}},
+                nodes: {font: {color: '#E5E5DF', size: 11}},
                 edges: {smooth: {type: 'continuous'}},
                 physics: {stabilization: {iterations: 100}},
                 interaction: {hover: true},
@@ -2559,7 +2559,7 @@
             new vis.Network(container, {nodes: nodes, edges: edges}, options);
         })
         .catch(function(err) {
-            container.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Ошибка загрузки графа</div>';
+            container.innerHTML = '<div style="text-align:center;padding:40px;color:#666663;">Ошибка загрузки графа</div>';
         });
 })();
 </script>
@@ -2576,10 +2576,10 @@
     if (!container) return;
 
     var COLOR_MAP = {
-        'red': '#EF4444',
-        'yellow': '#eab308',
-        'green': '#4ADE80',
-        'blue': '#3b82f6',
+        'red':    '#CC5247',
+        'yellow': '#CC785C',
+        'green':  '#EBDBBC',
+        'blue':   '#61AAF2',
     };
 
     fetch('/candidate/api/geo-intelligence/{{ check.id }}')
@@ -2588,7 +2588,7 @@
             var points = data.location_points || [];
             var geoPoints = points.filter(function(p) { return p.lat && p.lon; });
             if (geoPoints.length === 0) {
-                container.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Нет геоданных с координатами</div>';
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:#666663;">Нет геоданных с координатами</div>';
                 return;
             }
 
@@ -2600,7 +2600,7 @@
 
             var bounds = [];
             geoPoints.forEach(function(pt) {
-                var color = COLOR_MAP[pt.icon_color] || '#C4955A';
+                var color = COLOR_MAP[pt.icon_color] || '#D4A27F';
                 var marker = L.circleMarker([pt.lat, pt.lon], {
                     radius: 8,
                     color: color,
@@ -2614,9 +2614,9 @@
                          : '\u25CF\u25CB\u25CB';
                 var popup = '<div style="font-size:12px;line-height:1.5;">'
                     + '<b>' + (pt.label || '') + '</b><br>'
-                    + '<span style="color:#888;">' + (pt.location || '') + '</span><br>'
-                    + (pt.timestamp ? '<span style="color:#aaa;">' + pt.timestamp + '</span><br>' : '')
-                    + '<span style="color:#aaa;">Уверенность: </span>' + conf
+                    + '<span style="color:#91918D;">' + (pt.location || '') + '</span><br>'
+                    + (pt.timestamp ? '<span style="color:#BFBFBA;">' + pt.timestamp + '</span><br>' : '')
+                    + '<span style="color:#BFBFBA;">Уверенность: </span>' + conf
                     + '</div>';
                 marker.bindPopup(popup);
                 bounds.push([pt.lat, pt.lon]);
@@ -2629,7 +2629,7 @@
             }
         })
         .catch(function() {
-            container.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Ошибка загрузки карты</div>';
+            container.innerHTML = '<div style="text-align:center;padding:40px;color:#666663;">Ошибка загрузки карты</div>';
         });
 })();
 </script>
@@ -2648,7 +2648,7 @@
         .then(function(data) {
             var locations = data.locations || [];
             if (locations.length === 0) {
-                container.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Нет геоданных</div>';
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:#666663;">Нет геоданных</div>';
                 return;
             }
 
@@ -2667,8 +2667,8 @@
                     var freq = loc.frequency || loc.count || 1;
                     var marker = L.circleMarker([lat, lng], {
                         radius: Math.min(6 + freq * 2, 20),
-                        color: '#C4955A',
-                        fillColor: '#C4955A',
+                        color: '#D4A27F',
+                        fillColor: '#D4A27F',
                         fillOpacity: 0.6,
                     }).addTo(map);
                     marker.bindPopup('<b>' + name + '</b><br>Частота: ' + freq);
@@ -2683,7 +2683,7 @@
             }
         })
         .catch(function() {
-            container.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Ошибка загрузки карты</div>';
+            container.innerHTML = '<div style="text-align:center;padding:40px;color:#666663;">Ошибка загрузки карты</div>';
         });
 })();
 </script>
