@@ -286,7 +286,7 @@
     .doss-tile.active.tc-amber { border-color:rgba(204,120,92,.55); box-shadow:0 0 0 1px rgba(204,120,92,.18),0 6px 28px rgba(204,120,92,.14),inset 0 1px 0 rgba(204,120,92,.08); }
     .doss-tile.active.tc-red   { border-color:rgba(204,82,71,.6);   box-shadow:0 0 0 1px rgba(204,82,71,.22), 0 6px 28px rgba(204,82,71,.18), inset 0 1px 0 rgba(204,82,71,.1); }
     /* Typography */
-    .dt-icon  { font-size:26px;line-height:1;position:relative;z-index:1; }
+    .dt-icon  { font-size:30px;line-height:1;position:relative;z-index:1;font-style:normal; }
     .dt-label { font-size:9px;text-transform:uppercase;letter-spacing:.13em;color:var(--text-dim);font-weight:700;position:relative;z-index:1; }
     .dt-main  { font-size:13px;font-weight:700;color:var(--text-primary);line-height:1.3;position:relative;z-index:1; }
     .dt-sub   { font-size:10px;color:var(--text-secondary);line-height:1.3;position:relative;z-index:1; }
@@ -510,14 +510,14 @@
    IDENTITY BAR
    ══════════════════════════════════════════ #}
 <div class="doss-id">
-  <div class="doss-id-ava">👤</div>
+  <div class="doss-id-ava" style="font-size:20px;color:var(--text-dim);">◉</div>
   <div class="doss-id-info">
     <div class="doss-id-name">{{ check.confirmed_name or check.full_name }}</div>
     {% if check.confirmed_name and check.confirmed_name != check.full_name %}
-    <div style="font-size:11px;color:#CC785C;margin-bottom:2px;">⚠️ Введено: {{ check.full_name }}</div>
+    <div style="font-size:11px;color:#CC785C;margin-bottom:2px;">▲ Введено: {{ check.full_name }}</div>
     {% endif %}
     <div class="doss-id-meta">
-      {% if check.inn %}<span class="doss-id-field"><span class="doss-id-label">ИНН</span>{{ check.inn }}{% if check.identity_confirmed %} ✅{% endif %}</span>{% endif %}
+      {% if check.inn %}<span class="doss-id-field"><span class="doss-id-label">ИНН</span>{{ check.inn }}{% if check.identity_confirmed %} <span style="color:#61AAF2;font-size:9px;">✓</span>{% endif %}</span>{% endif %}
       {% if check.date_of_birth %}<span class="doss-id-field"><span class="doss-id-label">ДР</span>{{ check.date_of_birth.strftime('%d.%m.%Y') }}</span>{% endif %}
       {% if check.region %}<span class="doss-id-field"><span class="doss-id-label">Регион</span>{{ check.region }}</span>{% endif %}
       {% if check.completed_at %}<span class="doss-id-field"><span class="doss-id-label">Проверка</span>{{ check.completed_at.strftime('%d.%m.%Y %H:%M') }}</span>{% endif %}
@@ -550,9 +550,9 @@
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border-subtle);">
     <div>
       <div style="display:flex;align-items:center;gap:10px;">
-        {% if check.risk_level in ('clean', 'low') %}<span style="font-size:20px;">🟢</span>
-        {% elif check.risk_level == 'medium' %}<span style="font-size:20px;">⚠️</span>
-        {% else %}<span style="font-size:20px;">🔴</span>{% endif %}
+        {% if check.risk_level in ('clean', 'low') %}<span style="display:inline-block;width:9px;height:9px;background:#EBDBBC;border-radius:2px;"></span>
+        {% elif check.risk_level == 'medium' %}<span style="display:inline-block;width:9px;height:9px;background:#CC785C;border-radius:2px;"></span>
+        {% else %}<span style="display:inline-block;width:9px;height:9px;background:#CC5247;border-radius:2px;"></span>{% endif %}
         <span style="font-size:18px;font-weight:700;color:var(--text-primary);">{{ rc.label }}</span>
       </div>
       <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">{{ rc.desc }}</div>
@@ -592,7 +592,7 @@
       <div style="font-size:10px;font-weight:700;color:#CC5247;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">Подтверждённые факты ({{ facts|length }})</div>
       {% for flag in facts %}
       <div class="flag-item {% if flag.severity == 'critical' %}flag-critical{% elif flag.severity == 'high' %}flag-risk{% elif flag.severity == 'medium' %}flag-warning{% else %}flag-info{% endif %}" style="margin-bottom:4px;">
-        {% if flag.severity == 'critical' %}🔴🔴{% elif flag.severity == 'high' %}🔴{% elif flag.severity == 'medium' %}⚠️{% else %}ℹ️{% endif %}
+        {% if flag.severity == 'critical' %}<span style="color:#CC5247;font-size:11px;letter-spacing:1px;">◆◆</span>{% elif flag.severity == 'high' %}<span style="color:#CC5247;font-size:11px;">◆</span>{% elif flag.severity == 'medium' %}<span style="color:#CC785C;font-size:11px;">▲</span>{% else %}<span style="color:#61AAF2;font-size:11px;">·</span>{% endif %}
         <div style="flex:1;min-width:0;">
           <span style="font-size:12.5px;">{{ flag.get('description', flag.text) }}</span>
           {% if flag.get('evidence') %}<div style="font-size:11px;opacity:.6;margin-top:2px;">{{ flag.evidence }}</div>{% endif %}
@@ -609,7 +609,7 @@
       <div style="font-size:10px;font-weight:700;color:#CC785C;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">Косвенные признаки ({{ suspicions|length }})</div>
       {% for flag in suspicions %}
       <div class="flag-item {% if flag.severity == 'high' %}flag-risk{% elif flag.severity == 'medium' %}flag-warning{% else %}flag-info{% endif %}" style="margin-bottom:4px;">
-        {% if flag.severity == 'high' %}🔴{% elif flag.severity == 'medium' %}⚠️{% else %}ℹ️{% endif %}
+        {% if flag.severity == 'high' %}<span style="color:#CC5247;font-size:11px;">◆</span>{% elif flag.severity == 'medium' %}<span style="color:#CC785C;font-size:11px;">▲</span>{% else %}<span style="color:#61AAF2;font-size:11px;">·</span>{% endif %}
         <div style="flex:1;min-width:0;">
           <span style="font-size:12.5px;">{{ flag.get('description', flag.text) }}</span>
           {% if flag.get('evidence') %}<div style="font-size:11px;opacity:.6;margin-top:2px;">{{ flag.evidence }}</div>{% endif %}
@@ -621,7 +621,7 @@
     </div>
     {% endif %}
   {% else %}
-    <div style="font-size:13px;color:#EBDBBC;padding:8px 0;">✅ Красных флагов не обнаружено</div>
+    <div style="font-size:13px;color:#EBDBBC;padding:8px 0;">◆ Красных флагов не обнаружено</div>
   {% endif %}
 
   {# Executive summary (Claude text) #}
@@ -632,7 +632,7 @@
   </div>
   {% elif (source_statuses or {}).get('ai_summary') in ('unavailable', 'error') %}
   <div style="border-top:1px solid var(--border-subtle);padding-top:12px;margin-top:4px;font-size:11.5px;color:#CC785C;">
-    ⚠️ AI-сводка не сформирована ({{ 'ключ не настроен' if (source_statuses or {}).get('ai_summary') == 'unavailable' else 'ошибка сервиса' }})
+    ▲ AI-сводка не сформирована ({{ 'ключ не настроен' if (source_statuses or {}).get('ai_summary') == 'unavailable' else 'ошибка сервиса' }})
   </div>
   {% endif %}
 
@@ -644,7 +644,7 @@
 <div class="doss-grid">
 
   <div class="doss-tile {{ t_identity_color }}" onclick="showPanel('identity')">
-    <div class="dt-icon">🪪</div>
+    <div class="dt-icon">◉</div>
     <div class="dt-label">Личность</div>
     <div class="dt-main">{{ t_identity_main }}</div>
     {% if t_identity_sub %}<div class="dt-sub">{{ t_identity_sub }}</div>{% endif %}
@@ -652,7 +652,7 @@
   </div>
 
   <div class="doss-tile {{ t_biz_color }}" onclick="showPanel('business')">
-    <div class="dt-icon">🏢</div>
+    <div class="dt-icon">▣</div>
     <div class="dt-label">Бизнес и ИП</div>
     <div class="dt-main">{{ t_biz_main }}</div>
     <div class="dt-sub">{{ t_biz_sub }}</div>
@@ -660,7 +660,7 @@
   </div>
 
   <div class="doss-tile {{ t_courts_color }}" onclick="showPanel('courts')">
-    <div class="dt-icon">⚖️</div>
+    <div class="dt-icon">⊟</div>
     <div class="dt-label">Судебные дела</div>
     <div class="dt-main">{{ t_courts_main }}</div>
     <div class="dt-sub">{{ t_courts_sub }}</div>
@@ -668,7 +668,7 @@
   </div>
 
   <div class="doss-tile {{ t_fin_color }}" onclick="showPanel('financial')">
-    <div class="dt-icon">🏛️</div>
+    <div class="dt-icon">⊠</div>
     <div class="dt-label">Долги и залоги</div>
     <div class="dt-main">{{ t_fin_main }}</div>
     <div class="dt-sub">{{ t_fin_sub }}</div>
@@ -676,7 +676,7 @@
   </div>
 
   <div class="doss-tile {{ t_sanc_color }}" onclick="showPanel('sanctions')">
-    <div class="dt-icon">🚫</div>
+    <div class="dt-icon">⊗</div>
     <div class="dt-label">Санкции и розыск</div>
     <div class="dt-main">{{ t_sanc_main }}</div>
     <div class="dt-sub">{{ t_sanc_sub }}</div>
@@ -684,7 +684,7 @@
   </div>
 
   <div class="doss-tile {{ t_media_color }}" onclick="showPanel('media')">
-    <div class="dt-icon">📰</div>
+    <div class="dt-icon">◫</div>
     <div class="dt-label">СМИ и интернет</div>
     <div class="dt-main">{{ t_media_main }}</div>
     <div class="dt-sub">{{ t_media_sub }}</div>
@@ -692,7 +692,7 @@
   </div>
 
   <div class="doss-tile {{ t_soc_color }}" onclick="showPanel('social')">
-    <div class="dt-icon">📱</div>
+    <div class="dt-icon">⊕</div>
     <div class="dt-label">Соцсети и контакты</div>
     <div class="dt-main">{{ t_soc_main }}</div>
     <div class="dt-sub">{{ t_soc_sub }}</div>
@@ -700,7 +700,7 @@
   </div>
 
   <div class="doss-tile {{ t_graph_color }}" onclick="showPanel('graph')">
-    <div class="dt-icon">🔗</div>
+    <div class="dt-icon">⬡</div>
     <div class="dt-label">Граф связей</div>
     <div class="dt-main">{{ t_graph_main }}</div>
     <div class="dt-sub">{{ t_graph_sub }}</div>
@@ -708,7 +708,7 @@
   </div>
 
   <div class="doss-tile {{ t_geo_color }}" onclick="showPanel('geo')">
-    <div class="dt-icon">🌍</div>
+    <div class="dt-icon">◎</div>
     <div class="dt-label">Геоинтеллект</div>
     <div class="dt-main">{{ t_geo_main }}</div>
     <div class="dt-sub">{{ t_geo_sub }}</div>
@@ -716,7 +716,7 @@
   </div>
 
   <div class="doss-tile {{ t_beh_color }}" onclick="showPanel('behavior')">
-    <div class="dt-icon">🧬</div>
+    <div class="dt-icon">◆</div>
     <div class="dt-label">Поведение и группы</div>
     <div class="dt-main">{{ t_beh_main }}</div>
     <div class="dt-sub">{{ t_beh_sub }}</div>
@@ -724,7 +724,7 @@
   </div>
 
   <div class="doss-tile {{ t_pat_color }}" onclick="showPanel('patterns')">
-    <div class="dt-icon">📊</div>
+    <div class="dt-icon">▦</div>
     <div class="dt-label">Паттерны активности</div>
     <div class="dt-main">{{ t_pat_main }}</div>
     <div class="dt-sub">{{ t_pat_sub }}</div>
@@ -732,7 +732,7 @@
   </div>
 
   <div class="doss-tile {{ t_conn_color }}" onclick="showPanel('connections')">
-    <div class="dt-icon">🗓️</div>
+    <div class="dt-icon">◈</div>
     <div class="dt-label">Связи и хронология</div>
     <div class="dt-main">{{ t_conn_main }}</div>
     <div class="dt-sub">{{ t_conn_sub }}</div>
