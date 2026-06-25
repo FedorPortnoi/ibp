@@ -331,10 +331,15 @@
 
 {# Бизнес #}
 {% set biz_count = (business_records or [])|length %}
+{% set _biz_active = [] %}
+{% for _r in (business_records or []) %}
+  {% set _st = (_r.get('status','') or '')|lower %}
+  {% if 'ликвид' not in _st and 'требует' not in _st %}{% if _biz_active.append(1) %}{% endif %}{% endif %}
+{% endfor %}
 {% if biz_count > 0 %}
   {% set t_biz_color = 'tc-amber' %}{% set t_biz_badge_cls = 'dtb-amber' %}
   {% set t_biz_badge = biz_count|string + ' записей' %}
-  {% set t_biz_main = 'Активных: ' + ((business_records or [])|selectattr('status','equalto','active')|list|length)|string %}
+  {% set t_biz_main = 'Активных: ' + _biz_active|length|string %}
   {% set t_biz_sub = 'Бизнес-история' %}
 {% else %}
   {% set t_biz_color = 'tc-green' %}{% set t_biz_badge_cls = 'dtb-green' %}
