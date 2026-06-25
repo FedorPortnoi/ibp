@@ -940,7 +940,7 @@ def dossier_page(check_id):
         'target': {
             'full': check.full_name,
             'inn': check.inn or '',
-            'dob': check.dob or '',
+            'dob': check.date_of_birth.isoformat() if check.date_of_birth else '',
         },
         'nodes': _graph_nodes,
         'links': _graph_links,
