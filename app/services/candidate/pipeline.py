@@ -1427,19 +1427,6 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
                     birth_year=vk_birth_year,
                 )
 
-                # Phone lookup — finds accounts not visible via name search
-                all_phones = list({p for p in _zakupki_phones + ([check.phone] if check.phone else []) if p})
-                if all_phones:
-                    phone_profiles = buratino_vk_search.lookup_by_phone(all_phones)
-                    existing_ids = {p.vk_id for p in profiles}
-                    new_profiles = [p for p in phone_profiles if p.vk_id not in existing_ids]
-                    if new_profiles:
-                        logger.info(
-                            'VK phone lookup: %d new account(s) found via phone (not in name search)',
-                            len(new_profiles),
-                        )
-                    profiles = profiles + new_profiles
-
                 return profiles
 
             def _tg_search_worker():
