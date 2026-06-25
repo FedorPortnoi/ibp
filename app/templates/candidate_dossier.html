@@ -2841,7 +2841,7 @@
   const nodes=[targetNode,...RAW.nodes];
   const links=RAW.links;
   // Pre-assign bend multiplier so parallel links between the same pair fan out
-  (()=>{const pc={};links.forEach(l=>{const k=l.source+'→'+l.target;pc[k]=(pc[k]||0)+1;});const pi={};links.forEach(l=>{const k=l.source+'→'+l.target;const idx=pi[k]||0;pi[k]=idx+1;const n=pc[k];l._bendMul=n>1?(idx%2===0?0.32:-0.18):0.18;});})();
+  (()=>{const pc={};links.forEach(l=>{const k=l.source+'→'+l.target;pc[k]=(pc[k]||0)+1;});const pi={};links.forEach(l=>{const k=l.source+'→'+l.target;const idx=pi[k]||0;pi[k]=idx+1;const n=pc[k];l._bendMul=n>1?(idx%2===0?0.38:-0.28):0.18;});})();
 
   // Update header badge
   const linkCount=links.length;
@@ -2929,7 +2929,7 @@
 
     // Links
     linkSel=g.append('g').selectAll('path').data(links).enter().append('path')
-      .attr('fill','none').attr('stroke',d=>C[d.type]).attr('stroke-width',1.2).attr('stroke-opacity',.22)
+      .attr('fill','none').attr('stroke',d=>C[d.type]).attr('stroke-width',d=>d._bendMul<0?1.8:1.2).attr('stroke-opacity',d=>d._bendMul<0?0.55:0.28)
       .attr('marker-end',d=>`url(#cg-arr-${d.type})`);
 
     // Particles
