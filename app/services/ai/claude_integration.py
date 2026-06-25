@@ -29,13 +29,13 @@ def _get_client():
         return None
     try:
         import anthropic
-        import httpx
 
-        proxy_url = os.environ.get('HTTPS_PROXY') or os.environ.get('https_proxy')
-        if proxy_url:
-            http_client = httpx.Client(proxies={'https://': proxy_url})
-            return anthropic.Anthropic(api_key=api_key, http_client=http_client)
-        return anthropic.Anthropic(api_key=api_key)
+        kwargs = {'api_key': api_key}
+        base_url = os.environ.get('ANTHROPIC_BASE_URL', '').strip().rstrip('/')
+        if base_url:
+            kwargs['base_url'] = base_url
+            logger.debug("Anthropic: using proxy base_url %s", base_url)
+        return anthropic.Anthropic(**kwargs)
     except ImportError:
         logger.warning("anthropic package not installed, skipping AI summary")
         return None
