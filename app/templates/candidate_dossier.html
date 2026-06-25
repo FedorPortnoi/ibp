@@ -1896,7 +1896,7 @@
   </div>
 </div>{# /dp-social #}
 
-<div class="doss-panel" id="dp-graph" style="flex-direction:column;padding:0;overflow:hidden">
+<div class="doss-panel" id="dp-graph" style="flex-direction:column;padding:0;overflow:hidden;height:540px">
   <div class="dp-close" style="position:absolute;top:12px;right:16px;z-index:10"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
 
   {# ── Connection graph header ── #}
@@ -3067,7 +3067,7 @@
   // Lazy-init: only run D3 when the panel is actually opened
   const observer=new MutationObserver(()=>{
     const panel=document.getElementById('dp-graph');
-    if(panel&&panel.classList.contains('visible'))initGraph();
+    if(panel&&panel.classList.contains('visible'))setTimeout(initGraph,60);
   });
   const panel=document.getElementById('dp-graph');
   if(panel)observer.observe(panel,{attributes:true,attributeFilter:['class']});
