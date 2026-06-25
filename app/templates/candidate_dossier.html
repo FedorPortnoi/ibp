@@ -1919,7 +1919,7 @@
 
   {# ── Graph + sidebar ── #}
   <div style="display:flex;flex:1;overflow:hidden">
-    <div id="cg-canvas" style="flex:1;position:relative;overflow:hidden;background:radial-gradient(ellipse 70% 55% at 50% 50%,rgba(196,149,90,.04) 0%,transparent 70%)">
+    <div id="cg-canvas" style="flex:1;position:relative;overflow:hidden;background:#060608">
       <svg id="cg-svg" style="width:100%;height:100%"></svg>
       <div style="position:absolute;bottom:14px;left:14px;display:flex;gap:4px;z-index:10">
         <div class="cg-cb" id="cg-zi">+</div>
@@ -2804,6 +2804,8 @@
 .cg-etype{font-size:.56rem;text-transform:uppercase;letter-spacing:.1em;opacity:.55;margin-bottom:2px;font-family:'JetBrains Mono',monospace}
 .cg-edesc{font-size:.71rem;color:rgba(232,224,212,.7);line-height:1.4}
 #cg-tooltip{position:fixed;background:rgba(6,6,8,.98);border:1px solid rgba(232,224,212,.12);padding:7px 11px;font-size:.7rem;pointer-events:none;opacity:0;transition:opacity 80ms;z-index:9999;line-height:1.5;font-family:'Mulish',sans-serif}
+#cg-canvas::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 55% at 50% 50%,rgba(196,149,90,.05) 0%,transparent 70%);pointer-events:none;z-index:0}
+#cg-svg{position:relative;z-index:1}
 </style>
 <div id="cg-tooltip"></div>
 <script>
@@ -2864,23 +2866,11 @@
 
     const canvas=document.getElementById('cg-canvas');
     const svgEl=document.getElementById('cg-svg');
-
-    // Diagnostic: show dimensions + data count so we can see what's wrong
-    const dbg=document.createElement('div');
-    dbg.id='cg-dbg';
-    dbg.style.cssText='position:absolute;top:8px;right:8px;font-family:JetBrains Mono,monospace;font-size:10px;color:rgba(196,149,90,.7);z-index:99;text-align:right;pointer-events:none';
-    if(canvas)canvas.appendChild(dbg);
-
-    if(!svgEl){dbg.textContent='ERR: no svg element';return;}
-    if(typeof d3==='undefined'){dbg.textContent='ERR: d3 not loaded';return;}
+    if(!svgEl||typeof d3==='undefined')return;
 
     const W=()=>canvas?canvas.offsetWidth:0;
     const H=()=>canvas?canvas.offsetHeight:0;
-
-    // Force min canvas height if flex collapsed it
     if(canvas&&canvas.offsetHeight<100)canvas.style.minHeight='460px';
-
-    dbg.textContent=`W:${W()} H:${H()} nodes:${nodes.length} links:${links.length}`;
 
     try {
     svgSel=d3.select(svgEl);
@@ -2893,7 +2883,7 @@
     // Glow filters
     Object.keys(C).forEach(t=>{
       const f=defs.append('filter').attr('id','cg-glow-'+t).attr('x','-80%').attr('y','-80%').attr('width','260%').attr('height','260%');
-      f.append('feGaussianBlur').attr('stdDeviation',t==='target'?'12':'5').attr('result','b');
+      f.append('feGaussianBlur').attr('stdDeviation',t==='target'?'12':'6').attr('result','b');
       const m=f.append('feMerge');
       m.append('feMergeNode').attr('in','b');
       m.append('feMergeNode').attr('in','SourceGraphic');
@@ -2902,6 +2892,14 @@
     const rg=defs.append('radialGradient').attr('id','cg-tgrad').attr('cx','50%').attr('cy','50%').attr('r','50%');
     rg.append('stop').attr('offset','0%').attr('stop-color','rgba(196,149,90,.2)');
     rg.append('stop').attr('offset','100%').attr('stop-color','rgba(196,149,90,.01)');
+    // Arrow markers
+    Object.entries(C).forEach(([t,col])=>{
+      if(t==='target')return;
+      defs.append('marker').attr('id','cg-arr-'+t)
+        .attr('viewBox','0 -3 6 6').attr('refX',6).attr('refY',0)
+        .attr('markerWidth',4).attr('markerHeight',4).attr('orient','auto')
+        .append('path').attr('d','M0,-3L6,0L0,3').attr('fill',col).attr('opacity',.6);
+    });
 
     const sim=d3.forceSimulation(nodes)
       .force('link',d3.forceLink(links).id(d=>d.id).distance(d=>{
@@ -2913,7 +2911,8 @@
 
     // Links
     linkSel=g.append('g').selectAll('path').data(links).enter().append('path')
-      .attr('fill','none').attr('stroke',d=>C[d.type]).attr('stroke-width',1.2).attr('stroke-opacity',.22);
+      .attr('fill','none').attr('stroke',d=>C[d.type]).attr('stroke-width',1.2).attr('stroke-opacity',.22)
+      .attr('marker-end',d=>`url(#cg-arr-${d.type})`);
 
     // Particles
     particleSel=g.append('g').selectAll('circle').data(links).enter().append('circle')
@@ -2995,10 +2994,7 @@
     document.getElementById('cg-zr').onclick=()=>svgSel.transition().duration(250).call(zoomBehavior.transform,d3.zoomIdentity.translate(W()/2,H()/2).scale(.78));
 
     svgSel.on('click',resetAll);
-    } catch(err){
-      dbg.textContent='ERR: '+err.message;
-      dbg.style.color='#EF4444';
-    }
+    } catch(err){ console.error('initGraph error:',err); }
   }
 
   function getBezierPoint(d,t){
