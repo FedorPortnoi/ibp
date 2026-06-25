@@ -17,10 +17,10 @@
     }
 
     /* Risk box variants */
-    .risk-low { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); }
-    .risk-medium { background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); }
-    .risk-high { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); }
-    .risk-critical { background: rgba(185, 28, 28, 0.12); border: 1px solid rgba(185, 28, 28, 0.4); }
+    .risk-low { background: rgba(212, 162, 127, 0.08); border: 1px solid rgba(212, 162, 127, 0.28); }
+    .risk-medium { background: rgba(204, 120, 92, 0.08); border: 1px solid rgba(204, 120, 92, 0.28); }
+    .risk-high { background: rgba(204, 82, 71, 0.08); border: 1px solid rgba(204, 82, 71, 0.3); }
+    .risk-critical { background: rgba(204, 82, 71, 0.14); border: 1px solid rgba(204, 82, 71, 0.45); }
 
     /* Section nav pills */
     .nav-pill {
@@ -65,10 +65,10 @@
         font-size: 0.75rem;
         font-weight: 500;
     }
-    .badge-green { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+    .badge-green { background: rgba(212, 162, 127, 0.15); color: #D4A27F; }
     .badge-gray { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
-    .badge-red { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-    .badge-yellow { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .badge-red { background: rgba(204, 82, 71, 0.15); color: #CC5247; }
+    .badge-yellow { background: rgba(204, 120, 92, 0.15); color: #CC785C; }
     .badge-blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
 
     /* Empty state */
@@ -78,7 +78,7 @@
         color: var(--text-dim);
         font-size: 0.875rem;
     }
-    .empty-state.good { color: #4ade80; }
+    .empty-state.good { color: #D4A27F; }
     .empty-state.stub { color: var(--text-muted); }
 
     /* Red flag list */
@@ -92,9 +92,9 @@
         margin-bottom: 4px;
     }
     .flag-info { background: rgba(59, 130, 246, 0.06); color: #60a5fa; }
-    .flag-warning { background: rgba(245, 158, 11, 0.06); color: #fbbf24; }
-    .flag-risk { background: rgba(239, 68, 68, 0.06); color: #f87171; }
-    .flag-critical { background: rgba(185, 28, 28, 0.08); color: #fca5a5; }
+    .flag-warning { background: rgba(204, 120, 92, 0.06); color: #CC785C; }
+    .flag-risk { background: rgba(204, 82, 71, 0.06); color: #CC5247; }
+    .flag-critical { background: rgba(204, 82, 71, 0.12); color: #CC5247; }
 
     /* Section header */
     .section-header {
@@ -180,13 +180,13 @@
         font-weight: 600;
         font-family: 'JetBrains Mono', monospace;
     }
-    .conf-high { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
-    .conf-medium { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
-    .conf-low { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .conf-high { background: rgba(212, 162, 127, 0.15); color: #D4A27F; }
+    .conf-medium { background: rgba(97, 170, 242, 0.15); color: #61AAF2; }
+    .conf-low { background: rgba(204, 120, 92, 0.15); color: #CC785C; }
     .conf-hidden { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
 
     /* INN-verified badge */
-    .inn-verified-badge { background: rgba(34, 197, 94, 0.12); color: #4ade80; font-size: 0.6875rem; padding: 1px 8px; border-radius: 9999px; }
+    .inn-verified-badge { background: rgba(212, 162, 127, 0.12); color: #D4A27F; font-size: 0.6875rem; padding: 1px 8px; border-radius: 9999px; }
 
     /* Low confidence collapsed section */
     .low-confidence-section summary {
@@ -263,38 +263,38 @@
     }
     /* Top stripe — centered fade + glow */
     .doss-tile::before { content:'';position:absolute;top:0;left:0;right:0;height:4px;border-radius:14px 14px 0 0; }
-    .doss-tile.tc-green::before  { background:linear-gradient(90deg,transparent,rgba(74,222,128,.95),transparent); box-shadow:0 0 14px rgba(74,222,128,.5); }
-    .doss-tile.tc-amber::before  { background:linear-gradient(90deg,transparent,rgba(245,158,11,.95),transparent); box-shadow:0 0 14px rgba(245,158,11,.5); }
-    .doss-tile.tc-red::before    { background:linear-gradient(90deg,transparent,rgba(239,68,68,.95),transparent);  box-shadow:0 0 14px rgba(239,68,68,.5); }
-    .doss-tile.tc-soon::before   { background:repeating-linear-gradient(90deg,rgba(245,158,11,.55) 0 6px,transparent 6px 12px); }
+    .doss-tile.tc-green::before  { background:linear-gradient(90deg,transparent,rgba(212,162,127,.95),transparent); box-shadow:0 0 10px rgba(212,162,127,.35); }
+    .doss-tile.tc-amber::before  { background:linear-gradient(90deg,transparent,rgba(204,120,92,.95),transparent); box-shadow:0 0 10px rgba(204,120,92,.4); }
+    .doss-tile.tc-red::before    { background:linear-gradient(90deg,transparent,rgba(204,82,71,.95),transparent);  box-shadow:0 0 10px rgba(204,82,71,.45); }
+    .doss-tile.tc-soon::before   { background:repeating-linear-gradient(90deg,rgba(204,120,92,.45) 0 6px,transparent 6px 12px); }
     .doss-tile.tc-dim::before    { background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent); }
     /* Radial color wash bleeding down from stripe */
     .doss-tile::after { content:'';position:absolute;top:0;left:0;right:0;height:55%;pointer-events:none;border-radius:14px 14px 0 0; }
-    .doss-tile.tc-green::after { background:radial-gradient(ellipse at 50% 0%,rgba(74,222,128,.08) 0%,transparent 72%); }
-    .doss-tile.tc-amber::after { background:radial-gradient(ellipse at 50% 0%,rgba(245,158,11,.08) 0%,transparent 72%); }
-    .doss-tile.tc-red::after   { background:radial-gradient(ellipse at 50% 0%,rgba(239,68,68,.08)  0%,transparent 72%); }
+    .doss-tile.tc-green::after { background:radial-gradient(ellipse at 50% 0%,rgba(212,162,127,.07) 0%,transparent 72%); }
+    .doss-tile.tc-amber::after { background:radial-gradient(ellipse at 50% 0%,rgba(204,120,92,.08) 0%,transparent 72%); }
+    .doss-tile.tc-red::after   { background:radial-gradient(ellipse at 50% 0%,rgba(204,82,71,.09)  0%,transparent 72%); }
     .doss-tile.tc-dim::after,.doss-tile.tc-soon::after { background:none; }
     /* Hover — lift */
     .doss-tile:hover { transform:translateY(-3px); box-shadow:0 10px 36px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.07); }
-    .doss-tile.tc-green:hover { border-color:rgba(74,222,128,.35); }
-    .doss-tile.tc-amber:hover { border-color:rgba(245,158,11,.35); }
-    .doss-tile.tc-red:hover   { border-color:rgba(239,68,68,.35); }
+    .doss-tile.tc-green:hover { border-color:rgba(212,162,127,.4); }
+    .doss-tile.tc-amber:hover { border-color:rgba(204,120,92,.4); }
+    .doss-tile.tc-red:hover   { border-color:rgba(204,82,71,.4); }
     .doss-tile.tc-dim:hover,.doss-tile.tc-soon:hover { border-color:var(--border-default); }
     /* Active — ring glow */
     .doss-tile.active { transform:translateY(0);background:linear-gradient(155deg,rgba(255,255,255,.025) 0%,rgba(0,0,0,.22) 100%); }
-    .doss-tile.active.tc-green { border-color:rgba(74,222,128,.55); box-shadow:0 0 0 1px rgba(74,222,128,.18),0 6px 28px rgba(74,222,128,.15),inset 0 1px 0 rgba(74,222,128,.1); }
-    .doss-tile.active.tc-amber { border-color:rgba(245,158,11,.55); box-shadow:0 0 0 1px rgba(245,158,11,.18),0 6px 28px rgba(245,158,11,.15),inset 0 1px 0 rgba(245,158,11,.1); }
-    .doss-tile.active.tc-red   { border-color:rgba(239,68,68,.55);  box-shadow:0 0 0 1px rgba(239,68,68,.18), 0 6px 28px rgba(239,68,68,.15), inset 0 1px 0 rgba(239,68,68,.1); }
+    .doss-tile.active.tc-green { border-color:rgba(212,162,127,.55); box-shadow:0 0 0 1px rgba(212,162,127,.18),0 6px 28px rgba(212,162,127,.12),inset 0 1px 0 rgba(212,162,127,.08); }
+    .doss-tile.active.tc-amber { border-color:rgba(204,120,92,.55); box-shadow:0 0 0 1px rgba(204,120,92,.18),0 6px 28px rgba(204,120,92,.14),inset 0 1px 0 rgba(204,120,92,.08); }
+    .doss-tile.active.tc-red   { border-color:rgba(204,82,71,.6);   box-shadow:0 0 0 1px rgba(204,82,71,.22), 0 6px 28px rgba(204,82,71,.18), inset 0 1px 0 rgba(204,82,71,.1); }
     /* Typography */
     .dt-icon  { font-size:26px;line-height:1;position:relative;z-index:1; }
     .dt-label { font-size:9px;text-transform:uppercase;letter-spacing:.13em;color:var(--text-dim);font-weight:700;position:relative;z-index:1; }
     .dt-main  { font-size:13px;font-weight:700;color:var(--text-primary);line-height:1.3;position:relative;z-index:1; }
     .dt-sub   { font-size:10px;color:var(--text-secondary);line-height:1.3;position:relative;z-index:1; }
     .dt-badge { font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 11px;border-radius:100px;position:relative;z-index:1; }
-    .dtb-green { background:rgba(74,222,128,.13);color:#4ade80;border:1px solid rgba(74,222,128,.32); }
-    .dtb-amber { background:rgba(245,158,11,.13);color:#f59e0b;border:1px solid rgba(245,158,11,.32); }
-    .dtb-red   { background:rgba(239,68,68,.13);color:#ef4444;border:1px solid rgba(239,68,68,.32); }
-    .dtb-soon  { background:rgba(245,158,11,.06);color:rgba(245,158,11,.6);border:1px dashed rgba(245,158,11,.28); }
+    .dtb-green { background:rgba(212,162,127,.12);color:#D4A27F;border:1px solid rgba(212,162,127,.3); }
+    .dtb-amber { background:rgba(204,120,92,.12);color:#CC785C;border:1px solid rgba(204,120,92,.32); }
+    .dtb-red   { background:rgba(204,82,71,.12);color:#CC5247;border:1px solid rgba(204,82,71,.35); }
+    .dtb-soon  { background:rgba(204,120,92,.06);color:rgba(204,120,92,.6);border:1px dashed rgba(204,120,92,.28); }
     .dtb-dim   { background:rgba(255,255,255,.05);color:var(--text-dim);border:1px solid rgba(255,255,255,.11); }
 
     /* Panel area */
@@ -500,10 +500,10 @@
 
 {# Risk score color #}
 {% if check.risk_score is not none %}
-  {% if check.risk_score < 30 %}{% set risk_color = '#4ade80' %}
-  {% elif check.risk_score < 60 %}{% set risk_color = '#f59e0b' %}
-  {% elif check.risk_score < 80 %}{% set risk_color = '#ef4444' %}
-  {% else %}{% set risk_color = '#b91c1c' %}{% endif %}
+  {% if check.risk_score < 30 %}{% set risk_color = '#D4A27F' %}
+  {% elif check.risk_score < 60 %}{% set risk_color = '#CC785C' %}
+  {% elif check.risk_score < 80 %}{% set risk_color = '#CC5247' %}
+  {% else %}{% set risk_color = '#CC5247' %}{% endif %}
 {% else %}{% set risk_color = '#94a3b8' %}{% endif %}
 
 {# ══════════════════════════════════════════
@@ -514,7 +514,7 @@
   <div class="doss-id-info">
     <div class="doss-id-name">{{ check.confirmed_name or check.full_name }}</div>
     {% if check.confirmed_name and check.confirmed_name != check.full_name %}
-    <div style="font-size:11px;color:#fbbf24;margin-bottom:2px;">⚠️ Введено: {{ check.full_name }}</div>
+    <div style="font-size:11px;color:#CC785C;margin-bottom:2px;">⚠️ Введено: {{ check.full_name }}</div>
     {% endif %}
     <div class="doss-id-meta">
       {% if check.inn %}<span class="doss-id-field"><span class="doss-id-label">ИНН</span>{{ check.inn }}{% if check.identity_confirmed %} ✅{% endif %}</span>{% endif %}
@@ -558,7 +558,7 @@
       <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">{{ rc.desc }}</div>
       {% if check.risk_score is not none %}
       <div style="width:220px;height:5px;background:var(--bg-dark);border-radius:3px;margin-top:10px;overflow:hidden;">
-        <div style="height:100%;width:{{ check.risk_score }}%;background:linear-gradient(90deg,#4ade80,#f59e0b,#ef4444);border-radius:3px;"></div>
+        <div style="height:100%;width:{{ check.risk_score }}%;background:linear-gradient(90deg,#D4A27F,#CC785C,#CC5247);border-radius:3px;"></div>
       </div>
       <div style="display:flex;justify-content:space-between;width:220px;font-size:9px;color:var(--text-dim);margin-top:2px;"><span>Низкий</span><span>Средний</span><span>Высокий</span></div>
       {% endif %}
@@ -589,7 +589,7 @@
 
     {% if facts %}
     <div style="margin-bottom:12px;">
-      <div style="font-size:10px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">Подтверждённые факты ({{ facts|length }})</div>
+      <div style="font-size:10px;font-weight:700;color:#CC5247;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">Подтверждённые факты ({{ facts|length }})</div>
       {% for flag in facts %}
       <div class="flag-item {% if flag.severity == 'critical' %}flag-critical{% elif flag.severity == 'high' %}flag-risk{% elif flag.severity == 'medium' %}flag-warning{% else %}flag-info{% endif %}" style="margin-bottom:4px;">
         {% if flag.severity == 'critical' %}🔴🔴{% elif flag.severity == 'high' %}🔴{% elif flag.severity == 'medium' %}⚠️{% else %}ℹ️{% endif %}
@@ -606,7 +606,7 @@
 
     {% if suspicions %}
     <div style="margin-bottom:12px;">
-      <div style="font-size:10px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">Косвенные признаки ({{ suspicions|length }})</div>
+      <div style="font-size:10px;font-weight:700;color:#CC785C;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">Косвенные признаки ({{ suspicions|length }})</div>
       {% for flag in suspicions %}
       <div class="flag-item {% if flag.severity == 'high' %}flag-risk{% elif flag.severity == 'medium' %}flag-warning{% else %}flag-info{% endif %}" style="margin-bottom:4px;">
         {% if flag.severity == 'high' %}🔴{% elif flag.severity == 'medium' %}⚠️{% else %}ℹ️{% endif %}
@@ -621,7 +621,7 @@
     </div>
     {% endif %}
   {% else %}
-    <div style="font-size:13px;color:#4ade80;padding:8px 0;">✅ Красных флагов не обнаружено</div>
+    <div style="font-size:13px;color:#D4A27F;padding:8px 0;">✅ Красных флагов не обнаружено</div>
   {% endif %}
 
   {# Executive summary (Claude text) #}
@@ -631,7 +631,7 @@
     <p style="font-size:12.5px;color:var(--text-secondary);line-height:1.75;margin:0;">{{ check.executive_summary }}</p>
   </div>
   {% elif (source_statuses or {}).get('ai_summary') in ('unavailable', 'error') %}
-  <div style="border-top:1px solid var(--border-subtle);padding-top:12px;margin-top:4px;font-size:11.5px;color:#fbbf24;">
+  <div style="border-top:1px solid var(--border-subtle);padding-top:12px;margin-top:4px;font-size:11.5px;color:#CC785C;">
     ⚠️ AI-сводка не сформирована ({{ 'ключ не настроен' if (source_statuses or {}).get('ai_summary') == 'unavailable' else 'ошибка сервиса' }})
   </div>
   {% endif %}
@@ -1212,7 +1212,7 @@
                 <div style="background:var(--bg-panel);border:1px dashed rgba(232,224,212,0.12);padding:20px;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
                         <span style="font-size:0.8125rem;font-weight:600;color:rgba(232,224,212,0.35);text-transform:uppercase;letter-spacing:.04em;">ФНП — Залоговый реестр</span>
-                        <span style="font-size:0.6875rem;background:rgba(245,158,11,0.12);color:rgba(245,158,11,0.6);padding:2px 8px;border:1px solid rgba(245,158,11,0.2);">Скоро</span>
+                        <span style="font-size:0.6875rem;background:rgba(204,120,92,0.12);color:rgba(204,120,92,0.6);padding:2px 8px;border:1px solid rgba(204,120,92,0.2);">Скоро</span>
                     </div>
                     <div style="color:rgba(232,224,212,0.22);font-size:0.75rem;line-height:1.7;">
                         Автоматическая проверка заблокирована reCAPTCHA.
@@ -1259,7 +1259,7 @@
                     {% elif result.get('checked') and not result.get('found') %}
                         <span class="text-sm text-green-400">&#x2705; Не найден</span>
                     {% elif result.get('error') == 'coming_soon' %}
-                        <span style="font-size:0.6875rem;background:rgba(245,158,11,0.12);color:rgba(245,158,11,0.6);padding:2px 8px;border:1px solid rgba(245,158,11,0.2);">Скоро</span>
+                        <span style="font-size:0.6875rem;background:rgba(204,120,92,0.12);color:rgba(204,120,92,0.6);padding:2px 8px;border:1px solid rgba(204,120,92,0.2);">Скоро</span>
                     {% else %}
                         <div class="text-right">
                             <span class="text-xs text-gray-600">&#x23F3; Не удалось проверить</span>
@@ -1350,7 +1350,7 @@
             <div style="background:var(--bg-panel);border:1px dashed rgba(232,224,212,0.12);padding:20px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
                     <span style="font-size:0.8125rem;font-weight:600;color:rgba(232,224,212,0.35);text-transform:uppercase;letter-spacing:.04em;">ЕФРСБ — Банкротство</span>
-                    <span style="font-size:0.6875rem;background:rgba(245,158,11,0.12);color:rgba(245,158,11,0.6);padding:2px 8px;border:1px solid rgba(245,158,11,0.2);">Скоро</span>
+                    <span style="font-size:0.6875rem;background:rgba(204,120,92,0.12);color:rgba(204,120,92,0.6);padding:2px 8px;border:1px solid rgba(204,120,92,0.2);">Скоро</span>
                 </div>
                 <div style="color:rgba(232,224,212,0.22);font-size:0.75rem;line-height:1.7;">
                     Проверка в ЕФРСБ по физическим лицам временно недоступна с зарубежных IP.
@@ -1400,7 +1400,7 @@
         <div class="mb-4">
             <div class="text-sm font-semibold text-red-300 mb-2">Подтверждённые (личность совпадает)</div>
             {% for h in am_confirmed %}
-            <div class="dossier-card mb-2" style="border-left: 3px solid rgba(239,68,68,0.6);">
+            <div class="dossier-card mb-2" style="border-left: 3px solid rgba(204,82,71,0.6);">
                 <div class="flex items-center gap-2 mb-1">
                     <span class="text-xs px-2 py-0.5 rounded-full {{ 'bg-red-500/10 text-red-300' if h.severity == 'criminal' else 'bg-amber-500/10 text-amber-300' }}">
                         {{ 'криминал' if h.severity == 'criminal' else 'репутация' }}
@@ -1945,7 +1945,7 @@
     <section id="sec-friends-risk" class="mb-10">
         <div class="section-header">
             <h2>&#x26A0; Проверка друзей по базам МВД/розыска</h2>
-            <span class="section-count" style="background: rgba(239, 68, 68, 0.15); color: #f87171;">{{ frd.get('flagged_count', 0) }} совпадений из {{ frd.get('checked_friends', 0) }} проверенных</span>
+            <span class="section-count" style="background: rgba(204, 82, 71, 0.15); color: #CC5247;">{{ frd.get('flagged_count', 0) }} совпадений из {{ frd.get('checked_friends', 0) }} проверенных</span>
         </div>
         <div class="space-y-2">
             {% for ff in frd.get('flagged_friends', [])[:15] %}
@@ -2225,7 +2225,7 @@
                     {% set max_val = hours.values()|max if hours.values()|list else 1 %}
                     {% set pct = (val / max_val * 100) if max_val > 0 else 0 %}
                     <div class="flex-1 rounded-t" title="{{ h }}:00 — {{ val }}"
-                         style="height: {{ pct }}%; min-height: 2px; background: {% if h >= 2 and h <= 5 %}rgba(239,68,68,0.4){% else %}rgba(139,92,246,0.4){% endif %};"></div>
+                         style="height: {{ pct }}%; min-height: 2px; background: {% if h >= 2 and h <= 5 %}rgba(204,82,71,0.5){% else %}rgba(97,170,242,0.35){% endif %};"></div>
                 {% endfor %}
             </div>
             <div class="flex justify-between text-xs text-gray-600 mt-1">
@@ -2369,7 +2369,7 @@
                         {% set val = hour_dist.get(h|string, hour_dist.get(h, 0)) %}
                         {% set pct = (val / max_h * 100) if max_h > 0 else 0 %}
                         <div class="flex-1 rounded-t" title="{{ h }}:00 — {{ val }}"
-                             style="height: {{ pct }}%; min-height: 2px; background: {% if h >= 23 or h <= 5 %}rgba(239,68,68,0.4){% else %}rgba(139,92,246,0.4){% endif %};"></div>
+                             style="height: {{ pct }}%; min-height: 2px; background: {% if h >= 23 or h <= 5 %}rgba(204,82,71,0.5){% else %}rgba(97,170,242,0.35){% endif %};"></div>
                     {% endfor %}
                 </div>
                 <div class="flex justify-between text-xs text-gray-600 mt-1">
