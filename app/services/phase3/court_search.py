@@ -22,6 +22,7 @@ in reports — an unreadable source is NOT evidence of a clean record.
 
 import logging
 import re
+import threading
 import time
 from typing import List, Dict, Optional
 from dataclasses import dataclass
@@ -30,6 +31,16 @@ import requests
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
+
+
+def _force_close(browser) -> None:
+    """Timer callback: force-close a stuck Playwright browser."""
+    try:
+        browser.close()
+        logger.warning("Sudact: force-closed browser via backstop timer")
+    except Exception:
+        pass
+
 
 # --- Role classification keywords ---
 _PLAINTIFF_KEYWORDS = ['истец', 'заявитель', 'взыскатель']
@@ -535,7 +546,7 @@ class CourtRecordSearch:
 
         return results
 
-    def _search_sudact_playwright(self, name: str, limit: int, max_retries: int = 1) -> List[CourtCase]:
+    def _search_sudact_playwright(self, name: str, limit: int, max_retries: int = 2) -> List[CourtCase]:
         """Search sudact.ru using Playwright for JS rendering."""
         results = []
 
@@ -559,6 +570,13 @@ class CourtRecordSearch:
             try:
                 with sync_playwright() as p:
                     browser = p.chromium.launch(headless=True, timeout=15000)
+                    # Hard backstop: force-close browser if it outlives timeout+5s.
+                    # Guards against browser.close() hanging on a stuck chromium process.
+                    _close_timer = threading.Timer(
+                        self.timeout + 5,
+                        lambda b=browser: _force_close(b),
+                    )
+                    _close_timer.start()
                     try:
                         page = browser.new_page()
                         page.set_default_timeout(self.timeout * 1000)
@@ -594,6 +612,7 @@ class CourtRecordSearch:
                         # Get rendered HTML
                         html = page.content()
                     finally:
+                        _close_timer.cancel()
                         browser.close()
 
                 soup = BeautifulSoup(html, 'lxml')
@@ -658,6 +677,11 @@ class CourtRecordSearch:
                     try:
                         with sync_playwright() as p2:
                             browser2 = p2.chromium.launch(headless=True, timeout=15000)
+                            _close_timer2 = threading.Timer(
+                                MAX_DETAIL_FETCHES * 30 + 5,
+                                lambda b=browser2: _force_close(b),
+                            )
+                            _close_timer2.start()
                             try:
                                 detail_page = browser2.new_page()
                                 for case in cases_with_url:
@@ -667,6 +691,7 @@ class CourtRecordSearch:
                                         case.verdict = self._extract_verdict(case.raw_text)
                                     time.sleep(1)
                             finally:
+                                _close_timer2.cancel()
                                 browser2.close()
                     except Exception as e:
                         logger.warning(f"Sudact detail fetch pass failed: {e}")
