@@ -300,6 +300,7 @@
     /* Panel area */
     .doss-panel { display:none;background:var(--bg-panel);border:1px solid var(--border-subtle);border-radius:12px;overflow:hidden; }
     .doss-panel.visible { display:block;animation:dpIn .2s ease; }
+    #dp-graph.visible { display:flex !important; }
     @keyframes dpIn { from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);} }
     .dp-inner { padding:24px 28px; }
     .dp-close { position:sticky;top:0;display:flex;justify-content:flex-end;padding:10px 14px 0;background:var(--bg-panel);z-index:10; }
@@ -1895,7 +1896,7 @@
   </div>
 </div>{# /dp-social #}
 
-<div class="doss-panel" id="dp-graph" style="display:flex;flex-direction:column;padding:0;overflow:hidden">
+<div class="doss-panel" id="dp-graph" style="flex-direction:column;padding:0;overflow:hidden">
   <div class="dp-close" style="position:absolute;top:12px;right:16px;z-index:10"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
 
   {# ── Connection graph header ── #}
@@ -3066,12 +3067,10 @@
   // Lazy-init: only run D3 when the panel is actually opened
   const observer=new MutationObserver(()=>{
     const panel=document.getElementById('dp-graph');
-    if(panel&&panel.style.display!=='none'&&panel.classList.contains('active'))initGraph();
+    if(panel&&panel.classList.contains('visible'))initGraph();
   });
   const panel=document.getElementById('dp-graph');
-  if(panel)observer.observe(panel,{attributes:true,attributeFilter:['class','style']});
-  // Also try immediately in case panel is already open
-  setTimeout(()=>{if(panel&&(panel.style.display!=='none'||panel.classList.contains('active')))initGraph();},300);
+  if(panel)observer.observe(panel,{attributes:true,attributeFilter:['class']});
 })();
 </script>
 {% endblock %}
