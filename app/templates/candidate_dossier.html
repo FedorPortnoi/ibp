@@ -2830,7 +2830,7 @@
   const C={target:'#C4955A',business:'#5C7FA3',court:'#EF4444',zakupki:'#4ADE80',address:'#C4955A',contact:'#A855F7'};
   const TL={business:'BUSINESS',court:'COURT',zakupki:'GOV_CONTRACT',address:'ADDRESS',contact:'CONTACT'};
   const SHOW_LIMIT=3;
-  const CW=116,CH=50,TW=140,TH=60;
+  const CW=168,CH=70,TW=196,TH=82;
 
   // Build nodes/links arrays with target prepended
   const targetNode={
@@ -2841,7 +2841,7 @@
   const nodes=[targetNode,...RAW.nodes];
   const links=RAW.links;
   // Pre-assign bend multiplier so parallel links between the same pair fan out
-  (()=>{const pc={};links.forEach(l=>{const k=l.source+'→'+l.target;pc[k]=(pc[k]||0)+1;});const pi={};links.forEach(l=>{const k=l.source+'→'+l.target;const idx=pi[k]||0;pi[k]=idx+1;const n=pc[k];l._bendMul=n>1?(idx%2===0?0.26:-0.06):0.18;});})();
+  (()=>{const pc={};links.forEach(l=>{const k=l.source+'→'+l.target;pc[k]=(pc[k]||0)+1;});const pi={};links.forEach(l=>{const k=l.source+'→'+l.target;const idx=pi[k]||0;pi[k]=idx+1;const n=pc[k];l._bendMul=n>1?(idx%2===0?0.32:-0.18):0.18;});})();
 
   // Update header badge
   const linkCount=links.length;
@@ -2925,7 +2925,7 @@
       }).strength(.45))
       .force('charge',d3.forceManyBody().strength(-1000))
       .force('center',d3.forceCenter(0,0))
-      .force('collision',d3.forceCollide(85));
+      .force('collision',d3.forceCollide(105));
 
     // Links
     linkSel=g.append('g').selectAll('path').data(links).enter().append('path')
@@ -2976,23 +2976,34 @@
       .attr('fill',d=>d.id==='target'?'rgba(196,149,90,.07)':'rgba(8,8,10,.96)')
       .attr('stroke',d=>C[d.group]).attr('stroke-width',.5).attr('stroke-opacity',.35);
 
+    // Helper: split name into two display lines
+    function _nl1(full){if(full.length<=21)return full;const i=full.lastIndexOf(' ',21);return i>4?full.slice(0,i):full.slice(0,21);}
+    function _nl2(full){if(full.length<=21)return'';const i=full.lastIndexOf(' ',21);const r=i>4?full.slice(i+1):full.slice(21);return r.length>22?r.slice(0,21)+'…':r;}
+
     // Type label
     nodeSel.append('text')
-      .attr('x',d=>d.id==='target'?-TW/2+11:-CW/2+11).attr('y',d=>d.id==='target'?-TH/2+14:-CH/2+13)
+      .attr('x',d=>d.id==='target'?-TW/2+11:-CW/2+11).attr('y',d=>d.id==='target'?-TH/2+15:-CH/2+14)
       .attr('font-size','6.5px').attr('font-family','JetBrains Mono,monospace')
       .attr('fill',d=>C[d.group]).attr('opacity',.55).attr('letter-spacing','.1em').attr('pointer-events','none')
       .text(d=>d.typeLabel||'');
 
-    // Name
+    // Name line 1
     nodeSel.append('text')
-      .attr('x',d=>d.id==='target'?-TW/2+11:-CW/2+11).attr('y',d=>d.id==='target'?-TH/2+30:-CH/2+28)
-      .attr('font-size',d=>d.id==='target'?'11px':'9px').attr('font-family','Mulish,sans-serif').attr('font-weight','600')
+      .attr('x',d=>d.id==='target'?-TW/2+11:-CW/2+11).attr('y',d=>d.id==='target'?-TH/2+32:-CH/2+30)
+      .attr('font-size',d=>d.id==='target'?'11px':'10px').attr('font-family','Mulish,sans-serif').attr('font-weight','700')
       .attr('fill',d=>d.id==='target'?'#C4955A':'#E8E0D4').attr('pointer-events','none')
-      .text(d=>d.full);
+      .text(d=>_nl1(d.full));
 
-    // Sub
+    // Name line 2 (only when name wraps)
     nodeSel.append('text')
-      .attr('x',d=>d.id==='target'?-TW/2+11:-CW/2+11).attr('y',d=>d.id==='target'?-TH/2+44:-CH/2+41)
+      .attr('x',d=>d.id==='target'?-TW/2+11:-CW/2+11).attr('y',d=>d.id==='target'?-TH/2+46:-CH/2+44)
+      .attr('font-size',d=>d.id==='target'?'10px':'10px').attr('font-family','Mulish,sans-serif').attr('font-weight','700')
+      .attr('fill',d=>d.id==='target'?'rgba(196,149,90,.85)':'rgba(232,224,212,.9)').attr('pointer-events','none')
+      .text(d=>_nl2(d.full));
+
+    // Sub (INN / OGRN)
+    nodeSel.append('text')
+      .attr('x',d=>d.id==='target'?-TW/2+11:-CW/2+11).attr('y',d=>d.id==='target'?-TH/2+63:-CH/2+60)
       .attr('font-size','7px').attr('font-family','JetBrains Mono,monospace')
       .attr('fill','rgba(232,224,212,.3)').attr('pointer-events','none')
       .text(d=>d.sub||'');
