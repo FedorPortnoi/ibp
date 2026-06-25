@@ -1678,55 +1678,16 @@ def run_candidate_pipeline(app, task_id: str, check_id: str):
             logger.info(f"Stage 3 completed in {time.time() - stage3_start:.1f}s")
             _pause()
 
-            # --- Precise mode: pause for profile confirmation ---
-            if getattr(check, 'check_mode', 'quick') == 'precise' and social_profiles:
-                check.status = 'awaiting_confirmation'
-                check.paused_at_stage = 'awaiting_confirmation'
+            # Auto-confirm: Stage 3 already scored and filtered profiles —
+            # no manual review needed.
+            if social_profiles and not check.confirmed_profiles:
+                check.confirmed_profiles = social_profiles
                 try:
                     db.session.commit()
                 except Exception as e:
                     db.session.rollback()
-                    logger.error(f"DB commit failed (precise mode pause): {e}")
-                task.update('social', 'Ожидание подтверждения профиля', 42)
-                logger.info(f"Pipeline paused for profile confirmation (check {check_id})")
-
-                max_wait = 1800  # 30 minutes
-                waited = 0
-                while check.status == 'awaiting_confirmation' and waited < max_wait:
-                    if task.cancelled:
-                        check.status = 'error'
-                        try:
-                            db.session.commit()
-                        except Exception as e:
-                            db.session.rollback()
-                            logger.error(f"DB commit failed (cancel during precise wait): {e}")
-                        return
-                    time.sleep(2)
-                    waited += 2
-                    db.session.expire(check)
-                    db.session.refresh(check)
-
-                if check.status == 'awaiting_confirmation':
-                    # Timeout — auto-resume with best match
-                    logger.warning(f"Profile confirmation timeout after {max_wait}s, auto-resuming")
-                    check.status = 'running'
-                    check.paused_at_stage = None
-                    try:
-                        db.session.commit()
-                    except Exception as e:
-                        db.session.rollback()
-                        logger.error(f"DB commit failed (precise mode timeout resume): {e}")
-
-                # If user confirmed, check.confirmed_profiles is now populated
-                # and check.status is back to 'running'
-                if check.status == 'running':
-                    check.paused_at_stage = None
-                    try:
-                        db.session.commit()
-                    except Exception as e:
-                        db.session.rollback()
-                        logger.error(f"DB commit failed (precise mode confirmed resume): {e}")
-                    task.update('social', 'Профиль подтверждён — продолжение', 42)
+                    logger.error(f"DB commit failed (auto-confirm profiles): {e}")
+                logger.info(f"Auto-confirmed {len(social_profiles)} profile(s) for check {check_id}")
 
             # ══════════════════════════════════════════════
             # WAVE 3: STAGE 4 + STAGE 5 IN PARALLEL [42-72%]
