@@ -219,270 +219,498 @@
 
     /* Smooth scroll */
     html { scroll-behavior: smooth; }
+
+    /* ═══ NEW TILE LAYOUT ═══ */
+    .doss-wrap { max-width: 1400px; margin: 0 auto; padding: 20px 28px; }
+
+    /* Identity bar */
+    .doss-id { display:flex;align-items:center;gap:18px;background:var(--bg-panel);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 22px;margin-bottom:16px; }
+    .doss-id-ava { width:48px;height:48px;border-radius:50%;background:var(--bg-dark);border:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0; }
+    .doss-id-info { flex:1; }
+    .doss-id-name { font-size:18px;font-weight:700;color:var(--text-primary);letter-spacing:-.02em; }
+    .doss-id-meta { display:flex;flex-wrap:wrap;gap:14px;margin-top:4px; }
+    .doss-id-field { font-size:11.5px;color:var(--text-secondary); }
+    .doss-id-label { color:var(--text-dim);margin-right:5px; }
+    .doss-id-risk { display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0; }
+    .doss-risk-num { font-size:30px;font-weight:800;line-height:1; }
+    .doss-risk-track { width:70px;height:3px;background:var(--bg-dark);border-radius:2px;overflow:hidden; }
+    .doss-risk-fill { height:100%;border-radius:2px; }
+    .doss-risk-caption { font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim); }
+
+    /* AI summary always-visible box */
+    .doss-ai-box { background:var(--bg-panel);border:1px solid var(--border-subtle);border-radius:12px;padding:20px 24px;margin-bottom:16px; }
+
+    /* Tile grid */
+    .doss-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px; }
+    .doss-tile { background:var(--bg-panel);border:1px solid var(--border-subtle);border-radius:10px;cursor:pointer;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 12px;text-align:center;gap:8px;transition:border-color .15s,background .15s,box-shadow .15s;position:relative;overflow:hidden;user-select:none; }
+    .doss-tile::before { content:'';position:absolute;top:0;left:0;right:0;height:3px; }
+    .doss-tile.tc-green::before { background:rgba(74,222,128,.5); }
+    .doss-tile.tc-amber::before { background:rgba(245,158,11,.5); }
+    .doss-tile.tc-red::before { background:rgba(239,68,68,.5); }
+    .doss-tile.tc-soon::before { background:repeating-linear-gradient(90deg,rgba(245,158,11,.3) 0 6px,transparent 6px 12px); }
+    .doss-tile.tc-dim::before { background:rgba(255,255,255,.07); }
+    .doss-tile:hover { border-color:var(--border-default);background:rgba(255,255,255,.015); }
+    .doss-tile.active { background:var(--bg-dark); }
+    .doss-tile.active.tc-green { border-color:rgba(74,222,128,.4);box-shadow:0 0 18px rgba(74,222,128,.07); }
+    .doss-tile.active.tc-amber { border-color:rgba(245,158,11,.4);box-shadow:0 0 18px rgba(245,158,11,.07); }
+    .doss-tile.active.tc-red { border-color:rgba(239,68,68,.4);box-shadow:0 0 18px rgba(239,68,68,.07); }
+    .dt-icon { font-size:22px;line-height:1; }
+    .dt-label { font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);font-weight:600; }
+    .dt-main { font-size:12.5px;font-weight:600;color:var(--text-primary);line-height:1.3; }
+    .dt-sub { font-size:10.5px;color:var(--text-secondary);line-height:1.3; }
+    .dt-badge { font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:2px 9px;border-radius:100px; }
+    .dtb-green { background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2); }
+    .dtb-amber { background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.2); }
+    .dtb-red { background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2); }
+    .dtb-soon { background:rgba(245,158,11,.05);color:rgba(245,158,11,.5);border:1px dashed rgba(245,158,11,.2); }
+    .dtb-dim { background:rgba(255,255,255,.04);color:var(--text-dim);border:1px solid rgba(255,255,255,.08); }
+
+    /* Panel area */
+    .doss-panel { display:none;background:var(--bg-panel);border:1px solid var(--border-subtle);border-radius:12px;overflow:hidden; }
+    .doss-panel.visible { display:block;animation:dpIn .2s ease; }
+    @keyframes dpIn { from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);} }
+    .dp-inner { padding:24px 28px; }
+    .dp-close { position:sticky;top:0;display:flex;justify-content:flex-end;padding:10px 14px 0;background:var(--bg-panel);z-index:10; }
+    .dp-close-btn { background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;padding:4px 8px;border-radius:4px;transition:color .15s; }
+    .dp-close-btn:hover { color:var(--text-primary); }
+
+    @media(max-width:900px) { .doss-grid{grid-template-columns:repeat(2,1fr);} }
+    @media(max-width:560px) { .doss-grid{grid-template-columns:repeat(2,1fr);} .doss-tile{aspect-ratio:unset;min-height:110px;} }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 py-8">
+<div class="doss-wrap">
 
-    {# ================================================================
-       1. HEADER BAR
-       ================================================================ #}
-    <div class="mb-6">
-        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div>
-                <h1 class="text-2xl sm:text-3xl font-bold text-white font-display mb-2">{{ check.confirmed_name or check.full_name }}</h1>
-                {% if check.confirmed_name and check.confirmed_name != check.full_name %}
-                <div class="text-xs text-yellow-400 mb-1">&#x26A0;&#xFE0F; Введено: {{ check.full_name }}</div>
-                {% endif %}
-                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-400">
-                    {% if check.date_of_birth %}
-                        <span>{{ check.date_of_birth.strftime('%d.%m.%Y') }}</span>
-                    {% endif %}
-                    {% if check.inn %}
-                        <span>ИНН {{ check.inn }}{% if check.identity_confirmed %} &#x2705;{% endif %}</span>
-                    {% endif %}
-                    {% if check.region %}
-                        <span>{{ check.region }}</span>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="text-right shrink-0">
-                {% if check.status == 'complete' %}
-                    <span class="status-badge badge-green">Завершена</span>
-                {% elif check.status == 'error' %}
-                    <span class="status-badge badge-red">Ошибка</span>
-                {% else %}
-                    <span class="status-badge badge-yellow">{{ check.status }}</span>
-                {% endif %}
-                <div class="text-xs text-gray-500 mt-1">
-                    {% if check.completed_at %}
-                        {{ check.completed_at.strftime('%d.%m.%Y %H:%M') }}
-                    {% endif %}
-                    {% if duration_display %}
-                        <span class="ml-1">за {{ duration_display }}</span>
-                    {% endif %}
-                </div>
-                <div class="text-xs text-gray-600 mt-0.5">
-                    {{ check.check_level_display }}
-                    &middot; {{ check.sources_checked or 0 }} источников
-                </div>
-            </div>
-        </div>
-    </div>
+{# ── Compute tile summaries (no I/O, just template logic) ── #}
 
-    {# ================================================================
-       1b. EXECUTIVE SUMMARY (AI)
-       ================================================================ #}
-    {% if check.executive_summary %}
-    <div class="dossier-card mb-6" style="border-left: 3px solid rgba(196, 149, 90, 0.6);">
-        <div class="flex items-center gap-2 mb-2">
-            <span class="text-sm font-semibold text-accent-bright">AI Executive Summary</span>
-            <span class="text-xs px-2 py-0.5 rounded-full bg-accent/[0.1] text-accent-bright border border-accent/[0.2]">Claude</span>
-        </div>
-        <p class="text-sm text-gray-300 leading-relaxed">{{ check.executive_summary }}</p>
+{# Личность #}
+{% if check.identity_confirmed %}
+  {% set t_identity_color = 'tc-green' %}{% set t_identity_badge_cls = 'dtb-green' %}
+  {% set t_identity_badge = 'Подтверждён' %}
+  {% set t_identity_main = 'ИНН подтверждён' %}
+  {% set t_identity_sub = check.inn or '' %}
+{% else %}
+  {% set t_identity_color = 'tc-dim' %}{% set t_identity_badge_cls = 'dtb-dim' %}
+  {% set t_identity_badge = 'Не верифицировано' %}
+  {% set t_identity_main = check.inn or 'ИНН не указан' %}
+  {% set t_identity_sub = '' %}
+{% endif %}
+
+{# Бизнес #}
+{% set biz_count = (business_records or [])|length %}
+{% if biz_count > 0 %}
+  {% set t_biz_color = 'tc-amber' %}{% set t_biz_badge_cls = 'dtb-amber' %}
+  {% set t_biz_badge = biz_count|string + ' записей' %}
+  {% set t_biz_main = 'Активных: ' + ((business_records or [])|selectattr('status','equalto','active')|list|length)|string %}
+  {% set t_biz_sub = 'Бизнес-история' %}
+{% else %}
+  {% set t_biz_color = 'tc-green' %}{% set t_biz_badge_cls = 'dtb-green' %}
+  {% set t_biz_badge = 'Нет' %}
+  {% set t_biz_main = 'Бизнес не обнаружен' %}
+  {% set t_biz_sub = 'ЕГРЮЛ / ЕГРИП' %}
+{% endif %}
+
+{# Судебные дела #}
+{% set court_count = (court_records or [])|length %}
+{% if court_count > 0 %}
+  {% set t_courts_color = 'tc-red' %}{% set t_courts_badge_cls = 'dtb-red' %}
+  {% set t_courts_badge = court_count|string + ' дел' %}
+  {% set t_courts_main = court_count|string + ' дел в арбитраже' %}
+{% else %}
+  {% set t_courts_color = 'tc-green' %}{% set t_courts_badge_cls = 'dtb-green' %}
+  {% set t_courts_badge = 'Нет' %}
+  {% set t_courts_main = '0 дел в арбитраже' %}
+{% endif %}
+{% set t_courts_sub = 'kad.arbitr.ru · parser-api' %}
+
+{# Долги и залоги (ФССП + залоги + банкротство) #}
+{% set fssp_count = (fssp_records or [])|length %}
+{% set real_bk = (bankruptcy_records or [])|rejectattr('source','equalto','manual')|list|length %}
+{% if fssp_count > 0 or real_bk > 0 %}
+  {% set t_fin_color = 'tc-red' %}{% set t_fin_badge_cls = 'dtb-red' %}
+  {% set t_fin_badge = (fssp_count|string + ' пр-в') if fssp_count > 0 else (real_bk|string + ' банкр.') %}
+  {% set t_fin_main = fssp_count|string + ' испол. производств' %}
+{% else %}
+  {% set t_fin_color = 'tc-green' %}{% set t_fin_badge_cls = 'dtb-green' %}
+  {% set t_fin_badge = 'Нет' %}
+  {% set t_fin_main = 'Задолженностей нет' %}
+{% endif %}
+{% set t_fin_sub = 'ФССП · Залоги · Банкротство' %}
+
+{# Санкции #}
+{% set sanc_found = (sanctions_results or [])|selectattr('found')|list|length %}
+{% set sanc_checked = (sanctions_results or [])|selectattr('checked')|list|length %}
+{% if sanc_found > 0 %}
+  {% set t_sanc_color = 'tc-red' %}{% set t_sanc_badge_cls = 'dtb-red' %}
+  {% set t_sanc_badge = 'Найден!' %}
+  {% set t_sanc_main = 'Совпадение в ' + sanc_found|string + ' списке(ах)' %}
+{% else %}
+  {% set t_sanc_color = 'tc-green' %}{% set t_sanc_badge_cls = 'dtb-green' %}
+  {% set t_sanc_badge = 'Чисто' %}
+  {% set t_sanc_main = 'Санкций не обнаружено' %}
+{% endif %}
+{% set t_sanc_sub = sanc_checked|string + ' из ' + (sanctions_results or [])|length|string + ' источников' %}
+
+{# СМИ и интернет #}
+{% set adverse_count = (adverse_media_results or [])|length %}
+{% if adverse_count > 0 %}
+  {% set t_media_color = 'tc-amber' %}{% set t_media_badge_cls = 'dtb-amber' %}
+  {% set t_media_badge = adverse_count|string + ' упоминаний' %}
+  {% set t_media_main = adverse_count|string + ' упоминаний в СМИ' %}
+{% else %}
+  {% set t_media_color = 'tc-green' %}{% set t_media_badge_cls = 'dtb-green' %}
+  {% set t_media_badge = 'Чисто' %}
+  {% set t_media_main = 'Негативных упоминаний нет' %}
+{% endif %}
+{% set t_media_sub = 'Яндекс · Google · adverse media' %}
+
+{# Соцсети и контакты #}
+{% set confirmed_vk = (confirmed_profiles or social_media_profiles or [])|selectattr('platform','equalto','vk')|list %}
+{% set contact_phones = ((contact_discoveries or {}).get('phones') or [])|length %}
+{% set contact_emails = ((contact_discoveries or {}).get('emails') or [])|length %}
+{% if confirmed_vk %}
+  {% set t_soc_color = 'tc-green' %}{% set t_soc_badge_cls = 'dtb-green' %}
+  {% set t_soc_badge = 'Найден' %}
+  {% set vk_p = confirmed_vk[0] %}
+  {% set t_soc_main = (vk_p.get('full_name') or vk_p.get('name') or 'VK профиль') + ' · подтверждён' %}
+{% elif (social_media_profiles or []) %}
+  {% set t_soc_color = 'tc-amber' %}{% set t_soc_badge_cls = 'dtb-amber' %}
+  {% set t_soc_badge = (social_media_profiles|length)|string + ' профилей' %}
+  {% set t_soc_main = 'Найдено · требует проверки' %}
+{% else %}
+  {% set t_soc_color = 'tc-dim' %}{% set t_soc_badge_cls = 'dtb-dim' %}
+  {% set t_soc_badge = 'Не найден' %}
+  {% set t_soc_main = 'Профили не обнаружены' %}
+{% endif %}
+{% set t_soc_sub = (contact_phones|string + ' тел. · ' + contact_emails|string + ' email') if (contact_phones or contact_emails) else 'Контакты · Утечки' %}
+
+{# Граф связей #}
+{% set graph_confirmed = (connection_graph or {}).get('confirmed', []) %}
+{% set graph_possible = (connection_graph or {}).get('possible', []) %}
+{% set graph_total = (graph_confirmed|length) + (graph_possible|length) %}
+{% if graph_total > 0 %}
+  {% set t_graph_color = 'tc-amber' %}{% set t_graph_badge_cls = 'dtb-amber' %}
+  {% set t_graph_badge = graph_total|string + ' субъектов' %}
+  {% set t_graph_main = graph_confirmed|length|string + ' подтв. · ' + graph_possible|length|string + ' возможных' %}
+{% else %}
+  {% set t_graph_color = 'tc-dim' %}{% set t_graph_badge_cls = 'dtb-dim' %}
+  {% set t_graph_badge = 'Нет данных' %}
+  {% set t_graph_main = 'Граф не построен' %}
+{% endif %}
+{% set t_graph_sub = 'ИНН · Компании · Контакты' %}
+
+{# Геоинтеллект #}
+{% set geo_locs = ((behavioral_analysis or {}).get('geo_analysis') or {}).get('locations', []) %}
+{% if geo_locs %}
+  {% set t_geo_color = 'tc-amber' %}{% set t_geo_badge_cls = 'dtb-amber' %}
+  {% set t_geo_badge = geo_locs|length|string + ' локаций' %}
+  {% set home = ((behavioral_analysis or {}).get('geo_analysis') or {}).get('home_location') %}
+  {% set t_geo_main = home.get('city', home.get('name', 'Обнаружена геолокация')) if home else (geo_locs|length|string + ' локаций обнаружено') %}
+{% else %}
+  {% set t_geo_color = 'tc-dim' %}{% set t_geo_badge_cls = 'dtb-dim' %}
+  {% set t_geo_badge = 'Нет данных' %}
+  {% set t_geo_main = 'Геолокация не определена' %}
+{% endif %}
+{% set t_geo_sub = 'VK · Публикации · Профиль' %}
+
+{# Поведение и группы #}
+{% set flagged_groups = ((behavioral_analysis or {}).get('group_analysis') or {}).get('flagged_groups', []) %}
+{% set high_risk_groups = flagged_groups|selectattr('risk','equalto','ВЫСОКИЙ')|list|length if flagged_groups else 0 %}
+{% if high_risk_groups > 0 %}
+  {% set t_beh_color = 'tc-red' %}{% set t_beh_badge_cls = 'dtb-red' %}
+  {% set t_beh_badge = high_risk_groups|string + ' HIGH' %}
+  {% set t_beh_main = high_risk_groups|string + ' групп высокого риска' %}
+{% elif flagged_groups %}
+  {% set t_beh_color = 'tc-amber' %}{% set t_beh_badge_cls = 'dtb-amber' %}
+  {% set t_beh_badge = flagged_groups|length|string + ' групп' %}
+  {% set t_beh_main = flagged_groups|length|string + ' подозрительных групп' %}
+{% else %}
+  {% set t_beh_color = 'tc-green' %}{% set t_beh_badge_cls = 'dtb-green' %}
+  {% set t_beh_badge = 'Чисто' %}
+  {% set t_beh_main = 'Подозрительных групп нет' %}
+{% endif %}
+{% set t_beh_sub = ((behavioral_analysis or {}).get('group_analysis') or {}).get('total_groups', 0)|string + ' групп проверено' %}
+
+{# Паттерны активности #}
+{% set act_patterns = (behavioral_analysis or {}).get('activity_patterns', {}) %}
+{% set night_pct = act_patterns.get('night_activity_pct', 0) if act_patterns else 0 %}
+{% set last_seen = act_patterns.get('last_seen', {}) %}
+{% if act_patterns %}
+  {% set t_pat_color = 'tc-amber' %}{% set t_pat_badge_cls = 'dtb-amber' %}
+  {% set t_pat_badge = 'Данные есть' %}
+  {% set t_pat_main = 'Ночная активность: ' + night_pct|round|int|string + '%' %}
+  {% set t_pat_sub = 'Последний онлайн: ' + (last_seen.get('last_online_ago') or 'неизвестно') %}
+{% else %}
+  {% set t_pat_color = 'tc-dim' %}{% set t_pat_badge_cls = 'dtb-dim' %}
+  {% set t_pat_badge = 'Нет данных' %}
+  {% set t_pat_main = 'Паттерны не определены' %}
+  {% set t_pat_sub = 'Нет доступа к стене VK' %}
+{% endif %}
+
+{# Связи и хронология #}
+{% set conn_count = (connected_checks or [])|length %}
+{% if conn_count > 0 %}
+  {% set t_conn_color = 'tc-amber' %}{% set t_conn_badge_cls = 'dtb-amber' %}
+  {% set t_conn_badge = conn_count|string + ' связей' %}
+  {% set t_conn_main = conn_count|string + ' совпадений по контактам' %}
+{% else %}
+  {% set t_conn_color = 'tc-green' %}{% set t_conn_badge_cls = 'dtb-green' %}
+  {% set t_conn_badge = 'Нет' %}
+  {% set t_conn_main = 'Связей не обнаружено' %}
+{% endif %}
+{% set t_conn_sub = 'Из базы ранее проверенных лиц' %}
+
+{# Risk score color #}
+{% if check.risk_score is not none %}
+  {% if check.risk_score < 30 %}{% set risk_color = '#4ade80' %}
+  {% elif check.risk_score < 60 %}{% set risk_color = '#f59e0b' %}
+  {% elif check.risk_score < 80 %}{% set risk_color = '#ef4444' %}
+  {% else %}{% set risk_color = '#b91c1c' %}{% endif %}
+{% else %}{% set risk_color = '#94a3b8' %}{% endif %}
+
+{# ══════════════════════════════════════════
+   IDENTITY BAR
+   ══════════════════════════════════════════ #}
+<div class="doss-id">
+  <div class="doss-id-ava">👤</div>
+  <div class="doss-id-info">
+    <div class="doss-id-name">{{ check.confirmed_name or check.full_name }}</div>
+    {% if check.confirmed_name and check.confirmed_name != check.full_name %}
+    <div style="font-size:11px;color:#fbbf24;margin-bottom:2px;">⚠️ Введено: {{ check.full_name }}</div>
+    {% endif %}
+    <div class="doss-id-meta">
+      {% if check.inn %}<span class="doss-id-field"><span class="doss-id-label">ИНН</span>{{ check.inn }}{% if check.identity_confirmed %} ✅{% endif %}</span>{% endif %}
+      {% if check.date_of_birth %}<span class="doss-id-field"><span class="doss-id-label">ДР</span>{{ check.date_of_birth.strftime('%d.%m.%Y') }}</span>{% endif %}
+      {% if check.region %}<span class="doss-id-field"><span class="doss-id-label">Регион</span>{{ check.region }}</span>{% endif %}
+      {% if check.completed_at %}<span class="doss-id-field"><span class="doss-id-label">Проверка</span>{{ check.completed_at.strftime('%d.%m.%Y %H:%M') }}</span>{% endif %}
+      <span class="doss-id-field"><span class="doss-id-label">Источников</span>{{ check.sources_checked or 0 }}</span>
     </div>
-    {% elif (source_statuses or {}).get('ai_summary') in ('unavailable', 'error') %}
-    <div class="mb-6 p-2.5 rounded text-xs text-yellow-300/80 leading-relaxed" style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.15);">
-        &#x26A0;&#xFE0F; AI-сводки не сформированы ({{ 'AI-ключ не настроен' if (source_statuses or {}).get('ai_summary') == 'unavailable' else 'ошибка AI-сервиса' }}) — это не влияет на собранные данные.
+  </div>
+  {% if check.risk_score is not none %}
+  <div class="doss-id-risk">
+    <div class="doss-risk-num" style="color:{{ risk_color }}">{{ check.risk_score }}</div>
+    <div class="doss-risk-track"><div class="doss-risk-fill" style="width:{{ check.risk_score }}%;background:{{ risk_color }}"></div></div>
+    <div class="doss-risk-caption">Риск / 100</div>
+  </div>
+  {% endif %}
+</div>
+
+{# ══════════════════════════════════════════
+   AI РЕЗЮМЕ — always visible, full width
+   ══════════════════════════════════════════ #}
+{% set risk_cfg = {
+    'clean':    {'cls': 'risk-low',      'label': 'НИЗКИЙ РИСК',      'desc': 'Проблем не обнаружено'},
+    'low':      {'cls': 'risk-low',      'label': 'НИЗКИЙ РИСК',      'desc': 'Незначительные замечания'},
+    'medium':   {'cls': 'risk-medium',   'label': 'СРЕДНИЙ РИСК',     'desc': 'Обнаружены потенциальные проблемы'},
+    'high':     {'cls': 'risk-high',     'label': 'ВЫСОКИЙ РИСК',     'desc': 'Обнаружены серьёзные проблемы'},
+    'critical': {'cls': 'risk-critical', 'label': 'КРИТИЧЕСКИЙ РИСК', 'desc': 'Обнаружены критические проблемы — рекомендуется отказ'},
+} %}
+{% set rc = risk_cfg.get(check.risk_level, risk_cfg['clean']) %}
+
+<div class="doss-ai-box">
+  {# Risk header row #}
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border-subtle);">
+    <div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        {% if check.risk_level in ('clean', 'low') %}<span style="font-size:20px;">🟢</span>
+        {% elif check.risk_level == 'medium' %}<span style="font-size:20px;">⚠️</span>
+        {% else %}<span style="font-size:20px;">🔴</span>{% endif %}
+        <span style="font-size:18px;font-weight:700;color:var(--text-primary);">{{ rc.label }}</span>
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">{{ rc.desc }}</div>
+      {% if check.risk_score is not none %}
+      <div style="width:220px;height:5px;background:var(--bg-dark);border-radius:3px;margin-top:10px;overflow:hidden;">
+        <div style="height:100%;width:{{ check.risk_score }}%;background:linear-gradient(90deg,#4ade80,#f59e0b,#ef4444);border-radius:3px;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;width:220px;font-size:9px;color:var(--text-dim);margin-top:2px;"><span>Низкий</span><span>Средний</span><span>Высокий</span></div>
+      {% endif %}
+    </div>
+    {% if check.risk_score is not none %}
+    <div style="text-align:right;">
+      <span style="font-size:48px;font-weight:800;color:{{ risk_color }};line-height:1;">{{ check.risk_score }}</span>
+      <span style="font-size:16px;color:var(--text-secondary);">/100</span>
+    </div>
+    {% endif %}
+  </div>
+
+  {# Risk narrative (AI analysis) #}
+  {% if check.risk_narrative %}
+  <div style="background:rgba(196,149,90,0.06);border:1px solid rgba(196,149,90,0.15);border-radius:8px;padding:12px 16px;margin-bottom:14px;">
+    <div style="font-size:10px;font-weight:600;color:var(--accent-bright);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">AI-анализ рисков</div>
+    <p style="font-size:12.5px;color:var(--text-secondary);line-height:1.7;margin:0;">{{ check.risk_narrative }}</p>
+  </div>
+  {% endif %}
+
+  {# Red flags #}
+  {% if red_flags %}
+    {% set facts = [] %}{% set suspicions = [] %}
+    {% for flag in red_flags %}
+      {% if flag.get('type') == 'suspicion' %}{% if suspicions.append(flag) %}{% endif %}
+      {% else %}{% if facts.append(flag) %}{% endif %}{% endif %}
+    {% endfor %}
+
+    {% if facts %}
+    <div style="margin-bottom:12px;">
+      <div style="font-size:10px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">Подтверждённые факты ({{ facts|length }})</div>
+      {% for flag in facts %}
+      <div class="flag-item {% if flag.severity == 'critical' %}flag-critical{% elif flag.severity == 'high' %}flag-risk{% elif flag.severity == 'medium' %}flag-warning{% else %}flag-info{% endif %}" style="margin-bottom:4px;">
+        {% if flag.severity == 'critical' %}🔴🔴{% elif flag.severity == 'high' %}🔴{% elif flag.severity == 'medium' %}⚠️{% else %}ℹ️{% endif %}
+        <div style="flex:1;min-width:0;">
+          <span style="font-size:12.5px;">{{ flag.get('description', flag.text) }}</span>
+          {% if flag.get('evidence') %}<div style="font-size:11px;opacity:.6;margin-top:2px;">{{ flag.evidence }}</div>{% endif %}
+          {% if flag.get('recommendation') %}<div style="font-size:11px;color:#60a5fa;margin-top:2px;">{{ flag.recommendation }}</div>{% endif %}
+        </div>
+        <span style="font-size:10px;opacity:.45;margin-left:auto;white-space:nowrap;">{{ flag.get('category','') }}</span>
+      </div>
+      {% endfor %}
     </div>
     {% endif %}
 
-    {# ================================================================
-       2. RISK ASSESSMENT BOX
-       ================================================================ #}
-    {% set risk_cfg = {
-        'clean':    {'cls': 'risk-low',      'icon': '',  'label': 'НИЗКИЙ РИСК',      'desc': 'Проблем не обнаружено'},
-        'low':      {'cls': 'risk-low',      'icon': '',  'label': 'НИЗКИЙ РИСК',      'desc': 'Незначительные замечания'},
-        'medium':   {'cls': 'risk-medium',    'icon': '',  'label': 'СРЕДНИЙ РИСК',     'desc': 'Обнаружены потенциальные проблемы'},
-        'high':     {'cls': 'risk-high',      'icon': '',  'label': 'ВЫСОКИЙ РИСК',     'desc': 'Обнаружены серьёзные проблемы'},
-        'critical': {'cls': 'risk-critical',  'icon': '',  'label': 'КРИТИЧЕСКИЙ РИСК', 'desc': 'Обнаружены критические проблемы — рекомендуется отказ'},
-    } %}
-    {% set rc = risk_cfg.get(check.risk_level, risk_cfg['clean']) %}
-
-    <div class="{{ rc.cls }} rounded-xl p-5 mb-6" id="risk-box">
-        <div class="flex items-center gap-3 mb-2">
-            {% if check.risk_level in ('clean', 'low') %}
-                <span class="text-2xl">&#x1F7E2;</span>
-            {% elif check.risk_level == 'medium' %}
-                <span class="text-2xl">&#x26A0;&#xFE0F;</span>
-            {% else %}
-                <span class="text-2xl">&#x1F534;</span>
-            {% endif %}
-            <span class="text-xl font-bold text-white">{{ rc.label }}</span>
-            {% if check.risk_score is not none %}
-            <span class="ml-auto text-2xl font-bold font-mono {% if check.risk_score < 30 %}text-green-400{% elif check.risk_score < 60 %}text-yellow-400{% elif check.risk_score < 80 %}text-red-400{% else %}text-red-500{% endif %}">{{ check.risk_score }}/100</span>
-            {% endif %}
+    {% if suspicions %}
+    <div style="margin-bottom:12px;">
+      <div style="font-size:10px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">Косвенные признаки ({{ suspicions|length }})</div>
+      {% for flag in suspicions %}
+      <div class="flag-item {% if flag.severity == 'high' %}flag-risk{% elif flag.severity == 'medium' %}flag-warning{% else %}flag-info{% endif %}" style="margin-bottom:4px;">
+        {% if flag.severity == 'high' %}🔴{% elif flag.severity == 'medium' %}⚠️{% else %}ℹ️{% endif %}
+        <div style="flex:1;min-width:0;">
+          <span style="font-size:12.5px;">{{ flag.get('description', flag.text) }}</span>
+          {% if flag.get('evidence') %}<div style="font-size:11px;opacity:.6;margin-top:2px;">{{ flag.evidence }}</div>{% endif %}
+          {% if flag.get('recommendation') %}<div style="font-size:11px;color:#60a5fa;margin-top:2px;">{{ flag.recommendation }}</div>{% endif %}
         </div>
-        <p class="text-sm text-gray-300 mb-3">{{ rc.desc }}</p>
-
-        {% if check.risk_narrative %}
-        <div class="rounded-lg p-3 mb-3" style="background: rgba(196, 149, 90, 0.06); border: 1px solid rgba(196, 149, 90, 0.15);">
-            <div class="flex items-center gap-1.5 mb-1">
-                <span class="text-xs font-medium text-accent-bright">AI-анализ рисков</span>
-            </div>
-            <p class="text-sm text-gray-300 leading-relaxed">{{ check.risk_narrative }}</p>
-        </div>
-        {% endif %}
-
-        {% if red_flags %}
-            {% set facts = [] %}
-            {% set suspicions = [] %}
-            {% for flag in red_flags %}
-                {% if flag.get('type') == 'suspicion' %}
-                    {% if suspicions.append(flag) %}{% endif %}
-                {% else %}
-                    {% if facts.append(flag) %}{% endif %}
-                {% endif %}
-            {% endfor %}
-
-            {% if facts %}
-            <div class="mb-3">
-                <div class="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2">Подтверждённые факты ({{ facts|length }})</div>
-                <div class="space-y-1">
-                    {% for flag in facts %}
-                    <div class="flag-item {% if flag.severity == 'critical' %}flag-critical{% elif flag.severity == 'high' %}flag-risk{% elif flag.severity == 'medium' %}flag-warning{% else %}flag-info{% endif %}">
-                        {% if flag.severity == 'critical' %}&#x1F534;&#x1F534;{% elif flag.severity == 'high' %}&#x1F534;{% elif flag.severity == 'medium' %}&#x26A0;&#xFE0F;{% else %}&#x2139;&#xFE0F;{% endif %}
-                        <div class="flex-1 min-w-0">
-                            <span>{{ flag.get('description', flag.text) }}</span>
-                            {% if flag.get('evidence') %}
-                                <div class="text-xs opacity-60 mt-0.5">{{ flag.evidence }}</div>
-                            {% elif flag.get('details') %}
-                                <div class="text-xs opacity-60 mt-0.5">{{ flag.details }}</div>
-                            {% endif %}
-                            {% if flag.get('recommendation') %}
-                                <div class="text-xs text-blue-400 mt-0.5">{{ flag.recommendation }}</div>
-                            {% endif %}
-                        </div>
-                        <span class="text-xs opacity-50 ml-auto shrink-0">({{ flag.get('category', '') }})</span>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
-            {% if suspicions %}
-            <div>
-                <div class="text-xs font-semibold text-yellow-400 uppercase tracking-wider mb-2">Косвенные признаки ({{ suspicions|length }})</div>
-                <div class="space-y-1">
-                    {% for flag in suspicions %}
-                    <div class="flag-item {% if flag.severity == 'high' %}flag-risk{% elif flag.severity == 'medium' %}flag-warning{% else %}flag-info{% endif %}">
-                        {% if flag.severity == 'high' %}&#x1F534;{% elif flag.severity == 'medium' %}&#x26A0;&#xFE0F;{% else %}&#x2139;&#xFE0F;{% endif %}
-                        <div class="flex-1 min-w-0">
-                            <span>{{ flag.get('description', flag.text) }}</span>
-                            {% if flag.get('evidence') %}
-                                <div class="text-xs opacity-60 mt-0.5">{{ flag.evidence }}</div>
-                            {% elif flag.get('details') %}
-                                <div class="text-xs opacity-60 mt-0.5">{{ flag.details }}</div>
-                            {% endif %}
-                            {% if flag.get('recommendation') %}
-                                <div class="text-xs text-blue-400 mt-0.5">{{ flag.recommendation }}</div>
-                            {% endif %}
-                        </div>
-                        <span class="text-xs opacity-50 ml-auto shrink-0">({{ flag.get('category', '') }})</span>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-        {% else %}
-            <div class="text-sm text-green-400">&#x2705; Красных флагов не обнаружено</div>
-        {% endif %}
+        <span style="font-size:10px;opacity:.45;margin-left:auto;white-space:nowrap;">{{ flag.get('category','') }}</span>
+      </div>
+      {% endfor %}
     </div>
+    {% endif %}
+  {% else %}
+    <div style="font-size:13px;color:#4ade80;padding:8px 0;">✅ Красных флагов не обнаружено</div>
+  {% endif %}
+
+  {# Executive summary (Claude text) #}
+  {% if check.executive_summary %}
+  <div style="border-top:1px solid var(--border-subtle);padding-top:14px;margin-top:4px;">
+    <div style="font-size:10px;font-weight:600;color:var(--accent-bright);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">AI Executive Summary · Claude</div>
+    <p style="font-size:12.5px;color:var(--text-secondary);line-height:1.75;margin:0;">{{ check.executive_summary }}</p>
+  </div>
+  {% elif (source_statuses or {}).get('ai_summary') in ('unavailable', 'error') %}
+  <div style="border-top:1px solid var(--border-subtle);padding-top:12px;margin-top:4px;font-size:11.5px;color:#fbbf24;">
+    ⚠️ AI-сводка не сформирована ({{ 'ключ не настроен' if (source_statuses or {}).get('ai_summary') == 'unavailable' else 'ошибка сервиса' }})
+  </div>
+  {% endif %}
+
+</div>{# /doss-ai-box #}
 
     {# ================================================================
-       3. SECTION NAVIGATION
+       TILE GRID
        ================================================================ #}
-    <div class="nav-pills-wrap overflow-x-auto mb-8 -mx-4 px-4">
-        <div class="flex gap-2 pb-2">
-            <a href="#risk-box" class="nav-pill">&#x1F6E1; Риски
-                <span class="badge {% if red_flags %}badge-count{% else %}badge-empty{% endif %}" {% if red_flags|length > 0 %}style="background: rgba(239, 68, 68, 0.2); color: #f87171;"{% endif %}>{{ red_flags|length if red_flags else '0' }}</span>
-            </a>
-            <a href="#sec-identity" class="nav-pill">&#x1F194; ИНН
-                <span class="badge {% if check.identity_confirmed %}badge-count{% else %}badge-empty{% endif %}">{{ '&#x2713;' if check.identity_confirmed else '—' }}</span>
-            </a>
-            <a href="#sec-business" class="nav-pill">&#x1F4CB; Бизнес
-                <span class="badge {% if business_records %}badge-count{% else %}badge-empty{% endif %}">{{ business_records|length if business_records else '—' }}</span>
-            </a>
-            <a href="#sec-courts" class="nav-pill">&#x2696;&#xFE0F; Суды
-                <span class="badge {% if court_records %}badge-count{% else %}badge-empty{% endif %}">{{ court_records|length if court_records else '—' }}</span>
-            </a>
-            <a href="#sec-fssp" class="nav-pill">&#x1F4B0; Долги
-                <span class="badge {% if fssp_records %}badge-count{% else %}badge-empty{% endif %}">{{ fssp_records|length if fssp_records else '—' }}</span>
-            </a>
-            <a href="#sec-bankruptcy" class="nav-pill">&#x1F3E6; Банкротство
-                {% set _bk_real_count = (bankruptcy_records or []) | rejectattr('source', 'equalto', 'manual') | list | length %}
-                <span class="badge {% if _bk_real_count %}badge-count{% else %}badge-empty{% endif %}">{{ _bk_real_count if _bk_real_count else '—' }}</span>
-            </a>
-            <a href="#sec-pledges" class="nav-pill">&#x1F4CB; Залоги
-                <span class="badge {% if pledge_records %}badge-count{% else %}badge-empty{% endif %}">{{ pledge_records|length if pledge_records else '—' }}</span>
-            </a>
-            <a href="#sec-sanctions" class="nav-pill">&#x1F6AB; Санкции
-                {% if sanctions is iterable and sanctions is not string and sanctions is not mapping %}
-                    {% set sanc_checked = sanctions|selectattr('checked')|list|length %}
-                    <span class="badge {% if sanc_checked %}badge-count{% else %}badge-empty{% endif %}">{{ sanc_checked if sanc_checked else '—' }}</span>
-                {% else %}
-                    <span class="badge badge-empty">—</span>
-                {% endif %}
-            </a>
-            <a href="#sec-social" class="nav-pill">&#x1F4F1; Соцсети
-                <span class="badge {% if social_profiles %}badge-count{% else %}badge-empty{% endif %}">{{ social_profiles|length if social_profiles else '—' }}</span>
-            </a>
-            <a href="#sec-contacts" class="nav-pill">&#x1F4E7; Контакты
-                {% set contact_count = (contacts.get('phones', [])|length + contacts.get('emails', [])|length) if contacts else 0 %}
-                <span class="badge {% if contact_count %}badge-count{% else %}badge-empty{% endif %}">{{ contact_count if contact_count else '—' }}</span>
-            </a>
-            {% set bi_nav = contacts.get('breach_intelligence', {}) if contacts else {} %}
-            {% if bi_nav and bi_nav.get('breach_count', 0) > 0 %}
-            <a href="#sec-breach-intel" class="nav-pill">&#x1F513; Утечки
-                <span class="badge badge-count" {% if bi_nav.get('breach_count', 0) >= 5 %}style="background: rgba(239, 68, 68, 0.2); color: #f87171;"{% endif %}>{{ bi_nav.get('breach_count', 0) }}</span>
-            </a>
-            {% endif %}
-            {% if username_accounts %}
-            <a href="#sec-accounts" class="nav-pill">&#x1F465; Аккаунты
-                <span class="badge badge-count">{{ username_accounts|length }}</span>
-            </a>
-            {% endif %}
-            {% if social_graph_data and social_graph_data.get('nodes') %}
-            <a href="#sec-graph" class="nav-pill">&#x1F578; Граф
-                <span class="badge badge-count">{{ social_graph_data.get('nodes', [])|length }}</span>
-            </a>
-            {% endif %}
-            {% set gi = geo_intelligence or {} %}
-            {% set gi_points = gi.get('location_points', []) %}
-            {% if gi_points or (geo_analysis and geo_analysis.get('locations')) %}
-            <a href="#sec-geo" class="nav-pill">&#x1F4CD; Гео
-                <span class="badge badge-count">{{ gi_points|length or geo_analysis.get('locations', [])|length }}</span>
-            </a>
-            {% endif %}
-            {% if text_analysis %}
-            <a href="#sec-behavioral" class="nav-pill">&#x1F4CA; Поведение
-                <span class="badge badge-count">1</span>
-            </a>
-            {% endif %}
-            {% if group_analysis and group_analysis.get('total_groups') %}
-            <a href="#sec-groups" class="nav-pill">&#x1F465; Группы
-                <span class="badge {% if group_analysis.get('flagged_groups') %}badge-count{% else %}badge-empty{% endif %}" {% if group_analysis.get('flagged_groups') %}style="background: rgba(239, 68, 68, 0.2); color: #f87171;"{% endif %}>{{ group_analysis.get('flagged_groups', [])|length }}</span>
-            </a>
-            {% endif %}
-            {% if activity_patterns and (activity_patterns.get('peak_hours') or activity_patterns.get('last_seen')) %}
-            <a href="#sec-activity-patterns" class="nav-pill">&#x23F0; Активность
-                <span class="badge badge-count">1</span>
-            </a>
-            {% endif %}
-            {% if connected_checks %}
-            <a href="#sec-connections" class="nav-pill">&#x1F517; Связи
-                <span class="badge badge-count">{{ connected_checks|length }}</span>
-            </a>
-            {% endif %}
-            {% if activity_timeline %}
-            <a href="#sec-timeline" class="nav-pill">&#x1F4C5; Хронология
-                <span class="badge badge-count">{{ activity_timeline|length }}</span>
-            </a>
-            {% endif %}
-        </div>
-    </div>
+<div class="doss-grid">
 
+  <div class="doss-tile {{ t_identity_color }}" onclick="showPanel('identity')">
+    <div class="dt-icon">🪪</div>
+    <div class="dt-label">Личность</div>
+    <div class="dt-main">{{ t_identity_main }}</div>
+    {% if t_identity_sub %}<div class="dt-sub">{{ t_identity_sub }}</div>{% endif %}
+    <div class="dt-badge {{ t_identity_badge_cls }}">{{ t_identity_badge }}</div>
+  </div>
+
+  <div class="doss-tile {{ t_biz_color }}" onclick="showPanel('business')">
+    <div class="dt-icon">🏢</div>
+    <div class="dt-label">Бизнес и ИП</div>
+    <div class="dt-main">{{ t_biz_main }}</div>
+    <div class="dt-sub">{{ t_biz_sub }}</div>
+    <div class="dt-badge {{ t_biz_badge_cls }}">{{ t_biz_badge }}</div>
+  </div>
+
+  <div class="doss-tile {{ t_courts_color }}" onclick="showPanel('courts')">
+    <div class="dt-icon">⚖️</div>
+    <div class="dt-label">Судебные дела</div>
+    <div class="dt-main">{{ t_courts_main }}</div>
+    <div class="dt-sub">{{ t_courts_sub }}</div>
+    <div class="dt-badge {{ t_courts_badge_cls }}">{{ t_courts_badge }}</div>
+  </div>
+
+  <div class="doss-tile {{ t_fin_color }}" onclick="showPanel('financial')">
+    <div class="dt-icon">🏛️</div>
+    <div class="dt-label">Долги и залоги</div>
+    <div class="dt-main">{{ t_fin_main }}</div>
+    <div class="dt-sub">{{ t_fin_sub }}</div>
+    <div class="dt-badge {{ t_fin_badge_cls }}">{{ t_fin_badge }}</div>
+  </div>
+
+  <div class="doss-tile {{ t_sanc_color }}" onclick="showPanel('sanctions')">
+    <div class="dt-icon">🚫</div>
+    <div class="dt-label">Санкции и розыск</div>
+    <div class="dt-main">{{ t_sanc_main }}</div>
+    <div class="dt-sub">{{ t_sanc_sub }}</div>
+    <div class="dt-badge {{ t_sanc_badge_cls }}">{{ t_sanc_badge }}</div>
+  </div>
+
+  <div class="doss-tile {{ t_media_color }}" onclick="showPanel('media')">
+    <div class="dt-icon">📰</div>
+    <div class="dt-label">СМИ и интернет</div>
+    <div class="dt-main">{{ t_media_main }}</div>
+    <div class="dt-sub">{{ t_media_sub }}</div>
+    <div class="dt-badge {{ t_media_badge_cls }}">{{ t_media_badge }}</div>
+  </div>
+
+  <div class="doss-tile {{ t_soc_color }}" onclick="showPanel('social')">
+    <div class="dt-icon">📱</div>
+    <div class="dt-label">Соцсети и контакты</div>
+    <div class="dt-main">{{ t_soc_main }}</div>
+    <div class="dt-sub">{{ t_soc_sub }}</div>
+    <div class="dt-badge {{ t_soc_badge_cls }}">{{ t_soc_badge }}</div>
+  </div>
+
+  <div class="doss-tile {{ t_graph_color }}" onclick="showPanel('graph')">
+    <div class="dt-icon">🔗</div>
+    <div class="dt-label">Граф связей</div>
+    <div class="dt-main">{{ t_graph_main }}</div>
+    <div class="dt-sub">{{ t_graph_sub }}</div>
+    <div class="dt-badge {{ t_graph_badge_cls }}">{{ t_graph_badge }}</div>
+  </div>
+
+  <div class="doss-tile {{ t_geo_color }}" onclick="showPanel('geo')">
+    <div class="dt-icon">🌍</div>
+    <div class="dt-label">Геоинтеллект</div>
+    <div class="dt-main">{{ t_geo_main }}</div>
+    <div class="dt-sub">{{ t_geo_sub }}</div>
+    <div class="dt-badge {{ t_geo_badge_cls }}">{{ t_geo_badge }}</div>
+  </div>
+
+  <div class="doss-tile {{ t_beh_color }}" onclick="showPanel('behavior')">
+    <div class="dt-icon">🧬</div>
+    <div class="dt-label">Поведение и группы</div>
+    <div class="dt-main">{{ t_beh_main }}</div>
+    <div class="dt-sub">{{ t_beh_sub }}</div>
+    <div class="dt-badge {{ t_beh_badge_cls }}">{{ t_beh_badge }}</div>
+  </div>
+
+  <div class="doss-tile {{ t_pat_color }}" onclick="showPanel('patterns')">
+    <div class="dt-icon">📊</div>
+    <div class="dt-label">Паттерны активности</div>
+    <div class="dt-main">{{ t_pat_main }}</div>
+    <div class="dt-sub">{{ t_pat_sub }}</div>
+    <div class="dt-badge {{ t_pat_badge_cls }}">{{ t_pat_badge }}</div>
+  </div>
+
+  <div class="doss-tile {{ t_conn_color }}" onclick="showPanel('connections')">
+    <div class="dt-icon">🗓️</div>
+    <div class="dt-label">Связи и хронология</div>
+    <div class="dt-main">{{ t_conn_main }}</div>
+    <div class="dt-sub">{{ t_conn_sub }}</div>
+    <div class="dt-badge {{ t_conn_badge_cls }}">{{ t_conn_badge }}</div>
+  </div>
+
+</div>{# /doss-grid #}
+
+{# ══════════════════════════════════════════
+   DETAIL PANELS
+   ══════════════════════════════════════════ #}
+
+<div class="doss-panel" id="dp-identity">
+  <div class="dp-close"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
+  <div class="dp-inner">
     {# ================================================================
        3.5 IDENTITY CONFIRMATION (Stage 0)
        ================================================================ #}
@@ -538,6 +766,12 @@
         </div>
     </section>
 
+  </div>
+</div>{# /dp-identity #}
+
+<div class="doss-panel" id="dp-business">
+  <div class="dp-close"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
+  <div class="dp-inner">
     {# ================================================================
        4. BUSINESS SECTION
        ================================================================ #}
@@ -626,6 +860,12 @@
         {% endif %}
     </section>
 
+  </div>
+</div>{# /dp-business #}
+
+<div class="doss-panel" id="dp-courts">
+  <div class="dp-close"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
+  <div class="dp-inner">
     {# ================================================================
        5. COURTS SECTION (with confidence badges)
        ================================================================ #}
@@ -796,6 +1036,12 @@
         {% endif %}
     </section>
 
+  </div>
+</div>{# /dp-courts #}
+
+<div class="doss-panel" id="dp-financial">
+  <div class="dp-close"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
+  <div class="dp-inner">
     {# ================================================================
        6. FSSP SECTION
        ================================================================ #}
@@ -943,6 +1189,12 @@
         {% endif %}
     </section>
 
+  </div>
+</div>{# /dp-financial #}
+
+<div class="doss-panel" id="dp-sanctions">
+  <div class="dp-close"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
+  <div class="dp-inner">
     {# ================================================================
        8. SANCTIONS SECTION
        ================================================================ #}
@@ -1074,6 +1326,12 @@
         {% endif %}
     </section>
 
+  </div>
+</div>{# /dp-sanctions #}
+
+<div class="doss-panel" id="dp-media">
+  <div class="dp-close"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
+  <div class="dp-inner">
     {# ================================================================
        8b. ADVERSE MEDIA (negative news / compromat)
        ================================================================ #}
@@ -1187,6 +1445,12 @@
     </section>
     {% endif %}
 
+  </div>
+</div>{# /dp-media #}
+
+<div class="doss-panel" id="dp-social">
+  <div class="dp-close"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
+  <div class="dp-inner">
     {# ================================================================
        9. SOCIAL MEDIA SECTION
        ================================================================ #}
@@ -1587,6 +1851,12 @@
     </section>
     {% endif %}
 
+  </div>
+</div>{# /dp-social #}
+
+<div class="doss-panel" id="dp-graph">
+  <div class="dp-close"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
+  <div class="dp-inner">
     {# ================================================================
        12. SOCIAL GRAPH (Stage 5)
        ================================================================ #}
@@ -1664,6 +1934,12 @@
     </section>
     {% endif %}
 
+  </div>
+</div>{# /dp-graph #}
+
+<div class="doss-panel" id="dp-geo">
+  <div class="dp-close"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
+  <div class="dp-inner">
     {# ================================================================
        13. GEO INTELLIGENCE (aggregated from all stages)
        ================================================================ #}
@@ -1804,6 +2080,12 @@
     </section>
     {% endif %}
 
+  </div>
+</div>{# /dp-geo #}
+
+<div class="doss-panel" id="dp-behavior">
+  <div class="dp-close"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
+  <div class="dp-inner">
     {# ================================================================
        14. BEHAVIORAL ANALYSIS (Stage 6)
        ================================================================ #}
@@ -1965,6 +2247,12 @@
     </section>
     {% endif %}
 
+  </div>
+</div>{# /dp-behavior #}
+
+<div class="doss-panel" id="dp-patterns">
+  <div class="dp-close"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
+  <div class="dp-inner">
     {# ================================================================
        14c. ACTIVITY PATTERNS (Stage 6)
        ================================================================ #}
@@ -2056,6 +2344,12 @@
     </section>
     {% endif %}
 
+  </div>
+</div>{# /dp-patterns #}
+
+<div class="doss-panel" id="dp-connections">
+  <div class="dp-close"><button class="dp-close-btn" onclick="closePanel()">✕</button></div>
+  <div class="dp-inner">
     {# ================================================================
        14d. CONNECTED CHECKS
        ================================================================ #}
@@ -2149,6 +2443,9 @@
         </div>
     </section>
     {% endif %}
+
+  </div>
+</div>{# /dp-connections #}
 
     {# ================================================================
        16. FOOTER
@@ -2354,4 +2651,49 @@
 })();
 </script>
 {% endif %}
+<script>
+(function(){
+  var current = null;
+  var panelMap = {
+    identity:    'dp-identity',
+    business:    'dp-business',
+    courts:      'dp-courts',
+    financial:   'dp-financial',
+    sanctions:   'dp-sanctions',
+    media:       'dp-media',
+    social:      'dp-social',
+    graph:       'dp-graph',
+    geo:         'dp-geo',
+    behavior:    'dp-behavior',
+    patterns:    'dp-patterns',
+    connections: 'dp-connections',
+  };
+  window.showPanel = function(key) {
+    document.querySelectorAll('.doss-tile').forEach(function(t){ t.classList.remove('active'); });
+    Object.values(panelMap).forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.classList.remove('visible');
+    });
+    if(current === key){ current = null; return; }
+    var tiles = document.querySelectorAll('.doss-tile');
+    var keys = Object.keys(panelMap);
+    var idx = keys.indexOf(key);
+    if(tiles[idx]) tiles[idx].classList.add('active');
+    var panel = document.getElementById(panelMap[key]);
+    if(panel){
+      panel.classList.add('visible');
+      setTimeout(function(){ panel.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 50);
+    }
+    current = key;
+  };
+  window.closePanel = function() {
+    document.querySelectorAll('.doss-tile').forEach(function(t){ t.classList.remove('active'); });
+    Object.values(panelMap).forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.classList.remove('visible');
+    });
+    current = null;
+  };
+})();
+</script>
 {% endblock %}
