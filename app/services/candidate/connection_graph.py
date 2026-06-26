@@ -225,6 +225,147 @@ def from_flagged_friends(social_graph_data: dict) -> List[dict]:
     return edges
 
 
+def build_graph_data(connections: List['Connection'], check) -> dict:
+    """
+    Build a D3-ready {target, nodes, links} graph with proper chain structure.
+
+    Relation routing:
+      - owns / directs / affiliated / flagged_friend → Target → Node  (direct)
+      - co_director / co_owner / shared_business via Company → Target → Company → Person
+        (reuses existing company node when via-name matches one already in connections)
+      - co_litigant via Case# → Target → Case-node → Person
+      - co_registered via Address → Target → Address-node → Person
+      - shared_contact via phone/email → Target → Contact-node → Person
+    """
+    _RTYPE = {
+        'owns': 'business', 'directs': 'business', 'co_owner': 'business',
+        'co_director': 'business', 'affiliated': 'business', 'shared_business': 'business',
+        'co_litigant': 'court', 'flagged_friend': 'court',
+        'co_registered': 'address',
+        'shared_contact': 'contact',
+    }
+    _DIRECT = {'owns', 'directs', 'affiliated', 'flagged_friend'}
+    _VIA_COMPANY = {'co_director', 'co_owner', 'shared_business'}
+    _VIA_CASE = {'co_litigant'}
+    _VIA_ADDR = {'co_registered'}
+    _VIA_CONTACT = {'shared_contact'}
+
+    nodes: dict = {}   # id -> node dict (target excluded)
+    links: list = []
+
+    # Build lookup: normalised-name / INN → existing node_id for company nodes
+    company_lookup: dict = {}
+    for conn in connections:
+        if conn.kind == 'company':
+            nid = f'inn_{conn.inn}' if conn.inn else f'name_{conn.name}'
+            company_lookup[_norm_name(conn.name)] = nid
+            if conn.inn:
+                company_lookup[conn.inn] = nid
+
+    # Create all primary nodes
+    for conn in connections:
+        nid = f'inn_{conn.inn}' if conn.inn else f'name_{conn.name}'
+        primary_group = next(
+            (_RTYPE.get(r['relation'], 'business') for r in conn.relations),
+            'business'
+        )
+        nodes[nid] = {
+            'id': nid,
+            'full': conn.name,
+            'sub': conn.inn or conn.ogrn or '',
+            'typeLabel': 'ЮР. ЛИЦО' if conn.kind == 'company' else 'ФИЗ. ЛИЦО',
+            'type': conn.kind,
+            'group': primary_group,
+            'meta': {
+                **(({'ИНН': conn.inn} if conn.inn else {})),
+                **(({'ОГРН': conn.ogrn} if conn.ogrn else {})),
+                'Тип': 'Юр. лицо' if conn.kind == 'company' else 'Физ. лицо',
+            },
+            'confidence': conn.confidence,
+        }
+
+    # Track nodes that already have a target → node edge to avoid duplicates
+    has_target_edge: set = set()
+
+    def _ensure_target_edge(vid: str, ltype: str, label: str) -> None:
+        if vid not in has_target_edge:
+            links.append({'source': 'target', 'target': vid, 'type': ltype, 'label': label})
+            has_target_edge.add(vid)
+
+    for conn in connections:
+        nid = f'inn_{conn.inn}' if conn.inn else f'name_{conn.name}'
+
+        for rel in conn.relations:
+            relation = rel['relation']
+            via = (rel.get('via') or '').strip()
+            ltype = _RTYPE.get(relation, 'business')
+            label = rel['label']
+
+            if relation in _DIRECT or not via:
+                _ensure_target_edge(nid, ltype, label)
+
+            elif relation in _VIA_COMPANY:
+                # Resolve via-name to existing company node or create intermediary
+                vid = company_lookup.get(_norm_name(via)) or company_lookup.get(via)
+                if not vid:
+                    vid = f'via_biz_{_norm_name(via)}'
+                    if vid not in nodes:
+                        nodes[vid] = {
+                            'id': vid, 'full': via, 'sub': '',
+                            'typeLabel': 'ЮР. ЛИЦО', 'type': 'company', 'group': 'business',
+                            'meta': {'Тип': 'Юр. лицо'}, 'confidence': 'weak',
+                        }
+                _ensure_target_edge(vid, 'business', 'Связанная компания')
+                links.append({'source': vid, 'target': nid, 'type': ltype, 'label': label})
+
+            elif relation in _VIA_CASE:
+                vid = f'via_case_{via}'
+                if vid not in nodes:
+                    nodes[vid] = {
+                        'id': vid, 'full': via or 'Судебное дело', 'sub': 'Дело',
+                        'typeLabel': 'СУД. ДЕЛО', 'type': 'case', 'group': 'court',
+                        'meta': ({'Номер дела': via} if via else {}), 'confidence': 'strong' if via else 'weak',
+                    }
+                _ensure_target_edge(vid, 'court', 'Участник дела')
+                links.append({'source': vid, 'target': nid, 'type': 'court', 'label': label})
+
+            elif relation in _VIA_ADDR:
+                vid = f'via_addr_{via}'
+                if vid not in nodes:
+                    nodes[vid] = {
+                        'id': vid, 'full': via or 'Адрес регистрации', 'sub': 'Адрес',
+                        'typeLabel': 'АДРЕС', 'type': 'address_hub', 'group': 'address',
+                        'meta': ({'Адрес': via} if via else {}), 'confidence': 'weak',
+                    }
+                _ensure_target_edge(vid, 'address', 'Адрес регистрации')
+                links.append({'source': vid, 'target': nid, 'type': 'address', 'label': label})
+
+            elif relation in _VIA_CONTACT:
+                vid = f'via_contact_{via}'
+                if vid not in nodes:
+                    nodes[vid] = {
+                        'id': vid, 'full': via or 'Общий контакт', 'sub': 'Контакт',
+                        'typeLabel': 'КОНТАКТ', 'type': 'contact_hub', 'group': 'contact',
+                        'meta': ({'Контакт': via} if via else {}), 'confidence': 'weak',
+                    }
+                _ensure_target_edge(vid, 'contact', 'Общий контакт')
+                links.append({'source': vid, 'target': nid, 'type': 'contact', 'label': label})
+
+            else:
+                _ensure_target_edge(nid, ltype, label)
+
+    dob = getattr(check, 'date_of_birth', None)
+    return {
+        'target': {
+            'full': check.full_name,
+            'inn': check.inn or '',
+            'dob': dob.isoformat() if dob else '',
+        },
+        'nodes': list(nodes.values()),
+        'links': links,
+    }
+
+
 def build_from_check(check, extra_edges: Optional[List[dict]] = None) -> List[Connection]:
     """Assemble the target's connection graph from everything available on the
     check, plus any extra edges from the discarded-data rescuers (co-owners,

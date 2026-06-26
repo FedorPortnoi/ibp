@@ -352,7 +352,8 @@ svg{width:100%;height:100%;position:relative;z-index:1}
     document.getElementById('nc').classList.add('on');
     document.getElementById('nc-name').textContent=d.full;
     const b=document.getElementById('nc-badge');
-    b.textContent=d.group==='target'?'TARGET':d.type==='company'?'LEGAL_ENTITY':'INDIVIDUAL';
+    const _badges={target:'TARGET',company:'LEGAL_ENTITY',case:'COURT_CASE',address_hub:'ADDRESS',contact_hub:'CONTACT'};
+    b.textContent=_badges[d.type]||'INDIVIDUAL';
     b.style.color=C[d.group];b.style.borderColor=C[d.group];
     renderMeta(document.getElementById('nc-meta'),d.meta||{});
     const ee=document.getElementById('nc-edges');ee.innerHTML='';
