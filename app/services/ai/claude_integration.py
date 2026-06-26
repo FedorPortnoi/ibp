@@ -98,15 +98,15 @@ def generate_risk_narrative(risk_level, risk_score, red_flags, full_name):
         )
 
     system = (
-        "You are a background check analyst. Write a concise 2-3 sentence risk summary "
-        "in professional English. Focus on the most important findings. "
-        "Do not repeat the person's full name — use 'the subject' or 'the candidate'."
+        "Вы — аналитик службы безопасности. Напишите краткое резюме рисков в 2-3 предложениях "
+        "на профессиональном русском языке. Сосредоточьтесь на наиболее важных находках. "
+        "Не повторяйте полное имя субъекта — используйте «субъект» или «кандидат»."
     )
     user = (
-        f"Subject: {full_name}\n"
-        f"Risk level: {risk_level} (score: {risk_score}/100)\n"
-        f"Risk factors:\n{flags_text}\n\n"
-        "Write a 2-3 sentence risk narrative."
+        f"Субъект: {full_name}\n"
+        f"Уровень риска: {risk_level} (оценка: {risk_score}/100)\n"
+        f"Факторы риска:\n{flags_text}\n\n"
+        "Напишите резюме рисков на русском языке."
     )
     return _call_claude(system, user, max_tokens=256)
 
@@ -152,19 +152,19 @@ def generate_behavioral_summary(text_analysis, full_name):
     sent_label = sentiment.get('label', 'unknown') if isinstance(sentiment, dict) else str(sentiment)
 
     system = (
-        "You are an OSINT analyst reviewing social media activity. "
-        "Based on the text analysis data from VK wall posts, write a concise summary covering: "
-        "personality traits, lifestyle indicators, political views (if any), and potential red flags. "
-        "Write 3-5 sentences in professional English. Be factual, not speculative. "
-        "Use 'the subject' instead of the person's name."
+        "Вы — OSINT-аналитик, изучающий активность в социальных сетях. "
+        "На основе данных анализа текста публикаций ВКонтакте напишите краткое резюме, охватывающее: "
+        "черты личности, образ жизни, политические взгляды (при наличии) и потенциальные тревожные сигналы. "
+        "Напишите 3-5 предложений на профессиональном русском языке. Будьте фактологичны, не спекулируйте. "
+        "Используйте «субъект» вместо имени человека."
     )
     user = (
-        f"Subject: {full_name}\n"
-        f"Posts analyzed: ~{word_count} words\n"
-        f"Sentiment: {sent_label}\n"
-        f"Keywords: {', '.join(kw_list[:15])}\n"
-        f"Topics: {', '.join(topic_list[:10])}\n\n"
-        "Summarize the behavioral profile."
+        f"Субъект: {full_name}\n"
+        f"Проанализировано публикаций: ~{word_count} слов\n"
+        f"Тональность: {sent_label}\n"
+        f"Ключевые слова: {', '.join(kw_list[:15])}\n"
+        f"Темы: {', '.join(topic_list[:10])}\n\n"
+        "Напишите поведенческий профиль на русском языке."
     )
     return _call_claude(system, user, max_tokens=384)
 
@@ -217,12 +217,12 @@ def generate_executive_summary(check_data):
             parts.append(f"SANCTIONS MATCH: {', '.join(s.get('source_name', '') for s in found)}")
 
     system = (
-        "You are a senior background check analyst writing an executive summary. "
-        "Write exactly 1 paragraph (4-6 sentences) summarizing the investigation results "
-        "in professional English. Cover: identity verification, key findings, risk assessment, "
-        "and hiring recommendation. Use 'the candidate' instead of the person's name."
+        "Вы — старший аналитик службы безопасности, составляющий итоговое резюме проверки. "
+        "Напишите ровно 1 абзац (4-6 предложений) на профессиональном русском языке, "
+        "обобщающий результаты расследования. Охватите: подтверждение личности, ключевые находки, "
+        "оценку рисков и рекомендацию по найму. Используйте «кандидат» вместо имени человека."
     )
-    user = "\n".join(parts) + "\n\nWrite the executive summary."
+    user = "\n".join(parts) + "\n\nНапишите итоговое резюме на русском языке."
     return _call_claude(system, user, max_tokens=384)
 
 
@@ -329,11 +329,10 @@ def summarize_court_cases(court_records):
         return court_records
 
     system = (
-        "You are a legal analyst. For each court case below, write a 1-2 sentence "
-        "plain-language summary explaining what happened. Output as JSON array of strings, "
-        "one summary per case, in the same order. Keep summaries concise and factual. "
-        "Write in both English and Russian (English first, then Russian translation). "
-        "Format: [\"English summary / Русское резюме\", ...]"
+        "Вы — юридический аналитик. Для каждого судебного дела ниже напишите резюме в 1-2 предложениях "
+        "на простом русском языке, объясняющее суть дела. Выведите результат как JSON-массив строк, "
+        "одно резюме на дело, в том же порядке. Резюме должны быть краткими и фактологичными. "
+        "Формат: [\"Резюме первого дела\", \"Резюме второго дела\", ...]"
     )
     user = "\n".join(cases_text)
 
