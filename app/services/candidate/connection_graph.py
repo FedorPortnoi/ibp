@@ -368,13 +368,20 @@ def build_graph_data(connections: List['Connection'], check) -> dict:
     }
 
 
-def build_from_check(check, extra_edges: Optional[List[dict]] = None) -> List[Connection]:
+def build_from_check(check, extra_edges: Optional[List[dict]] = None,
+                     include_cross_checks: bool = False) -> List[Connection]:
     """Assemble the target's connection graph from everything available on the
     check, plus any extra edges from the discarded-data rescuers (co-owners,
-    court co-parties, address co-registrants) passed in by the pipeline."""
+    court co-parties, address co-registrants) passed in by the pipeline.
+
+    include_cross_checks=False (default): excludes subjects of other
+    investigations found via find_connected_checks — those are shown in the
+    dossier's own 'связанные проверки' section, not in the graph.
+    """
     edges: List[dict] = []
     edges += from_business_records(getattr(check, 'business_records', None) or [])
-    edges += from_connected_checks(getattr(check, 'connected_checks', None) or [])
+    if include_cross_checks:
+        edges += from_connected_checks(getattr(check, 'connected_checks', None) or [])
     edges += from_flagged_friends(getattr(check, 'social_graph_data', None) or {})
     if extra_edges:
         edges += [e for e in extra_edges if isinstance(e, dict)]
