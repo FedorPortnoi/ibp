@@ -487,17 +487,17 @@
 {% endif %}
 
 {# Связи и хронология #}
-{% set conn_count = (connected_checks or [])|length %}
+{% set conn_count = graph_total %}
 {% if conn_count > 0 %}
   {% set t_conn_color = 'tc-amber' %}{% set t_conn_badge_cls = 'dtb-amber' %}
   {% set t_conn_badge = conn_count|string + ' связей' %}
-  {% set t_conn_main = conn_count|string + ' совпадений по контактам' %}
+  {% set t_conn_main = conn_count|string + ' связей обнаружено' %}
 {% else %}
   {% set t_conn_color = 'tc-green' %}{% set t_conn_badge_cls = 'dtb-green' %}
   {% set t_conn_badge = 'Нет' %}
   {% set t_conn_main = 'Связей не обнаружено' %}
 {% endif %}
-{% set t_conn_sub = 'Из базы ранее проверенных лиц' %}
+{% set t_conn_sub = 'Граф связей субъекта' %}
 
 {# Risk score color #}
 {% if check.risk_score is not none %}
@@ -741,7 +741,7 @@
     <div class="dt-badge {{ t_pat_badge_cls }}">{{ t_pat_badge }}</div>
   </div>
 
-  <div class="doss-tile {{ t_conn_color }}" onclick="showPanel('connections')">
+  <div class="doss-tile {{ t_conn_color }}" onclick="window.location.href='{{ url_for('candidate.graph_page', check_id=check.id) }}'" style="cursor:pointer">
     <div class="dt-icon">◈</div>
     <div class="dt-label">Связи и хронология</div>
     <div class="dt-main">{{ t_conn_main }}</div>
