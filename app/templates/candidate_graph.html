@@ -82,7 +82,7 @@ svg{width:100%;height:100%;position:relative;z-index:1}
     </div>
   </div>
   <div class="sidebar">
-    <div class="sb-hd">// NODE_DETAIL</div>
+    <div class="sb-hd">// ДЕТАЛИ</div>
     <div class="sb-body">
       <div class="sb-empty" id="sbe">_ нажмите на карточку<br>&nbsp;&nbsp;чтобы увидеть детали</div>
       <div class="nc" id="nc">
@@ -102,7 +102,7 @@ svg{width:100%;height:100%;position:relative;z-index:1}
 (function(){
   const RAW = {{ connection_graph_json | safe }};
   const C={target:'#C4955A',business:'#5C7FA3',court:'#EF4444',zakupki:'#4ADE80',address:'#C4955A',contact:'#A855F7'};
-  const TL={business:'BUSINESS',court:'COURT',zakupki:'GOV_CONTRACT',address:'ADDRESS',contact:'CONTACT'};
+  const TL={business:'БИЗНЕС',court:'СУДЫ',zakupki:'ГОСЗАКУПКИ',address:'АДРЕС',contact:'КОНТАКТ'};
   const SHOW_LIMIT=3;
   const CW=168,CH=70,TW=196,TH=82;
 
@@ -129,15 +129,15 @@ svg{width:100%;height:100%;position:relative;z-index:1}
     });
   })();
 
-  // Header badge
-  document.getElementById('link-count-badge').textContent=links.length+' СВЯЗЕЙ';
+  // Header badge — count real counterparties only (not hub/intermediary nodes)
+  const realCount=RAW.nodes.filter(n=>n.real).length;
+  document.getElementById('link-count-badge').textContent=realCount+' СУБЪЕКТОВ';
 
-  // Filter chips
+  // Filter chips — count by real node groups, not raw edge count
   const filterBar=document.getElementById('filter-bar');
-  const types=[...new Set(links.map(l=>l.type))];
   const typeLabels={business:'Бизнес',court:'Суды',zakupki:'Госзакупки',address:'Адрес',contact:'Контакты'};
   const typeCounts={};
-  links.forEach(l=>{typeCounts[l.type]=(typeCounts[l.type]||0)+1;});
+  RAW.nodes.filter(n=>n.real).forEach(n=>{typeCounts[n.group]=(typeCounts[n.group]||0)+1;});
 
   function makeChip(type,label){
     const btn=document.createElement('button');
@@ -151,9 +151,9 @@ svg{width:100%;height:100%;position:relative;z-index:1}
     };
     return btn;
   }
-  filterBar.appendChild(makeChip('all','Все ('+links.length+')'));
-  types.forEach(t=>{
-    if(typeCounts[t]) filterBar.appendChild(makeChip(t,(typeLabels[t]||t)+' ('+typeCounts[t]+')'));
+  filterBar.appendChild(makeChip('all','Все ('+realCount+')'));
+  Object.entries(typeCounts).forEach(([t,cnt])=>{
+    filterBar.appendChild(makeChip(t,(typeLabels[t]||t)+' ('+cnt+')'));
   });
 
   // D3 setup
@@ -352,8 +352,8 @@ svg{width:100%;height:100%;position:relative;z-index:1}
     document.getElementById('nc').classList.add('on');
     document.getElementById('nc-name').textContent=d.full;
     const b=document.getElementById('nc-badge');
-    const _badges={target:'TARGET',company:'LEGAL_ENTITY',case:'COURT_CASE',address_hub:'ADDRESS',contact_hub:'CONTACT'};
-    b.textContent=_badges[d.type]||'INDIVIDUAL';
+    const _badges={target:'СУБЪЕКТ',company:'ЮР. ЛИЦО',case:'СУД. ДЕЛО',address_hub:'АДРЕС',contact_hub:'КОНТАКТ'};
+    b.textContent=_badges[d.type]||'ФИЗ. ЛИЦО';
     b.style.color=C[d.group];b.style.borderColor=C[d.group];
     renderMeta(document.getElementById('nc-meta'),d.meta||{});
     const ee=document.getElementById('nc-edges');ee.innerHTML='';

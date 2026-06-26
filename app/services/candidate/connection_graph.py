@@ -262,7 +262,7 @@ def build_graph_data(connections: List['Connection'], check) -> dict:
             if conn.inn:
                 company_lookup[conn.inn] = nid
 
-    # Create all primary nodes
+    # Create all primary nodes (real=True marks actual counterparties, not hub nodes)
     for conn in connections:
         nid = f'inn_{conn.inn}' if conn.inn else f'name_{conn.name}'
         primary_group = next(
@@ -282,6 +282,7 @@ def build_graph_data(connections: List['Connection'], check) -> dict:
                 'Тип': 'Юр. лицо' if conn.kind == 'company' else 'Физ. лицо',
             },
             'confidence': conn.confidence,
+            'real': True,
         }
 
     # Track nodes that already have a target → node edge to avoid duplicates
@@ -313,7 +314,7 @@ def build_graph_data(connections: List['Connection'], check) -> dict:
                         nodes[vid] = {
                             'id': vid, 'full': via, 'sub': '',
                             'typeLabel': 'ЮР. ЛИЦО', 'type': 'company', 'group': 'business',
-                            'meta': {'Тип': 'Юр. лицо'}, 'confidence': 'weak',
+                            'meta': {'Тип': 'Юр. лицо'}, 'confidence': 'weak', 'real': False,
                         }
                 _ensure_target_edge(vid, 'business', 'Связанная компания')
                 links.append({'source': vid, 'target': nid, 'type': ltype, 'label': label})
@@ -325,6 +326,7 @@ def build_graph_data(connections: List['Connection'], check) -> dict:
                         'id': vid, 'full': via or 'Судебное дело', 'sub': 'Дело',
                         'typeLabel': 'СУД. ДЕЛО', 'type': 'case', 'group': 'court',
                         'meta': ({'Номер дела': via} if via else {}), 'confidence': 'strong' if via else 'weak',
+                        'real': False,
                     }
                 _ensure_target_edge(vid, 'court', 'Участник дела')
                 links.append({'source': vid, 'target': nid, 'type': 'court', 'label': label})
@@ -335,7 +337,7 @@ def build_graph_data(connections: List['Connection'], check) -> dict:
                     nodes[vid] = {
                         'id': vid, 'full': via or 'Адрес регистрации', 'sub': 'Адрес',
                         'typeLabel': 'АДРЕС', 'type': 'address_hub', 'group': 'address',
-                        'meta': ({'Адрес': via} if via else {}), 'confidence': 'weak',
+                        'meta': ({'Адрес': via} if via else {}), 'confidence': 'weak', 'real': False,
                     }
                 _ensure_target_edge(vid, 'address', 'Адрес регистрации')
                 links.append({'source': vid, 'target': nid, 'type': 'address', 'label': label})
@@ -346,7 +348,7 @@ def build_graph_data(connections: List['Connection'], check) -> dict:
                     nodes[vid] = {
                         'id': vid, 'full': via or 'Общий контакт', 'sub': 'Контакт',
                         'typeLabel': 'КОНТАКТ', 'type': 'contact_hub', 'group': 'contact',
-                        'meta': ({'Контакт': via} if via else {}), 'confidence': 'weak',
+                        'meta': ({'Контакт': via} if via else {}), 'confidence': 'weak', 'real': False,
                     }
                 _ensure_target_edge(vid, 'contact', 'Общий контакт')
                 links.append({'source': vid, 'target': nid, 'type': 'contact', 'label': label})
