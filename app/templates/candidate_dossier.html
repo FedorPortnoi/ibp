@@ -546,6 +546,14 @@
 } %}
 {% set rc = risk_cfg.get(check.risk_level, risk_cfg['clean']) %}
 
+{# Show AI summary block only when there are flags from official/legal sources #}
+{% set _signal_cats = ['identity','business','courts','fssp','bankruptcy','pledges','sanctions','adverse_media'] %}
+{% set _has_signal = namespace(v=false) %}
+{% for _f in (red_flags or []) %}
+  {% if _f.get('category') in _signal_cats %}{% set _has_signal.v = true %}{% endif %}
+{% endfor %}
+
+{% if _has_signal.v %}
 <div class="doss-ai-box">
   {# Risk header row #}
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border-subtle);">
@@ -638,6 +646,7 @@
   {% endif %}
 
 </div>{# /doss-ai-box #}
+{% endif %}{# /_has_signal #}
 
     {# ================================================================
        TILE GRID
