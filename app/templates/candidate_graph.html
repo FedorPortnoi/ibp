@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Граф связей — {{ check.full_name }}</title>
+<script src="{{ url_for('static', filename='js/d3.v7.min.js') }}"></script>
+<link href="https://fonts.googleapis.com/css2?family=Mulish:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#060608;color:#E8E0D4;font-family:'Mulish',sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+.header{padding:10px 20px;border-bottom:1px solid rgba(232,224,212,0.06);display:flex;align-items:center;gap:14px;background:rgba(6,6,8,.97);flex-shrink:0}
+.back-btn{display:flex;align-items:center;gap:6px;font-size:.67rem;font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,.4);border:1px solid rgba(232,224,212,.1);padding:4px 10px;text-decoration:none;letter-spacing:.08em;transition:all 150ms;flex-shrink:0}
+.back-btn:hover{color:#E8E0D4;border-color:rgba(232,224,212,.3);background:rgba(255,255,255,.03)}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#C4955A;letter-spacing:.1em}
+.subject{font-size:.8rem;color:rgba(232,224,212,.45)}.subject strong{color:#E8E0D4}
+.tag{font-size:.62rem;padding:2px 8px;border:1px solid rgba(196,149,90,.35);color:rgba(196,149,90,.8);letter-spacing:.08em;font-family:'JetBrains Mono',monospace}
+.legend{margin-left:auto;display:flex;gap:14px;align-items:center}
+.leg{display:flex;align-items:center;gap:6px;font-size:.67rem;color:rgba(232,224,212,.35)}
+.pip{width:7px;height:7px}
+
+.filter-bar{padding:8px 20px;border-bottom:1px solid rgba(232,224,212,0.05);display:flex;gap:6px;background:rgba(6,6,8,.95);flex-shrink:0}
+.filter-chip{padding:3px 12px;font-size:.68rem;border:1px solid rgba(232,224,212,.1);background:transparent;color:rgba(232,224,212,.35);cursor:pointer;letter-spacing:.05em;transition:all 150ms;font-family:'Mulish',sans-serif}
+.filter-chip.active{background:rgba(196,149,90,.09);border-color:rgba(196,149,90,.45);color:#C4955A}
+.filter-chip:hover:not(.active){border-color:rgba(232,224,212,.2);color:rgba(232,224,212,.6)}
+
+.main{display:flex;flex:1;overflow:hidden}
+#graph{flex:1;position:relative;overflow:hidden}
+#graph::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 55% at 50% 50%,rgba(196,149,90,.04) 0%,transparent 70%);pointer-events:none;z-index:0}
+svg{width:100%;height:100%;position:relative;z-index:1}
+
+.sidebar{width:280px;background:rgba(6,6,8,.97);border-left:1px solid rgba(232,224,212,.05);display:flex;flex-direction:column;flex-shrink:0}
+.sb-hd{padding:12px 16px;border-bottom:1px solid rgba(232,224,212,.05);font-size:.58rem;letter-spacing:.14em;color:rgba(232,224,212,.25);text-transform:uppercase;font-family:'JetBrains Mono',monospace}
+.sb-body{padding:16px;flex:1;overflow-y:auto}
+.sb-empty{color:rgba(232,224,212,.2);font-size:.73rem;line-height:1.8;font-family:'JetBrains Mono',monospace}
+.nc{display:none}.nc.on{display:block}
+.nc-name{font-size:.93rem;font-weight:700;margin-bottom:2px;line-height:1.3}
+.nc-badge{display:inline-block;font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;padding:2px 7px;border:1px solid;margin-bottom:14px;margin-top:4px;font-family:'JetBrains Mono',monospace}
+.mrow{display:flex;flex-direction:column;margin-bottom:8px;gap:2px}
+.mlabel{font-size:.58rem;color:rgba(232,224,212,.3);text-transform:uppercase;letter-spacing:.06em}
+.mval{font-size:.72rem;font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,.85);word-break:break-word;white-space:pre-wrap;line-height:1.45}
+.meta-more-btn{margin-top:4px;background:none;border:none;color:rgba(232,224,212,.3);font-size:.6rem;font-family:'JetBrains Mono',monospace;cursor:pointer;padding:0;letter-spacing:.06em;text-align:left;transition:color 120ms}
+.meta-more-btn:hover{color:rgba(232,224,212,.7)}
+.meta-hidden{display:none}.meta-hidden.open{display:block}
+.eitem{padding:8px 10px;border-left:2px solid;margin-bottom:5px;background:rgba(255,255,255,.015)}
+.etype{font-size:.56rem;text-transform:uppercase;letter-spacing:.1em;opacity:.55;margin-bottom:2px;font-family:'JetBrains Mono',monospace}
+.edesc{font-size:.72rem;color:rgba(232,224,212,.7);line-height:1.4}
+.sec-title{font-size:.57rem;color:rgba(232,224,212,.25);text-transform:uppercase;letter-spacing:.12em;margin:12px 0 7px;padding-bottom:4px;border-bottom:1px solid rgba(232,224,212,.04);font-family:'JetBrains Mono',monospace}
+
+.tooltip{position:fixed;background:rgba(6,6,8,.98);border:1px solid rgba(232,224,212,.12);padding:7px 11px;font-size:.7rem;pointer-events:none;opacity:0;transition:opacity 80ms;z-index:999;line-height:1.5;font-family:'Mulish',sans-serif}
+.tooltip.on{opacity:1}
+.ctrl{position:absolute;bottom:16px;left:16px;display:flex;gap:4px;z-index:10}
+.cb{width:28px;height:28px;background:rgba(6,6,8,.9);border:1px solid rgba(232,224,212,.1);color:rgba(232,224,212,.45);display:flex;align-items:center;justify-content:center;font-size:.8rem;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all 120ms;user-select:none}
+.cb:hover{background:rgba(20,20,22,.95);color:#E8E0D4;border-color:rgba(232,224,212,.25)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a class="back-btn" href="{{ url_for('candidate.dossier_page', check_id=check.id) }}">← НАЗАД</a>
+  <div class="logo">СЛЕД · ГРАФ СВЯЗЕЙ</div>
+  <div class="subject"><strong>{{ check.full_name }}</strong>{% if check.inn %} &nbsp;·&nbsp; ИНН {{ check.inn }}{% endif %}</div>
+  <span class="tag" id="link-count-badge"></span>
+  <div class="legend">
+    <div class="leg"><div class="pip" style="background:#5C7FA3"></div>Бизнес</div>
+    <div class="leg"><div class="pip" style="background:#EF4444"></div>Суды</div>
+    <div class="leg"><div class="pip" style="background:#4ADE80"></div>Госзакупки</div>
+    <div class="leg"><div class="pip" style="background:#C4955A"></div>Адрес</div>
+    <div class="leg"><div class="pip" style="background:#A855F7"></div>Контакты</div>
+  </div>
+</div>
+
+<div class="filter-bar" id="filter-bar"></div>
+
+<div class="main">
+  <div id="graph">
+    <svg id="svg"></svg>
+    <div class="ctrl">
+      <div class="cb" id="zi">+</div>
+      <div class="cb" id="zo">−</div>
+      <div class="cb" id="zr">⌂</div>
+    </div>
+  </div>
+  <div class="sidebar">
+    <div class="sb-hd">// NODE_DETAIL</div>
+    <div class="sb-body">
+      <div class="sb-empty" id="sbe">_ нажмите на карточку<br>&nbsp;&nbsp;чтобы увидеть детали</div>
+      <div class="nc" id="nc">
+        <div class="nc-name" id="nc-name"></div>
+        <span class="nc-badge" id="nc-badge"></span>
+        <div class="sec-title">// СВЕДЕНИЯ</div>
+        <div id="nc-meta"></div>
+        <div class="sec-title">// СВЯЗИ</div>
+        <div id="nc-edges"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="tooltip" id="tip"></div>
+
+<script>
+(function(){
+  const RAW = {{ connection_graph_json | safe }};
+  const C={target:'#C4955A',business:'#5C7FA3',court:'#EF4444',zakupki:'#4ADE80',address:'#C4955A',contact:'#A855F7'};
+  const TL={business:'BUSINESS',court:'COURT',zakupki:'GOV_CONTRACT',address:'ADDRESS',contact:'CONTACT'};
+  const SHOW_LIMIT=3;
+  const CW=168,CH=70,TW=196,TH=82;
+
+  const targetNode={
+    id:'target',
+    full:RAW.target.full,
+    sub:RAW.target.inn||RAW.target.dob||'',
+    typeLabel:'СУБЪЕКТ',type:'target',group:'target',
+    meta:Object.assign({},RAW.target.inn?{ИНН:RAW.target.inn}:{},RAW.target.dob?{ДР:RAW.target.dob}:{})
+  };
+  const nodes=[targetNode,...RAW.nodes];
+  const links=RAW.links;
+
+  // Pre-assign bend multiplier — parallel links between same pair fan out
+  (()=>{
+    const pc={};
+    links.forEach(l=>{const k=l.source+'→'+l.target;pc[k]=(pc[k]||0)+1;});
+    const pi={};
+    links.forEach(l=>{
+      const k=l.source+'→'+l.target;
+      const idx=pi[k]||0;pi[k]=idx+1;
+      const n=pc[k];
+      l._bendMul=n>1?(idx%2===0?0.38:-0.28):0.18;
+    });
+  })();
+
+  // Header badge
+  document.getElementById('link-count-badge').textContent=links.length+' СВЯЗЕЙ';
+
+  // Filter chips
+  const filterBar=document.getElementById('filter-bar');
+  const types=[...new Set(links.map(l=>l.type))];
+  const typeLabels={business:'Бизнес',court:'Суды',zakupki:'Госзакупки',address:'Адрес',contact:'Контакты'};
+  const typeCounts={};
+  links.forEach(l=>{typeCounts[l.type]=(typeCounts[l.type]||0)+1;});
+
+  function makeChip(type,label){
+    const btn=document.createElement('button');
+    btn.className='filter-chip'+(type==='all'?' active':'');
+    btn.textContent=label;
+    btn.dataset.type=type;
+    btn.onclick=()=>{
+      document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+      btn.classList.add('active');
+      applyFilter(type);
+    };
+    return btn;
+  }
+  filterBar.appendChild(makeChip('all','Все ('+links.length+')'));
+  types.forEach(t=>{
+    if(typeCounts[t]) filterBar.appendChild(makeChip(t,(typeLabels[t]||t)+' ('+typeCounts[t]+')'));
+  });
+
+  // D3 setup
+  const svg=d3.select('#svg'),g=svg.append('g');
+  const W=()=>document.getElementById('graph').offsetWidth;
+  const H=()=>document.getElementById('graph').offsetHeight;
+
+  const zoom=d3.zoom().scaleExtent([.15,4]).on('zoom',e=>g.attr('transform',e.transform));
+  svg.call(zoom);
+
+  const defs=svg.append('defs');
+
+  // Glow filters
+  Object.keys(C).forEach(t=>{
+    const f=defs.append('filter').attr('id','glow-'+t).attr('x','-80%').attr('y','-80%').attr('width','260%').attr('height','260%');
+    f.append('feGaussianBlur').attr('stdDeviation',t==='target'?'12':'6').attr('result','b');
+    const m=f.append('feMerge');
+    m.append('feMergeNode').attr('in','b');
+    m.append('feMergeNode').attr('in','SourceGraphic');
+  });
+
+  // Radial gradient for target node
+  const rg=defs.append('radialGradient').attr('id','tgrad').attr('cx','50%').attr('cy','50%').attr('r','50%');
+  rg.append('stop').attr('offset','0%').attr('stop-color','rgba(196,149,90,.2)');
+  rg.append('stop').attr('offset','100%').attr('stop-color','rgba(196,149,90,.01)');
+
+  // Arrow markers
+  Object.entries(C).forEach(([t,col])=>{
+    if(t==='target')return;
+    defs.append('marker').attr('id','arr-'+t)
+      .attr('viewBox','0 -3 6 6').attr('refX',6).attr('refY',0)
+      .attr('markerWidth',4).attr('markerHeight',4).attr('orient','auto')
+      .append('path').attr('d','M0,-3L6,0L0,3').attr('fill',col).attr('opacity',.6);
+  });
+
+  // Force simulation
+  const sim=d3.forceSimulation(nodes)
+    .force('link',d3.forceLink(links).id(d=>d.id).distance(d=>{
+      return(d.source.id==='target'||d.target.id==='target')?230:170;
+    }).strength(.45))
+    .force('charge',d3.forceManyBody().strength(-1000))
+    .force('center',d3.forceCenter(0,0))
+    .force('collision',d3.forceCollide(105));
+
+  // Links
+  let linkSel=g.append('g').selectAll('path').data(links).enter().append('path')
+    .attr('fill','none')
+    .attr('stroke',d=>C[d.type])
+    .attr('stroke-width',d=>d._bendMul<0?1.8:1.2)
+    .attr('stroke-opacity',d=>d._bendMul<0?0.55:0.28)
+    .attr('marker-end',d=>'url(#arr-'+d.type+')');
+
+  // Particles
+  let particleSel=g.append('g').selectAll('circle').data(links).enter().append('circle')
+    .attr('r',2).attr('fill',d=>C[d.type]).attr('opacity',.7).attr('pointer-events','none');
+  links.forEach((l,i)=>{l._phase=(i/links.length)*2200;});
+
+  function getBezierPoint(d,t){
+    const sx=d.source.x,sy=d.source.y,tx=d.target.x,ty=d.target.y;
+    const mx=(sx+tx)/2,my=(sy+ty)/2;
+    const dx=tx-sx,dy=ty-sy,len=Math.sqrt(dx*dx+dy*dy)||1;
+    const bend=len*d._bendMul;
+    const cx=mx-dy/len*bend,cy=my+dx/len*bend;
+    return{x:(1-t)*(1-t)*sx+2*(1-t)*t*cx+t*t*tx,y:(1-t)*(1-t)*sy+2*(1-t)*t*cy+t*t*ty};
+  }
+
+  function animateParticles(){
+    const now=performance.now();
+    particleSel.each(function(d){
+      const p=getBezierPoint(d,((now+d._phase)%2200)/2200);
+      d3.select(this).attr('cx',p.x).attr('cy',p.y);
+    });
+    requestAnimationFrame(animateParticles);
+  }
+
+  // Card nodes
+  let nodeSel=g.append('g').selectAll('g').data(nodes).enter().append('g')
+    .attr('cursor','pointer')
+    .call(d3.drag()
+      .on('start',(e,d)=>{if(!e.active)sim.alphaTarget(.3).restart();d.fx=d.x;d.fy=d.y;})
+      .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;})
+      .on('end',(e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;})
+    )
+    .on('click',onNodeClick)
+    .on('mouseenter',onHover)
+    .on('mouseleave',onLeave);
+
+  // Target glow ellipse
+  nodeSel.filter(d=>d.id==='target').append('ellipse')
+    .attr('rx',TW*.75).attr('ry',TH*.9)
+    .attr('fill','url(#tgrad)').attr('filter','url(#glow-target)');
+
+  // Left accent bar
+  nodeSel.append('rect')
+    .attr('x',d=>d.id==='target'?-TW/2:-CW/2)
+    .attr('y',d=>d.id==='target'?-TH/2:-CH/2)
+    .attr('width',3)
+    .attr('height',d=>d.id==='target'?TH:CH)
+    .attr('fill',d=>C[d.group])
+    .attr('filter',d=>'url(#glow-'+d.group+')');
+
+  // Card body
+  nodeSel.append('rect').attr('class','cg-card-bg')
+    .attr('x',d=>d.id==='target'?-TW/2+3:-CW/2+3)
+    .attr('y',d=>d.id==='target'?-TH/2:-CH/2)
+    .attr('width',d=>d.id==='target'?TW-3:CW-3)
+    .attr('height',d=>d.id==='target'?TH:CH)
+    .attr('fill',d=>d.id==='target'?'rgba(196,149,90,.07)':'rgba(8,8,10,.96)')
+    .attr('stroke',d=>C[d.group]).attr('stroke-width',.5).attr('stroke-opacity',.35);
+
+  // Name wrapping helpers
+  function _nl1(full){if(full.length<=21)return full;const i=full.lastIndexOf(' ',21);return i>4?full.slice(0,i):full.slice(0,21);}
+  function _nl2(full){if(full.length<=21)return'';const i=full.lastIndexOf(' ',21);const r=i>4?full.slice(i+1):full.slice(21);return r.length>22?r.slice(0,21)+'…':r;}
+
+  // Type label
+  nodeSel.append('text')
+    .attr('x',d=>d.id==='target'?-TW/2+11:-CW/2+11)
+    .attr('y',d=>d.id==='target'?-TH/2+15:-CH/2+14)
+    .attr('font-size','6.5px').attr('font-family','JetBrains Mono,monospace')
+    .attr('fill',d=>C[d.group]).attr('opacity',.55).attr('letter-spacing','.1em')
+    .attr('pointer-events','none').text(d=>d.typeLabel||'');
+
+  // Name line 1
+  nodeSel.append('text')
+    .attr('x',d=>d.id==='target'?-TW/2+11:-CW/2+11)
+    .attr('y',d=>d.id==='target'?-TH/2+32:-CH/2+30)
+    .attr('font-size',d=>d.id==='target'?'11px':'10px')
+    .attr('font-family','Mulish,sans-serif').attr('font-weight','700')
+    .attr('fill',d=>d.id==='target'?'#C4955A':'#E8E0D4')
+    .attr('pointer-events','none').text(d=>_nl1(d.full));
+
+  // Name line 2
+  nodeSel.append('text')
+    .attr('x',d=>d.id==='target'?-TW/2+11:-CW/2+11)
+    .attr('y',d=>d.id==='target'?-TH/2+46:-CH/2+44)
+    .attr('font-size',d=>d.id==='target'?'10px':'9px')
+    .attr('font-family','Mulish,sans-serif').attr('font-weight','700')
+    .attr('fill',d=>d.id==='target'?'#C4955A':'#E8E0D4')
+    .attr('pointer-events','none').text(d=>_nl2(d.full));
+
+  // Sub label (INN / OGRN)
+  nodeSel.append('text')
+    .attr('x',d=>d.id==='target'?-TW/2+11:-CW/2+11)
+    .attr('y',d=>d.id==='target'?-TH/2+62:-CH/2+56)
+    .attr('font-size','7px').attr('font-family','JetBrains Mono,monospace')
+    .attr('fill','rgba(232,224,212,.3)').attr('pointer-events','none')
+    .text(d=>d.sub);
+
+  // Bezier path
+  function bezierPath(d){
+    const sx=d.source.x,sy=d.source.y,tx=d.target.x,ty=d.target.y;
+    const mx=(sx+tx)/2,my=(sy+ty)/2;
+    const dx=tx-sx,dy=ty-sy,len=Math.sqrt(dx*dx+dy*dy)||1;
+    const bend=len*d._bendMul;
+    const cx=mx-dy/len*bend,cy=my+dx/len*bend;
+    return'M'+sx+','+sy+' Q'+cx+','+cy+' '+tx+','+ty;
+  }
+
+  sim.on('tick',()=>{
+    linkSel.attr('d',bezierPath);
+    nodeSel.attr('transform',d=>'translate('+d.x+','+d.y+')');
+  });
+
+  setTimeout(()=>{
+    svg.call(zoom.transform,d3.zoomIdentity.translate(W()/2,H()/2).scale(.78));
+    animateParticles();
+  },120);
+
+  // Sidebar
+  function renderMeta(container,meta){
+    const entries=Object.entries(meta);
+    container.innerHTML='';
+    entries.forEach(([k,v],i)=>{
+      const hidden=i>=SHOW_LIMIT;
+      container.innerHTML+=`<div class="mrow${hidden?' meta-hidden':''}"><span class="mlabel">${k}</span><span class="mval">${v}</span></div>`;
+    });
+    if(entries.length>SHOW_LIMIT){
+      const remaining=entries.length-SHOW_LIMIT;
+      const btn=document.createElement('button');
+      btn.className='meta-more-btn';
+      btn.textContent='▼ ещё '+remaining;
+      btn.onclick=()=>{
+        const hidden=container.querySelectorAll('.meta-hidden');
+        const isOpen=btn.dataset.open==='1';
+        hidden.forEach(el=>el.classList.toggle('open',!isOpen));
+        btn.textContent=isOpen?'▼ ещё '+remaining:'▲ свернуть';
+        btn.dataset.open=isOpen?'0':'1';
+      };
+      container.appendChild(btn);
+    }
+  }
+
+  function onNodeClick(e,d){
+    e.stopPropagation();
+    document.getElementById('sbe').style.display='none';
+    document.getElementById('nc').classList.add('on');
+    document.getElementById('nc-name').textContent=d.full;
+    const b=document.getElementById('nc-badge');
+    b.textContent=d.group==='target'?'TARGET':d.type==='company'?'LEGAL_ENTITY':'INDIVIDUAL';
+    b.style.color=C[d.group];b.style.borderColor=C[d.group];
+    renderMeta(document.getElementById('nc-meta'),d.meta||{});
+    const ee=document.getElementById('nc-edges');ee.innerHTML='';
+    links.filter(l=>(l.source.id||l.source)===d.id||(l.target.id||l.target)===d.id).forEach(l=>{
+      ee.innerHTML+=`<div class="eitem" style="border-color:${C[l.type]}"><div class="etype" style="color:${C[l.type]}">${TL[l.type]||l.type}</div><div class="edesc">${l.label}</div></div>`;
+    });
+    highlight(d.id);
+  }
+
+  function highlight(id){
+    linkSel.attr('stroke-opacity',l=>(l.source.id===id||l.target.id===id)?.85:.04)
+           .attr('stroke-width',l=>(l.source.id===id||l.target.id===id)?2:1.2);
+    particleSel.attr('opacity',l=>(l.source.id===id||l.target.id===id)?1:.04);
+    nodeSel.select('.cg-card-bg')
+      .attr('stroke-opacity',n=>n.id===id?1:.15)
+      .attr('fill',n=>n.id===id?(n.id==='target'?'rgba(196,149,90,.14)':'rgba(14,14,18,.99)')
+                               :(n.id==='target'?'rgba(196,149,90,.07)':'rgba(8,8,10,.96)'));
+  }
+
+  function resetHighlight(){
+    linkSel.attr('stroke-opacity',d=>d._bendMul<0?0.55:0.28).attr('stroke-width',d=>d._bendMul<0?1.8:1.2);
+    particleSel.attr('opacity',.7);
+    nodeSel.select('.cg-card-bg').attr('stroke-opacity',.35)
+      .attr('fill',d=>d.id==='target'?'rgba(196,149,90,.07)':'rgba(8,8,10,.96)');
+  }
+
+  svg.on('click',()=>{
+    document.getElementById('sbe').style.display='';
+    document.getElementById('nc').classList.remove('on');
+    resetHighlight();
+  });
+
+  // Tooltip
+  const tip=document.getElementById('tip');
+  function onHover(e,d){
+    tip.innerHTML=`<strong style="color:${C[d.group]}">${d.full}</strong><br><span style="color:rgba(232,224,212,.35)">${d.sub}</span>`;
+    tip.classList.add('on');posTooltip(e);
+  }
+  function onLeave(){tip.classList.remove('on');}
+  svg.on('mousemove',posTooltip);
+  function posTooltip(e){if(!e)return;tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY-8)+'px';}
+
+  // Filters — fixed: node visible if any of its links match the active filter
+  function applyFilter(type){
+    if(type==='all'){
+      linkSel.attr('display',null);
+      particleSel.attr('display',null);
+      nodeSel.attr('display',null);
+    } else {
+      linkSel.attr('display',l=>l.type===type?null:'none');
+      particleSel.attr('display',l=>l.type===type?null:'none');
+      const vis=new Set(['target']);
+      links.forEach(l=>{if(l.type===type){vis.add(l.source.id||l.source);vis.add(l.target.id||l.target);}});
+      nodeSel.attr('display',d=>vis.has(d.id)?null:'none');
+    }
+    resetHighlight();
+  }
+
+  // Controls
+  document.getElementById('zi').onclick=()=>svg.transition().duration(200).call(zoom.scaleBy,1.4);
+  document.getElementById('zo').onclick=()=>svg.transition().duration(200).call(zoom.scaleBy,.7);
+  document.getElementById('zr').onclick=()=>svg.transition().duration(250).call(zoom.transform,d3.zoomIdentity.translate(W()/2,H()/2).scale(.78));
+})();
+</script>
+</body>
+</html>

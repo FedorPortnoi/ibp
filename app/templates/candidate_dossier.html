@@ -1920,6 +1920,7 @@
     <span style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:#C4955A;letter-spacing:.1em">СЛЕД · ГРАФ СВЯЗЕЙ</span>
     <span style="font-size:.75rem;color:rgba(232,224,212,.45)"><strong style="color:#E8E0D4">{{ check.full_name }}</strong></span>
     <span id="cg-link-count" style="font-size:.62rem;padding:2px 8px;border:1px solid rgba(196,149,90,.35);color:rgba(196,149,90,.8);font-family:'JetBrains Mono',monospace"></span>
+    <a href="{{ url_for('candidate.graph_page', check_id=check.id) }}" target="_blank" style="font-size:.62rem;font-family:'JetBrains Mono',monospace;color:rgba(232,224,212,.35);border:1px solid rgba(232,224,212,.1);padding:3px 9px;text-decoration:none;letter-spacing:.07em;transition:all 150ms" onmouseover="this.style.color='#E8E0D4';this.style.borderColor='rgba(232,224,212,.3)'" onmouseout="this.style.color='rgba(232,224,212,.35)';this.style.borderColor='rgba(232,224,212,.1)'">⤢ НА ВЕСЬ ЭКРАН</a>
     <div style="margin-left:auto;display:flex;gap:12px;align-items:center">
       {% for grp,col in [('business','#5C7FA3'),('court','#EF4444'),('zakupki','#4ADE80'),('address','#C4955A'),('contact','#A855F7')] %}
       <div style="display:flex;align-items:center;gap:5px;font-size:.67rem;color:rgba(232,224,212,.35)">

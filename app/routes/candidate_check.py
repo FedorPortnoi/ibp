@@ -991,6 +991,72 @@ def dossier_page(check_id):
     )
 
 
+@candidate_bp.route('/graph/<check_id>')
+def graph_page(check_id):
+    """Full-screen connection graph for a completed candidate check."""
+    from app.routes.auth import get_current_user, login_required
+    user = get_current_user()
+    if not user:
+        return redirect(url_for('auth.login'))
+
+    check = db.session.get(CandidateCheck, check_id)
+    if not check:
+        return render_template('errors/404.html'), 404
+
+    _check_owner_or_admin(check)
+
+    import json as _json
+    from app.services.candidate.connection_graph import build_from_check
+    _RELATION_TYPE_MAP = {
+        'owns': 'business', 'directs': 'business', 'co_owner': 'business',
+        'co_director': 'business', 'affiliated': 'business', 'shared_business': 'business',
+        'co_litigant': 'court', 'flagged_friend': 'court',
+        'co_registered': 'address',
+        'shared_contact': 'contact',
+    }
+    _connections = build_from_check(check)
+    _graph_nodes = []
+    _graph_links = []
+    for conn in _connections:
+        node_id = f'inn_{conn.inn}' if conn.inn else f'name_{conn.name}'
+        _graph_nodes.append({
+            'id': node_id,
+            'full': conn.name,
+            'sub': conn.inn or conn.ogrn or '',
+            'typeLabel': 'ЮР. ЛИЦО' if conn.kind == 'company' else 'ФИЗ. ЛИЦО',
+            'type': conn.kind,
+            'group': next(
+                (_RELATION_TYPE_MAP[r['relation']] for r in conn.relations if r['relation'] in _RELATION_TYPE_MAP),
+                'business'
+            ),
+            'meta': {
+                **(({'ИНН': conn.inn} if conn.inn else {})),
+                **(({'ОГРН': conn.ogrn} if conn.ogrn else {})),
+                **({'Тип': 'Юр. лицо'} if conn.kind == 'company' else {'Тип': 'Физ. лицо'}),
+            },
+            'confidence': conn.confidence,
+        })
+        for rel in conn.relations:
+            link_type = _RELATION_TYPE_MAP.get(rel['relation'], 'business')
+            _graph_links.append({
+                'source': 'target',
+                'target': node_id,
+                'type': link_type,
+                'label': rel['label'] + (f' ({rel["via"]})' if rel.get('via') else ''),
+            })
+    connection_graph_json = _json.dumps({
+        'target': {
+            'full': check.full_name,
+            'inn': check.inn or '',
+            'dob': check.date_of_birth.isoformat() if check.date_of_birth else '',
+        },
+        'nodes': _graph_nodes,
+        'links': _graph_links,
+    })
+
+    return render_template('candidate_graph.html', check=check, connection_graph_json=connection_graph_json)
+
+
 @candidate_bp.route('/history')
 def history():
     from app.routes.auth import get_current_user
