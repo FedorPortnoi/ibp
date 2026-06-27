@@ -637,7 +637,7 @@ def run_company_pipeline(check_id: str, app) -> None:
                 cnt = len(rnp.get('entries', []))
                 _log(check, f'РНП: {cnt} запис{"ь" if cnt == 1 else "и" if cnt < 5 else "ей"} ({active_str})')
             elif rnp.get('unavailable'):
-                _log(check, 'РНП: zakupki.gov.ru недоступен (geo-block)')
+                _log(check, 'РНП: zakupki.gov.ru недоступен (WAF блокирует VDS — HTTP 434)')
             else:
                 _log(check, 'РНП: не найдено')
 

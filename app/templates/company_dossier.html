@@ -730,8 +730,8 @@
         </div>
 
         {% elif rnp and rnp.get('unavailable') %}
-        <div class="empty-state" style="color:rgba(245,158,11,0.6);">zakupki.gov.ru недоступен с текущего IP</div>
-        <div class="text-xs text-center mt-1" style="color:rgba(232,224,212,0.2);">Требует российский IP — работает на Yandex Cloud VM</div>
+        <div class="empty-state" style="color:rgba(245,158,11,0.6);">zakupki.gov.ru недоступен с сервера</div>
+        <div class="text-xs text-center mt-1" style="color:rgba(232,224,212,0.2);">WAF блокирует запросы с VDS/VPS (HTTP 434)</div>
         <div class="mt-3 text-center">
             <a href="https://zakupki.gov.ru/epz/dishonestsupplier/search/results.html?searchString={{ check.inn }}&morphology=on&fz44=on&fz223=on&ppRf615=on"
                target="_blank" rel="noopener" class="nav-pill text-xs">↗ Проверить вручную на zakupki.gov.ru</a>
