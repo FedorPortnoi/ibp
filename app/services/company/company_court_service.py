@@ -295,7 +295,14 @@ class CompanyCourtSearch:
         if not is_available():
             return []
 
-        cases, status = arbitr_search(inn, max_pages=3)
+        # kad.arbitr.ru indexes legal entities by 10-digit INN; ИП (12-digit ИННФЛ)
+        # are indexed by name only — INN search returns 0 for them.
+        if len(inn) == 12 and company_name:
+            # Strip "ИП " prefix so kad.arbitr finds the person's name directly
+            bare = company_name[3:].strip() if company_name.upper().startswith('ИП ') else company_name
+            cases, status = arbitr_search(bare, max_pages=3)
+        else:
+            cases, status = arbitr_search(inn, max_pages=3)
         if status not in ('ok',) or not cases:
             return []
 
@@ -544,6 +551,11 @@ class CompanyCourtSearch:
         if inn and len(inn) in (10, 12):
             queries.append(inn)
         queries.append(company_name)
+        # For ИП, also search by bare personal name — court records don't use "ИП" prefix
+        if company_name.upper().startswith('ИП '):
+            bare_name = company_name[3:].strip()
+            if bare_name and bare_name not in queries:
+                queries.append(bare_name)
 
         records: List[CompanyCourtCase] = []
         seen_numbers: set = set()
