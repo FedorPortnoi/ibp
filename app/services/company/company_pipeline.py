@@ -522,7 +522,7 @@ def run_company_pipeline(check_id: str, app) -> None:
                 inspections = {'found': False, 'inspections': []}
 
                 try:
-                    courts = court_future.result(timeout=30)
+                    courts = court_future.result(timeout=40)
                 except Exception as exc:
                     logger.warning("[%s] Courts future failed: %s", check.inn, exc)
 

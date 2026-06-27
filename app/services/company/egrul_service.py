@@ -233,7 +233,7 @@ class EGRULService:
 
         attrs = root.get('@attributes', {}) if isinstance(root, dict) else {}
 
-        inn  = attrs.get('ИНН', '')
+        inn  = attrs.get('ИНН', '') or attrs.get('ИННФЛ', '')
         ogrn = attrs.get('ОГРН', attrs.get('ОГРНИП', ''))
         kpp  = attrs.get('КПП', '')
 
@@ -241,8 +241,9 @@ class EGRULService:
             return None
 
         # ── Name ──
+        ip_fio = ''
         if is_ip:
-            ip_fio = attrs.get('ФИОПолн', '')
+            ip_fio = attrs.get('ФИОПолн', '') or _fio(root.get('СвФЛ', {}))
             full_name  = f"ИП {ip_fio}" if ip_fio else f"ИП (ИНН {inn})"
             short_name = full_name
         else:
@@ -290,6 +291,8 @@ class EGRULService:
 
         # ── Directors ──
         directors = _parse_directors(root.get('СведДолжнФЛ'), is_current=(status == 'Действующее'))
+        if is_ip and ip_fio and not directors:
+            directors = [Director(name=ip_fio, inn=inn, role='ИП', is_current=(status == 'Действующее'))]
 
         # ── Founders ──
         founders = _parse_founders(root.get('СвУчредит'))
