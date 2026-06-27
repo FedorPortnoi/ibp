@@ -79,6 +79,7 @@ class CompanyCourtSearch:
         # судебныерешения.рф times out from non-Russian IPs; cap at 15s so it
         # fails fast and doesn't block the reputation.su results.
         self._sr_timeout = min(timeout, 15)
+        self._rep_timeout = 35
         self.session = requests.Session()
         self.session.headers.update(_HEADERS)
 
@@ -550,7 +551,7 @@ class CompanyCourtSearch:
         for query in queries:
             try:
                 url = f'https://reputation.su/search?query={quote(query)}'
-                resp = self.session.get(url, timeout=self.timeout)
+                resp = self.session.get(url, timeout=self._rep_timeout)
                 if resp.status_code != 200:
                     logger.warning("reputation.su HTTP %d for '%s'", resp.status_code, query)
                     continue
