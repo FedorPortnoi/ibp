@@ -243,7 +243,8 @@ class EGRULService:
         # ── Name ──
         ip_fio = ''
         if is_ip:
-            ip_fio = attrs.get('ФИОПолн', '') or _fio(root.get('СвФЛ', {}))
+            fl = root.get('СвФЛ', {})
+            ip_fio = attrs.get('ФИОПолн', '') or _fio(fl.get('ФИОРус', fl))
             full_name  = f"ИП {ip_fio}" if ip_fio else f"ИП (ИНН {inn})"
             short_name = full_name
         else:
