@@ -185,11 +185,18 @@ def fssp_search_fiz(
     if err:
         return [], err
 
+    # API-level error (e.g. error_code=40001 "Missing dob in input params").
+    # The HTTP layer returns 400 with a JSON body, which _request() passes
+    # through as (data, None). An explicit error field means the search never
+    # ran — treat as 'skipped' so the pipeline falls through to checko/direct.
+    if data.get('error') or data.get('error_code'):
+        logger.warning('parser-api fssp: API error %r (code=%s)', data.get('error'), data.get('error_code'))
+        return [], 'skipped'
+
     if data.get('done') == 1:
         result = data.get('result') or []
         return result, ('ok' if result else 'empty')
-    # done != 1: a per-query error (commonly "not found"). Treat a present
-    # result as ok, otherwise empty — the search ran, it just found nothing.
+    # done != 1 with no error: "not found" — the search ran, found nothing.
     result = data.get('result') or []
     if result:
         return result, 'ok'

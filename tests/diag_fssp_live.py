@@ -207,7 +207,10 @@ else:
             info(f'done={done}  result_count={len(result_raw)}  error={error_msg!r}')
             info(f'Full response:\n{json.dumps(data, ensure_ascii=False, indent=4)[:800]}')
 
-            if not result_raw and done != 1:
+            if data.get('error_code') or data.get('error'):
+                ok(f'API explicitly rejects missing DOB: error={data.get("error")!r} (code={data.get("error_code")})')
+                ok('parser_api.fssp_search_fiz now returns status="skipped" for this case → pipeline falls through to checko.ru')
+            elif not result_raw and done != 1:
                 warn('Search WITHOUT DOB returned no results (done≠1, result=[])')
                 warn('The pipeline maps this to status="empty" → dossier shows green "Нет".')
                 warn('This is a FALSE CLEAN if DOB is required but missing.')
