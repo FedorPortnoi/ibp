@@ -220,6 +220,10 @@ def fssp_search_ur(inn: str) -> Tuple[List[dict], str]:
     if err:
         return [], err
 
+    if data.get('error') or data.get('error_code'):
+        logger.warning('parser-api fssp ur: API error %r (code=%s) inn=%s', data.get('error'), data.get('error_code'), inn)
+        return [], 'skipped'
+
     if data.get('done') == 1:
         result = data.get('result') or []
         return result, ('ok' if result else 'empty')
