@@ -124,6 +124,6 @@ class _Check:
 def test_build_from_check_combines_sources_and_extra_edges():
     extra = [{'kind': 'person', 'name': 'Co Owner', 'inn': '770000000050',
               'relation': 'co_owner', 'via': 'ООО Ромашка', 'source': 'ЕГРЮЛ', 'confidence': 'strong'}]
-    conns = cg.build_from_check(_Check(), extra_edges=extra)
+    conns = cg.build_from_check(_Check(), extra_edges=extra, include_cross_checks=True)
     names = {c.name for c in conns}
     assert 'ООО Ромашка' in names and 'Сидоров' in names and 'Co Owner' in names

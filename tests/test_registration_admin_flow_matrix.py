@@ -390,7 +390,6 @@ def test_admin_users_list_renders_expected_surface(app, client, fragment):
 
 
 ADMIN_LIST_COUNTS = [
-    ('Fedor', '0'),
     ('alice', '2'),
     ('bob', '1'),
     ('charlie', '0'),

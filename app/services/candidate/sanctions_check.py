@@ -369,7 +369,7 @@ class SanctionsService:
                     source_name='МВД — розыск',
                     checked=False,
                     found=False,
-                    error='coming_soon',
+                    error='не загружена',
                     url='https://xn--b1aew.xn--p1ai/wanted',
                 )
 
@@ -414,7 +414,7 @@ class SanctionsService:
                     source_name='Перечень экстремистов',
                     checked=False,
                     found=False,
-                    error='coming_soon',
+                    error='не загружена',
                     url='https://minjust.gov.ru/ru/extremist-materials/',
                 )
 
