@@ -31,6 +31,16 @@ limiter = Limiter(
 
 logger = logging.getLogger('ibp')
 
+_ALLOWED_ENDPOINTS = {
+    'auth.login', 'auth.logout', 'auth.register',
+    'auth.set_lang', 'static', 'main.health_check',
+    'main.readiness_check', 'main.privacy',
+}
+_SUBSCRIBE_ENDPOINTS = {
+    'subscribe.subscribe_page', 'subscribe.pay',
+    'subscribe.success', 'subscribe.status',
+}
+
 
 def create_app(config_name=None):
     """Application factory for IBP."""
@@ -158,18 +168,8 @@ def create_app(config_name=None):
     # Global auth check — protect ALL routes except login, register, and static files
     @app.before_request
     def check_auth():
-        allowed_endpoints = {
-            'auth.login', 'auth.logout', 'auth.register',
-            'auth.set_lang', 'static', 'main.health_check',
-            'main.readiness_check', 'main.privacy',
-        }
-        # Subscribe endpoints are public for logged-in users (no subscription needed)
-        subscribe_endpoints = {
-            'subscribe.subscribe_page', 'subscribe.pay',
-            'subscribe.success', 'subscribe.status',
-        }
         if request.endpoint and (
-            request.endpoint in allowed_endpoints or
+            request.endpoint in _ALLOWED_ENDPOINTS or
             request.endpoint.startswith('static')
         ):
             return
@@ -216,7 +216,7 @@ def create_app(config_name=None):
         # Subscription / free-tier check
         # Free tier: users get 2 checks per week without paying.
         # Paid subscription: unlimited. Admin: always unlimited.
-        if request.endpoint and request.endpoint not in subscribe_endpoints:
+        if request.endpoint and request.endpoint not in _SUBSCRIBE_ENDPOINTS:
             from app.models.subscription import Subscription
             if user and not user.is_admin:
                 sub = Subscription.query.filter_by(user_id=user.id).first()

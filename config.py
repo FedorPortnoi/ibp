@@ -121,12 +121,6 @@ def load_env_config(app):
     app.config['DEMO_MODE'] = not app.config.get('VK_SERVICE_TOKEN')
     app.config['ENABLE_PEOPLE_SEARCH'] = os.environ.get('ENABLE_PEOPLE_SEARCH', 'false').lower() == 'true'
 
-    # Database URI (with fallback)
-    if not app.config.get('SQLALCHEMY_DATABASE_URI'):
-        db_url = app.config.get('DATABASE_URL')
-        if db_url:
-            app.config['SQLALCHEMY_DATABASE_URI'] = db_url
-
     # Integer conversions
     for key in ('IBP_SESSION_TIMEOUT', 'IBP_SESSION_REMEMBER'):
         val = app.config.get(key)

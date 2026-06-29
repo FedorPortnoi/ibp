@@ -14,8 +14,7 @@ from .email_generator import generate_email_candidates, generate_from_username
 from .profile_scraper import scrape_profile, ExtractedContacts
 from .gravatar_lookup import check_gravatar, GravatarProfile
 from .search4faces_service import search_by_photo, search_all_databases, FaceMatch, Search4FacesResults
-from .yaseeker_service import check_yandex_username, check_yandex_email, YandexAccount, YaSeekerService, get_verified_yandex_accounts
-from .combined_search import Phase2CombinedSearch, Phase2Results
+from .yaseeker_service import YandexAccount, YaSeekerService, get_verified_yandex_accounts
 from .url_validator import (
     is_valid_profile_url,
     is_reserved_username,
@@ -112,8 +111,6 @@ __all__ = [
     'FaceMatch',
     'Search4FacesResults',
     # YaSeeker
-    'check_yandex_username',
-    'check_yandex_email',
     'YandexAccount',
     'YaSeekerService',
     'get_verified_yandex_accounts',
@@ -127,9 +124,6 @@ __all__ = [
     'RESERVED_USERNAMES',
     'URL_BLACKLIST_PATTERNS',
     'PROFILE_URL_PATTERNS',
-    # Combined Search
-    'Phase2CombinedSearch',
-    'Phase2Results',
     # NEW: Russian Phone Validator
     'RussianPhoneValidator',
     'PhoneInfo',

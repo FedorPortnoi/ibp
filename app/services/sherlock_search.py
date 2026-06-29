@@ -25,6 +25,8 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from app.utils import sanitize_username
+
 logger = logging.getLogger(__name__)
 
 
@@ -119,14 +121,10 @@ class SherlockSearchService:
         if not username or len(username) < 2:
             return []
 
-        username = username.strip()
-        results = []
-
-        username = username.replace('/', '').replace('\\', '').replace('\0', '')
-        username = username.replace('..', '').replace('~', '')
-        if not username or len(username) < 2:
-            logger.warning(f"Username rejected after sanitization")
+        username = sanitize_username(username)
+        if not username:
             return []
+        results = []
 
         try:
             import tempfile

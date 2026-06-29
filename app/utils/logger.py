@@ -39,13 +39,6 @@ def setup_logging(log_level='INFO'):
         root.addHandler(file_handler)
         root.addHandler(console_handler)
 
-    # Also configure app.* loggers to propagate to ibp
-    app_logger = logging.getLogger('app')
-    app_logger.setLevel(logging.DEBUG)
-    if not app_logger.handlers:
-        app_logger.addHandler(file_handler)
-        app_logger.addHandler(console_handler)
-
     return root
 
 

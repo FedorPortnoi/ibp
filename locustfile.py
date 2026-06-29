@@ -13,6 +13,7 @@ Suggested start: 10 users, ramp 2/s. Then try 25, 50, 100.
 """
 
 import json
+import os
 import random
 import string
 import time
@@ -21,8 +22,8 @@ from locust.exception import RescheduleTask
 
 
 # ─── Credentials ────────────────────────────────────────────────────────────
-ADMIN_USER = "Fedor"
-ADMIN_PASS = "vdohnoviteligorborisovichportnoisozdatelfedorigorevichportnoiproductluchshebyratino9"
+ADMIN_USER = os.environ.get("LOCUST_ADMIN_USER", "Fedor")
+ADMIN_PASS = os.environ.get("LOCUST_ADMIN_PASS", "")
 
 # Invalid INN values — server rejects these at validation, pipeline never starts.
 # NOTE: "000...0" passes the Russian INN checksum algorithm (all zeros → all
